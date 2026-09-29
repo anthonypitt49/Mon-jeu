@@ -28,7 +28,7 @@ Tout le jeu tient dans un seul fichier : **`index.html`**.
 | G | Grenade |
 | V ou clic molette | Couteau |
 | F | Lampe torche |
-| Q | Signaler (co-op) : un infecté, un objet ou un endroit |
+| Q | Signaler un infecté, un objet ou un endroit (co-op) ; désigner la cible du mortier |
 | Échap / P | Pause |
 
 Sur téléphone ou tablette, des commandes tactiles s'affichent : joystick à gauche, visée par glissement à droite, et des boutons pour tirer, viser, sauter, recharger, interagir, lancer une grenade, utiliser le couteau, allumer la lampe et, en co-op, signaler (PING).
@@ -39,17 +39,21 @@ Sur téléphone ou tablette, des commandes tactiles s'affichent : joystick à ga
 2. Les autres joueurs saisissent ce code.
 3. L'hôte clique sur **Lancer la partie**.
 
-La connexion est directe entre navigateurs (WebRTC via PeerJS). Certains réseaux d'entreprise ou d'école bloquent ce type de connexion. Sur claude.ai, la page utilise à la place le salon intégré de Claude (joueurs invités avec le rôle Contributeur).
+**Ça marche sur n'importe quel réseau** (maison, école, partage de connexion 4G), comme le jeu de F1 : la partie passe par des relais publics gratuits (MQTT sur WebSocket), et quand deux ordinateurs arrivent à se parler directement, les positions et les infectés prennent ce chemin plus court. Dans le salon, chaque camarade affiche **DIRECT** ou **RELAIS**. Si les relais sont bloqués (réseau très filtré), le jeu se rabat tout seul sur l'ancienne connexion directe. Le premier caractère du code indique le chemin utilisé : rien à régler.
 
-- **Relève de l'hôte** : si l'hôte quitte ou perd sa connexion, un camarade reprend automatiquement la partie (manche, infectés, points, portes et atouts conservés). Départ annoncé : quelques secondes ; coupure brutale : une dizaine de secondes. Le nouvel hôte reprend aussi le code, pour que d'autres puissent encore rejoindre.
+Sur claude.ai, la page utilise à la place le salon intégré de Claude (joueurs invités avec le rôle Contributeur). Pour jouer entre amis sans compte Claude, utilisez le lien GitHub Pages.
+
+- **Relève de l'hôte** : si l'hôte quitte ou perd sa connexion, un camarade reprend automatiquement la partie (manche, infectés, points, portes et atouts conservés) en quelques secondes. Le code reste valable : d'autres peuvent encore rejoindre.
 - **Signaler** (Q ou PING) : un losange coloré à votre couleur apparaît chez tout le monde, avec la distance. Il suit l'infecté visé, ou indique l'objet utile le plus proche (caisse, atout, arme, radio…).
-- **Spectateur** : éliminé en co-op, vous suivez un camarade en vue à l'épaule (clic ou Espace pour changer) jusqu'à la manche suivante.
+- **Spectateur** : éliminé en co-op, vous suivez un camarade en vue à l'épaule (clic ou Espace pour changer) jusqu'à la manche suivante, où vous revenez **avec vos armes** (chargeur plein).
 - **Onglet de l'hôte en arrière-plan** : la partie continue pour les autres.
 
 ## Contenu
 
-- **4 zones** : la tranchée de première ligne, le poste de commandement (bunker), le dépôt du générateur et la tranchée de soutien. Elles s'ouvrent avec des portes payantes.
-- **12 barricades** à réparer. Les infectés arrachent les planches puis descendent dans la tranchée.
+- **5 zones** : la tranchée de première ligne, le poste de commandement (bunker), le dépôt du générateur, la tranchée de soutien et **le Cratère**. Elles s'ouvrent avec des portes payantes.
+- **Le Cratère** : grand entonnoir d'obus à ciel ouvert au centre du secteur, avec l'épave en feu d'un biplan autour de laquelle on peut entraîner la horde. On y trouve un 4ᵉ emplacement de la caisse et un **téléphone de campagne** : pour 2500 points, vos signalements (Q) deviennent des tirs de mortier pendant 20 s (pas sous un abri, et gare aux éclats).
+- **16 barricades** à réparer. Les infectés arrachent les planches puis descendent dans la tranchée.
+- **Infectés spéciaux** : le **Givreux** (cristaux de glace sur le dos, dès la manche 7) éclate en glace à sa mort, blesse et ralentit ceux qui sont trop près ; le **Hurleur** (yeux violets, dès la manche 11) s'arrête pour hurler et affole les infectés autour de lui. Les infectés contournent aussi les obstacles au lieu de s'y coincer.
 - **Générateur** : rétablir le courant allume les lampes et met en service les atouts et l'établi.
 - **5 atouts** : Sang-Froid, Main Leste, Double Détente, Pas de Loup et Second Souffle.
 - **11 armes** : pistolet, fusil à verrou, fusil à pompe, mitraillette, carabine, fusil d'assaut, fusil-mitrailleur, revolver, fusil de précision, lance-grenades et le prototype cryogénique Givre-7.
