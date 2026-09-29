@@ -41,7 +41,9 @@ Sur téléphone ou tablette, des commandes tactiles s'affichent : joystick à ga
 
 **Ça marche sur n'importe quel réseau** (maison, école, partage de connexion 4G), comme le jeu de F1 : la partie passe par des relais publics gratuits (MQTT sur WebSocket), et quand deux ordinateurs arrivent à se parler directement, les positions et les infectés prennent ce chemin plus court. Dans le salon, chaque camarade affiche **DIRECT** ou **RELAIS**. Si les relais sont bloqués (réseau très filtré), le jeu se rabat tout seul sur l'ancienne connexion directe. Le premier caractère du code indique le chemin utilisé : rien à régler.
 
-Sur claude.ai, la page utilise à la place le salon intégré de Claude (joueurs invités avec le rôle Contributeur). Pour jouer entre amis sans compte Claude, utilisez le lien GitHub Pages.
+Pour rejoindre, le jeu cherche la partie par tous les chemins à la fois (les trois relais et la connexion directe) : peu importe comment l'hôte l'a ouverte. **L'hôte et ses amis doivent avoir la même version** (affichée en haut du menu, par exemple « V3.2 ») : depuis la 3.2, le jeu se met à jour tout seul en arrivant sur le menu. Si un ami a encore une ancienne version, il recharge la page avec Ctrl+F5.
+
+Sur claude.ai, la page essaie d'abord les mêmes relais (les deux liens peuvent alors jouer ensemble), puis le salon intégré de Claude (joueurs invités avec le rôle Contributeur). Pour jouer entre amis sans compte Claude, utilisez le lien GitHub Pages.
 
 - **Relève de l'hôte** : si l'hôte quitte ou perd sa connexion, un camarade reprend automatiquement la partie (manche, infectés, points, portes et atouts conservés) en quelques secondes. Le code reste valable : d'autres peuvent encore rejoindre.
 - **Signaler** (Q ou PING) : un losange coloré à votre couleur apparaît chez tout le monde, avec la distance. Il suit l'infecté visé, ou indique l'objet utile le plus proche (caisse, atout, arme, radio…).

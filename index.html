@@ -601,6 +601,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
+const GAME_VERSION = '3.2'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -4936,6 +4937,7 @@ const NET = {
   },
   get rate() { return this.via === 'room' || (this.via === 'relay' && !this.allDirect()) ? 10 : 15; },
   allDirect() { if (!this.conns.size) return false; for (const id of this.conns.keys()) if (!RTC.healthy(this.links.get(id))) return false; return true; },
+  viaLabel() { return this.via === 'relay' ? `relais ${RELAY_NAMES[this.room?.k] || ''}`.trim() : this.via === 'room' ? 'salon Claude' : this.via === 'peer' ? 'connexion directe' : ''; },
   linkLabel(id) { if (this.via !== 'relay') return ''; const L = this.isHost ? this.links.get(id) : id === P.id ? this.links.get('host') : null; return L === null ? '' : RTC.healthy(L) ? ' · DIRECT' : ' · RELAIS'; },
   peerOptions() {
     const q = new URLSearchParams(location.search).get('peer'); // ex. ?peer=127.0.0.1:9000 pour un serveur de signalisation privé
@@ -5009,25 +5011,30 @@ const NET = {
   },
 
   /* ─── Héberger ─── */
+  // Ordre : un relais public (partout, y compris sur claude.ai : les deux liens peuvent alors jouer ensemble),
+  // puis le salon Claude, puis la connexion directe PeerJS.
   async hostGame(name) {
-    const t = await this.ready();
-    this.leave(true); this.epoch = 0;
-    if (t === 'room') {
-      this.code = this.makeCode();
-      let r; try { r = await this.roomNs.join(this.roomName(this.code)); } catch (e) { throw this.roomError(e); }
-      this.room = r; this.via = 'room'; this.active = true; this.isHost = true; P.id = this.makeId(); P.name = name; this.hostId = P.id; this.lobby = [{ id: P.id, name }];
-      this.bindRoom(r);
-      UI.lobby();
-      return this.code;
-    }
+    await this.detect();
+    this.leave(true); this.epoch = 0; this.hostNote = '';
     P.id = this.makeId(); P.name = name;
     try {
-      const { room, code } = await RELAY.open(P.id);
+      const { room, code } = await RELAY.open(P.id, null, null, this.roomNs ? 6000 : 9000);
       this.room = room; this.code = code; this.via = 'relay'; room.onDown = () => this.relayDown();
       this.active = true; this.isHost = true; this.hostId = P.id; this.lobby = [{ id: P.id, name }];
+      this.hostNote = `Relais ${RELAY_NAMES[room.k]}`;
       this.bindRoom(room); UI.lobby();
       return this.code;
-    } catch { /* aucun relais joignable depuis ce réseau : connexion directe PeerJS */ }
+    } catch { /* aucun relais joignable depuis ce réseau */ }
+    if (this.roomNs) {
+      this.code = this.makeCode();
+      let r; try { r = await this.roomNs.join(this.roomName(this.code)); } catch (e) { throw this.roomError(e); }
+      this.room = r; this.via = 'room'; this.active = true; this.isHost = true; this.hostId = P.id; this.lobby = [{ id: P.id, name }];
+      this.hostNote = 'Salon Claude (vos amis doivent aussi jouer sur claude.ai)';
+      this.bindRoom(r); UI.lobby();
+      return this.code;
+    }
+    if (window.claude) throw new Error(`Aucun moyen de jouer en co-op depuis cette page. Jouez en co-op sur ${PAGES_URL}`);
+    this.hostNote = 'Relais injoignables depuis ce réseau : connexion directe (vos amis doivent être sur le même réseau)';
     return this.hostPeer(name);
   },
   async hostPeer(name) {
@@ -5067,59 +5074,83 @@ const NET = {
   },
 
   /* ─── Rejoindre ─── */
+  // On cherche la partie par tous les chemins à la fois (les trois relais, le salon Claude, la connexion directe)
+  // et on garde le premier qui obtient une réponse de l'hôte : peu importe comment l'hôte a ouvert sa partie.
   async joinGame(code, name) {
-    const t = await this.ready();
+    await this.detect();
     this.leave(true);
-    this.epoch = 0; this.hostId = null; code = String(code || '').trim().toUpperCase();
-    if (t === 'room') {
-      let r; try { r = await this.roomNs.join(this.roomName(code)); } catch (e) { throw this.roomError(e); }
-      P.id = this.makeId(); this.via = 'room';
-      return this.joinRoom(r, code, name);
-    }
-    const g = RELAY.groupOf(code);
-    if (g >= 0 && g < 3) {
-      P.id = this.makeId(); P.name = name;
-      let r; try { r = (await RELAY.open(P.id, code)).room; } catch { throw new Error("Le relais de cette partie ne répond pas depuis votre réseau. Réessayez dans un instant, ou demandez à l'hôte de recréer la partie."); }
-      r.onDown = () => this.relayDown(); this.via = 'relay';
-      return this.joinRoom(r, code, name);
-    }
-    return this.joinPeer(code, name);
+    this.epoch = 0; this.hostId = null; code = String(code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (code.length < 5) throw new Error("Entrez le code à 6 caractères affiché chez l'hôte.");
+    P.id = this.makeId(); P.name = name; this.code = code;
+    const g = RELAY.groupOf(code), probes = [];
+    for (const k of g >= 0 && g < 3 ? [g, ...[0, 1, 2].filter((q) => q !== g)] : [0, 1, 2]) probes.push(this.probeRoom('relay', code, name, k));
+    if (this.roomNs) probes.push(this.probeRoom('room', code, name));
+    if (!window.claude) probes.push(this.probePeer(code, name));
+    let win;
+    try { win = await firstReady(probes, 14000); }
+    finally { for (const p of probes) if (p !== win) p.cancel(); }
+    if (win.full) { win.cancel(); throw new Error('La partie est complète (4 joueurs).'); }
+    this.adopt(win);
   },
-  // Salon Claude ou relais : on dit bonjour jusqu'à ce que l'hôte réponde.
-  joinRoom(r, code, name) {
-    this.room = r; P.name = name; this.code = code; this.hostLabel = null;
-    return new Promise((res, rej) => {
-      let done = false;
-      const finish = (ok, err) => { if (done) return; done = true; this.joinWait = null; clearInterval(hello); clearTimeout(to); if (ok) { this.active = true; this.isHost = false; this.heardHost(); res(); setTimeout(() => this.rtcStart(), 400); } else { try { r.leave(); } catch { /* fermé */ } this.room = null; rej(err); } };
-      this.joinWait = (m) => { if (m[0] === 'full') finish(false, new Error('La partie est complète (4 joueurs).')); else finish(true); };
-      this.bindRoom(r);
-      const sayHello = () => r.emit('c', { f: P.id, e: 0, m: ['hello', { name }] }).catch((e) => { if (e && e.code === 'not_permitted') finish(false, this.roomError(e)); });
-      sayHello(); const hello = setInterval(sayHello, 1500);
-      const to = setTimeout(() => finish(false, new Error('Aucune partie trouvée avec ce code. Vérifiez-le auprès de l\'hôte.')), 12000);
+  // Une tentative par chemin : elle se connecte, dit bonjour et attend le premier message de l'hôte.
+  probeRoom(kind, code, name, k) {
+    const pr = { kind, k, dead: false, cleanup: [] };
+    pr.cancel = () => { pr.dead = true; for (const f of pr.cleanup.splice(0)) { try { f(); } catch { /* fermé */ } } };
+    pr.ready = new Promise((res, rej) => {
+      const open = kind === 'room' ? this.roomNs.join(this.roomName(code)).catch((e) => { throw this.roomError(e); }) : RELAY.open(P.id, code, k).then((o) => o.room);
+      open.then((r) => {
+        pr.r = r; pr.cleanup.push(() => r.leave());
+        if (pr.dead) { r.leave(); return rej(new Error('annulé')); }
+        const off = r.on('h', (msg) => {
+          const d = msg.data; if (msg.sameTab || !d || !Array.isArray(d.m) || pr.first) return;
+          if (d.to && d.to !== P.id) return; if (Array.isArray(d.t) && !d.t.includes(P.id)) return; if (d.x && d.x === P.id) return;
+          pr.first = d; pr.full = d.m[0] === 'full'; clearInterval(hello); res(pr);
+        });
+        if (typeof off === 'function') pr.cleanup.push(off);
+        const say = () => { if (!pr.dead && !pr.first) r.emit('c', { f: P.id, e: 0, m: ['hello', { name, v: GAME_VERSION }] }).catch((e) => { if (e && e.code === 'not_permitted') rej(this.roomError(e)); }); };
+        say(); const hello = setInterval(say, 1500); pr.cleanup.push(() => clearInterval(hello));
+      }, rej);
     });
+    return pr;
   },
-  async joinPeer(code, name) {
-    this.via = 'peer';
-    const Peer = await this.loadLib();
-    return new Promise((res, rej) => {
-      const peer = this.peer = new Peer(undefined, this.peerOptions());
-      let joined = false;
-      const fail = (msg) => { if (!joined) rej(new Error(msg)); };
-      const to = setTimeout(() => fail('Aucune partie trouvée avec ce code.'), 12000);
+  probePeer(code, name) {
+    const pr = { kind: 'peer', dead: false, cleanup: [] };
+    pr.cancel = () => { pr.dead = true; for (const f of pr.cleanup.splice(0)) { try { f(); } catch { /* fermé */ } } };
+    pr.ready = this.loadLib().then((Peer) => new Promise((res, rej) => {
+      if (pr.dead) return rej(new Error('annulé'));
+      const peer = new Peer(P.id, this.peerOptions()); pr.peer = peer; pr.cleanup.push(() => peer.destroy());
       peer.on('open', () => {
-        if (joined) return; // simple reconnexion au serveur de signalisation
-        P.id = peer.id; P.name = name;
-        const c = this.host = peer.connect(this.peerId(code), { reliable: true, serialization: 'json', metadata: { name } });
-        c.on('open', () => { clearTimeout(to); joined = true; this.active = true; this.isHost = false; this.code = code; this.hostId = this.peerId(code); this.heardHost(); c.send(['hello', { name }]); res(); });
-        this.bindHostConn(c);
+        if (pr.c) return; // simple reconnexion au serveur de signalisation
+        const c = pr.c = peer.connect(this.peerId(code), { reliable: true, serialization: 'json', metadata: { name } });
+        c.on('open', () => c.send(['hello', { name, v: GAME_VERSION }]));
+        c.on('data', (m) => { if (!pr.first && Array.isArray(m)) { pr.first = m; pr.full = m[0] === 'full'; res(pr); } });
       });
-      peer.on('connection', (c) => this.accept(c));
+      peer.on('error', (e) => { if (!pr.first) rej(new Error(e.type || 'peer')); });
+    }));
+    return pr;
+  },
+  // Le chemin gagnant devient la connexion de la partie.
+  adopt(pr) {
+    if (pr.kind === 'peer') {
+      const peer = this.peer = pr.peer, c = this.host = pr.c; this.via = 'peer';
+      pr.cleanup.length = 0; // on garde la connexion
+      this.hostId = this.peerId(this.code);
+      this.bindHostConn(c);
+      peer.on('connection', (q) => this.accept(q));
       peer.on('disconnected', () => { try { peer.reconnect(); } catch { /* ignoré */ } });
-      peer.on('error', (e) => {
-        if (joined) { if (e.type === 'peer-unavailable' && this.migrating) this.nextCandidate(); return; }
-        clearTimeout(to); fail(e.type === 'peer-unavailable' ? 'Aucune partie trouvée avec ce code.' : 'Connexion impossible (réseau ou pare-feu).');
-      });
-    });
+      peer.on('error', (e) => { if (this.active && e.type === 'peer-unavailable' && this.migrating) this.nextCandidate(); });
+      this.active = true; this.isHost = false; this.heardHost();
+      this.onClientMsg(pr.first);
+      return;
+    }
+    const r = this.room = pr.r, d = pr.first; this.via = pr.kind;
+    pr.cleanup.length = 0; // on garde le salon ouvert
+    if (pr.kind === 'relay') r.onDown = () => this.relayDown();
+    this.hostId = d.h || null; this.epoch = d.e | 0; this.hostLabel = null;
+    this.bindRoom(r);
+    this.active = true; this.isHost = false; this.heardHost();
+    this.onClientMsg(d.m);
+    setTimeout(() => this.rtcStart(), 400);
   },
   bindHostConn(c) {
     c.on('data', (m) => {
@@ -5152,7 +5183,7 @@ const NET = {
     if (nh === P.id) { this.becomeHost(); return; }
     this.hostId = nh; this.migrating = true; this.migrateDeadline = this.vt + 9000; this.kaT = 0;
     UI.message(`${this.oldName} A QUITTÉ LA PARTIE`, `${G.players.get(nh)?.name || 'Un camarade'} reprend la direction…`);
-    if (this.peer) this.connectTo(nh); else this.send('hello', { name: P.name });
+    if (this.peer) this.connectTo(nh); else this.send('hello', { name: P.name, v: GAME_VERSION });
   },
   nextCandidate() {
     const id = this.hostId; this.skip.add(id); if (this.host && this.host !== this.oldConn) { try { this.host.close(); } catch { /* fermé */ } } this.host = null;
@@ -5162,17 +5193,17 @@ const NET = {
   connectTo(id) {
     const c = this.peer.connect(id, { reliable: true, serialization: 'json', metadata: { name: P.name } });
     this.host = c; this.bindHostConn(c);
-    c.on('open', () => { if (this.host === c) c.send(['hello', { name: P.name }]); });
+    c.on('open', () => { if (this.host === c) c.send(['hello', { name: P.name, v: GAME_VERSION }]); });
   },
   adoptHost(h, e) {
     if (!this.migrating && this.hostId && this.hostId !== h && G.players.has(this.hostId)) { this.oldName = G.players.get(this.hostId).name; G.removePlayer(this.hostId); }
     this.epoch = e; this.hostId = h; this.migrating = false; this.rtcCloseAll();
-    this.send('hello', { name: P.name }); this.localAction('inv'); setTimeout(() => this.rtcStart(), 800);
+    this.send('hello', { name: P.name, v: GAME_VERSION }); this.localAction('inv'); setTimeout(() => this.rtcStart(), 800);
     UI.message(`${G.players.get(h)?.name || 'UN CAMARADE'} DIRIGE LA PARTIE`, '');
   },
   cancelMigration(h, e) {
     if (this.peer) { if (this.host && this.host !== this.oldConn) { try { this.host.close(); } catch { /* fermé */ } } this.host = this.oldConn; this.oldConn = null; }
-    this.epoch = e; this.hostId = h; this.migrating = false; this.heardHost(); this.send('hello', { name: P.name });
+    this.epoch = e; this.hostId = h; this.migrating = false; this.heardHost(); this.send('hello', { name: P.name, v: GAME_VERSION });
   },
   // Le candidat nous dit que l'hôte répond encore chez lui : on se reconnecte à l'hôte.
   backToOldHost() {
@@ -5183,7 +5214,7 @@ const NET = {
   },
   dropOld() { if (this.oldConn) { const c = this.oldConn; this.oldConn = null; try { c.close(); } catch { /* fermé */ } } },
   migrationDone() {
-    this.migrating = false; this.dropOld(); this.localAction('inv'); this.send('hello', { name: P.name }); setTimeout(() => this.rtcStart(), 800);
+    this.migrating = false; this.dropOld(); this.localAction('inv'); this.send('hello', { name: P.name, v: GAME_VERSION }); setTimeout(() => this.rtcStart(), 800);
     UI.message(`${G.players.get(this.hostId)?.name || 'UN CAMARADE'} DIRIGE LA PARTIE`, 'La partie continue.');
   },
   becomeHost() {
@@ -5198,7 +5229,7 @@ const NET = {
   stepDown(h, e) {
     this.isHost = false; G.authority = false; this.epoch = e; this.hostId = h; this.migrating = false; this.conns.clear(); this.heardHost(); this.rtcCloseAll(); setTimeout(() => this.rtcStart(), 800);
     for (const z of ZOMBIES) if (z.alive) { z.remote = true; z.net.buf = []; z.lastSeen = performance.now(); }
-    this.send('hello', { name: P.name }); this.localAction('inv');
+    this.send('hello', { name: P.name, v: GAME_VERSION }); this.localAction('inv');
     UI.message('LIAISON RÉTABLIE', `${G.players.get(h)?.name || 'Un camarade'} dirige désormais la partie.`);
   },
   // Web ouvert : le nouvel hôte reprend aussi le code de la partie, pour que d'autres puissent encore la rejoindre.
@@ -5252,7 +5283,7 @@ const NET = {
     if (this.peer) { try { this.peer.destroy(); } catch { /* détruit */ } }
     if (this.codePeer) { try { this.codePeer.destroy(); } catch { /* détruit */ } }
     this.peer = null; this.codePeer = null; this.active = false; this.isHost = false; this.lobby = []; this.code = ''; this.boardSent = false;
-    this.migrating = false; this.hostId = null; this.epoch = 0; this.rtcCloseAll(); this.via = null;
+    this.migrating = false; this.hostId = null; this.epoch = 0; this.rtcCloseAll(); this.via = null; this.verWarn = '';
     P.id = 'me';
     if (!silent) UI.lobby();
   },
@@ -5295,6 +5326,7 @@ const NET = {
     switch (type) {
       case 'hello': {
         const name = String(d?.name || 'SOLDAT').slice(0, 12).toUpperCase();
+        if (d?.v !== GAME_VERSION && !rec) this.sendTo(pid, 'ver', GAME_VERSION);
         if (!this.lobby.some((p) => p.id === pid)) this.lobby.push({ id: pid, name });
         this.broadcast('lobby', this.lobby); UI.lobby();
         if ((G.mode === 'playing' || G.mode === 'paused') && !G.players.has(pid)) { // arrivée en cours de partie
@@ -5333,7 +5365,7 @@ const NET = {
     this.kaT -= 0.25;
     if (this.kaT <= 0) {
       this.kaT = this.migrating ? 1 : 2;
-      if (this.isHost) this.broadcast('ka', 0); else if (this.migrating) this.send('hello', { name: P.name }); else this.send('ka', 0);
+      if (this.isHost) this.broadcast('ka', 0); else if (this.migrating) this.send('hello', { name: P.name, v: GAME_VERSION }); else this.send('ka', 0);
     }
     if (this.isHost) {
       const lim = game ? (this.room ? 12000 : 20000) : 45000;
@@ -5374,8 +5406,9 @@ const NET = {
       case 'tell': if (d[0] === 'deny') { Sfx.deny(); UI.flashPrompt(); } else if (d[0] === 'buy') Sfx.buy(); break;
       case 'nade': spawnGrenade(new THREE.Vector3(...d[1]), new THREE.Vector3(...d[2]), d[0]); break;
       case 'reviving': P.reviving = !!d[0]; break;
-      case 'who': this.send('hello', { name: P.name }); break;
+      case 'who': this.send('hello', { name: P.name, v: GAME_VERSION }); break;
       case 'bye': this.lostHost('bye'); break;
+      case 'ver': this.verWarn = `Attention : l'hôte a la version ${String(d).slice(0, 8)} du jeu et vous la ${GAME_VERSION}. Rechargez la page (Ctrl+F5) chez celui qui a la plus ancienne.`; UI.lobby(); break;
       case 'rtc': case 'ice': RTC.remote(this.links.get('host'), type, d); break;
       case 'ping': if (Array.isArray(d) && d[0] !== P.id) addPing(d[0], d.slice(1, 6)); break;
     }
@@ -5389,6 +5422,18 @@ const NET = {
   localGrenade(o, v) { if (!this.active) return; const d = [[+o.x.toFixed(2), +o.y.toFixed(2), +o.z.toFixed(2)], [+v.x.toFixed(2), +v.y.toFixed(2), +v.z.toFixed(2)]]; if (this.isHost) this.broadcast('nade', [P.id, ...d]); else this.send('nade', d); },
   localAction(kind) { if (!this.active) return; if (kind === 'inv' && !this.isHost) this.send('inv', P.weapons.map((w) => [w.key, w.up])); if (kind === 'alive') { if (this.isHost) G.emit('alive', { pid: P.id }); else this.send('alive', []); } },
 };
+// Première tentative qui aboutit ; sinon l'erreur la plus parlante (partie complète, accès refusé…).
+function firstReady(probes, timeout) {
+  return new Promise((res, rej) => {
+    let left = probes.length, done = false; const errs = [];
+    const fail = () => {
+      const special = errs.find((e) => e && e.message && !/^(annulé|relay|peer|peer-unavailable|network|server-error|socket-error|socket-closed|unavailable-id|browser-incompatible)$/.test(e.message));
+      rej(special || new Error(`Aucune partie trouvée avec le code ${NET.code}. Vérifiez le code, et que l'hôte et vous avez la même version du jeu (${GAME_VERSION}, affichée en bas du menu). Si ça persiste, rechargez la page (Ctrl+F5) des deux côtés.`));
+    };
+    const to = setTimeout(() => { if (!done) { done = true; fail(); } }, timeout);
+    for (const p of probes) p.ready.then((w) => { if (done) { p.cancel(); return; } done = true; clearTimeout(to); res(w); }, (e) => { errs.push(e); if (--left === 0 && !done) { done = true; clearTimeout(to); fail(); } });
+  });
+}
 // Tirs des camarades : le compteur de tirs voyage avec leur position.
 function noteShots(rec, n, snd) {
   if (typeof n !== 'number') return;
@@ -5650,6 +5695,7 @@ const RELAYS = (() => {
   return q ? [q, q, q] : ['wss://test.mosquitto.org:8081', 'wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt'];
 })();
 const RELAY_ROOT = 'snowfall-protocol/v1/';
+const RELAY_NAMES = ['Mosquitto', 'EMQX', 'HiveMQ'];
 const RTC_ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, { urls: 'stun:stun.cloudflare.com:3478' }];
 
 // Petit client MQTT 3.1.1 (QoS 0) : connexion, abonnement, publication, maintien en vie.
@@ -5700,11 +5746,13 @@ const RELAY = {
   groupOf(code) { const i = RELAY_ALPHA.indexOf(String(code || '')[0]); return i < 0 ? -1 : Math.floor(i / 8); },
   codeFor(k) { let s = RELAY_ALPHA[k * 8 + ((Math.random() * 8) | 0)]; for (let i = 0; i < 5; i++) s += RELAY_ALPHA[(Math.random() * RELAY_ALPHA.length) | 0]; return s; },
   // Ouvre la salle du code donné, ou une nouvelle salle sur le premier relais qui répond. Même interface que le salon Claude.
-  open(id, code) {
-    const order = code ? [this.groupOf(code)] : RELAYS.map((_, k) => k);
+  // `k` impose un relais précis (recherche d'une partie sur chacun des trois).
+  open(id, code, k = null, timeout = 9000) {
+    const order = k != null ? [k] : code ? [this.groupOf(code)] : RELAYS.map((_, i) => i);
     return new Promise((res, rej) => {
+      if (!order.every((q) => RELAYS[q])) { rej(new Error('relay')); return; }
       let done = false, failed = 0; const tries = [];
-      const to = setTimeout(() => { if (done) return; done = true; tries.forEach((c) => c.close()); rej(new Error('relay')); }, 9000);
+      const to = setTimeout(() => { if (done) return; done = true; tries.forEach((c) => c.close()); rej(new Error('relay')); }, timeout);
       for (const k of order) {
         const cd = code || this.codeFor(k), room = relayRoom(RELAY_ROOT + cd.toLowerCase() + '/', id, k);
         const cli = room.connect(() => { if (!done && ++failed >= order.length) { done = true; clearTimeout(to); rej(new Error('relay')); } });
@@ -5732,7 +5780,7 @@ function relayRoom(base, id, k) {
       setTimeout(() => { if (!room.live) return; const cli = room.connect(); room.cli = cli; cli.onReady = () => { if (room.cli === cli) room.ready(cli); }; }, 800 * room.retries);
     },
     emit(topic, data) { if (!room.cli || room.cli.dead || !room.cli.ready) return Promise.reject({ code: 'closed' }); room.cli.publish(base + topic, JSON.stringify({ s: id, d: data })); return Promise.resolve(); },
-    on(topic, fn) { (handlers[topic] ||= []).push(fn); return () => {}; },
+    on(topic, fn) { const a = (handlers[topic] ||= []); a.push(fn); return () => { const i = a.indexOf(fn); if (i >= 0) a.splice(i, 1); }; },
     leave() { room.live = false; if (room.cli) room.cli.close(); return Promise.resolve(); },
     deliver(topic, payload) {
       let o; try { o = JSON.parse(payload); } catch { return; }
@@ -5789,7 +5837,7 @@ const UI = {
   init() {
     // Menu principal.
     $('soloButton').onclick = () => { Sfx.init(); NET.leave(true); beginGame({ solo: true, authority: true }); };
-    $('joinButton').onclick = () => { Sfx.init(); $('joinPanel').classList.toggle('hidden'); $('lobby').classList.add('hidden'); $('playerName').value = settings.name || ''; $('sessionCode').focus(); };
+    $('joinButton').onclick = () => { Sfx.init(); checkVersion(); $('joinPanel').classList.toggle('hidden'); $('lobby').classList.add('hidden'); $('playerName').value = settings.name || ''; $('sessionCode').focus(); };
     $('joinPanel').onsubmit = async (e) => {
       e.preventDefault(); Sfx.init();
       const name = ($('playerName').value.trim() || 'SOLDAT').toUpperCase().slice(0, 12), code = $('sessionCode').value.trim().toUpperCase();
@@ -5837,7 +5885,7 @@ const UI = {
     el.className = 'header-status ' + (on ? 'online' : 'offline');
     const t = NET.transport;
     if (t === 'none') el.className = 'header-status';
-    el.querySelector('span').textContent = NET.active ? (NET.isHost ? `PARTIE HÉBERGÉE · ${NET.code}` : `CONNECTÉ · ${NET.code}`) : !on ? 'HORS LIGNE · SOLO UNIQUEMENT' : t === 'none' ? 'SOLO · CO-OP SUR INVITATION' : 'CO-OP EN LIGNE DISPONIBLE';
+    el.querySelector('span').textContent = (NET.active ? (NET.isHost ? `PARTIE HÉBERGÉE · ${NET.code}` : `CONNECTÉ · ${NET.code}`) : !on ? 'HORS LIGNE · SOLO UNIQUEMENT' : 'CO-OP EN LIGNE DISPONIBLE') + ` · V${GAME_VERSION}`;
   },
   joinStatus(t, err) { const s = $('joinStatus'); s.textContent = t; s.classList.toggle('error', !!err); },
   netError(e) { this.joinStatus('Erreur réseau : ' + (e?.type || 'inconnue') + '. Réessayez.', true); },
@@ -5845,7 +5893,7 @@ const UI = {
     $('lobbyCode').textContent = NET.code || '------';
     $('lobbyList').innerHTML = NET.lobby.map((p, i) => `<li>${escapeHtml(p.name)} <span>${i === 0 ? 'HÔTE' : 'PRÊT'}${p.id === P.id ? ' · VOUS' : ''}${i === 0 ? '' : NET.linkLabel(p.id)}</span></li>`).join('');
     $('startCoop').classList.toggle('hidden', !NET.isHost);
-    $('lobbyStatus').textContent = NET.isHost ? `Partagez le code ${NET.code} avec vos amis (4 joueurs max). Lancez quand tout le monde est là.` : "En attente du lancement par l'hôte…";
+    $('lobbyStatus').textContent = (NET.isHost ? `Partagez le code ${NET.code} avec vos amis (4 joueurs max). Lancez quand tout le monde est là.` : "En attente du lancement par l'hôte…") + ` Liaison : ${NET.viaLabel()} · version ${GAME_VERSION}.` + (NET.verWarn ? ' ' + NET.verWarn : '');
     if (!NET.active) $('lobby').classList.add('hidden');
     this.netStatus();
   },
@@ -6149,6 +6197,7 @@ async function init() {
     window.__spReady = true;
     $('loadingLine').classList.add('hidden');
     $('soloButton').disabled = false; $('joinButton').disabled = false;
+    checkVersion();
     requestAnimationFrame(frame);
   } catch (err) {
     console.error(err);
@@ -6156,6 +6205,15 @@ async function init() {
   }
 }
 
+// Mise à jour automatique (GitHub Pages) : si une version plus récente est en ligne, on la charge depuis le menu,
+// pour que l'hôte et ses amis aient toujours le même jeu (des versions différentes ne se trouvent pas).
+function checkVersion() {
+  if (!/github\.io$/.test(location.hostname) && !new URLSearchParams(location.search).has('vcheck')) return;
+  fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((j) => {
+    if (!j || !j.v || j.v === GAME_VERSION || new URLSearchParams(location.search).get('v') === j.v) return;
+    if (G.mode === 'menu' && !NET.active) { UI.joinStatus('Mise à jour du jeu…'); location.replace(location.pathname + '?v=' + encodeURIComponent(j.v) + location.hash); }
+  }).catch(() => { /* hors ligne */ });
+}
 let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
