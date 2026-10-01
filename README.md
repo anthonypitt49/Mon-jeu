@@ -56,9 +56,11 @@ Sur téléphone ou tablette, des commandes tactiles s'affichent : joystick à ga
 2. Les autres joueurs saisissent ce code. Ils passent automatiquement sur la carte choisie par l'hôte.
 3. L'hôte clique sur **Lancer la partie**.
 
-**Ça marche sur n'importe quel réseau** (maison, école, partage de connexion 4G) : la partie passe par des relais publics gratuits (MQTT sur WebSocket), et quand deux ordinateurs arrivent à se parler directement, les positions et les infectés prennent ce chemin plus court. Dans le salon, chaque camarade affiche **DIRECT** ou **RELAIS**. Si les relais sont bloqués, le jeu se rabat tout seul sur la connexion directe.
+**Ça marche sur n'importe quel réseau** (maison, école, partage de connexion 4G) : la partie passe par quatre relais publics gratuits (MQTT sur WebSocket, dont un sur le port 443 du web, rarement bloqué), et quand deux ordinateurs arrivent à se parler directement, les positions et les infectés prennent ce chemin plus court. Dans le salon, chaque camarade affiche **DIRECT** ou **RELAIS**.
 
-**L'hôte et ses amis doivent avoir la même version** (affichée en haut du menu, par exemple « V4.1 ») : le jeu se met à jour tout seul en arrivant sur le menu. Si un ami a encore une ancienne version, il recharge la page avec Ctrl+F5.
+**Si aucun relais ne répond chez l'hôte**, le salon l'affiche en orange : la partie passe en connexion directe, que seuls les joueurs du même Wi-Fi peuvent rejoindre. Le jeu retente les relais toutes les 12 secondes et, dès que l'un d'eux répond, affiche un **nouveau code** à donner aux amis. Côté invité, le message d'erreur dit pourquoi la partie est introuvable : hôte en connexion directe, partie hébergée sur claude.ai, relais bloqués par votre réseau, ou code erroné.
+
+**L'hôte et ses amis doivent avoir la même version** (affichée en haut du menu, par exemple « V4.2 ») : le jeu se met à jour tout seul en arrivant sur le menu. Si un ami a encore une ancienne version, il recharge la page avec Ctrl+F5.
 
 - **Relève de l'hôte** : si l'hôte quitte ou perd sa connexion, un camarade reprend automatiquement la partie en quelques secondes.
 - **Signaler** (Q ou PING) : un losange à votre couleur apparaît chez tout le monde, avec la distance.

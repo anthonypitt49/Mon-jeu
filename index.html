@@ -83,6 +83,7 @@ h1 em { display: block; color: transparent; font-style: inherit; -webkit-text-st
 .lobby li span { color: var(--dim); font-weight: 500; }
 .lobby .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .lobby small { color: #8fa7b0; font-size: .82rem; }
+.lobby small.warn { color: #ffb08a; }
 .fullscreen-hint { color: var(--dim); font-size: .78rem; margin: 14px 0 0; max-width: 480px; line-height: 1.45; }
 .mission-card { width: 236px; align-self: end; margin: 0 15px 42px 30px; padding: 20px; border: 1px solid #b4e5f333; background: #0610199e; backdrop-filter: blur(6px); }
 .card-label { color: #93d8eb; font-size: .66rem; font-weight: 800; letter-spacing: .2em; }
@@ -669,7 +670,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '4.1'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '4.2'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -6680,7 +6681,7 @@ const NET = {
     });
     return this.lib;
   },
-  makeCode() { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 6; i++) s += A[(Math.random() * A.length) | 0]; return s; },
+  makeCode() { return RELAY.codeFor(RELAY_G_ROOM); },
   makeId() { return 'j' + Math.random().toString(36).slice(2, 10); },
   peerId(code) { return 'snowfall-protocol-' + code.toLowerCase(); },
   roomName(code) { return 'sp-' + code.toLowerCase(); },
@@ -6743,14 +6744,18 @@ const NET = {
     await this.detect();
     this.leave(true); this.epoch = 0; this.hostNote = '';
     P.id = this.makeId(); P.name = name;
-    try {
-      const { room, code } = await RELAY.open(P.id, null, null, this.roomNs ? 6000 : 9000);
-      this.room = room; this.code = code; this.via = 'relay'; room.onDown = () => this.relayDown();
-      this.active = true; this.isHost = true; this.hostId = P.id; this.lobby = [{ id: P.id, name }];
-      this.hostNote = `Relais ${RELAY_NAMES[room.k]}`;
-      this.bindRoom(room); UI.lobby();
-      return this.code;
-    } catch { /* aucun relais joignable depuis ce réseau */ }
+    // Deux essais sur les quatre relais à la fois : un relais lent au premier contact ne doit pas faire basculer la partie en connexion directe.
+    for (let a = 0; a < (this.roomNs ? 1 : 2); a++) {
+      try {
+        if (a) UI.joinStatus("Aucun relais n'a répondu, nouvel essai…");
+        const { room, code } = await RELAY.open(P.id, null, null, this.roomNs ? 6000 : 8000);
+        this.room = room; this.code = code; this.via = 'relay'; room.onDown = () => this.relayDown();
+        this.active = true; this.isHost = true; this.hostId = P.id; this.lobby = [{ id: P.id, name }];
+        this.hostNote = `Relais ${RELAY_NAMES[room.k]}`;
+        this.bindRoom(room); UI.lobby();
+        return this.code;
+      } catch { /* aucun relais joignable depuis ce réseau */ }
+    }
     if (this.roomNs) {
       this.code = this.makeCode();
       let r; try { r = await this.roomNs.join(this.roomName(this.code)); } catch (e) { throw this.roomError(e); }
@@ -6765,14 +6770,31 @@ const NET = {
   },
   async hostPeer(name) {
     const Peer = await this.loadLib();
-    this.code = RELAY.codeFor(3); this.via = 'peer';
+    this.code = RELAY.codeFor(RELAY_G_PEER); this.via = 'peer';
     return new Promise((res, rej) => {
       const peer = this.peer = new Peer(this.peerId(this.code), this.peerOptions());
-      peer.on('open', () => { this.active = true; this.isHost = true; P.id = peer.id; P.name = name; this.hostId = P.id; this.lobby = [{ id: P.id, name }]; UI.lobby(); res(this.code); });
+      peer.on('open', () => { this.active = true; this.isHost = true; P.id = peer.id; P.name = name; this.hostId = P.id; this.lobby = [{ id: P.id, name }]; UI.lobby(); this.retryRelays(); res(this.code); });
       peer.on('connection', (c) => this.accept(c));
       peer.on('error', (e) => { if (e.type === 'unavailable-id') { peer.destroy(); this.hostPeer(name).then(res, rej); } else if (!this.active) { UI.netError(e); rej(e); } });
       peer.on('disconnected', () => { try { peer.reconnect(); } catch { /* ignoré */ } });
     });
+  },
+  // Partie en connexion directe (aucun relais au départ) : tant que personne n'a rejoint, on retente les relais
+  // toutes les 12 s ; dès qu'un relais répond, la partie y passe avec un nouveau code, joignable de partout.
+  retryRelays() {
+    clearInterval(this.relayRetry); if (this.roomNs) return;
+    let busy = false;
+    this.relayRetry = setInterval(() => {
+      if (!this.active || !this.isHost || this.via !== 'peer' || this.lobby.length > 1 || G.mode !== 'menu') { if (!this.active || this.via !== 'peer') clearInterval(this.relayRetry); return; }
+      if (busy) return; busy = true;
+      RELAY.open(P.id, null, null, 8000).then(({ room, code }) => {
+        busy = false;
+        if (!this.active || !this.isHost || this.via !== 'peer' || this.lobby.length > 1 || G.mode !== 'menu') { room.leave(); return; }
+        clearInterval(this.relayRetry); try { this.peer.destroy(); } catch { /* détruit */ } this.peer = null; this.conns.clear();
+        this.room = room; this.code = code; this.via = 'relay'; room.onDown = () => this.relayDown(); this.hostNote = `Relais ${RELAY_NAMES[room.k]}`;
+        this.bindRoom(room); this.relayFound = true; UI.lobby(); Sfx.jingle?.([0, 7, 12], 523, 'triangle', 0.08);
+      }, () => { busy = false; });
+    }, 12000);
   },
   // Connexions entrantes (hôte, ou futur hôte en cas de relève).
   accept(c) {
@@ -6785,6 +6807,12 @@ const NET = {
         if (m[0] !== 'hello' || !this.active || !this.inGame) return;
         if (this.vt - this.hostVt > 1500) this.lostHost('elu'); // on nous désigne et l'hôte se tait : on prend le relais
         if (!this.isHost) { try { c.send(['hostok', this.hostId]); } catch { /* perdu */ } return; } // l'hôte répond encore chez nous
+      }
+      // Camarade retiré pour silence (page figée pendant un chargement) mais liaison toujours ouverte : on le réinscrit
+      // et on lui redemande qui il est, comme sur les relais ; sinon il resterait bloqué sur « Connexion… ».
+      if (this.isHost && this.active && !this.conns.has(c.peer) && c.open) {
+        if (this.conns.size >= MAX_PLAYERS - 1) return;
+        this.conns.set(c.peer, c); if (m[0] !== 'hello') { this.heard.set(c.peer, this.vt); try { c.send(['who', 0]); } catch { /* perdu */ } return; }
       }
       this.heard.set(c.peer, this.vt); this.onHostMsg(c, m);
     });
@@ -6808,8 +6836,8 @@ const NET = {
     this.epoch = 0; this.hostId = null; code = String(code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (code.length < 5) throw new Error("Entrez le code à 6 caractères affiché chez l'hôte.");
     P.id = this.makeId(); P.name = name; this.code = code;
-    const g = RELAY.groupOf(code), probes = [];
-    for (const k of g >= 0 && g < 3 ? [g, ...[0, 1, 2].filter((q) => q !== g)] : [0, 1, 2]) probes.push(this.probeRoom('relay', code, name, k));
+    const g = RELAY.groupOf(code), probes = [], all = RELAYS.map((_, i) => i); this.relayReach = 0;
+    for (const k of g >= 0 && g < RELAYS.length ? [g, ...all.filter((q) => q !== g)] : all) probes.push(this.probeRoom('relay', code, name, k));
     if (this.roomNs) probes.push(this.probeRoom('room', code, name));
     if (!window.claude) probes.push(this.probePeer(code, name));
     let win;
@@ -6825,7 +6853,7 @@ const NET = {
     pr.ready = new Promise((res, rej) => {
       const open = kind === 'room' ? this.roomNs.join(this.roomName(code)).catch((e) => { throw this.roomError(e); }) : RELAY.open(P.id, code, k).then((o) => o.room);
       open.then((r) => {
-        pr.r = r; pr.cleanup.push(() => r.leave());
+        pr.r = r; pr.cleanup.push(() => r.leave()); if (kind === 'relay') this.relayReach++;
         if (pr.dead) { r.leave(); return rej(new Error('annulé')); }
         const off = r.on('h', (msg) => {
           const d = msg.data; if (msg.sameTab || !d || !Array.isArray(d.m) || pr.first) return;
@@ -7008,6 +7036,7 @@ const NET = {
     this.conns.clear(); this.peerOf.clear(); this.heard.clear(); this.host = null; this.hitQ = []; this.joinWait = null;
     if (this.peer) { try { this.peer.destroy(); } catch { /* détruit */ } }
     if (this.codePeer) { try { this.codePeer.destroy(); } catch { /* détruit */ } }
+    clearInterval(this.relayRetry); this.relayFound = false;
     this.peer = null; this.codePeer = null; this.active = false; this.isHost = false; this.lobby = []; this.code = ''; this.boardSent = false;
     this.migrating = false; this.hostId = null; this.epoch = 0; this.rtcCloseAll(); this.via = null; this.verWarn = '';
     P.id = 'me';
@@ -7156,13 +7185,21 @@ const NET = {
   localGrenade(o, v) { if (!this.active) return; const d = [[+o.x.toFixed(2), +o.y.toFixed(2), +o.z.toFixed(2)], [+v.x.toFixed(2), +v.y.toFixed(2), +v.z.toFixed(2)]]; if (this.isHost) this.broadcast('nade', [P.id, ...d]); else this.send('nade', d); },
   localAction(kind) { if (!this.active) return; if (kind === 'inv' && !this.isHost) this.send('inv', P.weapons.map((w) => [w.key, w.up])); if (kind === 'alive') { if (this.isHost) G.emit('alive', { pid: P.id }); else this.send('alive', []); } },
 };
+// Pourquoi la partie est introuvable : le premier caractère du code dit par où l'hôte est passé.
+function joinFailText(code) {
+  const g = RELAY.groupOf(code), head = `Aucune partie trouvée avec le code ${code}.`;
+  if (g === RELAY_G_PEER) return `${head} Ce code est celui d'une partie en connexion directe : l'hôte n'a joint aucun relais public, donc seuls les joueurs de son réseau Wi-Fi peuvent entrer. L'hôte doit attendre le nouveau code proposé dans son salon (nouvel essai toutes les 12 s), ou quitter le salon et recréer la partie.`;
+  if (g === RELAY_G_ROOM) return `${head} Ce code est celui d'une partie hébergée dans la page claude.ai : elle ne se rejoint que depuis cette même page. Pour jouer entre amis, hébergez et rejoignez depuis ${PAGES_URL}`;
+  if (!NET.relayReach && !window.claude) return `${head} Aucun relais public ne répond depuis votre réseau (pare-feu, VPN, bloqueur de publicités ou réseau d'école ?). Essayez un autre réseau, par exemple un partage de connexion 4G.`;
+  return `${head} Vérifiez le code (il change si l'hôte recrée la partie) et que vous avez tous les deux la version ${GAME_VERSION} (affichée en bas du menu ; sinon Ctrl+F5).`;
+}
 // Première tentative qui aboutit ; sinon l'erreur la plus parlante (partie complète, accès refusé…).
 function firstReady(probes, timeout) {
   return new Promise((res, rej) => {
     let left = probes.length, done = false; const errs = [];
     const fail = () => {
       const special = errs.find((e) => e && e.message && !/^(annulé|relay|peer|peer-unavailable|network|server-error|socket-error|socket-closed|unavailable-id|browser-incompatible)$/.test(e.message));
-      rej(special || new Error(`Aucune partie trouvée avec le code ${NET.code}. Vérifiez le code, et que l'hôte et vous avez la même version du jeu (${GAME_VERSION}, affichée en bas du menu). Si ça persiste, rechargez la page (Ctrl+F5) des deux côtés.`));
+      rej(special || new Error(joinFailText(NET.code)));
     };
     const to = setTimeout(() => { if (!done) { done = true; fail(); } }, timeout);
     for (const p of probes) p.ready.then((w) => { if (done) { p.cancel(); return; } done = true; clearTimeout(to); res(w); }, (e) => { errs.push(e); if (--left === 0 && !done) { done = true; clearTimeout(to); fail(); } });
@@ -7445,10 +7482,13 @@ function spectateLabel(r) {
 const RELAY_ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const RELAYS = (() => {
   const q = new URLSearchParams(location.search).get('relay'); // tests : ?relay=ws://127.0.0.1:8883
-  return q ? [q, q, q] : ['wss://test.mosquitto.org:8081', 'wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt'];
+  // Le 4e relais écoute sur le port 443, celui du web : il passe les pare-feu qui bloquent les ports 8081, 8084 et 8884.
+  return q ? [q, q, q, q] : ['wss://test.mosquitto.org:8081', 'wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://mqtt.eclipseprojects.io:443/mqtt'];
 })();
 const RELAY_ROOT = 'snowfall-protocol/v1/';
-const RELAY_NAMES = ['Mosquitto', 'EMQX', 'HiveMQ'];
+const RELAY_NAMES = ['Mosquitto', 'EMQX', 'HiveMQ', 'Eclipse'];
+// Premier caractère du code : relais 0 à 3 (5 lettres chacun), salon Claude (6 lettres), connexion directe PeerJS (6 lettres).
+const RELAY_G_ROOM = 4, RELAY_G_PEER = 5;
 const RTC_ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, { urls: 'stun:stun.cloudflare.com:3478' }];
 
 // Petit client MQTT 3.1.1 (QoS 0) : connexion, abonnement, publication, maintien en vie.
@@ -7495,9 +7535,9 @@ function mqttOpen(url, id, will, onMsg, onDown) {
 }
 
 const RELAY = {
-  // Le premier caractère du code désigne le relais (0, 1, 2) ou la connexion directe PeerJS (3).
-  groupOf(code) { const i = RELAY_ALPHA.indexOf(String(code || '')[0]); return i < 0 ? -1 : Math.floor(i / 8); },
-  codeFor(k) { let s = RELAY_ALPHA[k * 8 + ((Math.random() * 8) | 0)]; for (let i = 0; i < 5; i++) s += RELAY_ALPHA[(Math.random() * RELAY_ALPHA.length) | 0]; return s; },
+  // Le premier caractère du code désigne le chemin choisi par l'hôte (voir RELAY_G_ROOM, RELAY_G_PEER).
+  groupOf(code) { const i = RELAY_ALPHA.indexOf(String(code || '')[0]); return i < 0 ? -1 : i < 20 ? Math.floor(i / 5) : i < 26 ? RELAY_G_ROOM : RELAY_G_PEER; },
+  codeFor(k) { const [a, n] = k < RELAY_G_ROOM ? [k * 5, 5] : k === RELAY_G_ROOM ? [20, 6] : [26, 6]; let s = RELAY_ALPHA[a + ((Math.random() * n) | 0)]; for (let i = 0; i < 5; i++) s += RELAY_ALPHA[(Math.random() * RELAY_ALPHA.length) | 0]; return s; },
   // Ouvre la salle du code donné, ou une nouvelle salle sur le premier relais qui répond. Même interface que le salon Claude.
   // `k` impose un relais précis (recherche d'une partie sur chacun des trois).
   open(id, code, k = null, timeout = 9000) {
@@ -7678,7 +7718,12 @@ const UI = {
     $('lobbyCode').textContent = NET.code || '------';
     $('lobbyList').innerHTML = NET.lobby.map((p, i) => `<li>${escapeHtml(p.name)} <span>${i === 0 ? 'HÔTE' : 'PRÊT'}${p.id === P.id ? ' · VOUS' : ''}${i === 0 ? '' : NET.linkLabel(p.id)}</span></li>`).join('');
     $('startCoop').classList.toggle('hidden', !NET.isHost);
-    $('lobbyStatus').textContent = (NET.isHost ? `Partagez le code ${NET.code} avec vos amis (4 joueurs max). Lancez quand tout le monde est là.` : "En attente du lancement par l'hôte…") + ` Liaison : ${NET.viaLabel()} · version ${GAME_VERSION}.` + (NET.verWarn ? ' ' + NET.verWarn : '');
+    // L'hôte doit savoir tout de suite si ses amis pourront entrer : connexion directe et salon Claude ont leurs limites.
+    const warn = NET.isHost && NET.via === 'peer' ? " ⚠ Aucun relais public n'a répondu depuis votre réseau : seuls les joueurs de votre Wi-Fi peuvent entrer avec ce code. Nouvel essai automatique toutes les 12 s — le code changera s'il réussit."
+      : NET.isHost && NET.via === 'room' ? ' ⚠ Partie hébergée dans la page claude.ai : vos amis doivent ouvrir cette même page. Pour jouer avec n\'importe qui, hébergez depuis ' + PAGES_URL : '';
+    const found = NET.isHost && NET.relayFound ? ` Relais trouvé : NOUVEAU CODE ${NET.code}.` : '';
+    $('lobbyStatus').textContent = (NET.isHost ? `Partagez le code ${NET.code} avec vos amis (4 joueurs max). Lancez quand tout le monde est là.` : "En attente du lancement par l'hôte…") + found + ` Liaison : ${NET.viaLabel()} · version ${GAME_VERSION}.` + warn + (NET.verWarn ? ' ' + NET.verWarn : '');
+    $('lobbyStatus').classList.toggle('warn', !!warn);
     if (!NET.active) $('lobby').classList.add('hidden');
     this.netStatus();
   },
@@ -8077,7 +8122,7 @@ setInterval(() => {
   while (el > 1e-3) { const dt = Math.min(0.05, el); G.update(dt); el -= dt; }
 }, 250);
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'playing' && !NET.active) pauseGame(); });
-window.SP = { PWR, pwrParts, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
+window.SP = { PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
   sim(sec, dt = 0.05) { for (let t = 0; t < sec; t += dt) { if (G.mode === 'playing' || (G.mode === 'paused' && NET.active)) { G.update(dt); if (G.mode === 'playing') updatePlayer(dt); NET.clientTick(dt); } updateFX(dt, performance.now() / 1000 + t); } } };
 
 
