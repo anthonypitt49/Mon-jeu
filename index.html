@@ -218,7 +218,7 @@ body.touch #shieldbar { left: 50%; margin-left: -90px; bottom: calc(env(safe-are
 #prompt.deny { border-color: #ff8a7a88; color: #ffb3a8; box-shadow: 0 0 22px #ff50503d; }
 #progress { position: absolute; left: 50%; top: 58%; width: 220px; height: 6px; margin-left: -110px; background: #0009; border: 1px solid #ffffff55; }
 #progress i { position: absolute; inset: 0; transform-origin: left; background: var(--frost); }
-#message { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); width: min(90%, 760px); text-align: center; color: #e6f8ff; font: 800 1.35rem/1.2 var(--f-display); letter-spacing: .14em; text-transform: uppercase; opacity: 0; transition: opacity .35s; }
+#message { position: absolute; top: max(31%, 178px); left: 50%; transform: translateX(-50%); width: min(90%, 760px); text-align: center; color: #e6f8ff; font: 800 1.35rem/1.2 var(--f-display); letter-spacing: .14em; text-transform: uppercase; opacity: 0; transition: opacity .35s; }
 #message.show { opacity: 1; }
 #message small { display: block; margin-top: 6px; font: 600 .86rem var(--f-body); letter-spacing: .1em; color: var(--mist); }
 .room-code { position: absolute; top: calc(18px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); color: var(--frost); font: .8rem var(--f-mono); letter-spacing: .18em; background: #071018cc; padding: 6px 14px; border: 1px solid #9ce8ff55; }
@@ -240,9 +240,18 @@ body.touch #shieldbar { left: 50%; margin-left: -90px; bottom: calc(env(safe-are
 #team div.me { border-left: 2px solid var(--frost); }
 #dmgdir { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
 #dmgdir i { position: absolute; left: -60px; top: -170px; width: 120px; height: 34px; border-radius: 50% 50% 0 0 / 100% 100% 0 0; border-top: 5px solid #ff2d20; filter: drop-shadow(0 0 6px #ff0000); transform-origin: 60px 170px; opacity: 0; transition: opacity .6s; }
-#objective { position: absolute; top: calc(104px + env(safe-area-inset-top, 0px)); left: 28px; max-width: 280px; display: grid; gap: 2px; padding: 7px 10px; border-left: 2px solid var(--gold); background: #07101899; }
-#objective small { color: var(--gold); font-size: .62rem; letter-spacing: .24em; }
-#objective span { font: 700 .84rem/1.3 var(--f-body); letter-spacing: .02em; }
+#objective { position: absolute; top: calc(80px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: min(560px, 86vw); display: grid; justify-items: center; gap: 3px; padding: 6px 16px 7px; background: linear-gradient(90deg, transparent, #07101ccc 18%, #07101ccc 82%, transparent); text-align: center; pointer-events: none; }
+#objective small { color: var(--gold); font: 800 .64rem var(--f-body); letter-spacing: .3em; }
+#objective span { font: 700 .9rem/1.25 var(--f-body); letter-spacing: .02em; color: #f2f6f8; text-shadow: 0 1px 2px #000; }
+#objective em { font: 600 .7rem/1.3 var(--f-body); font-style: normal; color: #b8c8d0; letter-spacing: .04em; }
+#objective em:empty { display: none; }
+#objectiveNext { font: 700 .62rem/1.3 var(--f-body); color: #8fa4ae; letter-spacing: .08em; border-top: 1px solid #ffffff1c; padding-top: 3px; margin-top: 1px; }
+#objectiveNext:empty { display: none; }
+#objectiveNext::before { content: "EN PARALLÈLE · "; color: var(--gold); opacity: .75; }
+#objectiveBar { width: 220px; height: 4px; background: #ffffff22; border-radius: 2px; overflow: hidden; }
+#objectiveBar i { display: block; height: 100%; background: var(--gold); transform-origin: left; transform: scaleX(0); transition: transform .3s; }
+#objective.pulse { animation: objPulse 1.4s ease; }
+@keyframes objPulse { 0% { filter: brightness(2.2); transform: translateX(-50%) scale(1.06); } 100% { filter: none; transform: translateX(-50%) scale(1); } }
 #pings { position: absolute; inset: 0; overflow: hidden; }
 #frostfx { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 45%, #bfe9ff55 72%, #e8f8ffcc 100%); box-shadow: inset 0 0 90px 30px #cdefff88; transition: opacity .25s; }
 .ping { position: absolute; left: 0; top: 0; width: 140px; margin: -9px 0 0 -70px; display: grid; justify-items: center; gap: 3px; color: var(--c, #9ce8ff); will-change: transform; }
@@ -346,7 +355,10 @@ body.touch .perk-icons { bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); 
 body.touch #hpbar, body.touch #stamina { left: 50%; margin-left: -90px; bottom: calc(env(safe-area-inset-bottom, 0px) + 50px); }
 body.touch #stamina { bottom: calc(env(safe-area-inset-bottom, 0px) + 44px); }
 body.touch #team { top: calc(env(safe-area-inset-top, 0px) + 120px); right: 12px; min-width: 150px; }
-body.touch #objective { top: calc(env(safe-area-inset-top, 0px) + 168px); left: 14px; max-width: 220px; }
+body.touch #objective { top: calc(env(safe-area-inset-top, 0px) + 46px); width: min(420px, 70vw); }
+body.touch #objective em, body.touch #objectiveNext { display: none; }
+body.touch #message { top: calc(env(safe-area-inset-top, 0px) + 104px); font-size: 1rem; }
+@media (orientation: portrait) { body.touch #objective { top: calc(env(safe-area-inset-top, 0px) + 116px); width: 58vw; padding: 4px 8px 5px; } body.touch #objective span { font-size: .78rem; } body.touch #message { top: calc(env(safe-area-inset-top, 0px) + 190px); } }
 body.touch #subtitle { bottom: auto; top: 38%; }
 body.touch #popups { right: auto; left: 150px; bottom: auto; top: 110px; }
 body.touch .control-strip { display: none; }
@@ -454,7 +466,7 @@ body.touch .control-strip { display: none; }
       <p class="eyebrow">RÉGLAGES DU SOLDAT</p>
       <h2>OPTIONS</h2>
       <div class="settings-grid">
-        <div class="set-row"><label for="optDiff">DIFFICULTÉ</label><select id="optDiff"><option value="0">Recrue — 6 coups</option><option value="1">Régulier — 4 coups</option><option value="2">Vétéran — 3 coups</option></select></div>
+        <div class="set-row"><label for="optDiff">DIFFICULTÉ</label><select id="optDiff"><option value="0">Recrue — 6 coups</option><option value="1">Régulier — 4 coups</option><option value="2">Vétéran — 3 coups</option><option value="3">Cauchemar — 3 coups, hordes</option></select></div>
         <div class="set-row"><label for="optQuality">GRAPHISMES</label><select id="optQuality"><option value="0">Bas — performance</option><option value="1">Moyen</option><option value="2">Élevé</option><option value="3">Ultra</option></select></div>
         <div class="set-row"><label for="optSens">SENSIBILITÉ</label><input type="range" id="optSens" min="0.3" max="2.5" step="0.1"><output id="optSensV"></output></div>
         <div class="set-row"><label for="optFov">CHAMP DE VISION</label><input type="range" id="optFov" min="60" max="100" step="1"><output id="optFovV"></output></div>
@@ -520,7 +532,7 @@ body.touch .control-strip { display: none; }
     <div id="progress" class="hidden"><i></i></div>
     <div id="downed" class="hidden">À TERRE<small id="downedSub">Un camarade peut vous relever</small></div>
     <div id="spectate" class="hidden"><small>SPECTATEUR · VOUS REVIENDREZ À LA PROCHAINE MANCHE</small>Vous suivez <b id="spectateName"></b><small class="spec-help"><span class="k-desk">Clic ou Espace : camarade suivant · Q : signaler</span><span class="k-touch">TIRER : camarade suivant · PING : signaler</span></small></div>
-    <div id="objective" class="hidden"><small>OBJECTIF</small><span id="objectiveText"></span></div>
+    <div id="objective" class="hidden"><small id="objectiveTitle">OBJECTIF</small><span id="objectiveText"></span><em id="objectiveSub"></em><div id="objectiveBar" class="hidden"><i></i></div><b id="objectiveNext"></b></div>
     <div id="subtitle"></div>
     <div id="banner"><b id="bannerTitle"></b><span id="bannerSub"></span></div>
     <div id="prompt"></div>
@@ -633,13 +645,15 @@ const store = {
 };
 const defaultQuality = IS_TOUCH ? 0 : 2;
 const settings = Object.assign({ quality: defaultQuality, sens: 1, fov: 78, volume: 0.8, music: 0.5, invertY: false, showFps: false, name: '', diff: 1 }, store.get('settings', {}));
-// Difficulté : points de vie du soldat, coup d'un infecté, résistance et cadence d'arrivée des infectés.
+// Difficulté : points de vie du soldat, coup d'un infecté, résistance, nombre et cadence d'arrivée des infectés.
+// « early » avance (ou recule) d'autant de manches l'arrivée des coureurs et des infectés spéciaux.
 const DIFFS = [
-  { name: 'Recrue', hp: 200, hit: 35, zhp: 0.8, spawn: 0.85, desc: 'Pour découvrir : beaucoup de vie, infectés moins résistants.' },
-  { name: 'Régulier', hp: 150, hit: 40, zhp: 1, spawn: 1, desc: 'La difficulté prévue : quatre coups avant de tomber.' },
-  { name: 'Vétéran', hp: 110, hit: 50, zhp: 1.15, spawn: 1.12, desc: 'Pour les habitués : trois coups et vous êtes à terre.' },
+  { name: 'Recrue', hp: 200, hit: 35, zhp: 0.8, spawn: 0.85, count: 0.85, early: -1, desc: 'Pour découvrir : beaucoup de vie, infectés moins résistants.' },
+  { name: 'Régulier', hp: 150, hit: 40, zhp: 1, spawn: 1, count: 1, early: 0, desc: 'La difficulté prévue : quatre coups avant de tomber.' },
+  { name: 'Vétéran', hp: 110, hit: 50, zhp: 1.15, spawn: 1.12, count: 1.1, early: 1, desc: 'Pour les habitués : trois coups et vous êtes à terre.' },
+  { name: 'Cauchemar', hp: 110, hit: 50, zhp: 1.3, spawn: 1.25, count: 1.2, early: 3, desc: 'Coureurs dès la 2e manche, brutes blindées et Givreux très tôt, hordes denses.' },
 ];
-const DIFF = () => DIFFS[typeof G !== 'undefined' && G.diff != null ? G.diff : clamp(settings.diff | 0, 0, 2)];
+const DIFF = () => DIFFS[typeof G !== 'undefined' && G.diff != null ? G.diff : clamp(settings.diff | 0, 0, 3)];
 const saveSettings = () => store.set('settings', settings);
 const QUALITY = [
   { name: 'bas', pr: 0.75, shadows: false, shadowSize: 0, bloom: false, snow: 1800, flashShadow: false, texSize: 256, grain: false, decals: 30 },
@@ -655,7 +669,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '4.0'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '4.1'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -1414,6 +1428,17 @@ function wallSpot(s, inset = 0.45) {
 
 /* ─── Requêtes sur la grille ─── */
 const tType = (x, z) => (inMap(x, z) ? MAP.type[ti(x, z)] : T_SOLID);
+// Point atteignable le plus proche (case praticable d'une zone ouverte) : objets lâchés derrière une barricade.
+function reachSpot(x, z) {
+  const ok = (a, b) => isTrench(a, b) && MAP.zoneActive[MAP.zone[ti(a, b)]], tx = tileOf(x), tz = tileOf(z);
+  if (ok(tx, tz)) return [x, z];
+  let best = null, bd = 1e9;
+  for (let r = 1; r <= 12 && !best; r++) for (let b = tz - r; b <= tz + r; b++) for (let a = tx - r; a <= tx + r; a++) {
+    if (Math.max(Math.abs(a - tx), Math.abs(b - tz)) !== r || !ok(a, b)) continue;
+    const d = Math.hypot(tcx(a) - x, tcx(b) - z); if (d < bd) { bd = d; best = [tcx(a), tcx(b)]; }
+  }
+  return best || [x, z];
+}
 function isTrench(x, z) { if (!inMap(x, z)) return false; const i = ti(x, z), t = MAP.type[i]; return t === T_FLOOR || (t === T_DOOR && MAP.doors[MAP.doorAt[i]].open); }
 function tClass(x, z) {
   if (!inMap(x, z)) return C_BLOCK;
@@ -1450,7 +1475,7 @@ const SILL_H = 0.62;
 function sillH(r, t) { return r.look === 'window' ? SILL_H * smooth(clamp(1 - Math.abs(t - 0.1) / 0.2, 0, 1)) : 0; }
 function groundAt(x, z) {
   const tx = tileOf(x), tz = tileOf(z), c = tClass(tx, tz);
-  if (c === C_TRENCH) return 0;
+  if (c === C_TRENCH) return M.floorH ? M.floorH(x, z) : 0;
   if (c === C_RAMP) { const r = MAP.barricades[MAP.rampAt[ti(tx, tz)]], t = rampT(r, x, z); return M.flat ? (r.look === 'slope' ? smooth(clamp((t - 0.15) / 0.85, 0, 1)) * r.outH : sillH(r, t)) : smooth(t) * WALL_H; }
   return surfH(x, z);
 }
@@ -1478,6 +1503,8 @@ function surfH(x, z) {
 // Hauteur des murs pleins (T_BLOCK) et des plafonds.
 const blockH = (i) => (M.blockH ? M.blockH(MAP.style[i]) : M.flat ? (M.wallH || 3.6) : WALL_H + 0.4);
 const ceilH = () => (M.flat ? M.ceil || 3.0 : WALL_H);
+// Hauteur sous plafond d'une pièce : le style peut la relever (nef d'église, entrepôt…).
+const roomCeil = (tx, tz) => { if (!M.flat || !inMap(tx, tz)) return ceilH(); const sd = (M.styleDefs || [])[MAP.style[ti(tx, tz)]]; return (sd && sd.ceilH) || ceilH(); };
 
 /* ─── Collisions cercle / grille / obstacles ─── */
 function collideCircle(p, r, blockedFn) {
@@ -1584,14 +1611,14 @@ function solidAt(x, y, z, phys) {
     }
     if (t === T_DOOR) { const d = MAP.doors[MAP.doorAt[i]]; if (!d.open && y < WALL_H && y >= 0) return doorMat(d); if (d.lintel && y > WALL_H - 0.05 && y < d.lintel) return M.wallMat || 'concrete'; }
     if (y < 0) return M.floorMat ? M.floorMat(MAP.style[i]) : 'concrete';
-    if (MAP.roof[i] && y > ceilH() - 0.05 && y < ceilH() + 0.4) return M.ceilMat || 'wood';
+    if (MAP.roof[i]) { const ch = roomCeil(tx, tz); if (y > ch - 0.05 && y < ch + 0.4) return M.ceilMat || 'wood'; }
     return null;
   }
   if (t === T_SOLID) return y < WALL_H + (MAP.edge[i] > 1 ? surfH(x, z) - WALL_H : 0) ? (MAP.style[i] === STYLE_BUNKER ? 'concrete' : 'earth') : null;
   if (t === T_BLOCK) return y < blockH(i) ? 'concrete' : null;
   if (t === T_RAMP) { const r = MAP.barricades[MAP.rampAt[i]]; return y < smooth(rampT(r, x, z)) * WALL_H - 0.02 ? 'earth' : null; }
   if (t === T_DOOR && !MAP.doors[MAP.doorAt[i]].open) return y < WALL_H ? doorMat(MAP.doors[MAP.doorAt[i]]) : null;
-  if (y < 0) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : 'wood';
+  if (y < (M.floorH ? M.floorH(x, z) : 0)) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : MAP.style[i] === STYLE_CRATER ? 'earth' : 'wood';
   if (MAP.roof[i] && y > WALL_H - 0.12 && y < WALL_H + 0.5) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : 'metal';
   return null;
 }
@@ -1651,7 +1678,7 @@ function rayProps(o, d, maxDist) {
 }
 // Hauteur d'appui (caisses, banquettes) sous un cercle.
 function propSupport(p, r, y, step) {
-  let g = 0;
+  let g = M.floorH ? M.floorH(p.x, p.z) : 0;
   for (const b of MAP.props) { if (b.off || b.y1 > y + step || b.y1 <= g) continue; if (p.x + r * 0.5 < b.x0 || p.x - r * 0.5 > b.x1 || p.z + r * 0.5 < b.z0 || p.z - r * 0.5 > b.z1) continue; g = b.y1; }
   return g;
 }
@@ -1817,7 +1844,11 @@ function buildLights() {
   pl('muzzle', 0xffc27a, 0, 12, 0, -50, 0);
   pl('blast', 0xffa050, 0, 26, 0, -50, 0);
   pl('flare', 0xffe2d6, 0, 140, 0, -50, 0);
-  M.lights(pl);
+  // Lampes de carte : jamais au-dessus du plafond de la pièce (elles n'éclaireraient que le toit).
+  M.lights((name, color, intensity, dist, x, y, z) => {
+    if (M.flat) { const tx = tileOf(x), tz = tileOf(z); if (inMap(tx, tz) && MAP.roof[ti(tx, tz)] && MAP.type[ti(tx, tz)] !== T_SOLID) y = Math.min(y, roomCeil(tx, tz) - 0.3); }
+    return pl(name, color, intensity, dist, x, y, z);
+  });
 }
 function buildViewLights() {
   const v = R.viewScene;
@@ -2031,6 +2062,7 @@ function buildMaterials() {
   MATS.stone = stdMat({ map: TEX.concrete.map, normalMap: TEX.concrete.normalMap, color: 0x8b8378, roughness: 0.95 }, 1);
   MATS.ice = new THREE.MeshStandardMaterial({ color: 0xbfd8ea, roughness: 0.08, metalness: 0.2, transparent: true, opacity: 0.85 });
   MATS.paper = new THREE.MeshStandardMaterial({ roughness: 0.9 });
+  for (const k in MATS) MATS[k].name ||= k;
 }
 
 /* ─── Construction principale ─── */
@@ -2041,7 +2073,10 @@ function buildWorld() {
   else { buildTerrain(); buildTrenches(); buildRoofs(); buildRamps(); }
   buildDoors();
   buildInteractables();
+  buildPowerParts();
   M.decor();
+  if (M.flat) flatDecals();
+  scatterAll(M.scatter);
   checkBarricadeExits();
   mergeStatic();
 }
@@ -2138,7 +2173,7 @@ function buildTrenches() {
       gb.grid(4, 5, (s0, v) => {
         const s = flip ? 1 - s0 : s0, px = sx + along[0] * s * TILE, pz = sz + along[2] * s * TILE, y = v * top;
         let disp = 0;
-        if (!concrete) { const f = Math.sin(Math.PI * s) * Math.sin(Math.PI * v); disp = (fbm(px * 0.9 + py3(y), pz * 0.9 + y, 3) - 0.5) * 0.3 * f - v * 0.16 * Math.sqrt(Math.sin(Math.PI * s)); }
+        if (!concrete) { const f = Math.sin(Math.PI * s) * Math.sin(Math.PI * v), amp = style === STYLE_CRATER ? 0.62 : 0.3; disp = (fbm(px * 0.9 + py3(y), pz * 0.9 + y, 3) - 0.5) * amp * f - v * 0.16 * Math.sqrt(Math.sin(Math.PI * s)); }
         const ao = concrete ? 0.62 + 0.38 * smooth(clamp(v * 3, 0, 1)) : 0.55 + 0.45 * smooth(clamp(v * 2.2, 0, 1));
         return { p: [px - nX * -disp, y, pz - nZ * -disp], uv: [(px + pz) / 2.2, y / 2.2], c: [ao, ao, ao] };
       });
@@ -2181,7 +2216,8 @@ function buildTrenches() {
         const nearWall = [[1, 0], [-1, 0], [0, 1], [0, -1]].reduce((m, [a, b]) => { if (tType(x + a, z + b) !== T_SOLID) return m; const d = a > 0 ? 1 - s : a < 0 ? s : b > 0 ? 1 - v : v; return Math.max(m, 1 - clamp(d * 3, 0, 1)); }, 0);
         const sn = clamp(nearWall * 0.55 + (fbm(px * 0.6, pz * 0.6, 3) - 0.58) * 1.6, 0, 0.85);
         const mud = [0.3, 0.25, 0.21], w = 0.88;
-        return { p: [px, (fbm(px * 2, pz * 2, 2) - 0.5) * 0.04, pz], uv: [px / 3, pz / 3], c: [lerp(mud[0], w, sn), lerp(mud[1], w, sn), lerp(mud[2], w * 1.03, sn)] };
+        const fh = M.floorH ? M.floorH(px, pz) : 0, sn2 = fh < -0.05 ? sn * 0.55 : sn; // fond de cratère : terre retournée
+        return { p: [px, (fbm(px * 2, pz * 2, 2) - 0.5) * 0.04 + fh, pz], uv: [px / 3, pz / 3], c: [lerp(mud[0], w, sn2), lerp(mud[1], w, sn2), lerp(mud[2], w * 1.03, sn2)] };
       });
       if (style === STYLE_TRENCH || t === T_DOOR) {
         // Caillebotis dans l'axe du boyau.
@@ -2208,7 +2244,9 @@ function buildRoofs() {
     const i = ti(x, z); if (!MAP.roof[i] || MAP.type[i] === T_SOLID) continue;
     const st = MAP.style[i], y = WALL_H - 0.08, x0 = x * TILE, z0 = z * TILE;
     const gb = st === STYLE_BUNKER ? ceilC : ceilM;
-    gb.grid(1, 1, (s, v) => ({ p: [x0 + (1 - s) * TILE, y, z0 + v * TILE], uv: [(x0 + s * TILE) / 2, (z0 + v * TILE) / 2], c: [0.5, 0.5, 0.52], n: [0, -1, 0] }));
+    // Le haut des parois de terre recule un peu : le plafond déborde au-dessus pour ne laisser aucun jour.
+    const ov = (dx, dz) => (tType(x + dx, z + dz) === T_SOLID ? 0.3 : 0), ax0 = x0 - ov(-1, 0), ax1 = x0 + TILE + ov(1, 0), az0 = z0 - ov(0, -1), az1 = z0 + TILE + ov(0, 1);
+    gb.grid(1, 1, (s, v) => { const px = lerp(ax1, ax0, s), pz = lerp(az0, az1, v); return { p: [px, y, pz], uv: [px / 2, pz / 2], c: [0.5, 0.5, 0.52], n: [0, -1, 0] }; });
     beams.add(x0 + TILE / 2, y - 0.13, z0 + TILE / 2, 0, 0, 0);
     // Linteau au-dessus des ouvertures vers les zones non couvertes.
     for (const [dx, dz] of faceDirs()) {
@@ -2511,7 +2549,7 @@ function fmat(key, color = 0xffffff, o = {}) {
     const t = ftex(key);
     m = stdMat({ map: t.map, normalMap: t.normalMap, roughness: o.rough ?? 0.9, metalness: o.metal ?? 0, color, vertexColors: vc, alphaTest: FLAT_TEX[key].alpha ? 0.5 : 0, side: o.side ?? THREE.FrontSide }, o.snow || 0);
   }
-  m.userData.scale = FLAT_SCALE[key] || 2;
+  m.userData.scale = FLAT_SCALE[key] || 2; m.name = key + ':' + color.toString(16);
   return (FMATS[k] = m);
 }
 // Matière à couleurs par sommet pour les murs et sols construits ici (spec = 'clé' ou ['clé', teinte]).
@@ -2572,8 +2610,9 @@ function buildFlatWorld() {
     for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) { const s0 = a / 2, s1 = (a + 1) / 2, v0 = b / 2, v1 = (b + 1) / 2; q.flat(x0 + s0 * T, z0 + v0 * T, x0 + s1 * T, z0 + v1 * T, 0.004, 1, [ao(s0, v0), ao(s1, v0), ao(s1, v1), ao(s0, v1)]); }
     // Plafond et dalle de toit.
     if (MAP.roof[i]) {
-      qb(fv(st.ceil || M.ceilTex || 'plaster')).flat(x0, z0, x0 + T, z0 + T, CH, -1);
-      if (!st.noSlab) qb(fv(st.roof || M.roofTex || 'concrete')).flat(x0 - 0.02, z0 - 0.02, x0 + T + 0.02, z0 + T + 0.02, CH + 0.35, 1);
+      const ch = st.ceilH || CH;
+      qb(fv(st.ceil || M.ceilTex || 'plaster')).flat(x0, z0, x0 + T, z0 + T, ch, -1);
+      if (!st.noSlab) qb(fv(st.roof || M.roofTex || 'concrete')).flat(x0 - 0.02, z0 - 0.02, x0 + T + 0.02, z0 + T + 0.02, ch + 0.35, 1);
     }
   }
   // Murs pleins (carreaux T_BLOCK).
@@ -2585,7 +2624,7 @@ function buildFlatWorld() {
       const a = x + dx, b = z + dz; if (inMap(a, b) && MAP.type[ti(a, b)] === T_BLOCK) continue;
       const inside = roofAt(a, b), fmatIn = inside && st.blockIn ? fv(st.blockIn) : mat;
       const y0 = inMap(a, b) && MAP.type[ti(a, b)] === T_SOLID ? Math.min(0, surfH(tcx(a), tcx(b))) - 0.3 : 0;
-      const top = inside ? Math.min(h, CH) : h;
+      const top = inside ? Math.min(h, roomCeil(a, b)) : h;
       if (st.rough) { roughFace(qb(fmatIn), x, z, dx, dz, y0, h, st.rough); continue; }
       if (dx) { const X = dx > 0 ? x0 + T : x0; qb(fmatIn).wall(X, z0, X, z0 + T, y0, top, dx, 0); if (top < h) q.wall(X, z0, X, z0 + T, top, h, dx, 0, false); }
       else { const Z = dz > 0 ? z0 + T : z0; qb(fmatIn).wall(x0, Z, x0 + T, Z, y0, top, 0, dz); if (top < h) q.wall(x0, Z, x0 + T, Z, top, h, 0, dz, false); }
@@ -2612,9 +2651,11 @@ function buildFlatWorld() {
     }
   }
   buildFences(bars, chainSegs, pickets, rails, posts);
+  flatDetails();
   buildFlatRamps();
   for (const q of QBS.values()) q.build(true);
   QBS.clear();
+  flatWindowExtras();
   // Plan d'eau (baie, rivière souterraine…).
   if (M.water) buildWater();
   // Plaine lointaine.
@@ -2624,7 +2665,7 @@ function buildFlatWorld() {
 // Mur plein entre deux carreaux : face intérieure (pièce couverte) et extérieure, dessus, et fenêtre décorative éventuelle.
 function flatSolidWall(K, X0, Z0, X1, Z1, bit, ax, az, bx, bz, roofA, roofB) {
   const E = EDGE_T, CH = ceilH();
-  const h = Math.max(K.h || 3, roofA || roofB ? CH + 0.35 : 0), y0 = K.y0 || 0;
+  const h = Math.max(K.h || 3, roofA ? roomCeil(ax, az) + 0.35 : 0, roofB ? roomCeil(bx, bz) + 0.35 : 0), y0 = K.y0 || 0;
   const matOut = fv(K.out || 'concrete'), matIn = K.in ? fv(K.in) : matOut;
   const mA = roofA ? matIn : matOut, mB = roofB ? matIn : matOut;
   // Côté A (ouest ou nord) et côté B (est ou sud) ; les segments débordent de l'épaisseur pour fermer les angles.
@@ -2645,7 +2686,7 @@ function flatSolidWall(K, X0, Z0, X1, Z1, bit, ax, az, bx, bz, roofA, roofB) {
   // Dessus du mur.
   const top = qb(roofA || roofB ? fv(M.roofTex || 'concrete') : matOut);
   if (bit === 0) top.flat(X0 - E, Z0 - E, X0 + E, Z1 + E, h, 1); else top.flat(X0 - E, Z0 - E, X1 + E, Z0 + E, h, 1);
-  if (win) { // embrasure, vitre et encadrement
+  if (win) { // embrasure, encadrement en saillie, croisillons, appui, rideaux et vitre
     const trim = qb(fv(K.trim || ['planks', 0xd8d0c0]));
     const s0 = win.s0, s1 = win.s1, wy0 = win.y0, wy1 = win.y1;
     if (bit === 0) {
@@ -2655,25 +2696,153 @@ function flatSolidWall(K, X0, Z0, X1, Z1, bit, ax, az, bx, bz, roofA, roofB) {
       trim.flat(X0 + s0, Z0 - E - 0.05, X0 + s1, Z0 + E + 0.05, wy0, 1); trim.flat(X0 + s0, Z0 - E, X0 + s1, Z0 + E, wy1, -1);
       trim.wall(X0 + s0, Z0 - E, X0 + s0, Z0 + E, wy0, wy1, 1, 0, false); trim.wall(X0 + s1, Z0 - E, X0 + s1, Z0 + E, wy0, wy1, -1, 0, false);
     }
+    // a = position le long du mur, n = décalage perpendiculaire à la ligne du mur.
+    const boxIn = (qq, a0, a1, by0, by1, n0, n1) => (bit === 0 ? qbBox(qq, X0 + n0, by0, Z0 + a0, X0 + n1, by1, Z0 + a1) : qbBox(qq, X0 + a0, by0, Z0 + n0, X0 + a1, by1, Z0 + n1)), box = (...a) => boxIn(trim, ...a);
+    for (const side of [-1, 1]) {
+      const n0 = Math.min(side * E, side * (E + 0.035)), n1 = Math.max(side * E, side * (E + 0.035)), fw = 0.08;
+      box(s0 - fw, s0, wy0 - fw, wy1 + fw, n0, n1); box(s1, s1 + fw, wy0 - fw, wy1 + fw, n0, n1);
+      box(s0, s1, wy1, wy1 + fw, n0, n1); box(s0, s1, wy0 - fw, wy0, n0, n1);
+      if (side < 0 ? !roofA : !roofB) box(s0 - 0.13, s1 + 0.13, wy0 - 0.13, wy0 - 0.06, Math.min(side * E, side * (E + 0.1)), Math.max(side * E, side * (E + 0.1))); // appui saillant côté rue
+    }
+    // Croisillons : un meneau et une traverse (sauf vitrail ou barreaux).
+    if (!K.stained && !K.bars) { const cm = (s0 + s1) / 2, ym = wy0 + (wy1 - wy0) * 0.58, t = 0.022; box(cm - t, cm + t, wy0, wy1, -0.028, 0.028); box(s0, s1, ym - t, ym + t, -0.028, 0.028); }
+    // Barreaux de prison scellés dans l'embrasure.
+    if (K.bars) { for (let k = 1; k < 9; k++) { const a = s0 + (s1 - s0) * k / 9; FLAT_BARS.push([bit === 0 ? [X0 + 0.04, (wy0 + wy1) / 2, Z0 + a] : [X0 + a, (wy0 + wy1) / 2, Z0 + 0.04], wy1 - wy0]); } box(s0, s1, wy0 + (wy1 - wy0) * 0.5 - 0.02, wy0 + (wy1 - wy0) * 0.5 + 0.02, 0.01, 0.07); }
+    // Volets ouverts contre la façade, côté rue.
+    if (K.shutter) for (const side of [-1, 1]) {
+      if (side < 0 ? roofA : roofB) continue; const sq = qb(fv(['planks', K.shutter])), n0 = Math.min(side * (E + 0.04), side * (E + 0.075)), n1 = Math.max(side * (E + 0.04), side * (E + 0.075)), sw = (s1 - s0) / 2;
+      for (const [a0, a1] of [[s0 - 0.1 - sw, s0 - 0.1], [s1 + 0.1, s1 + 0.1 + sw]]) { boxIn(sq, a0, a1, wy0 - 0.05, wy1 + 0.05, n0, n1); for (let k = 0; k < 6; k++) { const yy = wy0 + (wy1 - wy0) * (k + 0.5) / 6; if (bit === 0) qbBox(sq, X0 + (side < 0 ? n0 - 0.012 : n1), yy - 0.035, Z0 + a0 + 0.05, X0 + (side < 0 ? n0 : n1 + 0.012), yy + 0.035, Z0 + a1 - 0.05); else qbBox(sq, X0 + a0 + 0.05, yy - 0.035, Z0 + (side < 0 ? n0 - 0.012 : n1), X0 + a1 - 0.05, yy + 0.035, Z0 + (side < 0 ? n0 : n1 + 0.012)); } }
+    }
+    // Jardinière fleurie sous la fenêtre, côté rue.
+    if (K.flowers) for (const side of [-1, 1]) { if (side < 0 ? roofA : roofB) continue; const n0 = Math.min(side * E, side * (E + 0.22)), n1 = Math.max(side * E, side * (E + 0.22)); box(s0 - 0.05, s1 + 0.05, wy0 - 0.34, wy0 - 0.14, n0, n1); FLAT_FLOWERS.push([bit, X0, Z0, s0, s1, wy0 - 0.12, side * (E + 0.11)]); }
     // Rideaux et tringle du côté intérieur.
     if (M.curtain) for (const [side, roofed] of [[-1, roofA], [1, roofB]]) {
-      if (!roofed) continue; const cq = qb(fv(M.curtain)), o = E + 0.05;
+      if (!roofed) continue; const cq = qb(fv(M.curtain)), o = E + 0.06;
       for (const [c0, c1] of [[s0 - 0.28, s0 + 0.12], [s1 - 0.12, s1 + 0.28]]) {
         if (bit === 0) cq.wall(X0 + side * o, Z0 + c0, X0 + side * o, Z0 + c1, wy0 - 0.35, wy1 + 0.18, side, 0, false); else cq.wall(X0 + c0, Z0 + side * o, X0 + c1, Z0 + side * o, wy0 - 0.35, wy1 + 0.18, 0, side, false);
       }
     }
-    const glass = qb(K.lit ? flatGlassLit(K.lit) : flatGlass());
+    // Vitre : une face par côté. Fenêtre éclairée : lumineuse vue de la rue, vitre de nuit vue de l'intérieur.
     const cx = bit === 0 ? X0 : X0 + (s0 + s1) / 2, cz = bit === 0 ? Z0 + (s0 + s1) / 2 : Z0, hw = (s1 - s0) / 2;
     for (const sgn of [-1, 1]) {
+      const roofed = sgn < 0 ? roofA : roofB, inside = roofed && roofA !== roofB;
+      const glass = qb(K.stained ? flatStained(inside) : K.lit ? (inside ? flatGlassNight() : flatGlassLit(K.lit)) : flatGlass());
       if (bit === 0) glass.quad([[cx, wy0, cz - hw], [cx, wy0, cz + hw], [cx, wy1, cz + hw], [cx, wy1, cz - hw]], [sgn, 0, 0], [[0, 0], [1, 0], [1, 1], [0, 1]]);
       else glass.quad([[cx - hw, wy0, cz], [cx + hw, wy0, cz], [cx + hw, wy1, cz], [cx - hw, wy1, cz]], [0, 0, sgn], [[0, 0], [1, 0], [1, 1], [0, 1]]);
     }
   }
 }
+// Pavé (six faces) dans un lot de quadrilatères : moulures, encadrements, bandeaux.
+function qbBox(q, x0, y0, z0, x1, y1, z1) {
+  q.wall(x1, z0, x1, z1, y0, y1, 1, 0, false); q.wall(x0, z0, x0, z1, y0, y1, -1, 0, false);
+  q.wall(x0, z1, x1, z1, y0, y1, 0, 1, false); q.wall(x0, z0, x1, z0, y0, y1, 0, -1, false);
+  q.flat(x0, z0, x1, z1, y1, 1); q.flat(x0, z0, x1, z1, y0, -1);
+}
+// Vitrail : losanges de couleur sertis de plomb, plus lumineux vu du dehors (cierges allumés dedans).
+const _stained = {};
+function flatStained(inside) {
+  if (_stained[inside]) return _stained[inside];
+  const tex = _stained.tex ||= textTexture(256, 512, (x, w, h) => { const r = mulberry32(5), cols = ['#8a1e1e', '#1e3a8a', '#c8a020', '#2a6a3a', '#6a2a7a', '#b85a1a']; x.fillStyle = '#111'; x.fillRect(0, 0, w, h); const k = 42; for (let j = -1; j < h / k + 1; j++) for (let i = -1; i < w / k + 1; i++) { const cx = i * k + (j % 2) * k / 2, cy = j * k * 0.9; x.fillStyle = cols[(r() * cols.length) | 0]; x.beginPath(); x.moveTo(cx, cy - k * 0.55); x.lineTo(cx + k / 2 - 3, cy); x.lineTo(cx, cy + k * 0.55); x.lineTo(cx - k / 2 + 3, cy); x.closePath(); x.fill(); } x.strokeStyle = '#151210'; x.lineWidth = 7; x.beginPath(); x.arc(w / 2, h * 0.3, w * 0.28, 0, TAU); x.stroke(); x.beginPath(); x.moveTo(w / 2, 0); x.lineTo(w / 2, h); x.stroke(); });
+  return (_stained[inside] = Object.assign(new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: inside ? 0.25 : 0.9, roughness: 0.3, vertexColors: true, name: 'vitrail' }), { userData: { scale: 1 } }));
+}
+const FLAT_BARS = [], FLAT_FLOWERS = [];
+// Barreaux et fleurs des fenêtres : lots instanciés construits après les murs.
+function flatWindowExtras() {
+  if (FLAT_BARS.length) { const b = new Batch(new THREE.CylinderGeometry(0.016, 0.016, 1, 6), MATS.iron); for (const [[x, y, z], h] of FLAT_BARS) b.add(x, y, z, 0, 0, 0, 1, h + 0.06, 1); b.build(); }
+  if (FLAT_FLOWERS.length) {
+    const fl = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.07, 0), stdMat({ color: 0xffffff, roughness: 0.8 }), FLAT_FLOWERS.length * 7), leaf = new Batch(new THREE.IcosahedronGeometry(0.1, 0), fmat('plain', 0x3f6a2e, { rough: 0.9 })); let n = 0; const cols = [0xd8344a, 0xf2d24a, 0xf2f0ea, 0xe86ab0, 0x7a5ad8], c = new THREE.Color();
+    for (const [bit, X0, Z0, s0, s1, y, off] of FLAT_FLOWERS) for (let k = 0; k < 7; k++) { const a = s0 + (s1 - s0) * (k + 0.5) / 7, px = bit === 0 ? X0 + off : X0 + a, pz = bit === 0 ? Z0 + a : Z0 + off; leaf.add(px, y + 0.02, pz, rand(TAU), 0, 0, 1.3, 0.8, 1.3); fl.setMatrixAt(n, _m1.compose(_v1.set(px + rand(-0.05, 0.05), y + 0.1 + rand(0, 0.05), pz + rand(-0.05, 0.05)), _q1.identity(), _v2.setScalar(rand(0.7, 1.1)))); fl.setColorAt(n++, c.setHex(cols[(Math.random() * cols.length) | 0])); }
+    fl.count = n; fl.instanceMatrix.needsUpdate = true; fl.instanceColor.needsUpdate = true; R.scene.add(fl); leaf.build();
+  }
+  FLAT_BARS.length = 0; FLAT_FLOWERS.length = 0;
+}
 let _flatGlass = null;
-function flatGlass() { return (_flatGlass ||= Object.assign(new THREE.MeshStandardMaterial({ color: 0x9fb4bf, roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.22, depthWrite: false, vertexColors: true }), { userData: { scale: 1 } })); }
+function flatGlass() { return (_flatGlass ||= Object.assign(new THREE.MeshStandardMaterial({ color: 0x7d96a2, roughness: 0.05, metalness: 0.55, transparent: true, opacity: 0.4, depthWrite: false, vertexColors: true, name: 'verre' }), { userData: { scale: 1 } })); }
+let _nightGlass = null;
+// Vitre vue de l'intérieur la nuit : sombre et réfléchissante.
+function flatGlassNight() { return (_nightGlass ||= Object.assign(new THREE.MeshStandardMaterial({ color: 0x0d171d, roughness: 0.07, metalness: 0.7, vertexColors: true, name: 'verreNuit' }), { userData: { scale: 1 } })); }
 const _litGlass = {};
 function flatGlassLit(c) { return (_litGlass[c] ||= Object.assign(new THREE.MeshStandardMaterial({ color: 0x302418, emissive: c, emissiveIntensity: 0.55, roughness: 0.2, metalness: 0.3, vertexColors: true }), { userData: { scale: 1 } })); }
+
+/* ─── Finitions automatiques : bords de toit fermés, débords, bouts de murs, linteaux, soubassements, corniches ───
+   M.details (facultatif) : { eaves: profondeur du débord, gutter: couleur de gouttière, fascia: matière de la planche de rive,
+   plinth: matière du soubassement extérieur, crown: matière de la corniche intérieure, header: true pour les linteaux }. */
+function flatDetails() {
+  const T = TILE, E = EDGE_T, D = M.details || {}, SD = M.styleDefs || [];
+  const sd = (x, z) => SD[MAP.style[ti(x, z)]] || {};
+  const tt = (x, z) => (inMap(x, z) ? MAP.type[ti(x, z)] : T_SOLID);
+  const roofed = (x, z) => inMap(x, z) && MAP.roof[ti(x, z)] && tt(x, z) !== T_SOLID && tt(x, z) !== T_BLOCK;
+  const solidK = (k) => k && !wallDef(k).see;
+  const fascia = fv(D.fascia || M.roofTex || 'concrete'), gutters = D.gutter ? new Batch(new THREE.CylinderGeometry(0.055, 0.055, 1, 8, 1, true), fmat('plain', D.gutter, { rough: 0.5, metal: 0.4 })) : null;
+  const wallH = (K, ax, az, bx, bz) => Math.max(K.h || 3, roofed(ax, az) ? roomCeil(ax, az) + 0.35 : 0, roofed(bx, bz) ? roomCeil(bx, bz) + 0.35 : 0);
+  // 1 et 2. Bords de toit : face de rive là où le toit s'arrête sans mur ; débord au-dessus des murs extérieurs.
+  for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) {
+    if (!roofed(x, z) || sd(x, z).noSlab) continue;
+    const ch = roomCeil(x, z), x0 = x * T, z0 = z * T;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const a = x + dx, b = z + dz;
+      if ((roofed(a, b) && !sd(a, b).noSlab && roomCeil(a, b) === ch) || tt(a, b) === T_BLOCK) continue;
+      const k = edgeWall(x, z, a, b);
+      // le long du bord : de s0 à s1 (on prolonge aux angles du toit)
+      const ext = (px, pz) => !(roofed(px, pz) && !sd(px, pz).noSlab);
+      if (solidK(k)) {
+        if (!D.eaves || roofed(a, b) || wallH(wallDef(k), x, z, a, b) > ch + 0.36) continue;
+        const dep = D.eaves, lo = ext(x - dz, z - dx) ? -dep : 0, hi = ext(x + dz, z + dx) ? dep : 0, y0 = ch + 0.27, y1 = ch + 0.4 + (dx ? 0 : 0.004);
+        const top = qb(fv(sd(x, z).roof || M.roofTex || 'concrete'));
+        if (dx) { const X = dx > 0 ? x0 + T : x0, xa = Math.min(X, X + dx * dep), xb = Math.max(X, X + dx * dep); top.flat(xa, z0 + lo, xb, z0 + T + hi, y1, 1); qbBox(qb(fascia), xa, y0, z0 + lo, xb, y1 - 0.01, z0 + T + hi); if (gutters) gutters.add(X + dx * (dep + 0.03), y0 + 0.02, z0 + T / 2 + (lo + hi) / 2, 0, Math.PI / 2, 0, 1, T + hi - lo, 1); }
+        else { const Z = dz > 0 ? z0 + T : z0, za = Math.min(Z, Z + dz * dep), zb = Math.max(Z, Z + dz * dep); top.flat(x0 + lo, za, x0 + T + hi, zb, y1, 1); qbBox(qb(fascia), x0 + lo, y0, za, x0 + T + hi, y1 - 0.01, zb); if (gutters) gutters.add(x0 + T / 2 + (lo + hi) / 2, y0 + 0.02, Z + dz * (dep + 0.03), Math.PI / 2, Math.PI / 2, 0, 1, T + hi - lo, 1); }
+        continue;
+      }
+      // Rive ouverte (auvent, galerie couverte, préau) : on ferme l'épaisseur entre plafond et toit, avec une planche de rive.
+      const y0 = ch - 0.14, y1 = ch + 0.37;
+      if (dx) { const X = dx > 0 ? x0 + T + 0.02 : x0 - 0.02; qbBox(qb(fascia), Math.min(X, X + dx * 0.05), y0, z0 - 0.02, Math.max(X, X + dx * 0.05), y1, z0 + T + 0.02); }
+      else { const Z = dz > 0 ? z0 + T + 0.02 : z0 - 0.02; qbBox(qb(fascia), x0 - 0.02, y0, Math.min(Z, Z + dz * 0.05), x0 + T + 0.02, y1, Math.max(Z, Z + dz * 0.05)); }
+    }
+  }
+  if (gutters) gutters.build();
+  // 3. Bouts de murs libres (passage, fin de cloison) : on ferme l'épaisseur du mur.
+  const deg = (vx, vz) => {
+    let n = 0;
+    for (const [ex, ez, bit] of [[vx - 1, vz - 1, 0], [vx - 1, vz, 0], [vx - 1, vz - 1, 1], [vx, vz - 1, 1]]) if (inMap(ex, ez) && (MAP.ew[ti(ex, ez)] & (1 << bit))) n++;
+    for (const [tx, tz] of [[vx - 1, vz - 1], [vx, vz - 1], [vx - 1, vz], [vx, vz]]) { const t = tt(tx, tz); if (inMap(tx, tz) && (t === T_BLOCK || t === T_RAMP || t === T_DOOR)) n += 2; }
+    return n;
+  };
+  for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) {
+    const w = MAP.ew[ti(x, z)]; if (!w) continue;
+    for (let bit = 0; bit < 2; bit++) {
+      if (!(w & (1 << bit))) continue; const k = MAP.ek[ti(x, z) * 2 + bit], K = wallDef(k); if (K.see) continue;
+      const ax = x, az = z, bx = bit ? x : x + 1, bz = bit ? z + 1 : z, h = wallH(K, ax, az, bx, bz), y0 = K.y0 || 0, q = qb(fv(K.out || 'concrete'));
+      if (bit === 0) { const X = (x + 1) * T; if (deg(x + 1, z) === 1) q.wall(X - E, z * T - E, X + E, z * T - E, y0, h, 0, -1); if (deg(x + 1, z + 1) === 1) q.wall(X - E, (z + 1) * T + E, X + E, (z + 1) * T + E, y0, h, 0, 1); }
+      else { const Z = (z + 1) * T; if (deg(x, z + 1) === 1) q.wall(x * T - E, Z - E, x * T - E, Z + E, y0, h, -1, 0); if (deg(x + 1, z + 1) === 1) q.wall((x + 1) * T + E, Z - E, (x + 1) * T + E, Z + E, y0, h, 1, 0); }
+      // 5. Soubassement côté extérieur, corniche côté pièce.
+      for (const [side, tx, tz] of [[-1, ax, az], [1, bx, bz]]) {
+        const roof = roofed(tx, tz), mat = roof ? D.crown : D.plinth; if (!mat || !isFloorish(tx, tz) && tt(tx, tz) !== T_SOLID) continue;
+        const qq = qb(fv(mat)), o0 = side * E, o1 = side * (E + (roof ? 0.035 : 0.03)), n0 = Math.min(o0, o1), n1 = Math.max(o0, o1);
+        const yy0 = roof ? roomCeil(tx, tz) - 0.11 : -0.05, yy1 = roof ? roomCeil(tx, tz) : 0.34;
+        if (bit === 0) qbBox(qq, (x + 1) * T + n0, yy0, z * T - E, (x + 1) * T + n1, yy1, (z + 1) * T + E); else qbBox(qq, x * T - E, yy0, (z + 1) * T + n0, (x + 1) * T + E, yy1, (z + 1) * T + n1);
+        // Lambris et cimaise dans les pièces (sous les fenêtres comprises).
+        if (roof && D.wainscot) { const wq = qb(fv(D.wainscot)), wh = D.wainscotH || 0.95; for (const [y0w, y1w, dep] of [[0.11, wh, 0.018], [wh, wh + 0.06, 0.04]]) { const m0 = Math.min(side * E, side * (E + dep)), m1 = Math.max(side * E, side * (E + dep)); if (bit === 0) qbBox(wq, (x + 1) * T + m0, y0w, z * T - E, (x + 1) * T + m1, y1w, (z + 1) * T + E); else qbBox(wq, x * T - E, y0w, (z + 1) * T + m0, (x + 1) * T + E, y1w, (z + 1) * T + m1); } }
+      }
+    }
+  }
+  // 6. Barbelés en accordéon au sommet des murs d'enceinte (K.wire).
+  { const wb = new Batch((() => { const g = helixGeo(2.02, 0.26, 9); g.rotateZ(Math.PI / 2); return g; })(), MATS.iron, false), br = new Batch(boxG(0.04, 0.5, 0.04), MATS.iron);
+    for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) { const w = MAP.ew[ti(x, z)]; if (!w) continue; for (let bit = 0; bit < 2; bit++) { if (!(w & (1 << bit))) continue; const K = wallDef(MAP.ek[ti(x, z) * 2 + bit]); if (!K.wire) continue; const h = wallH(K, x, z, bit ? x : x + 1, bit ? z + 1 : z); if (bit === 0) { wb.add((x + 1) * T, h + 0.3, z * T + 1, Math.PI / 2); br.add((x + 1) * T, h + 0.2, z * T + 0.05); } else { wb.add(x * T + 1, h + 0.3, (z + 1) * T, 0); br.add(x * T + 0.05, h + 0.2, (z + 1) * T); } } }
+    wb.build(); br.build(); }
+  // 4. Linteaux au-dessus des passages ouverts entre deux pièces couvertes (une brèche d'un carreau dans une cloison).
+  if (D.header !== false) for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) for (const bit of [0, 1]) {
+    const ax = x, az = z, bx = bit ? x : x + 1, bz = bit ? z + 1 : z;
+    if (!inMap(bx, bz) || tt(ax, az) !== T_FLOOR || tt(bx, bz) !== T_FLOOR || !roofed(ax, az) || !roofed(bx, bz) || edgeWall(ax, az, bx, bz)) continue;
+    const px = bit ? 1 : 0, pz = bit ? 0 : 1; // le long de la ligne
+    const kA = edgeWall(ax - px, az - pz, bx - px, bz - pz), kB = edgeWall(ax + px, az + pz, bx + px, bz + pz);
+    const side = (k, tx, tz) => solidK(k) || tt(tx, tz) === T_BLOCK;
+    if (!side(kA, ax - px, az - pz) || !side(kB, ax + px, az + pz)) continue;
+    const K = wallDef(solidK(kA) ? kA : kB), ch = Math.min(roomCeil(ax, az), roomCeil(bx, bz)), hy = 2.3; if (ch - hy < 0.2) continue;
+    const mIn = fv(K.in || K.out || 'plaster'), q = qb(mIn);
+    if (bit === 0) { const X = (x + 1) * T; q.wall(X - E, z * T, X - E, (z + 1) * T, hy, ch, -1, 0, false); q.wall(X + E, z * T, X + E, (z + 1) * T, hy, ch, 1, 0, false); q.flat(X - E, z * T, X + E, (z + 1) * T, hy, -1); }
+    else { const Z = (z + 1) * T; q.wall(x * T, Z - E, (x + 1) * T, Z - E, hy, ch, 0, -1, false); q.wall(x * T, Z + E, (x + 1) * T, Z + E, hy, ch, 0, 1, false); q.flat(x * T, Z - E, (x + 1) * T, Z + E, hy, -1); }
+  }
+}
 
 // Clôtures, grillages, barreaux : lots instanciés (un appel de dessin par sorte).
 function buildFences(bars, chains, pickets, rails, posts) {
@@ -2753,7 +2922,7 @@ function buildFlatRamps() {
       for (const s of [1, -1]) { const k = edgeWall(b.x + px * s, b.z + pz * s, nx + px * s, nz + pz * s); if (k && !wallDef(k).see) { K = wallDef(k); break; } }
       const lateralBlock = [1, -1].map((s) => tType(b.x + px * s, b.z + pz * s) === T_BLOCK);
       let matOut, matIn, h;
-      if (K) { matOut = fv(K.out || 'concrete'); matIn = K.in ? fv(K.in) : matOut; h = Math.max(K.h || 3, MAP.roof[ti(nx, nz)] ? CH + 0.35 : 0); }
+      if (K) { matOut = fv(K.out || 'concrete'); matIn = K.in ? fv(K.in) : matOut; h = Math.max(K.h || 3, MAP.roof[ti(nx, nz)] ? roomCeil(nx, nz) + 0.35 : 0); }
       else { const st = (M.styleDefs || [])[MAP.style[ti(b.x + px, b.z + pz)]] || {}; matOut = fv(st.block || 'concrete'); matIn = matOut; h = lateralBlock.some(Boolean) ? blockH(ti(b.x + px, b.z + pz)) : 3; }
       const inRoof = MAP.roof[ti(nx, nz)], mIn = inRoof ? matIn : matOut;
       const o0 = 0.15, o1 = 1.85, y0 = SILL_H, y1 = 2.25;
@@ -2774,7 +2943,10 @@ function buildFlatRamps() {
       for (const o of [o0, o1]) trimB.add(ix + px * (o - 1), (y0 + y1) / 2, iz + pz * (o - 1), ry, 0, 0, 0.08, y1 - y0, 0.24);
       // Sous l'appui côté extérieur : un rebord de terre/gravats pour que l'enjambement se lise.
     } else {
-      for (const o of [-0.98, 0.98]) posts.add(ix + dx * 0.05 + px * o, 1.15, iz + dz * 0.05 + pz * o, 0, 0, 0, 1, 2.3, 1);
+      // Poteaux à la hauteur de la clôture voisine (grillage haut, rambarde basse…).
+      let fh = 0; for (const s2 of [1, -1]) { const k = edgeWall(b.x + px * s2, b.z + pz * s2, b.inner[0] + px * s2, b.inner[1] + pz * s2); if (k) fh = Math.max(fh, wallDef(k).h || 0); }
+      b.postH = fh ? clamp(fh + 0.1, 1.2, 2.4) : 2.3;
+      for (const o of [-0.98, 0.98]) posts.add(ix + dx * 0.05 + px * o, b.postH / 2, iz + dz * 0.05 + pz * o, 0, 0, 0, 1, b.postH, 1);
       // Accès en pente : passerelle de planches qui descend vers l'eau ou la rive.
       if (b.look === 'slope') {
         const gb = slopeGB ||= new GB();
@@ -2783,7 +2955,7 @@ function buildFlatRamps() {
       }
     }
     b.plankM = [];
-    const ang = [0.16, -0.12, 0.22, -0.26, 0.06, -0.18], hs = win ? [0.85, 1.1, 1.35, 1.6, 1.85, 2.08] : [0.3, 0.62, 0.95, 1.28, 1.6, 1.92];
+    const top = win ? 2.08 : Math.min(1.92, (b.postH || 2.3) - 0.12), ang = [0.16, -0.12, 0.22, -0.26, 0.06, -0.18], hs = win ? [0.85, 1.1, 1.35, 1.6, 1.85, 2.08] : [0, 1, 2, 3, 4, 5].map((k) => 0.3 + (top - 0.3) * k / 5);
     const ry = Math.atan2(px, pz) - Math.PI / 2;
     for (let k = 0; k < 6; k++) {
       _e1.set(0, ry, ang[k] * (win ? 0.6 : 1) + rand(-0.04, 0.04), 'YXZ'); _q1.setFromEuler(_e1);
@@ -2824,6 +2996,177 @@ function roughFace(q, tx, tz, dx, dz, y0, y1, amp) {
 function roughTop(q, tx, tz, h, amp) {
   const T = TILE, sc = q.mat.userData.scale || 4, P = (s, v) => { const px = tx * T + s * T, pz = tz * T + v * T; return [px, h + (fbm(px * 0.3, pz * 0.3, 2) - 0.3) * amp * 2, pz]; };
   for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) { const a = P(i / 2, j / 2), b = P((i + 1) / 2, j / 2), c = P((i + 1) / 2, (j + 1) / 2), d = P(i / 2, (j + 1) / 2); q.quad([a, b, c, d], [0, 1, 0], [a, b, c, d].map((p) => [p[0] / sc, p[2] / sc])); }
+}
+
+
+// ───────────────────────── 05C_DETAIL ─────────────────────────
+/* ═══════════════════ DÉTAILS DE SURFACE : semis au sol et salissures ═══════════════════
+   Semis : touffes d'herbe, cailloux, feuilles, papiers, gravats… instanciés (un appel de dessin par sorte).
+   Salissures : coulures, taches d'eau, fissures, suie, mousse, huile, sang… peintes dans un atlas et collées
+   en quadrilatères sur les murs et les sols (un seul appel de dessin pour toute la carte). */
+
+/* ─── Semis ─── */
+const ni = (g) => (g.index ? g.toNonIndexed() : g);
+function scatterGeo(kind) {
+  const parts = [];
+  const tint = (g, top, bot) => { const p = g.attributes.position, c = []; let y0 = Infinity, y1 = -Infinity; for (let i = 0; i < p.count; i++) { y0 = Math.min(y0, p.getY(i)); y1 = Math.max(y1, p.getY(i)); } for (let i = 0; i < p.count; i++) { const k = (p.getY(i) - y0) / Math.max(1e-3, y1 - y0); c.push(lerp(bot, top, k), lerp(bot, top, k), lerp(bot, top, k)); } g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); return g; };
+  if (kind === 'tuft') { // brins effilés, penchés vers l'extérieur
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * TAU + rand(-0.3, 0.3), h = rand(0.14, 0.3), w = rand(0.012, 0.022), lean = rand(0.25, 0.6);
+      const g = new THREE.BufferGeometry(), ox = Math.cos(a), oz = Math.sin(a), b = rand(0, 0.04);
+      g.setAttribute('position', new THREE.Float32BufferAttribute([ox * b - oz * w, 0, oz * b + ox * w, ox * b + oz * w, 0, oz * b - ox * w, ox * (b + h * lean), h, oz * (b + h * lean)], 3));
+      g.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0], 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0.5, 1], 2));
+      parts.push(tint(g, 1.25, 0.45));
+    }
+    return mergeGeometries(parts);
+  }
+  if (kind === 'scrub') { // buisson sec du désert : brindilles
+    for (let i = 0; i < 9; i++) { const g = new THREE.CylinderGeometry(0.004, 0.012, rand(0.25, 0.5), 3); g.translate(0, 0.17, 0); g.rotateZ(rand(-0.9, 0.9)); g.rotateY(rand(TAU)); parts.push(tint(ni(g), 1.1, 0.6)); }
+    const s = new THREE.IcosahedronGeometry(0.16, 0); s.scale(1, 0.6, 1); s.translate(0, 0.18, 0); parts.push(tint(ni(s), 1, 0.7));
+    return mergeGeometries(parts);
+  }
+  if (kind === 'pebble' || kind === 'rock' || kind === 'clod') { const g = new THREE.DodecahedronGeometry(kind === 'rock' ? 0.22 : kind === 'clod' ? 0.12 : 0.05, 0); g.scale(1, kind === 'clod' ? 0.55 : 0.6, 1.2); g.translate(0, kind === 'rock' ? 0.05 : 0.01, 0); return tint(ni(g), 1.05, 0.75); }
+  if (kind === 'leaf' || kind === 'paper' || kind === 'straw') {
+    const [w, d] = kind === 'leaf' ? [0.07, 0.05] : kind === 'paper' ? [0.21, 0.29] : [0.5, 0.012];
+    const g = new THREE.PlaneGeometry(w, d, 2, 1); g.rotateX(-Math.PI / 2); const p = g.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, 0.006 + Math.abs(p.getX(i)) * (kind === 'paper' ? 0.15 : 0.3) * (kind === 'straw' ? 0 : 1));
+    return tint(ni(g), 1, kind === 'paper' ? 0.85 : 0.9);
+  }
+  if (kind === 'chip') { const g = new THREE.BoxGeometry(0.09, 0.03, 0.06); return tint(ni(g), 1, 0.8); }
+  if (kind === 'bones') { for (let i = 0; i < 3; i++) { const g = new THREE.CylinderGeometry(0.015, 0.015, rand(0.18, 0.32), 5); g.rotateZ(Math.PI / 2); g.rotateY(rand(TAU)); g.translate(rand(-0.08, 0.08), 0.015, rand(-0.08, 0.08)); parts.push(tint(ni(g), 1, 0.85)); } return mergeGeometries(parts); }
+  throw new Error('semis inconnu : ' + kind);
+}
+// spec : { kind, color, n (par carreau), styles: [...] (sol praticable) | ground: [e0, e1] (terrain, distance au jeu en carreaux),
+//          scale: [min, max], jitter (variation de teinte), shadow }
+function scatterAll(list) {
+  if (!list || !list.length) return;
+  const T = TILE, W = MAP_W * T, D = MAP_D * T, styles = M.styles || [];
+  for (const sp of list) {
+    const geo = scatterGeo(sp.kind), mat = KM['scat' + sp.kind + sp.color] ||= stdMat({ color: 0xffffff, roughness: sp.kind === 'paper' ? 0.8 : 0.95, vertexColors: true, side: sp.kind === 'tuft' || sp.kind === 'leaf' || sp.kind === 'paper' ? THREE.DoubleSide : THREE.FrontSide }, sp.snow || 0);
+    const pts = [], base = new THREE.Color(sp.color), [s0, s1] = sp.scale || [0.8, 1.25], jit = sp.jitter ?? 0.18;
+    const add = (x, y, z) => pts.push([x, y, z]);
+    if (sp.styles) for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) {
+      const t = MAP.type[ti(x, z)]; if (t !== T_FLOOR) continue; if (!sp.styles.includes(styles[MAP.style[ti(x, z)]] ?? MAP.style[ti(x, z)])) continue;
+      if (sp.open && MAP.roof[ti(x, z)]) continue;
+      const n = Math.floor(sp.n) + (Math.random() < sp.n % 1 ? 1 : 0);
+      for (let k = 0; k < n; k++) { const px = x * T + rand(0.08, T - 0.08), pz = z * T + rand(0.08, T - 0.08); add(px, groundAt(px, pz), pz); }
+    }
+    if (sp.ground) { const [e0, e1] = sp.ground, area = (W + 2 * e1 * T) * (D + 2 * e1 * T), tries = Math.round(area / 4 * sp.n);
+      for (let k = 0; k < tries; k++) { const px = rand(-e1 * T, W + e1 * T), pz = rand(-e1 * T, D + e1 * T), e = edgeAt(px, pz); if (e < e0 || e > e1) continue; const tx = tileOf(px), tz = tileOf(pz); if (inMap(tx, tz) && MAP.type[ti(tx, tz)] !== T_SOLID) continue; add(px, surfH(px, pz), pz); } }
+    if (!pts.length) continue;
+    const im = new THREE.InstancedMesh(geo, mat, pts.length), c = new THREE.Color();
+    pts.forEach(([x, y, z], i) => {
+      const s = rand(s0, s1); _e1.set(sp.kind === 'rock' || sp.kind === 'pebble' || sp.kind === 'clod' || sp.kind === 'chip' ? rand(-0.3, 0.3) : 0, rand(TAU), 0, 'YXZ'); _q1.setFromEuler(_e1);
+      im.setMatrixAt(i, _m1.compose(_v1.set(x, y, z), _q1, _v2.set(s, s * (sp.kind === 'tuft' ? rand(0.8, 1.4) : 1), s)));
+      const v = 1 + rand(-jit, jit); c.copy(base).multiplyScalar(v); if (sp.hue) c.offsetHSL(rand(-sp.hue, sp.hue), 0, 0); im.setColorAt(i, c);
+    });
+    im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    im.castShadow = !!sp.shadow; im.receiveShadow = true; im.computeBoundingSphere(); im.userData.dynamic = true; R.scene.add(im);
+  }
+}
+
+/* ─── Salissures ─── */
+const DECAL_CELLS = { grime: 0, stain: 1, crack: 2, soot: 3, mold: 4, rust: 5, oil: 6, splash: 7, scuff: 8, blood: 9, scratch: 10, graffiti: 11, leak: 12, flake: 13, dirt: 14, drag: 15 };
+let _decalAtlas = null;
+function decalAtlas() {
+  if (_decalAtlas) return _decalAtlas;
+  const S = 1024, C = S / 4, c = makeCanvas(S), x = c.getContext('2d'), r = mulberry32(77);
+  const cell = (i, fn) => { x.save(); x.translate((i % 4) * C, ((i / 4) | 0) * C); x.beginPath(); x.rect(0, 0, C, C); x.clip(); fn(x, C, r); x.restore(); };
+  const blot = (cx, cy, rad, col, a, n = 26) => { for (let k = 0; k < n; k++) { const ang = r() * TAU, d = r() * rad * 0.6, rr = rad * (0.25 + r() * 0.45); const g = x.createRadialGradient(cx + Math.cos(ang) * d, cy + Math.sin(ang) * d, 0, cx + Math.cos(ang) * d, cy + Math.sin(ang) * d, rr); g.addColorStop(0, `rgba(${col},${a})`); g.addColorStop(1, `rgba(${col},0)`); x.fillStyle = g; x.fillRect(0, 0, C, C); } };
+  // 0 coulures depuis le bas (bande de crasse + traînées verticales)
+  cell(0, (x, C) => { const g = x.createLinearGradient(0, C, 0, 0); g.addColorStop(0, 'rgba(30,24,18,.75)'); g.addColorStop(0.35, 'rgba(30,24,18,.3)'); g.addColorStop(1, 'rgba(30,24,18,0)'); x.fillStyle = g; x.fillRect(0, 0, C, C); for (let k = 0; k < 40; k++) { const px = r() * C, h = C * (0.2 + r() * 0.7), w = 1 + r() * 4; const gg = x.createLinearGradient(0, C, 0, C - h); gg.addColorStop(0, 'rgba(25,20,15,.5)'); gg.addColorStop(1, 'rgba(25,20,15,0)'); x.fillStyle = gg; x.fillRect(px, C - h, w, h); } });
+  // 1 tache d'eau : auréole aux bords plus sombres
+  cell(1, (x, C) => { blot(C / 2, C / 2, C * 0.42, '60,50,35', 0.18, 30); x.strokeStyle = 'rgba(70,55,35,.35)'; x.lineWidth = 3; x.beginPath(); for (let a = 0; a <= TAU + 0.01; a += 0.15) { const rr = C * (0.36 + Math.sin(a * 5 + 1) * 0.04 + r() * 0.03); const px = C / 2 + Math.cos(a) * rr, py = C / 2 + Math.sin(a) * rr; a ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); });
+  // 2 fissure ramifiée
+  cell(2, (x, C) => { x.strokeStyle = 'rgba(20,18,16,.85)'; const crack = (px, py, a, len, w) => { if (len < 6 || w < 0.4) return; x.lineWidth = w; x.beginPath(); x.moveTo(px, py); let cx = px, cy = py; const steps = 6; for (let i = 0; i < steps; i++) { a += (r() - 0.5) * 0.9; cx += Math.cos(a) * len / steps; cy += Math.sin(a) * len / steps; x.lineTo(cx, cy); if (r() < 0.25) crack(cx, cy, a + (r() < 0.5 ? 0.8 : -0.8), len * 0.5, w * 0.6); } x.stroke(); }; crack(C * 0.1, C * 0.5, 0, C * 0.85, 2.6); });
+  // 3 suie radiale
+  cell(3, (x, C) => blot(C / 2, C / 2, C * 0.5, '12,10,9', 0.35, 34));
+  // 4 moisissure : mouchetures vert sombre
+  cell(4, (x, C) => { blot(C / 2, C * 0.4, C * 0.4, '40,52,30', 0.14, 18); for (let k = 0; k < 900; k++) { const a = r() * TAU, d = Math.pow(r(), 0.6) * C * 0.45; x.fillStyle = `rgba(${30 + r() * 20},${45 + r() * 25},${25 + r() * 10},${0.15 + r() * 0.35})`; x.fillRect(C / 2 + Math.cos(a) * d, C * 0.4 + Math.sin(a) * d, 1 + r() * 3, 1 + r() * 3); } });
+  // 5 coulure de rouille depuis le haut
+  cell(5, (x, C) => { for (let k = 0; k < 26; k++) { const px = C * 0.3 + r() * C * 0.4, h = C * (0.3 + r() * 0.65), w = 1 + r() * 5; const g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(120,58,22,.75)'); g.addColorStop(1, 'rgba(120,58,22,0)'); x.fillStyle = g; x.fillRect(px, 0, w, h); } blot(C / 2, C * 0.08, C * 0.2, '110,52,20', 0.4, 10); });
+  // 6 tache d'huile
+  cell(6, (x, C) => { blot(C / 2, C / 2, C * 0.45, '8,8,10', 0.32, 30); blot(C / 2, C / 2, C * 0.22, '4,4,6', 0.4, 12); });
+  // 7 éclaboussures de boue (bas)
+  cell(7, (x, C) => { for (let k = 0; k < 220; k++) { const px = r() * C, py = C - Math.pow(r(), 2) * C * 0.8, s = 1 + r() * 6 * (py / C); x.fillStyle = `rgba(45,34,24,${0.2 + r() * 0.5})`; x.beginPath(); x.arc(px, py, s, 0, TAU); x.fill(); } });
+  // 8 traces de pas et éraflures
+  cell(8, (x, C) => { for (let k = 0; k < 7; k++) { x.save(); x.translate(C * 0.15 + k * C * 0.11, C * (0.3 + (k % 2) * 0.35)); x.rotate(-0.2 + r() * 0.4); x.fillStyle = 'rgba(40,32,24,.35)'; x.beginPath(); x.ellipse(0, 0, 9, 18, 0, 0, TAU); x.fill(); x.beginPath(); x.ellipse(0, 24, 8, 8, 0, 0, TAU); x.fill(); x.restore(); } });
+  // 9 traînée de sang séché
+  cell(9, (x, C) => { blot(C * 0.35, C * 0.5, C * 0.28, '70,8,6', 0.45, 18); for (let k = 0; k < 18; k++) { x.strokeStyle = `rgba(80,10,8,${0.25 + r() * 0.3})`; x.lineWidth = 2 + r() * 5; x.beginPath(); x.moveTo(C * 0.3, C * (0.35 + r() * 0.3)); x.bezierCurveTo(C * 0.5, C * (0.3 + r() * 0.4), C * 0.7, C * (0.3 + r() * 0.4), C * (0.75 + r() * 0.2), C * (0.4 + r() * 0.2)); x.stroke(); } for (let k = 0; k < 80; k++) { x.fillStyle = 'rgba(90,10,8,.6)'; x.beginPath(); x.arc(r() * C, r() * C, r() * 3, 0, TAU); x.fill(); } });
+  // 10 marques de jours (bâtons gravés)
+  cell(10, (x, C) => { x.strokeStyle = 'rgba(230,226,215,.55)'; x.lineWidth = 2.5; for (let g = 0; g < 6; g++) { const ox = C * 0.08 + (g % 3) * C * 0.3, oy = C * 0.15 + ((g / 3) | 0) * C * 0.42; for (let k = 0; k < 4; k++) { x.beginPath(); x.moveTo(ox + k * 12 + r() * 2, oy); x.lineTo(ox + k * 12 + r() * 3, oy + C * 0.25); x.stroke(); } x.beginPath(); x.moveTo(ox - 6, oy + C * 0.2); x.lineTo(ox + 48, oy + C * 0.05); x.stroke(); } });
+  // 11 griffonnages
+  cell(11, (x, C) => { x.strokeStyle = 'rgba(25,25,28,.6)'; x.lineWidth = 3; x.lineCap = 'round'; for (let k = 0; k < 5; k++) { x.beginPath(); let px = C * 0.1 + r() * C * 0.2, py = C * (0.2 + k * 0.15); x.moveTo(px, py); for (let i = 0; i < 12; i++) { px += 6 + r() * 14; py += (r() - 0.5) * 16; x.lineTo(px, py); } x.stroke(); } });
+  // 12 fuite : flaque sombre et brillante
+  cell(12, (x, C) => { blot(C / 2, C / 2, C * 0.46, '16,18,20', 0.4, 26); });
+  // 13 peinture écaillée
+  cell(13, (x, C) => { for (let k = 0; k < 60; k++) { x.fillStyle = `rgba(${60 + r() * 30},${55 + r() * 25},${50 + r() * 20},${0.35 + r() * 0.4})`; x.beginPath(); const px = C / 2 + (r() - 0.5) * C * 0.8, py = C / 2 + (r() - 0.5) * C * 0.8; x.moveTo(px, py); for (let i = 0; i < 5; i++) x.lineTo(px + (r() - 0.5) * 26, py + (r() - 0.5) * 20); x.fill(); } });
+  // 14 terre (salissure diffuse)
+  cell(14, (x, C) => blot(C / 2, C / 2, C * 0.48, '50,40,28', 0.16, 40));
+  // 15 traînée (quelqu'un a été traîné)
+  cell(15, (x, C) => { for (let k = 0; k < 10; k++) { x.strokeStyle = `rgba(60,12,8,${0.15 + r() * 0.25})`; x.lineWidth = 4 + r() * 10; x.beginPath(); x.moveTo(C * 0.05, C * (0.4 + r() * 0.2)); x.lineTo(C * 0.95, C * (0.42 + r() * 0.16)); x.stroke(); } });
+  const tex = toTex(c, { repeat: false }); tex.premultiplyAlpha = false;
+  _decalAtlas = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, roughness: 0.85, vertexColors: true, name: 'salissures' });
+  _decalAtlas.userData.scale = 1;
+  return _decalAtlas;
+}
+// Colle une salissure (cellule de l'atlas) centrée en (x,y,z) sur une surface de normale n.
+function decal(q, cell, x, y, z, nx, ny, nz, w, h, rot = 0, tint = 1) {
+  const ci = typeof cell === 'number' ? cell : DECAL_CELLS[cell];
+  const u0 = (ci % 4) / 4 + 0.002, v1 = 1 - ((ci / 4) | 0) / 4 - 0.002, u1 = u0 + 0.246, v0 = v1 - 0.246;
+  // repère tangent : « haut » = +y pour les murs, -z pour les sols
+  let ux = 0, uy = 1, uz = 0; if (Math.abs(ny) > 0.7) { ux = 0; uy = 0; uz = -1; }
+  let rx = uy * nz - uz * ny, ry = uz * nx - ux * nz, rz = ux * ny - uy * nx; const rl = Math.hypot(rx, ry, rz) || 1; rx /= rl; ry /= rl; rz /= rl;
+  if (rot) { const c = Math.cos(rot), s = Math.sin(rot); const ax = rx * c + ux * s, ay = ry * c + uy * s, az = rz * c + uz * s, bx = -rx * s + ux * c, by = -ry * s + uy * c, bz = -rz * s + uz * c; rx = ax; ry = ay; rz = az; ux = bx; uy = by; uz = bz; }
+  const o = 0.006, cx = x + nx * o, cy = y + ny * o, cz = z + nz * o, hw = w / 2, hh = h / 2;
+  const P = (a, b) => [cx + rx * a + ux * b, cy + ry * a + uy * b, cz + rz * a + uz * b];
+  q.quad([P(-hw, -hh), P(hw, -hh), P(hw, hh), P(-hw, hh)], [nx, ny, nz], [[u0, v0], [u1, v0], [u1, v1], [u0, v1]], [tint, tint, tint, tint]);
+}
+// Passe automatique sur une carte de plain-pied, réglée par M.decals :
+// { grime, under, crack, mold, scuff, floor: { style: [[cellule, probabilité, taille], …] }, blood }
+function flatDecals() {
+  const cfg = M.decals; if (!cfg) return;
+  const q = new QB(decalAtlas()), T = TILE, E = EDGE_T, styles = M.styles || [];
+  const roofed = (x, z) => inMap(x, z) && MAP.roof[ti(x, z)] && MAP.type[ti(x, z)] !== T_SOLID && MAP.type[ti(x, z)] !== T_BLOCK;
+  const open = (x, z) => inMap(x, z) && (MAP.type[ti(x, z)] === T_FLOOR || MAP.type[ti(x, z)] === T_DOOR);
+  // Murs fins pleins.
+  for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) {
+    const w = MAP.ew[ti(x, z)]; if (!w) continue;
+    for (let bit = 0; bit < 2; bit++) {
+      if (!(w & (1 << bit))) continue; const K = wallDef(MAP.ek[ti(x, z) * 2 + bit]); if (K.see) continue;
+      const sides = [[-1, x, z], [1, bit ? x : x + 1, bit ? z + 1 : z]];
+      for (const [s, tx, tz] of sides) {
+        if (!open(tx, tz) && !(inMap(tx, tz) && MAP.type[ti(tx, tz)] === T_SOLID)) continue;
+        const inside = roofed(tx, tz), along = rand(0.35, 1.65);
+        const px = bit === 0 ? (x + 1) * T + s * (E + 0.001) : x * T + along, pz = bit === 0 ? z * T + along : (z + 1) * T + s * (E + 0.001), nx = bit === 0 ? s : 0, nz = bit === 0 ? 0 : s;
+        const cx = bit === 0 ? px : x * T + 1, cz = bit === 0 ? z * T + 1 : pz; // centre du segment
+        if (!inside && cfg.grime && Math.random() < cfg.grime) decal(q, 'grime', cx, 0.45, cz, nx, 0, nz, 2.05, 0.9 + rand(0, 0.5), 0, rand(0.75, 1));
+        if (!inside && cfg.splash && Math.random() < cfg.splash) decal(q, 'splash', px, 0.3, pz, nx, 0, nz, rand(1, 1.6), 0.6, 0, 1);
+        if (K.look === 'window' && !inside && cfg.under && Math.random() < cfg.under) decal(q, Math.random() < 0.5 ? 'rust' : 'stain', cx, 0.62, cz, nx, 0, nz, 1.0, 0.7, 0, 0.9);
+        if (inside && cfg.crack && Math.random() < cfg.crack) decal(q, 'crack', px, rand(0.8, 2.2), pz, nx, 0, nz, rand(0.6, 1.2), rand(0.6, 1.1), rand(-0.6, 0.6), 1);
+        if (inside && cfg.mold && Math.random() < cfg.mold) decal(q, 'mold', px, roomCeil(tx, tz) - 0.45, pz, nx, 0, nz, rand(0.7, 1.3), 0.8, 0, 1);
+        if (inside && cfg.stain && Math.random() < cfg.stain) decal(q, 'stain', px, rand(1.2, 2.2), pz, nx, 0, nz, rand(0.5, 0.9), rand(0.5, 0.9), rand(TAU), 1);
+        if (inside && cfg.scuff && Math.random() < cfg.scuff) decal(q, 'flake', px, rand(0.3, 1.4), pz, nx, 0, nz, rand(0.4, 0.8), rand(0.3, 0.6), rand(TAU), 1);
+        if (cfg.graffiti && Math.random() < cfg.graffiti) decal(q, cfg.graffitiCell || 'graffiti', px, rand(1.1, 1.8), pz, nx, 0, nz, rand(0.6, 0.9), rand(0.4, 0.6), rand(-0.15, 0.15), 1);
+        if (cfg.blood && Math.random() < cfg.blood * 0.5) decal(q, 'blood', px, rand(0.5, 1.6), pz, nx, 0, nz, rand(0.6, 1.0), rand(0.5, 0.9), rand(TAU), 1);
+      }
+    }
+  }
+  // Faces de blocs pleins vers l'extérieur ou une pièce.
+  for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) {
+    if (MAP.type[ti(x, z)] !== T_BLOCK) continue;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const a = x + dx, b = z + dz; if (!open(a, b)) continue; const inside = roofed(a, b);
+      const px = dx > 0 ? (x + 1) * T + 0.001 : dx < 0 ? x * T - 0.001 : x * T + 1, pz = dz > 0 ? (z + 1) * T + 0.001 : dz < 0 ? z * T - 0.001 : z * T + 1;
+      if (!inside && cfg.grime && Math.random() < cfg.grime) decal(q, 'grime', px, 0.45, pz, dx, 0, dz, 2.05, 1.1, 0, 0.9);
+      if (inside && cfg.crack && Math.random() < cfg.crack) decal(q, 'crack', px, rand(0.8, 2.2), pz, dx, 0, dz, 1, 0.9, rand(-0.6, 0.6), 1);
+    }
+  }
+  // Sols.
+  if (cfg.floor) for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) {
+    if (MAP.type[ti(x, z)] !== T_FLOOR) continue; const list = cfg.floor[styles[MAP.style[ti(x, z)]]]; if (!list) continue;
+    for (const [cell, p, size = 1.2] of list) if (Math.random() < p) { const px = x * T + rand(0.4, 1.6), pz = z * T + rand(0.4, 1.6); decal(q, cell, px, groundAt(px, pz) + 0.004, pz, 0, 1, 0, size * rand(0.7, 1.3), size * rand(0.7, 1.3), rand(TAU), 1); }
+  }
+  const m = q.build(false); if (m) { m.renderOrder = 2; m.userData.dynamic = true; }
 }
 
 
@@ -3121,7 +3464,7 @@ function buildOutside() {
     mesh(boxG(3, 0.2, 3), MATS.planks, 0, 11, 0, 0, g);
     const head = new THREE.Group(); head.userData.dynamic = true; head.position.set(0, 11.7, 0); g.add(head);
     mesh(new THREE.CylinderGeometry(0.5, 0.4, 0.8, 16), MATS.iron, 0, 0, 0, 0, head).rotation.x = Math.PI / 2;
-    const cone = new THREE.Mesh(new THREE.CylinderGeometry(9, 0.45, 150, 24, 1, true), beamMat);
+    const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 9, 150, 24, 1, true), beamMat); // étroit à la lampe, large au loin
     cone.geometry.translate(0, -75, 0); cone.geometry.rotateX(-Math.PI / 2); cone.position.z = 0; head.add(cone);
     WORLD.beams.push({ head, ph });
   }
@@ -3260,49 +3603,14 @@ function kRug(x, z, ry, w, d, color) { const g = KIT.g(x, z, ry); const m = mesh
 
 /* ─── Véhicules ─── */
 // Berline des années 50 : caisse galbée, ailerons, chromes, pneus à flancs blancs.
-function kCar(x, z, ry, color = 0x6fb7c8, burnt = false) {
-  const k = kitMats(), g = KIT.g(x, z, ry), paint = burnt ? (KM.burnt ||= stdMat({ color: 0x24201c, roughness: 0.95, map: TEX.grime.map })) : (KM['car' + color] ||= stdMat({ color, roughness: 0.28, metalness: 0.35 }));
-  const trim = burnt ? KIT.m(0x2a2522) : k.chrome;
-  const body = new THREE.BoxGeometry(4.9, 0.72, 1.9, 8, 2, 2), p = body.attributes.position;
-  for (let i = 0; i < p.count; i++) { const bx = p.getX(i) / 2.45, by = p.getY(i); p.setY(i, by - (Math.abs(bx) > 0.8 && by > 0 ? (Math.abs(bx) - 0.8) * 0.5 : 0)); p.setZ(i, p.getZ(i) * (1 - Math.pow(Math.abs(bx), 6) * 0.12)); }
-  body.computeVertexNormals(); mesh(body, paint, 0, 0.72, 0, 0, g);
-  const cab = new THREE.BoxGeometry(2.3, 0.62, 1.7, 4, 1, 1), q = cab.attributes.position;
-  for (let i = 0; i < q.count; i++) if (q.getY(i) > 0) q.setX(i, q.getX(i) * 0.82);
-  cab.computeVertexNormals(); mesh(cab, paint, -0.25, 1.38, 0, 0, g);
-  for (const s of [-1, 1]) { const w = KIT.b(g, -0.25, 1.4, s * 0.86, 2.0, 0.44, 0.02, burnt ? k.black : k.glass, 0, false); }
-  KIT.b(g, 0.7, 1.4, 0, 0.02, 0.44, 1.5, burnt ? k.black : k.glass, 0, false).rotation.z = -0.5;
-  for (const s of [-1, 1]) { KIT.b(g, s * 2.5, 0.55, 0, 0.14, 0.18, 1.94, trim); if (!burnt) KIT.s(g, 2.46, 0.8, s * 0.65, 0.12, k.bulb, 0.5, 1, 1); }
-  for (const s of [-1, 1]) KIT.b(g, -2.1, 1.12, s * 0.8, 0.8, 0.22, 0.05, paint).rotation.x = s * 0.3; // ailerons
-  for (const [a, b] of [[1.5, 0.92], [-1.5, 0.92], [1.5, -0.92], [-1.5, -0.92]]) {
-    const w = KIT.c(g, a, 0.36, b, 0.36, 0.36, 0.26, k.rubber, 16); w.rotation.x = Math.PI / 2;
-    if (!burnt) { const wb = KIT.c(g, a, 0.36, b * 1.005, 0.22, 0.22, 0.27, KIT.m(0xeeeeea), 16, false); wb.rotation.x = Math.PI / 2; }
-  }
-  KIT.solid(g, 5.0, 1.95, 1.6, 'metal'); return g;
-}
-// Car scolaire (brûlé ou non).
-function kBus(x, z, ry, burnt = false) {
-  const k = kitMats(), g = KIT.g(x, z, ry), y = burnt ? stdMat({ color: 0x3b3128, roughness: 0.95, map: TEX.grime.map, normalMap: TEX.grime.normalMap }) : stdMat({ color: 0xe8a81e, roughness: 0.5, metalness: 0.2, map: TEX.grime.map });
-  KIT.b(g, 0, 1.65, 0, 9.6, 2.2, 2.45, y); KIT.b(g, 5.2, 1.0, 0, 1.4, 1.1, 2.3, y); // capot
-  KIT.b(g, 0.2, 2.1, 1.231, 8.4, 0.62, 0.02, burnt ? k.black : k.glass, 0, false); KIT.b(g, 0.2, 2.1, -1.231, 8.4, 0.62, 0.02, burnt ? k.black : k.glass, 0, false);
-  for (let i = 0; i < 9; i++) for (const s of [-1, 1]) KIT.b(g, -3.8 + i * 1.02, 2.1, s * 1.235, 0.08, 0.64, 0.03, y, 0, false);
-  for (const s of [-1, 1]) KIT.b(g, 0, 1.35, s * 1.236, 9.6, 0.08, 0.02, k.black, 0, false);
-  KIT.b(g, 0, 2.78, 0, 9.4, 0.08, 2.3, y); KIT.b(g, -4.81, 1.8, 0, 0.02, 1.2, 1.6, burnt ? k.black : k.glass, 0, false);
-  for (const [a, b] of [[3.8, 1.18], [-3.2, 1.18], [3.8, -1.18], [-3.2, -1.18]]) { const w = KIT.c(g, a, 0.5, b, 0.5, 0.5, 0.35, k.rubber, 16); w.rotation.x = Math.PI / 2; }
-  KIT.b(g, 5.95, 0.6, 0, 0.12, 0.3, 2.4, burnt ? k.black : k.chrome);
-  if (!burnt) { const sign = mesh(new THREE.PlaneGeometry(2.4, 0.4), new THREE.MeshStandardMaterial({ map: woodSign(['ÉCOLE'], { w: 512, h: 90, bg: '#e8a81e', color: '#111' }), roughness: 0.6 }), 0, 2.55, 1.24, 0, g, false); }
-  KIT.solid(g, 11.2, 2.5, 2.8, 'metal', 0.5, 0); return g;
-}
-// Camion de déménagement, hayon ouvert.
-function kTruck(x, z, ry, label = 'DÉMÉNAGEMENTS') {
-  const k = kitMats(), g = KIT.g(x, z, ry), cab = stdMat({ color: 0x3e6e8e, roughness: 0.4, metalness: 0.3 }), box = stdMat({ color: 0xe9e3d3, roughness: 0.7, map: TEX.grime.map });
-  KIT.b(g, 3.6, 1.2, 0, 1.9, 1.6, 2.3, cab); KIT.b(g, 4.4, 0.9, 0, 0.9, 0.9, 2.2, cab); KIT.b(g, 3.9, 1.65, 0, 0.02, 0.6, 1.9, k.glass, 0, false).position.x = 4.56;
-  KIT.b(g, -0.9, 1.9, 0, 6.2, 2.9, 2.5, box);
-  const lab = mesh(new THREE.PlaneGeometry(4.6, 0.9), new THREE.MeshStandardMaterial({ map: woodSign([label, 'SERVICE ATOMIQUE'], { w: 512, h: 110, bg: '#e9e3d3', color: '#2f5d7a' }), roughness: 0.7 }), -0.9, 2.1, 1.26, 0, g, false);
-  const lab2 = lab.clone(); lab2.position.z = -1.26; lab2.rotation.y = Math.PI; g.add(lab2);
-  const door = KIT.b(g, -4.4, 0.35, 0, 0.1, 2.5, 2.3, box); door.rotation.z = -1.2; door.position.set(-5.3, 0.45, 0);
-  for (const [a, b] of [[3.6, 1.18], [-2.8, 1.18], [3.6, -1.18], [-2.8, -1.18]]) { const w = KIT.c(g, a, 0.5, b, 0.5, 0.5, 0.35, k.rubber, 16); w.rotation.x = Math.PI / 2; }
-  KIT.solid(g, 9.4, 2.5, 3.4, 'metal', -0.2, 0); return g;
-}
+// Véhicules : voir 06c_vehicles.js.
+
+/* ─── Salle de bains, cuisine, plantes ─── */
+function kToilet(x, z, ry) { const g = KIT.g(x, z, ry), w = KIT.m(0xf0eee8, { rough: 0.25 }); KIT.c(g, 0, 0.2, 0.05, 0.16, 0.13, 0.4, w, 12); KIT.c(g, 0, 0.42, 0.08, 0.2, 0.2, 0.05, w, 14).scale.set(1, 1, 1.25); KIT.b(g, 0, 0.6, -0.2, 0.42, 0.36, 0.17, w); KIT.b(g, 0, 0.8, -0.2, 0.44, 0.04, 0.19, w); KIT.solid(g, 0.45, 0.65, 0.8, 'concrete'); return g; }
+function kSink(x, z, ry, mirror = true) { const g = KIT.g(x, z, ry), w = KIT.m(0xf0eee8, { rough: 0.25 }), k = kitMats(); KIT.c(g, 0, 0.42, -0.05, 0.06, 0.09, 0.84, w, 10); KIT.b(g, 0, 0.86, 0, 0.55, 0.12, 0.42, w); KIT.b(g, 0, 0.93, -0.15, 0.04, 0.12, 0.04, k.chrome); if (mirror) { KIT.b(g, 0, 1.55, -0.2, 0.55, 0.7, 0.02, KIT.m(0xd8dde2, { rough: 0.02, metal: 1 }), 0, false); KIT.b(g, 0, 1.55, -0.205, 0.61, 0.76, 0.015, k.white, 0, false); } return g; }
+function kUpperCab(x, z, ry, len = 3, color = 0xe9e4d6) { const g = KIT.g(x, z, ry, 1.6), m = KIT.m(color, { rough: 0.5 }), k = kitMats(); KIT.b(g, 0, 0.38, 0, len, 0.75, 0.35, m); for (let i = 0; i < Math.round(len / 0.6); i++) { const px = -len / 2 + 0.3 + i * 0.6; KIT.b(g, px, 0.38, 0.178, 0.56, 0.7, 0.01, KIT.m(color, { rough: 0.35 }), 0, false); KIT.b(g, px + 0.2, 0.2, 0.19, 0.02, 0.1, 0.02, k.chrome, 0, false); } return g; }
+function kPlant(x, z, s = 1, pot = 0xb8643a) { const g = KIT.g(x, z, rand(TAU)); KIT.c(g, 0, 0.18 * s, 0, 0.17 * s, 0.13 * s, 0.36 * s, KIT.m(pot, { rough: 0.8 }), 10); const leaf = KIT.m(0x3f7a3a, { rough: 0.8 }); for (let i = 0; i < 7; i++) { const a = (i / 7) * TAU, l = KIT.b(g, Math.cos(a) * 0.12 * s, (0.55 + rand(0, 0.25)) * s, Math.sin(a) * 0.12 * s, 0.08 * s, 0.5 * s, 0.02 * s, leaf, -a, false); l.rotation.z = Math.cos(a) * 0.5; l.rotation.x = Math.sin(a) * 0.5; } return g; }
+function kBookcase(x, z, ry, w = 1.2, h = 2) { const g = KIT.g(x, z, ry), wood = kitMats().woodDark; KIT.b(g, 0, h / 2, 0, w, h, 0.32, wood); const cols = [0x7a2a22, 0x2a4a6a, 0x5a5a3a, 0x3a2a4a, 0x8a6a3a, 0x2a5a3a]; for (let r = 0; r < 4; r++) for (let i = 0; i < Math.floor(w / 0.07) - 2; i++) { if (Math.random() < 0.12) continue; const bh = 0.22 + Math.random() * 0.1; KIT.b(g, -w / 2 + 0.1 + i * 0.07, 0.15 + r * (h / 4.2) + bh / 2, 0.05, 0.06, bh, 0.22, KIT.m(cols[(i * 7 + r * 3) % cols.length], { rough: 0.9 }), 0, false); } KIT.solid(g, w, 0.35, h); return g; }
 
 /* ─── Mobilier urbain ─── */
 function kLampPost(x, z, ry, light = null) {
@@ -3422,6 +3730,153 @@ function kCeilLamp(x, z, y = 2.98, lit = true) {
   KIT.c(g, 0, -0.005, 0, 0.3, 0.3, 0.02, k.chrome, 16, false);
   if (lit) KIT.glow(g, 0, -0.12, 0, 0xffd9a0, 0.9, 0.25);
   return g;
+}
+
+
+// ───────────────────────── 06C_VEHICLES ─────────────────────────
+/* ═══════════════════ VÉHICULES DES ANNÉES 50 ═══════════════════
+   Silhouettes extrudées (profil latéral arrondi, passages de roue), vitres, chromes, phares, plaques.
+   Variante « brûlée » : tôle carbonisée, vitres absentes, pneus fondus. Mêmes encombrements que l'ancienne version. */
+
+// Profil latéral (x = longueur, y = hauteur) extrudé sur la largeur, arêtes arrondies.
+function vExtrude(shape, width, bevel = 0.05, curve = 10) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth: Math.max(0.01, width - 2 * bevel), bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: curve });
+  g.translate(0, 0, -(width - 2 * bevel) / 2); g.computeVertexNormals(); return g;
+}
+// Polygone + arcs de passage de roue (cx, rayon) sur le bas de caisse à la hauteur y0.
+function vBodyShape(pts, arches, y0) {
+  const s = new THREE.Shape(); s.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0], pts[i][1]);
+  // bas de caisse d'avant en arrière, avec les arches
+  const sorted = arches.slice().sort((a, b) => b[0] - a[0]);
+  for (const [cx, r] of sorted) { s.lineTo(cx + r, y0); s.absarc(cx, y0, r, 0, Math.PI, false); }
+  s.closePath(); return s;
+}
+// Tôle calcinée : suie, cendre, rouille et lambeaux de la peinture d'origine ternie (1 motif pour ~3 m).
+function burntMat(color) {
+  const key = 'burnt' + color; if (KM[key]) return KM[key];
+  const pc = new THREE.Color(color), n = (u, v, f, o = 4) => tfbm(u * f, v * f, f, o);
+  const t = matSet(paint(256, (u, v) => {
+    const rust = smooth(clamp((n(u, v, 5) - 0.44) * 3.2, 0, 1)), ash = smooth(clamp((n(u + 0.5, v + 0.2, 7) - 0.5) * 3, 0, 1));
+    const left = smooth(clamp((n(u + 0.21, v + 0.7, 4) - 0.64) * 4, 0, 1)) * 0.8, soot = n(u, v * 3, 8, 3), pit = tnoise(u * 64, v * 64, 64), blister = tnoise(u * 24, v * 24, 24) > 0.8 ? 1 : 0;
+    let r = 0.12, g = 0.105, b = 0.095;
+    r = lerp(r, 0.37, rust); g = lerp(g, 0.19, rust); b = lerp(b, 0.1, rust);
+    r = lerp(r, 0.52, ash * 0.7); g = lerp(g, 0.49, ash * 0.7); b = lerp(b, 0.45, ash * 0.7);
+    r = lerp(r, pc.r * 0.62, left); g = lerp(g, pc.g * 0.58, left); b = lerp(b, pc.b * 0.5, left);
+    const k = 1 - soot * 0.45 - pit * 0.08; r *= k; g *= k; b *= k;
+    return [r, g, b, 0.3 + rust * 0.35 + left * 0.25 - blister * 0.2 + pit * 0.1];
+  }), 3);
+  for (const m of [t.map, t.normalMap]) m.repeat.set(0.33, 0.33);
+  return (KM[key] = stdMat({ color: 0xffffff, roughness: 0.9, metalness: 0.3, map: t.map, normalMap: t.normalMap }));
+}
+function vMats(color, burnt) {
+  const k = kitMats();
+  const paint = burnt ? burntMat(color) : (KM['car' + color] ||= stdMat({ color, roughness: 0.32, metalness: 0.45, map: TEX.grime.map }));
+  return {
+    paint, chrome: burnt ? (KM.burntTrim ||= KIT.m(0x2c2622, { rough: 0.8 })) : k.chrome, glass: burnt ? k.black : (KM.carGlass ||= new THREE.MeshStandardMaterial({ color: 0x182229, roughness: 0.04, metalness: 0.85, transparent: true, opacity: 0.72 })),
+    tire: burnt ? (KM.burntTire ||= KIT.m(0x0e0d0c, { rough: 1 })) : k.rubber, white: burnt ? k.black : (KM.whitewall ||= KIT.m(0xece8de, { rough: 0.6 })),
+    lamp: burnt ? k.black : (KM.headlamp ||= new THREE.MeshStandardMaterial({ color: 0xfff6e0, emissive: 0xffe8b0, emissiveIntensity: 0.25, roughness: 0.1 })),
+    tail: burnt ? k.black : (KM.taillamp ||= new THREE.MeshStandardMaterial({ color: 0x8a0e0e, emissive: 0x5a0606, emissiveIntensity: 0.3, roughness: 0.2 })),
+    seat: burnt ? k.black : (KM.carSeat ||= stdMat({ color: 0x8a3a2e, roughness: 0.8, map: TEX.cloth.map })), dark: k.black,
+  };
+}
+function vWheel(g, x, y, z, r, w, V, side, hub = true) {
+  const t = KIT.c(g, x, y, z, r, r, w, V.tire, 18); t.rotation.x = Math.PI / 2;
+  if (hub) { const ww = KIT.c(g, x, y, z + side * w * 0.04, r * 0.68, r * 0.68, w * 1.02, V.white, 18, false); ww.rotation.x = Math.PI / 2; const h = KIT.c(g, x, y, z + side * w * 0.08, r * 0.4, r * 0.36, w * 1.04, V.chrome, 14, false); h.rotation.x = Math.PI / 2; }
+}
+function vPlate(g, x, y, z, ry, txt) {
+  const m = KM['plate' + txt] ||= new THREE.MeshStandardMaterial({ map: woodSign([txt], { w: 256, h: 64, bg: '#e8d24a', color: '#1a1a1a' }), roughness: 0.5 });
+  mesh(new THREE.PlaneGeometry(0.42, 0.12), m, x, y, z, ry, g, false);
+}
+
+/* ─── Berline 1955 (4,9 m) ─── */
+function kCar(x, z, ry, color = 0x6fb7c8, burnt = false) {
+  const g = KIT.g(x, z, ry), V = vMats(color, burnt), sink = burnt ? -0.12 : 0;
+  const body = vBodyShape([[-2.42, 0.36], [-2.5, 0.62], [-2.46, 0.86], [-2.3, 0.98], [-1.25, 1.0], [0.95, 1.0], [2.2, 0.94], [2.46, 0.86], [2.5, 0.58], [2.44, 0.34]], [[1.5, 0.44], [-1.5, 0.44]], 0.3);
+  const bm = mesh(vExtrude(body, 1.9, 0.07), V.paint, 0, 0.02 + sink, 0, 0, g);
+  // Habitacle : montants peints, vitres en retrait.
+  const cab = new THREE.Shape(); cab.moveTo(-1.32, 0); cab.lineTo(-0.92, 0.56); cab.quadraticCurveTo(-0.85, 0.6, -0.7, 0.6); cab.lineTo(0.3, 0.6); cab.quadraticCurveTo(0.45, 0.6, 0.5, 0.55); cab.lineTo(0.98, 0); cab.closePath();
+  mesh(vExtrude(cab, 1.58, 0.05), V.paint, 0, 0.99 + sink, 0, 0, g);
+  const win = new THREE.Shape(); win.moveTo(-1.16, 0.05); win.lineTo(-0.86, 0.5); win.lineTo(0.38, 0.5); win.lineTo(0.8, 0.05); win.closePath();
+  for (const s of [-1, 1]) { const w = mesh(new THREE.ShapeGeometry(win), V.glass, 0, 0.99 + sink, s * 0.805, s > 0 ? 0 : Math.PI, g, false); if (s < 0) w.scale.x = -1; KIT.b(g, -0.25, 1.26 + sink, s * 0.81, 0.06, 0.48, 0.012, V.paint, 0, false); }
+  const ws = KIT.b(g, 0.77, 1.31 + sink, 0, 0.02, 0.8, 1.42, V.glass, 0, false); ws.rotation.z = 0.77; const rw = KIT.b(g, -1.17, 1.3 + sink, 0, 0.02, 0.66, 1.4, V.glass, 0, false); rw.rotation.z = -0.62;
+  // Sièges et volant, visibles derrière les vitres.
+  if (!burnt) { for (const sx of [-0.85, 0.1]) { KIT.b(g, sx, 1.02, 0, 0.5, 0.18, 1.4, V.seat, 0, false); KIT.b(g, sx - 0.24, 1.3, 0, 0.12, 0.5, 1.4, V.seat, 0, false); } const sw = mesh(new THREE.TorusGeometry(0.17, 0.018, 6, 16), V.dark, 0.42, 1.24, 0.38, Math.PI / 2, g, false); sw.rotation.z = 0.5; }
+  // Chromes : pare-chocs, calandre, enjoliveur latéral.
+  for (const s of [-1, 1]) { const b = KIT.b(g, s * 2.52, 0.48 + sink, 0, 0.14, 0.16, 1.96, V.chrome); for (const e of [-1, 1]) KIT.s(g, s * 2.5, 0.48 + sink, e * 0.98, 0.09, V.chrome, 1, 0.9, 0.9); }
+  KIT.b(g, 2.575, 0.68 + sink, 0, 0.05, 0.2, 1.1, V.dark, 0, false); for (let i = 0; i < 6; i++) KIT.b(g, 2.6, 0.68 + sink, -0.5 + i * 0.2, 0.03, 0.2, 0.03, V.chrome, 0, false);
+  for (const s of [-1, 1]) KIT.b(g, 0.2, 0.74 + sink, s * 0.96, 3.6, 0.03, 0.01, V.chrome, 0, false);
+  // Phares, feux, plaques.
+  for (const s of [-1, 1]) { KIT.s(g, 2.53, 0.8 + sink, s * 0.7, 0.12, V.lamp, 0.4, 1, 1); KIT.b(g, -2.56, 0.78 + sink, s * 0.75, 0.04, 0.16, 0.24, V.tail, 0, false); }
+  if (!burnt) { vPlate(g, 2.6, 0.46, 0, Math.PI / 2, '57-ATM'); vPlate(g, -2.6, 0.62, 0, -Math.PI / 2, '57-ATM'); }
+  // Ailerons arrière.
+  for (const s of [-1, 1]) { const f = new THREE.Shape(); f.moveTo(0, 0); f.lineTo(0.9, 0); f.lineTo(0.05, 0.22); f.closePath(); const fm = mesh(vExtrude(f, 0.06, 0.015), V.paint, -2.4, 0.96 + sink, s * 0.9, 0, g); }
+  for (const [a, b] of [[1.5, 0.84], [-1.5, 0.84], [1.5, -0.84], [-1.5, -0.84]]) vWheel(g, a, burnt ? 0.28 : 0.36, b, burnt ? 0.3 : 0.36, 0.24, V, Math.sign(b), !burnt);
+  KIT.solid(g, 5.0, 1.95, 1.6, 'metal'); return g;
+}
+
+/* ─── Car scolaire (11 m) ─── */
+function kBus(x, z, ry, burnt = false) {
+  const k = kitMats(), g = KIT.g(x, z, ry), V = vMats(0xe8a81e, burnt);
+  const yellow = burnt ? V.paint : (KM.busYellow ||= stdMat({ color: 0xe8a81e, roughness: 0.45, metalness: 0.25, map: TEX.grime.map, normalMap: TEX.grime.normalMap }));
+  // Caisse : arrière droit, toit bombé, capot moteur à l'avant (x > 0).
+  const box = vBodyShape([[-4.8, 0.45], [-4.82, 2.5], [-4.6, 2.86], [4.1, 2.86], [4.32, 2.5], [4.36, 1.5], [5.6, 1.42], [5.95, 1.1], [5.98, 0.5]], [[3.8, 0.56], [-3.2, 0.56]], 0.45);
+  mesh(vExtrude(box, 2.44, 0.1), yellow, 0, 0, 0, 0, g);
+  // Bandeau de vitres latérales, montants, bandes noires.
+  for (const s of [-1, 1]) {
+    KIT.b(g, -0.25, 2.1, s * 1.223, 8.5, 0.62, 0.02, V.glass, 0, false);
+    for (let i = 0; i < 10; i++) KIT.b(g, -4.35 + i * 0.95, 2.1, s * 1.226, 0.1, 0.66, 0.03, yellow, 0, false);
+    for (const y of [1.6, 1.25, 0.92]) KIT.b(g, 0.3, y, s * 1.226, 9.4, 0.07, 0.02, V.dark, 0, false);
+    KIT.b(g, 4.7, 1.8, s * 1.0, 0.04, 0.3, 0.22, V.chrome, 0, false); // rétroviseurs
+  }
+  KIT.b(g, 4.46, 2.05, 0, 0.03, 0.66, 2.1, V.glass, 0, false); KIT.b(g, -4.935, 1.95, 0, 0.03, 0.75, 1.6, V.glass, 0, false); KIT.b(g, -4.94, 1.25, 0, 0.02, 1.2, 0.7, V.dark, 0, false); // pare-brise, lunette, sortie de secours
+  KIT.b(g, 4.0, 1.4, 1.224, 0.8, 2.0, 0.02, V.glass, 0, false); // porte accordéon
+  // Calandre, pare-chocs noir, phares, feux du toit.
+  KIT.b(g, 6.09, 0.85, 0, 0.05, 0.45, 1.2, V.chrome, 0, false); KIT.b(g, 6.05, 0.55, 0, 0.16, 0.24, 2.4, V.dark);
+  KIT.b(g, -4.9, 0.6, 0, 0.14, 0.22, 2.4, V.dark);
+  for (const s of [-1, 1]) { KIT.s(g, 6.0, 1.15, s * 0.85, 0.13, V.lamp, 0.5, 1, 1); for (const px of [4.3, -4.75]) KIT.c(g, px, 2.98, s * 0.7, 0.1, 0.1, 0.06, burnt ? V.dark : (KM.busLamp ||= new THREE.MeshStandardMaterial({ color: 0xff7a2a, emissive: 0x8a2a0a, emissiveIntensity: 0.3 })), 10, false).rotation.z = Math.PI / 2; }
+  if (!burnt) { const sign = mesh(new THREE.PlaneGeometry(2.4, 0.36), KM.busSign ||= new THREE.MeshStandardMaterial({ map: woodSign(['ÉCOLE'], { w: 512, h: 90, bg: '#e8a81e', color: '#111' }), roughness: 0.6 }), 4.47, 2.6, 0, Math.PI / 2, g, false); vPlate(g, -4.96, 0.85, 0, -Math.PI / 2, 'ÉCOLE 12'); }
+  // Bras « STOP » et roues (jumelées à l'arrière).
+  { const st = mesh(new THREE.CircleGeometry(0.22, 8), burnt ? V.dark : (KM.stopRed ||= KIT.m(0xb8241c, { rough: 0.5 })), 3.0, 1.75, -1.25, Math.PI, g, false); }
+  for (const [a, s] of [[3.8, 1], [-3.2, 1], [3.8, -1], [-3.2, -1]]) vWheel(g, a, burnt ? 0.42 : 0.5, s * 1.12, burnt ? 0.42 : 0.5, 0.3, V, s, !burnt);
+  if (burnt) {
+    for (let i = 0; i < 5; i++) KIT.b(g, -4 + i * 1.8, 2.9, rand(-0.6, 0.6), 1.2, 0.04, 0.8, V.dark, rand(-0.3, 0.3), false); // tôle de toit gondolée
+    // Carcasses de sièges derrière les vitres béantes, suie léchant la tôle au-dessus des fenêtres.
+    const frame = KM.burntSeat ||= KIT.m(0x3a2c22, { rough: 0.9, metal: 0.4 });
+    for (let i = 0; i < 8; i++) for (const s of [-1, 1]) { KIT.b(g, -3.9 + i * 0.95, 1.55, s * 0.72, 0.06, 0.7, 0.8, frame, rand(-0.2, 0.2), false); KIT.b(g, -3.7 + i * 0.95, 1.2, s * 0.72, 0.42, 0.05, 0.8, frame, 0, false); }
+    const sootM = KM.sootStreak ||= new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.55, depthWrite: false, alphaMap: (TEX.sootA ||= textTexture(64, 128, (x, w, h) => { const gr = x.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000'); x.fillStyle = gr; for (let i = 0; i < 9; i++) { const cx = rand(4, w - 4), cw = rand(5, 14); x.fillRect(cx - cw / 2, h * rand(0, 0.4), cw, h); } }, { srgb: false })) });
+    for (let i = 0; i < 7; i++) for (const s of [-1, 1]) mesh(new THREE.PlaneGeometry(rand(0.6, 1.1), rand(0.35, 0.5)), sootM, -3.9 + i * 1.2 + rand(-0.2, 0.2), 2.62, s * 1.236, s > 0 ? 0 : Math.PI, g, false);
+  }
+  KIT.solid(g, 11.2, 2.5, 2.8, 'metal', 0.5, 0); return g;
+}
+
+/* ─── Camion de déménagement, hayon ouvert, chargement renversé (9,4 m) ─── */
+function kTruck(x, z, ry, label = 'DÉMÉNAGEMENTS') {
+  const k = kitMats(), g = KIT.g(x, z, ry), V = vMats(0x3e6e8e, false);
+  const cab = KM.truckCab ||= stdMat({ color: 0x3e6e8e, roughness: 0.38, metalness: 0.4, map: TEX.grime.map });
+  const boxM = KM.truckBox ||= stdMat({ color: 0xe9e3d3, roughness: 0.65, metalness: 0.15, map: TEX.grime.map, normalMap: TEX.grime.normalMap });
+  // Cabine arrondie et capot.
+  const cs = vBodyShape([[2.55, 0.5], [2.55, 2.55], [2.75, 2.75], [3.7, 2.75], [4.0, 2.4], [4.25, 1.7], [5.15, 1.6], [5.35, 1.3], [5.38, 0.5]], [[4.3, 0.52]], 0.5);
+  mesh(vExtrude(cs, 2.3, 0.1), cab, 0, 0, 0, 0, g);
+  for (const s of [-1, 1]) { KIT.b(g, 3.3, 2.2, s * 1.152, 0.85, 0.55, 0.02, V.glass, 0, false); KIT.b(g, 4.45, 1.85, s * 1.25, 0.04, 0.32, 0.2, V.chrome, 0, false); }
+  const ws = KIT.b(g, 4.06, 2.27, 0, 0.02, 0.9, 1.9, V.glass, 0, false); ws.rotation.z = 0.48;
+  KIT.b(g, 5.36, 1.0, 0, 0.05, 0.5, 1.5, V.chrome, 0, false); for (let i = 0; i < 8; i++) KIT.b(g, 5.38, 1.0, -0.65 + i * 0.186, 0.03, 0.5, 0.04, V.dark, 0, false);
+  KIT.b(g, 5.45, 0.55, 0, 0.18, 0.22, 2.36, V.chrome); for (const s of [-1, 1]) KIT.s(g, 5.3, 1.35, s * 0.85, 0.15, V.lamp, 0.5, 1, 1);
+  // Caisse : nervures, bandeau, cadre arrière, portes ouvertes.
+  KIT.b(g, -0.95, 2.0, 0, 6.6, 2.9, 2.5, boxM); KIT.b(g, -0.95, 0.42, 0, 6.6, 0.18, 2.3, V.dark);
+  for (let i = 0; i <= 12; i++) for (const s of [-1, 1]) KIT.b(g, -4.2 + i * 0.54, 2.0, s * 1.262, 0.05, 2.8, 0.03, boxM, 0, false);
+  for (const s of [-1, 1]) KIT.b(g, -0.95, 3.35, s * 1.262, 6.6, 0.12, 0.04, KIT.m(0x2f5d7a), 0, false);
+  const lab = mesh(new THREE.PlaneGeometry(4.6, 0.9), KM['truckLab' + label] ||= new THREE.MeshStandardMaterial({ map: woodSign([label, 'SERVICE ATOMIQUE'], { w: 512, h: 110, bg: '#e9e3d3', color: '#2f5d7a' }), roughness: 0.7 }), -0.95, 2.2, 1.29, 0, g, false);
+  const lab2 = lab.clone(); lab2.position.z = -1.29; lab2.rotation.y = Math.PI; g.add(lab2);
+  for (const s of [-1, 1]) { KIT.b(g, -4.27, 2.0, s * 1.2, 0.1, 2.9, 0.12, V.chrome); const d = KIT.b(g, -4.3, 2.0, s * 1.95, 0.06, 2.8, 1.25, boxM); d.rotation.y = s * 0.15; } // vantaux grands ouverts
+  KIT.b(g, -4.3, 3.42, 0, 0.12, 0.14, 2.5, V.chrome); KIT.b(g, -4.27, 2.0, 0, 0.02, 2.75, 2.3, V.dark, 0, false); // intérieur sombre
+  const ramp = KIT.b(g, -5.3, 0.35, 0, 2.2, 0.06, 1.4, V.chrome); ramp.rotation.z = 0.32; // rampe de chargement
+  for (const s of [-1, 1]) { KIT.b(g, -4.35, 0.75, s * 0.95, 0.04, 0.14, 0.24, V.tail, 0, false); KIT.b(g, -3.6, 0.45, s * 1.18, 0.4, 0.5, 0.02, V.dark, 0, false); } // feux, bavettes
+  KIT.c(g, 1.6, 0.75, 1.05, 0.25, 0.25, 1.0, V.chrome, 14).rotation.z = Math.PI / 2; // réservoir
+  for (const [a, s] of [[4.3, 1], [-2.8, 1], [4.3, -1], [-2.8, -1]]) vWheel(g, a, 0.52, s * 1.08, 0.52, 0.32, V, s, true);
+  for (const s of [-1, 1]) vWheel(g, -2.8, 0.52, s * 0.78, 0.52, 0.28, V, s, false);
+  vPlate(g, -4.36, 0.62, 0, -Math.PI / 2, 'TR-1957');
+  KIT.solid(g, 9.4, 2.5, 3.4, 'metal', -0.2, 0); return g;
 }
 
 
@@ -4763,6 +5218,8 @@ function updateCamera(dt) {
   const L = R.lights; L.hemi.intensity = damp(L.hemi.intensity, (roofed ? M.env.hemiIn : M.env.hemiOut) + R.flash * (M.env.flashLight ?? 0.6), 2, dt);
   R.scene.environmentIntensity = damp(R.scene.environmentIntensity, roofed ? M.env.envIn : M.env.envOut, 2, dt);
   R.vHemi.intensity = L.hemi.intensity * 1.1;
+  // Lumière renvoyée par le sol et les murs à l'intérieur : les plafonds ne sont plus des trous noirs.
+  if (M.env.bounce) { R.inK = damp(R.inK || 0, roofed ? 1 : 0, 2, dt); L.hemi.groundColor.lerpColors(R.hemiG ||= new THREE.Color(M.env.hemi[1]), R.bounceC ||= new THREE.Color(M.env.bounce), R.inK); }
   // Ombres de la lune centrées sur le joueur (alignées sur la grille d'ombre pour éviter le scintillement).
   const m = L.moon, snap = 60 / Q.shadowSize || 0.1;
   const cx = Math.round(P.pos.x / snap) * snap, cz = Math.round(P.pos.z / snap) * snap;
@@ -5155,6 +5612,7 @@ const G = {
     while (PROJ.length) { R.scene.remove(PROJ.pop().m); }
     setPowerVisuals(false, true);
     placeBox(0);
+    pwrReset();
     mapHook('reset');
     Sfx.stopHum();
   },
@@ -5174,7 +5632,7 @@ const G = {
 
   /* ─── Démarrage ─── */
   start({ solo = true, authority = true, players = null, diff = null } = {}) {
-    this.diff = clamp(diff ?? settings.diff ?? 1, 0, 2) | 0;
+    this.diff = clamp(diff ?? settings.diff ?? 1, 0, 3) | 0;
     this.solo = solo; this.authority = authority; this.mode = 'playing'; this.time = 0; this.gid = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     this.reset();
     for (const [, r] of this.players) if (!r.isLocal) r.avatar?.destroy();
@@ -5203,7 +5661,7 @@ const G = {
     }
     updateProjectiles(dt);
     this.updateDrops(dt);
-    this.updateDoorsAnim(dt); this.updatePlanksAnim(dt); this.updateBoxBench(dt); mapHook('visuals', dt);
+    this.updateDoorsAnim(dt); this.updatePlanksAnim(dt); this.updateBoxBench(dt); pwrVisuals(dt); mapHook('visuals', dt);
     for (const [, r] of this.players) if (r.avatar) r.avatar.update(dt);
     if (this.pu.instakill > 0) this.pu.instakill = Math.max(0, this.pu.instakill - dt);
     if (this.pu.double > 0) this.pu.double = Math.max(0, this.pu.double - dt);
@@ -5225,9 +5683,10 @@ const G = {
     if (this.breakT > 0) { this.breakT -= dt; if (this.breakT <= 0) this.startRound(this.round + 1); }
     else if (this.round > 0) {
       this.spawnT -= dt;
-      if (this.toSpawn > 0 && this.alive < this.maxAlive && this.spawnT <= 0) { if (this.spawnZombie()) { this.toSpawn--; this.spawnT = this.spawnGap * (mapHook('spawnFactor') ?? 1); } else this.spawnT = 0.5; }
+      if (this.toSpawn > 0 && this.alive < this.maxAlive && this.spawnT <= 0) { if (this.spawnZombie()) { this.toSpawn--; this.spawnT = this.spawnGap * (mapHook('spawnFactor') ?? 1) * pwrSpawnFactor(); } else this.spawnT = 0.5; }
       if (this.toSpawn <= 0 && this.alive === 0 && this.overT <= 0) this.endRound();
     }
+    pwrHost(dt);
     mapHook('host', dt);
     // Boîte et établi.
     const bx = this.box; if (bx.state !== 'idle') { bx.t -= dt; if (bx.t <= 0) this.boxNext(); }
@@ -5241,8 +5700,8 @@ const G = {
   startRound(n) {
     const np = Math.max(1, this.players.size);
     const blizzard = n >= 6 && n % 6 === 0;
-    const base = n <= 5 ? [6, 8, 13, 18, 24][n - 1] : Math.min(200, Math.round(24 + (n - 5) * 4.4));
-    this.toSpawn = Math.round(base * (1 + 0.6 * (np - 1)) * (blizzard ? 0.65 : 1));
+    const base = n <= 5 ? [8, 11, 15, 20, 26][n - 1] : Math.min(220, Math.round(26 + (n - 5) * 4.8));
+    this.toSpawn = Math.round(base * (1 + 0.6 * (np - 1)) * (blizzard ? 0.65 : 1) * DIFF().count);
     Object.assign(this, this.roundParams(n, blizzard));
     this.spawnT = 1.5; this.dropsRound = 0;
     for (const [, p] of this.players) p.repairPts = 0;
@@ -5250,18 +5709,19 @@ const G = {
   },
   roundParams(n, blizzard = this.blizzard) {
     const np = Math.max(1, this.players.size);
-    return { maxAlive: Math.min(36, 24 + (np - 1) * 4), spawnGap: Math.max(0.35, 2.1 * Math.pow(0.94, n)) / (blizzard ? 1.6 : 1) / DIFF().spawn, zHp: Math.round(zombieHp(n) * DIFF().zhp) };
+    return { maxAlive: Math.min(38, 26 + (np - 1) * 4), spawnGap: Math.max(0.32, 1.9 * Math.pow(0.93, n)) / (blizzard ? 1.6 : 1) / DIFF().spawn, zHp: Math.round(zombieHp(n) * DIFF().zhp) };
   },
   endRound() { this.breakT = this.blizzard ? 12 : 10; this.emit('rend', { n: this.round }); if (this.blizzard) this.spawnDrop('maxammo', this.lastKillPos || P.pos, true); },
   zombieKind() {
-    const n = this.round;
+    // Manche « effective » : la difficulté avance l'arrivée des coureurs et des spéciaux.
+    const n = this.round + DIFF().early;
     if (this.blizzard) return Math.random() < 0.5 ? 'runner' : 'sprinter';
     const brutes = ZOMBIES.filter((z) => z.alive && z.brute).length;
-    if (n >= 6 && brutes < 1 + Math.floor(this.players.size / 2) && Math.random() < 0.035) return 'brute';
-    // Infectés spéciaux : le Givreux dès la manche 7, le Hurleur dès la 11 (un seul à la fois).
-    if (n >= 7 && ZOMBIES.filter((z) => z.alive && z.kind === 'frost').length < (n >= 14 ? 2 : 1) && Math.random() < 0.06) return 'frost';
-    if (n >= 11 && !ZOMBIES.some((z) => z.alive && z.kind === 'screamer') && Math.random() < 0.045) return 'screamer';
-    const r = Math.random(), run = clamp((n - 3) * 0.13, 0, 0.85), sprint = clamp((n - 11) * 0.08, 0, 0.5), jog = clamp((n - 1) * 0.2, 0, 0.6);
+    if (n >= 5 && brutes < 1 + Math.floor(this.players.size / 2) + (n >= 15 ? 1 : 0) && Math.random() < 0.04) return 'brute';
+    // Infectés spéciaux : le Givreux dès la manche 6, le Hurleur dès la 9 (un seul à la fois).
+    if (n >= 6 && ZOMBIES.filter((z) => z.alive && z.kind === 'frost').length < (n >= 12 ? 2 : 1) && Math.random() < 0.06) return 'frost';
+    if (n >= 9 && !ZOMBIES.some((z) => z.alive && z.kind === 'screamer') && Math.random() < 0.045) return 'screamer';
+    const r = Math.random(), run = clamp((n - 2) * 0.13, 0, 0.85), sprint = clamp((n - 9) * 0.08, 0, 0.5), jog = clamp((n - 0.5) * 0.25, 0, 0.65);
     if (r < sprint) return 'sprinter'; if (r < run) return 'runner'; if (r < run + jog * (1 - run)) return 'jogger'; return 'walker';
   },
   spawnZombie(existing) {
@@ -5403,6 +5863,7 @@ const G = {
     }
     else if (kind === 'repair') this.repair(pid, id);
     else if (kind === 'unlock') { if (this.pay(pid, 2000)) this.emit('unlock', { id }); }
+    else if (pwrInteract(pid, kind, id)) { /* courant en plusieurs étapes */ }
     else if (mapHook('interact', pid, kind, id)) { /* règle propre à la carte */ }
     else if (kind === 'revive') { const t = this.players.get(id); if (t && t.down) this.emit('revived', { pid: id }); }
   },
@@ -5428,8 +5889,9 @@ const G = {
   },
   spawnDrop(type, pos, force) {
     const tx = tileOf(pos.x), tz = tileOf(pos.z); if (!force && tClass(tx, tz) !== C_TRENCH) return;
+    const [x, z] = force ? reachSpot(pos.x, pos.z) : [pos.x, pos.z];
     this.dropsRound++; this.killsSinceDrop = 0; this.lastDrop = type;
-    this.emit('drop', { id: this.dropSeq++, type, x: +pos.x.toFixed(2), z: +pos.z.toFixed(2) });
+    this.emit('drop', { id: this.dropSeq++, type, x: +x.toFixed(2), z: +z.toFixed(2) });
   },
   updateDrops(dt) {
     for (let i = this.drops.length - 1; i >= 0; i--) {
@@ -5470,7 +5932,10 @@ const G = {
         const newly = dr.zones.map((z) => ZONE_NAMES[z]); UI.message('PASSAGE OUVERT', newly.join(' ↔ '));
         this.flowT = 0; break;
       }
-      case 'power': this.power = true; setPowerVisuals(true); UI.message('LE COURANT EST RÉTABLI', 'Atouts et établi d\'armurier en service.'); break;
+      case 'power': this.power = true; PWR.stage = 4; pwrApply({ s: 4 }, true); setPowerVisuals(true); UI.message('LE COURANT EST RÉTABLI', 'Atouts et établi d\'armurier en service.'); UI.objective(); break;
+      case 'pwr': { // message de la pièce d'abord : « PIÈCES RÉUNIES » (la consigne suivante) doit rester affiché
+        if (d.k !== undefined && !PWR.got[d.k]) { const n = (d.g || PWR.got).filter(Boolean).length; UI.message(`${pwrParts()[d.k].name}`, `${d.who ? d.who + ' · ' : ''}pièce ${n}/3`); Sfx.pickup(); }
+        pwrApply(d); UI.objective(); break; }
       case 'plank': {
         const b = MAP.barricades[d.b]; b.planks = d.n;
         const k = d.d < 0 ? d.n : d.n - 1; // planche concernée
@@ -5676,14 +6141,15 @@ function updateInteraction(dt) {
   const me = G.me(); const pts = me ? me.points : 0;
   const px = P.pos.x, pz = P.pos.z;
   let best = null, bd = 1e9;
-  const cand = (d, obj) => { if (d < bd) { bd = d; best = obj; } };
+  // Seuls les objets à portée concourent ; une simple information cède la place à une action proche.
+  const cand = (d, obj) => { if (d > obj.range) return; const s = d + (obj.kind === 'info' ? 0.6 : 0); if (s < bd) { bd = s; best = obj; } };
   if (!P.down && !P.dead) {
     for (const d of MAP.doors) if (!d.open) cand(Math.hypot(px - tcx(d.x), pz - tcx(d.z)) - 0.2, { kind: 'door', id: d.id, text: `Ouvrir le passage — ${d.label}`, cost: d.cost, range: 2.1 });
     for (const b of MAP.barricades) if (b.planks < 6 && MAP.zoneActive[b.zone]) cand(Math.hypot(px - b.center.x, pz - b.center.z), { kind: 'repair', id: b.id, text: 'Maintenir pour réparer la barricade', range: 2.1, hold: true });
     WORLD.wallBuys.forEach((wb, i) => { const w = WEAPONS[wb.weapon], has = P.weapons.find((q) => q.key === wb.weapon); cand(Math.hypot(px - wb.pos.x, pz - wb.pos.z), has ? { kind: 'wall', id: i, text: `Munitions — ${has.up ? w.up.name : w.name}`, cost: ammoCost(wb.weapon, has.up), range: 1.7 } : { kind: 'wall', id: i, text: `Acheter ${w.name}`, cost: w.cost, range: 1.7 }); });
     for (const p of WORLD.perks) if (p.locked) cand(Math.hypot(px - p.pos.x, pz - p.pos.z), { kind: 'unlock', id: 'p:' + p.key, text: `Briser le cadenas du Geôlier — ${PERKS[p.key].name}`, cost: 2000, range: 1.7 });
     for (const p of WORLD.perks) { if (p.locked) continue; const def = PERKS[p.key]; const cost = p.key === 'revive' && !G.solo ? def.coopCost : def.cost; const needP = p.needsPower && !G.power && !(p.key === 'revive' && G.solo); cand(Math.hypot(px - p.pos.x, pz - p.pos.z), P.perks.has(p.key) ? { kind: 'info', text: `${def.name} — déjà actif`, range: 1.7 } : needP ? { kind: 'info', text: `${def.name} — il faut rétablir le courant`, range: 1.7, deny: true } : { kind: 'perk', id: p.key, text: `${def.name} — ${def.desc}`, cost, range: 1.7 }); }
-    if (!G.power) cand(Math.hypot(px - WORLD.power.pos.x, pz - WORLD.power.pos.z), { kind: 'power', text: 'Rétablir le courant du secteur', range: 1.9 });
+    pwrCandidates(cand, px, pz);
     const bx = G.box, spot = WORLD.boxSpots[bx.loc];
     { const d = Math.hypot(px - spot.pos.x, pz - spot.pos.z);
       if (bx.state === 'idle' && bx.locked) cand(d, { kind: 'unlock', id: 'b', text: 'Briser le cadenas du Geôlier — caisse', cost: 2000, range: 1.9 });
@@ -5697,11 +6163,14 @@ function updateInteraction(dt) {
     mapHook('candidates', cand, px, pz);
     for (const [id, r] of G.players) if (!r.isLocal && r.down && !r.dead) cand(Math.hypot(px - r.pos.x, pz - r.pos.z), { kind: 'revive', id, text: `Maintenir pour relever ${r.name}`, range: 1.8, hold: true });
   }
-  if (best && bd > best.range) best = null;
   INTERACT.cur = best;
   UI.prompt(best, pts);
   const held = key('KeyE') || INPUT.interactHeld, pressed = INPUT.interactPressed; INPUT.interactPressed = false;
-  if (!best) { INTERACT.reviveT = 0; UI.progress(-1); P.revivingOther = false; return; }
+  if (!best) { INTERACT.reviveT = 0; INTERACT.holdT = 0; UI.progress(-1); P.revivingOther = false; return; }
+  if (best.holdTime) { // action à maintenir (installer, lancer le moteur…)
+    if (held) { INTERACT.holdT = (INTERACT.holdT || 0) + dt; UI.progress(INTERACT.holdT / best.holdTime); if (INTERACT.holdT >= best.holdTime) { INTERACT.holdT = 0; UI.progress(-1); G.interact(P.id, best.kind, best.id); } } else { INTERACT.holdT = 0; UI.progress(-1); }
+    return;
+  }
   if (best.kind === 'repair') { if (held) { INTERACT.repairT -= dt; if (INTERACT.repairT <= 0) { INTERACT.repairT = 0.55; G.interact(P.id, 'repair', best.id); } } else INTERACT.repairT = 0; }
   else if (best.kind === 'calib') { if (held) { INTERACT.calibT = (INTERACT.calibT || 0) - dt; UI.progress(QUEST.calib / 20); if (INTERACT.calibT <= 0) { INTERACT.calibT = 0.25; G.interact(P.id, 'calib'); } } else UI.progress(-1); }
   else if (best.kind === 'revive') {
@@ -5923,6 +6392,19 @@ function questCandidates(cand, px, pz) {
   });
 }
 
+// Ligne de mission de Poste 7 pour le bandeau d'objectif.
+function questObjective() {
+  if (MAP_ID !== 'poste7') return null; const s = QUEST.stage;
+  if (!s || s >= 6) return null;
+  const o = { title: 'OPÉRATION AUBE BLANCHE', line: QUEST_NAMES[s], sub: '' };
+  if (s === 1) o.sub = 'La radio du poste de commandement grésille';
+  if (s === 2) { o.line += ` (${QUEST.taken.filter(Boolean).length}/3)`; o.sub = 'Une en première ligne, une au poste ou au dépôt, une en soutien ou au dépôt'; }
+  if (s === 3) o.sub = 'Poste de commandement';
+  if (s === 4) o.bar = QUEST.calib / 20;
+  if (s === 5) { o.line += ` — ${Math.max(0, Math.ceil(QUEST.hold))} s`; o.bar = 1 - QUEST.hold / 90; }
+  return o;
+}
+
 
 // ───────────────────────── 11C_CRATER ─────────────────────────
 /* ═══════════════════ LE CRATÈRE : épave du biplan et soutien d'artillerie ═══════════════════
@@ -5936,7 +6418,8 @@ function buildCraterProps() {
   const fabric = stdMat({ color: 0x6f6a4c, roughness: 0.92, map: TEX.cloth.map, normalMap: TEX.cloth.normalMap }, 0.7);
   const burnt = stdMat({ color: 0x2a2520, roughness: 0.95, map: TEX.cloth.map }, 0.5);
   const roundel = new THREE.MeshStandardMaterial({ roughness: 0.9, transparent: true, map: textTexture(128, 128, (x) => { [['#2a3f8f', 60], ['#e8e4d8', 42], ['#b0282a', 22]].forEach(([c, r]) => { x.fillStyle = c; x.beginPath(); x.arc(64, 64, r, 0, TAU); x.fill(); }); }) });
-  const g = new THREE.Group(); g.position.set(45.4, 0, 31.6); R.scene.add(g);
+  const fy = (x, z) => (M.floorH ? M.floorH(x, z) : 0);
+  const g = new THREE.Group(); g.position.set(45.4, fy(45.4, 31.6), 31.6); R.scene.add(g);
   const body = new THREE.Group(); body.position.y = 0.62; body.rotation.set(0.08, 0, -0.14); g.add(body); // nez planté vers +x
   // Fuselage effilé vers la queue.
   const fus = boxG(5.8, 1.0, 0.95), pa = fus.attributes.position;
@@ -5949,7 +6432,7 @@ function buildCraterProps() {
   for (const [a, l] of [[0.3, 1.25], [0.3 + Math.PI, 0.55]]) { const b = mesh(boxG(0.06, l, 0.16), MATS.post, 2.95, Math.cos(a) * l * 0.5, Math.sin(a) * l * 0.5, 0, body); b.rotation.x = a; } // hélice (une pale cassée)
   // Ailes arrachées à l'impact : l'inférieure gît à plat dans la neige (on marche dessus),
   // la moitié de l'aile supérieure est restée appuyée contre la paroi est du cratère.
-  { const w = new THREE.Group(); w.position.set(45.0, 0.05, 36.2); w.rotation.y = 0.35; R.scene.add(w);
+  { const w = new THREE.Group(); w.position.set(45.0, fy(45.0, 36.2) - 0.12, 36.2); w.rotation.order = "YXZ"; w.rotation.y = 0.35; w.rotation.x = -0.125; // couchée dans la pente R.scene.add(w);
     mesh(boxG(1.35, 0.08, 8.2), fabric, 0, 0, 0, 0, w, false);
     for (const z of [-3.2, 3.2]) { const r = mesh(new THREE.PlaneGeometry(0.9, 0.9), roundel, 0, 0.05, z, 0, w, false); r.rotation.x = -Math.PI / 2; } }
   { const w = new THREE.Group(); w.position.set(53.25, 0, 30.3); R.scene.add(w);
@@ -5963,7 +6446,7 @@ function buildCraterProps() {
   // Obstacles (boîtes le long du fuselage et de l'aile basse, en coordonnées du monde).
   g.updateMatrixWorld(true);
   // Un seul bloc convexe (fuselage, moteur, dérive) : les infectés en font le tour sans se coincer.
-  collider(45.4 - 3.45, 31.6 - 0.55, 45.4 + 3.05, 31.6 + 0.55, 1.5, 'wood');
+  collider(45.4 - 3.45, 31.6 - 0.55, 45.4 + 3.05, 31.6 + 0.55, 1.5 + fy(45.4, 31.6), 'wood');
   // Le moteur brûle encore.
   const fire = _v1.set(2.45, 0.35, 0).applyMatrix4(body.matrixWorld);
   WORLD.fires.push({ x: fire.x, y: fire.y, z: fire.z, size: 0.9, rate: 0.04, t: 0, smoke: 0.1 });
@@ -6041,6 +6524,113 @@ function supportCandidates(cand, px, pz) {
   if (SUPPORT.t > 0) cand(d, { kind: 'info', text: SUPPORT.owner === P.id ? `Mortier en ligne — signalez vos cibles (Q) · ${Math.ceil(SUPPORT.t)} s` : `Mortier dirigé par ${G.players.get(SUPPORT.owner)?.name || 'un camarade'}`, range: 1.8 });
   else if (SUPPORT.cool > 0) cand(d, { kind: 'info', text: `Batterie en rechargement (${Math.ceil(SUPPORT.cool)} s)`, range: 1.8, deny: true });
   else cand(d, { kind: 'mortar', text: "Appeler le soutien d'artillerie (mortier, 20 s)", cost: SUPPORT.cost, range: 1.8 });
+}
+
+
+// ───────────────────────── 11D_POWER ─────────────────────────
+/* ═══════════════════ RÉTABLIR LE COURANT (toutes les cartes) ═══════════════════
+   1. Trouver les trois pièces du générateur, cachées dans des zones différentes (tirées au sort à chaque partie).
+   2. Les installer (maintenir E au générateur).
+   3. Lancer le moteur (maintenir E).
+   4. Tenir la position près du générateur pendant la montée en régime : les infectés affluent.
+   L'hôte décide ; les camarades reçoivent l'état par l'événement « pwr » et dans l'état du monde. */
+
+const PWR = { stage: 0, tiles: [-1, -1, -1], got: [0, 0, 0], prog: 0, need: 45, stall: 0 };
+const PWR_RADIUS = 8;
+const PWR_DEFAULT = [{ name: "BIDON D'ESSENCE", kind: 'fuel', zones: [1, 2] }, { name: 'FUSIBLE', kind: 'fuse', zones: [3, 4] }, { name: "BOBINE D'ALLUMAGE", kind: 'coil', zones: [5, 6] }];
+const pwrParts = () => M.powerParts || PWR_DEFAULT;
+
+/* ─── Objets des pièces (lueur dorée, rotation lente) ─── */
+function buildPowerParts() {
+  WORLD.pwrParts = pwrParts().map((p) => {
+    const g = new THREE.Group(); g.userData.dynamic = true; g.visible = false; R.scene.add(g); const k = kitMats();
+    if (p.kind === 'fuel') { mesh(boxG(0.34, 0.44, 0.16), KIT.m(0xb82a1e, { rough: 0.45, metal: 0.4 }), 0, 0.22, 0, 0, g); mesh(boxG(0.18, 0.06, 0.06), MATS.iron, 0.04, 0.47, 0, 0, g); mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.08, 8), MATS.brass, -0.11, 0.48, 0, 0, g); }
+    else if (p.kind === 'fuse') { mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.26, 12), KIT.m(0xe8e2d4, { rough: 0.3 }), 0, 0.12, 0, 0, g).rotation.z = Math.PI / 2; for (const s of [-1, 1]) mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.05, 12), MATS.brass, s * 0.14, 0.12, 0, 0, g).rotation.z = Math.PI / 2; }
+    else if (p.kind === 'coil') { mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.26, 16), KIT.m(0xb86a2e, { rough: 0.35, metal: 0.8 }), 0, 0.14, 0, 0, g); mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.34, 8), MATS.iron, 0, 0.14, 0, 0, g); }
+    else if (p.kind === 'belt') { mesh(new THREE.TorusGeometry(0.2, 0.03, 6, 20), KIT.m(0x3a2618, { rough: 0.8 }), 0, 0.05, 0, 0, g).rotation.x = Math.PI / 2; mesh(new THREE.TorusGeometry(0.16, 0.025, 6, 20), KIT.m(0x4a3220, { rough: 0.8 }), 0.06, 0.1, 0, 0, g).rotation.x = Math.PI / 2 - 0.3; }
+    else { mesh(boxG(0.3, 0.2, 0.2), MATS.olive, 0, 0.1, 0, 0, g); mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 10), MATS.iron, 0.2, 0.12, 0, 0, g).rotation.z = Math.PI / 2; }
+    const glow = KIT.glow(g, 0, 0.25, 0, 0xffd070, 1.1, 0.55);
+    return { g, glow };
+  });
+}
+// Choix des cachettes : un carreau praticable, dégagé, loin des barricades et des portes, dans les zones de la pièce.
+function pwrPickTiles() {
+  const used = new Set(), out = [];
+  const clear = (x, z) => { const cx = tcx(x), cz = tcx(z); for (const b of MAP.props) if (!b.off && b.x0 < cx + 0.75 && b.x1 > cx - 0.75 && b.z0 < cz + 0.75 && b.z1 > cz - 0.75) return false; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const t = tType(x + dx, z + dz); if (t === T_RAMP || t === T_DOOR) return false; } return true; };
+  const ps = SPOTS.power, pd = (x, z) => Math.hypot(x - ps.x, z - ps.z);
+  // Repli si les zones prévues n'offrent aucune cachette : toute zone à ouvrir, puis n'importe quel sol (une pièce introuvable bloquerait le courant).
+  const scan = (ok) => { const c = []; for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) { const i = ti(x, z); if (MAP.type[i] === T_FLOOR && !used.has(i) && ok(MAP.zone[i], x, z)) c.push(i); } return c; };
+  for (const p of pwrParts()) {
+    let c = scan((zn, x, z) => p.zones.includes(zn) && pd(x, z) >= 3 && clear(x, z));
+    if (!c.length) c = scan((zn, x, z) => zn > 0 && pd(x, z) >= 3 && clear(x, z));
+    if (!c.length) c = scan((zn, x, z) => pd(x, z) >= 2);
+    const i = c.length ? c[(Math.random() * c.length) | 0] : -1; out.push(i); if (i >= 0) used.add(i);
+  }
+  return out;
+}
+const pwrState = () => ({ s: PWR.stage, t: PWR.tiles, g: PWR.got, p: +PWR.prog.toFixed(1) });
+function pwrReset() { Object.assign(PWR, { stage: 0, tiles: [-1, -1, -1], got: [0, 0, 0], prog: 0, stall: 0, picked: false }); pwrVisuals(0); }
+function pwrApply(d, quiet) {
+  const prev = PWR.stage; if (!d) return;
+  PWR.stage = d.s ?? PWR.stage; if (d.t) PWR.tiles = d.t; if (d.g) PWR.got = d.g; if (d.p !== undefined) PWR.prog = d.p;
+  (WORLD.pwrParts || []).forEach((w, i) => { const ti0 = PWR.tiles[i]; w.g.visible = PWR.stage === 0 && ti0 >= 0 && !PWR.got[i]; if (ti0 >= 0) { const x = (ti0 % MAP_W) * TILE + TILE / 2, z = Math.floor(ti0 / MAP_W) * TILE + TILE / 2; w.g.position.set(x + 0.3, groundAt(x, z) + 0.02, z - 0.25); } });
+  if (quiet) return;
+  if (PWR.stage === 1 && prev === 0) { UI.message('PIÈCES RÉUNIES', 'Installez-les au générateur.'); Sfx.jingle?.([0, 4, 7, 12], 330, 'triangle', 0.1); }
+  if (PWR.stage === 2 && prev === 1) UI.message('GÉNÉRATEUR PRÊT', 'Lancez le moteur.');
+  if (PWR.stage === 3 && prev === 2) { UI.message('MONTÉE EN RÉGIME', `Restez près du générateur : ils arrivent !`); Sfx.generatorStart?.(WORLD.power.pos); FX.shake = Math.max(FX.shake, 0.25); }
+}
+/* ─── Hôte ─── */
+function pwrHost(dt) {
+  if (G.power) return;
+  if (PWR.stage === 0 && PWR.tiles.some((t) => t < 0) && G.round >= 1 && !PWR.picked) { PWR.picked = true; PWR.tiles = pwrPickTiles(); G.emit('pwr', pwrState()); }
+  if (PWR.stage !== 3) return;
+  // Montée en régime : seulement si un soldat reste près du générateur ; sinon le moteur s'essouffle.
+  const g = WORLD.power.pos; let near = false;
+  for (const [, p] of G.players) if (!p.down && !p.dead && Math.hypot(p.pos.x - g.x, p.pos.z - g.z) < PWR_RADIUS) near = true;
+  PWR.prog = near ? Math.min(PWR.need, PWR.prog + dt) : Math.max(0, PWR.prog - dt * 0.6);
+  G.toSpawn = Math.max(G.toSpawn, 3 + G.players.size * 2); if (G.breakT > 0) G.breakT = Math.max(G.breakT, 2);
+  if (PWR.prog >= PWR.need) { G.emit('pwr', Object.assign(pwrState(), { s: 4 })); G.emit('power', {}); for (const [pid] of G.players) G.addPoints(pid, 500, false); return; }
+  PWR.syncT = (PWR.syncT || 0) - dt; if (PWR.syncT <= 0) { PWR.syncT = 0.5; G.netEvent('pwr', pwrState()); }
+}
+function pwrInteract(pid, kind, id) {
+  if (G.power) return false;
+  // L'état change par l'événement (appliqué aussi chez l'hôte) : messages et sons pour tout le monde.
+  if (kind === 'ppart') { if (PWR.stage !== 0 || PWR.got[id] || PWR.tiles[id] < 0) return true; const g = PWR.got.slice(); g[id] = 1; G.emit('pwr', Object.assign(pwrState(), { g, s: g.every(Boolean) ? 1 : 0, k: id, who: G.players.get(pid)?.name || '' })); return true; }
+  if (kind === 'pinst') { if (PWR.stage === 1) G.emit('pwr', Object.assign(pwrState(), { s: 2 })); return true; }
+  if (kind === 'pstart') { if (PWR.stage === 2) G.emit('pwr', Object.assign(pwrState(), { s: 3, p: 0 })); return true; }
+  return false;
+}
+// Pendant la montée en régime, les infectés arrivent plus vite.
+const pwrSpawnFactor = () => (PWR.stage === 3 && !G.power ? 0.5 : 1);
+/* ─── Tous ─── */
+function pwrVisuals(dt) {
+  const t = G.time;
+  for (const w of WORLD.pwrParts || []) if (w.g.visible) { w.g.rotation.y += dt * 0.8; w.glow.material.opacity = 0.4 + Math.sin(t * 3) * 0.2; }
+  if (PWR.stage === 3 && !G.power && WORLD.power) { WORLD.power.lamp.color.set(Math.sin(t * 10) > 0 ? 0xffaa22 : 0x553300); if (Math.random() < dt * 6) FX.soft.spawn(WORLD.power.pos.x + rand(-0.4, 0.4), 2.2, WORLD.power.pos.z + rand(-0.4, 0.4), rand(-0.2, 0.2), rand(0.6, 1.2), rand(-0.2, 0.2), rand(1.5, 2.5), rand(0.3, 0.6), 0.25, 0.24, 0.23, 0.5, -0.1, 1.4, 1.0); if (!G.authority && PWR.prog < PWR.need) PWR.prog = Math.min(PWR.need, PWR.prog + dt * 0.5); }
+}
+function pwrCandidates(cand, px, pz) {
+  if (G.power) return;
+  const g = WORLD.power.pos, d = Math.hypot(px - g.x, pz - g.z), n = PWR.got.filter(Boolean).length;
+  if (PWR.stage === 0) cand(d, { kind: 'info', text: `Générateur en panne — pièces trouvées : ${n}/3`, range: 1.9, deny: true });
+  else if (PWR.stage === 1) cand(d, { kind: 'pinst', text: 'Maintenir pour installer les pièces', range: 1.9, hold: true, holdTime: 2.5 });
+  else if (PWR.stage === 2) cand(d, { kind: 'pstart', text: 'Maintenir pour lancer le moteur', range: 1.9, hold: true, holdTime: 2.0 });
+  else if (PWR.stage === 3) cand(d, { kind: 'info', text: `Montée en régime : ${Math.round((PWR.prog / PWR.need) * 100)} %`, range: 2.5 });
+  if (PWR.stage === 0) pwrParts().forEach((p, i) => { const w = WORLD.pwrParts?.[i]; if (!w || !w.g.visible) return; cand(Math.hypot(px - w.g.position.x, pz - w.g.position.z), { kind: 'ppart', id: i, text: `Ramasser : ${p.name.toLowerCase()}`, range: 1.4 }); });
+}
+// Ligne d'objectif (bandeau du haut) tant que le courant n'est pas rétabli.
+function pwrObjective() {
+  if (G.power) return null;
+  const parts = pwrParts(), n = PWR.got.filter(Boolean).length;
+  if (PWR.stage === 0) return { title: 'RÉTABLIR LE COURANT', line: `Trouver les pièces du générateur (${n}/3)`, sub: parts.map((p, i) => `${PWR.got[i] ? '✔' : '○'} ${p.name}`).join('   ·   '), hint: pwrHint() };
+  if (PWR.stage === 1) return { title: 'RÉTABLIR LE COURANT', line: 'Installer les pièces au générateur', sub: ZONE_NAMES[MAP.zone[ti(SPOTS.power.x, SPOTS.power.z)]] || '' };
+  if (PWR.stage === 2) return { title: 'RÉTABLIR LE COURANT', line: 'Lancer le moteur du générateur (maintenir E)', sub: '' };
+  if (PWR.stage === 3) return { title: 'DÉFENDRE LE GÉNÉRATEUR', line: `Restez à moins de ${PWR_RADIUS} m pendant la montée en régime`, bar: PWR.prog / PWR.need };
+  return null;
+}
+// Zones où chercher encore (aide légère : le nom de la zone de la pièce la plus proche non trouvée).
+function pwrHint() {
+  const z = []; PWR.tiles.forEach((t, i) => { if (t >= 0 && !PWR.got[i]) z.push(ZONE_NAMES[MAP.zone[t]]); });
+  return z.length ? 'Cherchez : ' + [...new Set(z)].join(', ') : '';
 }
 
 
@@ -6492,7 +7082,7 @@ const NET = {
   },
   applyHit(pid, d) { if (!Array.isArray(d)) return; const z = ZOMBIES.find((q) => q.id === d[0]); if (z) G.applyDamage(z, clamp(+d[1] || 0, 0, 5000), pid, { head: !!d[2], explosive: !!d[3], melee: !!d[4], freeze: !!d[5], dir: new THREE.Vector3(+d[6] || 0, 0, +d[7] || 1), crawl: !!d[8] }); },
   worldState() {
-    return { q: questState(), mx: mapHook('state'), lk: lockList(), round: G.round, power: G.power, doors: MAP.doors.filter((q) => q.open).map((q) => q.id), planks: MAP.barricades.map((b) => b.planks), box: { loc: G.box.loc, state: 'idle' }, blizzard: G.blizzard };
+    return { q: questState(), pw: pwrState(), mx: mapHook('state'), lk: lockList(), round: G.round, power: G.power, doors: MAP.doors.filter((q) => q.open).map((q) => q.id), planks: MAP.barricades.map((b) => b.planks), box: { loc: G.box.loc, state: 'idle' }, blizzard: G.blizzard };
   },
   // Surveillance sur minuterie (elle continue quand l'onglet passe en arrière-plan) : signes de vie, silences, relève.
   watch() {
@@ -6525,7 +7115,7 @@ const NET = {
     const base = { p: ps, pu: [+G.pu.instakill.toFixed(1), +G.pu.double.toFixed(1), +G.pu.firesale.toFixed(1)], bt: +G.bench.t.toFixed(1) };
     const fx = mapHook('fast'); if (fx !== undefined) base.fx = fx; // personnages propres à la carte (géant…)
     // Toutes les secondes : état complet du secteur (rattrape un message perdu).
-    if (this.snapN % this.rate === 0) base.ws = { d: MAP.doors.map((q) => (q.open ? 1 : 0)).join(''), k: MAP.barricades.map((b) => b.planks).join(''), w: G.power ? 1 : 0, r: G.round, b: G.box.loc, bs: G.box.state, bn: G.bench.state, dr: G.drops.map((q) => q.id), q: questState(), tr: TRAPS.map((t) => [+t.active.toFixed(0), +t.cool.toFixed(0)]), h: P.id, g: G.gid, rs: [G.toSpawn, +Math.max(0, G.breakT).toFixed(1)], sp: [+SUPPORT.t.toFixed(0), +SUPPORT.cool.toFixed(0), SUPPORT.owner], mx: mapHook('state'), lk: lockList() };
+    if (this.snapN % this.rate === 0) base.ws = { d: MAP.doors.map((q) => (q.open ? 1 : 0)).join(''), k: MAP.barricades.map((b) => b.planks).join(''), w: G.power ? 1 : 0, r: G.round, b: G.box.loc, bs: G.box.state, bn: G.bench.state, dr: G.drops.map((q) => q.id), q: questState(), tr: TRAPS.map((t) => [+t.active.toFixed(0), +t.cool.toFixed(0)]), pw: pwrState(), h: P.id, g: G.gid, rs: [G.toSpawn, +Math.max(0, G.breakT).toFixed(1)], sp: [+SUPPORT.t.toFixed(0), +SUPPORT.cool.toFixed(0), SUPPORT.owner], mx: mapHook('state'), lk: lockList() };
     // Messages de 4 Ko maximum dans le salon Claude : on découpe la liste des infectés.
     const chunk = this.via === 'peer' || (this.via === 'relay' && this.allDirect()) ? 999 : 28;
     for (let i = 0; i === 0 || i < zs.length; i += chunk) this.broadcast('snap', Object.assign(i === 0 ? base : { p: [] }, { z: zs.slice(i, i + chunk) }));
@@ -6591,6 +7181,7 @@ function applyWorldState(s) {
   s.planks.forEach((n, i) => { const b = MAP.barricades[i]; b.planks = n; for (let k = 0; k < 6; k++) { b.plankShown[k] = k < n; b.plankAnim[k] = 0.999; } });
   if (s.power) { G.power = true; setPowerVisuals(true, true); Sfx.hum(WORLD.generator ? WORLD.generator.group.position : WORLD.power.pos); }
   if (s.q) questApply('quest', s.q);
+  if (s.pw) pwrApply(s.pw, true);
   if (s.mx !== undefined) mapHook('reconcile', s.mx, true);
   if (Array.isArray(s.lk)) syncLocks(s.lk);
   G.round = s.round; UI.round(s.round); if (s.box) placeBox(s.box.loc); G.blizzard = s.blizzard; WEATHER.target = s.blizzard ? 1 : 0;
@@ -6643,6 +7234,7 @@ function reconcileWorld(w) {
   if (w.g) G.gid = String(w.g).slice(0, 24);
   if (Array.isArray(w.sp)) { if (Math.abs(SUPPORT.t - w.sp[0]) > 2) SUPPORT.t = +w.sp[0] || 0; if (Math.abs(SUPPORT.cool - w.sp[1]) > 2) SUPPORT.cool = +w.sp[1] || 0; SUPPORT.owner = w.sp[2] ?? null; }
   if (Array.isArray(w.rs)) G.netRs = w.rs;
+  if (w.pw && (w.pw.s !== PWR.stage || w.pw.g?.join() !== PWR.got.join() || w.pw.t?.join() !== PWR.tiles.join() || Math.abs((w.pw.p || 0) - PWR.prog) > 2)) pwrApply(w.pw, true);
   if (w.mx !== undefined) mapHook('reconcile', w.mx, false);
   if (Array.isArray(w.lk)) syncLocks(w.lk);
   if (w.h && !NET.migrating) NET.hostId = w.h;
@@ -7157,15 +7749,21 @@ const UI = {
     const el = $('subtitle'); el.innerHTML = (radio ? '<b>RADIO</b>' : '') + escapeHtml(text); el.classList.add('show');
     clearTimeout(this.subT); this.subT = setTimeout(() => el.classList.remove('show'), Math.max(4200, text.length * 70));
   },
+  // Bandeau d'objectif (haut de l'écran) : courant → mission de la carte → survivre.
   objective() {
-    const el = $('objective'), s = QUEST.stage;
-    if (!s || s >= 6) { el.classList.toggle('hidden', !(s === 6 && QUEST.showDone)); if (s === 6) $('objectiveText').textContent = QUEST_NAMES[6]; return; }
-    el.classList.remove('hidden');
-    let t = QUEST_NAMES[s];
-    if (s === 2) t += ` (${QUEST.taken.filter(Boolean).length}/3)`;
-    if (s === 4) t += ` — ${Math.round((QUEST.calib / 20) * 100)} %`;
-    if (s === 5) t += ` — ${Math.max(0, Math.ceil(QUEST.hold))} s`;
-    $('objectiveText').textContent = t;
+    const el = $('objective'); if (!el) return;
+    const live = G.mode === 'playing' || G.mode === 'paused', pw = live && pwrObjective(), ms = live && (mapHook('mission') || questObjective());
+    const o = live ? (pw || ms || { title: 'SURVIVRE', line: G.round > 0 ? `Manche ${G.round} — tenez la position` : 'Préparez-vous', sub: '' }) : null;
+    if (!o) { el.classList.add('hidden'); return; }
+    // Le courant passe d'abord, mais la mission de la carte reste visible en seconde ligne.
+    const next = pw && ms ? `${ms.title} — ${ms.line}` : '';
+    const key = [o.title, o.line, o.sub, o.hint, o.bar != null ? Math.round(o.bar * 100) : '', next].join('|');
+    el.classList.remove('hidden'); if (el._k === key) return; el._k = key;
+    if (el._title !== o.title) { el._title = o.title; el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); }
+    $('objectiveTitle').textContent = o.title; $('objectiveText').textContent = o.line;
+    $('objectiveSub').textContent = [o.sub, o.hint].filter(Boolean).join('   —   ');
+    $('objectiveNext').textContent = next;
+    const bar = $('objectiveBar'); bar.classList.toggle('hidden', o.bar == null); if (o.bar != null) bar.firstElementChild.style.transform = `scaleX(${clamp(o.bar, 0, 1)})`;
   },
   banner(title, sub) { $('bannerTitle').textContent = title; $('bannerSub').textContent = sub || ''; const b = $('banner'); b.classList.add('show'); clearTimeout(this.banT); this.banT = setTimeout(() => b.classList.remove('show'), 6500); },
   hitmarker(kill) { const h = $('hitmarker'); h.classList.remove('show', 'kill'); void h.offsetWidth; h.classList.add('show'); if (kill) h.classList.add('kill'); },
@@ -7224,7 +7822,7 @@ const UI = {
     const [t, b, l, r] = ch.children; t.style.top = -(px + 9) + 'px'; b.style.top = px + 'px'; l.style.left = -(px + 9) + 'px'; r.style.left = px + 'px';
     // Boussole.
     const deg = ((-P.yaw * 180) / Math.PI % 360 + 360) % 360; $('compassStrip').style.transform = `translateX(${150 - 15 - (deg / 15) * 30 - 24 * 30 * 2}px)`;
-    if (QUEST.stage === 4 || QUEST.stage === 5) { this.objT = (this.objT || 0) - dt; if (this.objT <= 0) { this.objT = 0.25; if (QUEST.stage === 5 && G.authority === false) QUEST.hold = Math.max(0, QUEST.hold - 0.25); this.objective(); } }
+    this.objT = (this.objT || 0) - dt; if (this.objT <= 0) { this.objT = 0.25; if (QUEST.stage === 5 && G.authority === false) QUEST.hold = Math.max(0, QUEST.hold - 0.25); this.objective(); }
     if (settings.showFps) { this.fpsT = (this.fpsT || 0) - dt; if (this.fpsT <= 0) { this.fpsT = 0.5; $('fps').textContent = `${Math.round(R.fpsAvg)} IMG/S · ${Math.round((R.dynScale || 1) * 100)} %`; } }
   },
 };
@@ -7422,7 +8020,7 @@ async function init() {
     await step(M.loading || 'CONSTRUCTION DU SECTEUR…');
     buildLights(); buildSky(); buildWorld();
     await step('LEVÉE DES MORTS…');
-    initFX(); buildZombieAssets(); mountWallWeapons(); mergeStatic(); buildSnow();
+    initFX(); buildZombieAssets(); mountWallWeapons(); if (!/nomerge/.test(location.search)) mergeStatic(); buildSnow();
     bindInput(); UI.init(); initBoard();
     NET.detect().then(() => UI.netStatus());
     G.reset();
@@ -7479,7 +8077,7 @@ setInterval(() => {
   while (el > 1e-3) { const dt = Math.min(0.05, el); G.update(dt); el -= dt; }
 }, 250);
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'playing' && !NET.active) pauseGame(); });
-window.SP = { ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
+window.SP = { PWR, pwrParts, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
   sim(sec, dt = 0.05) { for (let t = 0; t < sec; t += dt) { if (G.mode === 'playing' || (G.mode === 'paused' && NET.active)) { G.update(dt); if (G.mode === 'playing') updatePlayer(dt); NET.clientTick(dt); } updateFX(dt, performance.now() / 1000 + t); } } };
 
 
@@ -7491,6 +8089,7 @@ window.SP = { ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN
 MAPS.poste7 = {
   id: 'poste7', name: 'POSTE 7', sub: 'Secteur nord, hiver 1917',
   objName: 'Opération Aube Blanche accomplie',
+  powerParts: [{ name: "BIDON D'ESSENCE", kind: 'fuel', zones: [0] }, { name: 'MAGNÉTO', kind: 'coil', zones: [1, 3] }, { name: 'COURROIE', kind: 'belt', zones: [4] }],
   intro: ['POSTE 7', 'Secteur nord, front gelé', '14 janvier 1917 — 03 h 12'],
   desc: 'Tranchées gelées, bunker de commandement, cratère du biplan abattu. La radio attend un opérateur.',
   card: ['#24313d', '#8fa6bb'],
@@ -7574,7 +8173,7 @@ MAPS.poste7 = {
   env: {
     fog: 0x19232e, fogDensity: 0.03, stormFog: 0.06, exposure: 1.15,
     sky: { zen: [0.006, 0.011, 0.024], disk: [4.75, 4.85, 5], diskSize: 0.99955, halo: [0.35, 0.45, 0.65], cloudA: [0.05, 0.065, 0.085], cloudB: [0.2, 0.24, 0.3], stars: 1.6, ridge: 1, glow: [0, 0, 0], cover: 1, flash: [1, 0.62, 0.35] },
-    sunDir: [-0.45, 0.62, -0.64], sunColor: 0xb4ccff, sunI: 1.35, hemi: [0x7d99bb, 0x2b2622], hemiOut: 0.7, hemiIn: 0.25, envOut: 0.55, envIn: 0.22,
+    sunDir: [-0.45, 0.62, -0.64], sunColor: 0xb4ccff, sunI: 1.35, hemi: [0x7d99bb, 0x2b2622], bounce: 0x4a4038, hemiOut: 0.7, hemiIn: 0.25, envOut: 0.55, envIn: 0.22,
     envMap: { low: [0.05, 0.05, 0.055], mid: [0.3, 0.36, 0.46], high: [0.07, 0.09, 0.14], glowDir: [0.3, 0.05, -0.95], glow: [1, 0.55, 0.25] },
     precip: 'snow', snow: 1, tint: [0.88, 1, 1.16], frost: true, flares: true, flashes: { min: 6, max: 18, a0: -2.6, a1: -0.5 },
     storm: { title: 'TEMPÊTE BLANCHE', sub: 'Visibilité nulle. Ils courent.' },
@@ -7593,7 +8192,10 @@ MAPS.poste7 = {
     }
   },
   roofPosts: [[14, 30], [24, 30], [14, 34], [24, 34], [67, 37], [11, 51.5], [17, 51.5]],
-  decor() { buildProps(); buildCraterProps(); buildOutside(); buildQuestProps(); buildRobot(); },
+  decor() { buildProps(); buildCraterProps(); buildOutside(); buildQuestProps(); buildRobot(); buildPoste7Extras(); },
+  scatter: [{ kind: 'clod', styles: [0, 3, 4], n: 1.2, color: 0xe8eef4 }, { kind: 'chip', styles: [0, 4], n: 0.6, color: 0x4a3a2a }, { kind: 'clod', styles: [4], n: 7, color: 0x5a4a3a, scale: [0.8, 2.2] }, { kind: 'rock', ground: [1.2, 12], n: 0.2, color: 0x6a6a66, shadow: true, snow: 1 }],
+  // Fond du Cratère en cuvette (≈ 1 m au centre), à niveau le long des parois et des passages.
+  floorH(x, z) { const d = Math.hypot(x - 46, z - 32); if (d >= 7.4) return 0; const k = 1 - d / 7.4; return -1.05 * k * k * (3 - 2 * k) + (fbm(x * 0.7, z * 0.7, 2) - 0.5) * 0.12 * k; },
   anim(dt, time) { robotAnim(dt, time); },
   onPower(on) {
     const L = R.lights;
@@ -7704,6 +8306,29 @@ function robotAnim(dt, time) {
   r.lastSin = sn;
 }
 
+/* ─── No man's land : char losange abattu, canon de campagne à l'arrière ─── */
+function buildPoste7Extras() {
+  const steel = stdMat({ color: 0x4a4a3e, roughness: 0.8, metalness: 0.45, map: TEX.grime.map, normalMap: TEX.grime.normalMap }, 0.8), rust = MATS.rust, dark = MATS.char;
+  // Char : deux flancs losanges (chenilles), caisse centrale, tourelles latérales, canons.
+  { const x = 62, z = -12, y = surfH(x, z) - 0.6, g = new THREE.Group(); g.position.set(x, y, z); g.rotation.set(0.06, -0.5, 0.1); R.scene.add(g);
+    const side = new THREE.Shape(); side.moveTo(-4, 0.6); side.lineTo(-2.6, 0); side.lineTo(2.6, 0); side.lineTo(4.2, 1.6); side.lineTo(3.9, 2.5); side.lineTo(-2.2, 2.5); side.closePath();
+    for (const s of [-1, 1]) { mesh(vExtrude(side, 0.62, 0.04, 4), steel, 0, 0, s * 1.35, 0, g); const tr = new Batch(boxG(0.3, 0.06, 0.66), rust); for (let i = 0; i < 26; i++) { const t = i / 26, px = lerp(-2.6, 2.6, t); tr.add(px, 0.01, s * 1.35); } tr.build(g);
+      const sp = mesh(boxG(1.4, 1.0, 0.7), steel, 0.2, 1.4, s * 1.95, 0, g); const gun = mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.4, 8), dark, 0.9, 1.45, s * 2.2, 0, g); gun.rotation.z = Math.PI / 2 + s * 0.2; }
+    mesh(boxG(5.2, 1.7, 2.1), steel, 0.2, 1.5, 0, 0, g); mesh(boxG(1.4, 0.7, 1.4), steel, 1.6, 2.65, 0, 0, g);
+    for (let i = 0; i < 6; i++) mesh(boxG(0.06, 0.06, 2.1), rust, -2 + i * 0.8, 2.37, 0, 0, g);
+    WORLD.fires.push({ x: x + 0.5, y: y + 2.4, z, size: 0.6, rate: 0.06, t: 0, smoke: 0.12 }); }
+  // Canon de campagne : roues à rayons, bouclier, fût, flèche.
+  { const x = 34, z = 68, y = surfH(x, z), g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = 0.15; R.scene.add(g);
+    const wood = stdMat({ color: 0x5a4632, roughness: 0.9, map: TEX.planks.map }, 0.8);
+    for (const s of [-1, 1]) { const w = mesh(new THREE.TorusGeometry(0.62, 0.05, 6, 20), wood, 0, 0.67, s * 0.85, 0, g); for (let i = 0; i < 6; i++) { const sp = mesh(boxG(0.04, 1.2, 0.04), wood, 0, 0.67, s * 0.85, 0, g); sp.rotation.z = (i / 6) * Math.PI; } }
+    mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.9, 8), steel, 0, 0.67, 0, 0, g).rotation.x = Math.PI / 2;
+    const sh = mesh(boxG(0.06, 1.1, 1.6), steel, 0.25, 1.0, 0, 0, g); sh.rotation.z = -0.15;
+    const barrel = mesh(new THREE.CylinderGeometry(0.075, 0.1, 2.4, 10), steel, 1.3, 1.05, 0, 0, g); barrel.rotation.z = Math.PI / 2 - 0.18;
+    const trail = mesh(boxG(2.6, 0.14, 0.2), wood, -1.4, 0.4, 0, 0, g); trail.rotation.z = 0.24;
+    for (let i = 0; i < 5; i++) mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.4, 8), MATS.brass, -0.6 + (i % 3) * 0.15, 0.2, 1.4 + ((i / 3) | 0) * 0.15, 0, g).rotation.z = Math.PI / 2;
+    for (let i = 0; i < 3; i++) crate(x - 2 + i * 0.85, z + 1.6, 0.2 + i * 0.1, 1, surfH(x - 2 + i * 0.85, z + 1.6)); }
+}
+
 
 // ───────────────────────── MAP_CITE ─────────────────────────
 /* ═══════════════════ CARTE : CITÉ ATOMIQUE ═══════════════════
@@ -7724,7 +8349,8 @@ const CITE_STATE = { landed: [], heads: [], pop: 1954, lastPop: -1, dropT: 0, dr
 
 MAPS.cite = {
   id: 'cite', name: 'CITÉ ATOMIQUE', sub: "Site d'essais, désert, 1957",
-  objName: 'Les mannequins se sont tus',
+  objName: 'Alerte atomique surmontée',
+  powerParts: [{ name: 'FUSIBLE', kind: 'fuse', zones: [1, 3] }, { name: "BIDON D'ESSENCE", kind: 'fuel', zones: [2, 4] }, { name: "BOBINE D'ALLUMAGE", kind: 'coil', zones: [6] }],
   intro: ['CITÉ ATOMIQUE', "Site d'essais nucléaires, désert", '17 octobre 1957 — 18 h 40'],
   desc: "Un village témoin construit pour être rasé. Deux pavillons, un abri, une station-service… et des mannequins qui regardent.",
   card: ['#5a2c2a', '#e0955a'],
@@ -7750,12 +8376,17 @@ MAPS.cite = {
     { floor: 'checker', ceil: ['plaster', 0xeae4d4] }, { floor: ['slab', 0xcfc8b8], ceil: ['plaster', 0xf6f3ea], roof: ['plaster', 0xf2eee4] }, { floor: ['lawn', 0x8cca5e] }, { floor: 'tileWall', ceil: ['plaster', 0xf3ecdc] },
   ],
   roofTex: ['shingle', 0xb07a62], ceilTex: ['plaster', 0xf3ecdc], wallMat: 'wood', baseboard: ['planks', 0x5a3a28], curtain: ['plaster', 0xd8a86a],
+  decals: { grime: 0.75, splash: 0.3, under: 0.5, crack: 0.1, stain: 0.03, scuff: 0.08, mold: 0.02, blood: 0.02,
+    floor: { road: [['oil', 0.18, 1.6], ['crack', 0.15, 1.8]], sidewalk: [['crack', 0.15, 1.2], ['dirt', 0.1, 1.2]], kitchen: [['dirt', 0.1, 1]], parquet: [['scuff', 0.1, 1], ['blood', 0.04, 1.2]], garage: [['oil', 0.3, 1.4]], forecourt: [['oil', 0.35, 1.6]], shop: [['dirt', 0.15, 1]], bunker: [['leak', 0.15, 1.2], ['dirt', 0.2, 1.2]], carpet: [['stain', 0.08, 0.9]], bath: [['leak', 0.1, 0.8]] } },
+  scatter: [{ kind: 'tuft', styles: ['lawn', 'yard'], n: 9, color: 0x6f9a4a, jitter: 0.25 }, { kind: 'leaf', styles: ['lawn', 'yard', 'sidewalk'], n: 1.5, color: 0x9a6a3a, hue: 0.03 }, { kind: 'paper', styles: ['road', 'sidewalk', 'forecourt'], n: 0.25, color: 0xd8d2c0 }, { kind: 'pebble', styles: ['road', 'forecourt'], n: 2, color: 0x7a746c },
+    { kind: 'scrub', ground: [1.5, 14], n: 0.12, color: 0x8a7a52, shadow: true }, { kind: 'rock', ground: [1, 16], n: 0.08, color: 0xa87a5a, shadow: true }, { kind: 'pebble', ground: [0.8, 10], n: 1.2, color: 0xb08a6a }],
+  details: { eaves: 0.45, gutter: 0xe0dcd2, fascia: ['plaster', 0xf2eee4], plinth: ['concrete', 0x8e887c], crown: ['plaster', 0xfbf7ee] },
   walls: [
     { key: 'yellow', h: 3.2, out: ['siding', 0xf2d57a], in: ['wallpaper', 0xf7eedb], mat: 'wood' },
-    { key: 'yellowWin', look: 'window', h: 3.2, out: ['siding', 0xf2d57a], in: ['wallpaper', 0xf7eedb], trim: ['plaster', 0xf6f2e6], mat: 'wood' },
+    { key: 'yellowWin', look: 'window', h: 3.2, out: ['siding', 0xf2d57a], in: ['wallpaper', 0xf7eedb], trim: ['plaster', 0xf6f2e6], shutter: 0x2f5d7a, flowers: true, mat: 'wood' },
     { key: 'green', h: 3.2, out: ['siding', 0xa6dbb8], in: ['wallpaper', 0xe8f0e0], mat: 'wood' },
-    { key: 'greenWin', look: 'window', h: 3.2, out: ['siding', 0xa6dbb8], in: ['wallpaper', 0xe8f0e0], trim: ['plaster', 0xf6f2e6], mat: 'wood' },
-    { key: 'inner', h: 3.0, out: ['plaster', 0xe9dfc8], in: ['plaster', 0xe9dfc8], mat: 'wood' },
+    { key: 'greenWin', look: 'window', h: 3.2, out: ['siding', 0xa6dbb8], in: ['wallpaper', 0xe8f0e0], trim: ['plaster', 0xf6f2e6], shutter: 0x9a3a2e, flowers: true, mat: 'wood' },
+    { key: 'inner', h: 3.0, out: ['wallpaper', 0xefe6d2], in: ['wallpaper', 0xefe6d2], mat: 'wood' },
     { key: 'bunker', h: 3.4, out: ['concrete', 0xb5b0a4], in: ['concrete', 0x96918a], mat: 'concrete' },
     { key: 'bunkerIn', h: 3.0, out: ['concrete', 0x96918a], in: ['concrete', 0x96918a], mat: 'concrete' },
     { key: 'stucco', h: 3.4, out: ['plaster', 0xeee4c8], in: ['plaster', 0xdcd4bf], mat: 'concrete' },
@@ -7848,7 +8479,7 @@ MAPS.cite = {
   env: {
     fog: 0xb07a58, fogDensity: 0.0095, stormFog: 0.03, exposure: 1.22,
     sky: { zen: [0.07, 0.06, 0.2], disk: [9, 5.4, 2.6], diskSize: 0.9982, halo: [1.3, 0.6, 0.28], cloudA: [0.3, 0.17, 0.2], cloudB: [1.15, 0.6, 0.36], stars: 0.2, ridge: 1, glow: [1.25, 0.46, 0.16], cover: 0.6, flash: [1, 0.9, 0.7] },
-    sunDir: [-0.8, 0.2, -0.3], sunColor: 0xffb070, sunI: 2.9, hemi: [0xc0a0b8, 0x7a5a3a], hemiOut: 1.15, hemiIn: 0.62, envOut: 0.85, envIn: 0.45,
+    sunDir: [-0.8, 0.2, -0.3], sunColor: 0xffb070, sunI: 2.9, hemi: [0xc0a0b8, 0x7a5a3a], bounce: 0x9a7a5a, hemiOut: 1.15, hemiIn: 0.62, envOut: 0.85, envIn: 0.45,
     envMap: { low: [0.3, 0.2, 0.12], mid: [0.98, 0.62, 0.4], high: [0.24, 0.26, 0.5], glowDir: [-0.8, 0.2, -0.3], glow: [1.0, 0.55, 0.22] },
     precip: 'ash', snow: 0, tint: [1.05, 0.98, 0.9], frost: false, flares: false, wind: 0.5,
     storm: { title: 'RETOMBÉES', sub: 'Une pluie de cendres radioactives. Ils courent.' },
@@ -7889,18 +8520,20 @@ MAPS.cite = {
     host(dt) { citeHost(dt); },
     visuals(dt) { citeVisuals(dt); },
     apply(type, d) { return citeApply(type, d); },
-    interact(pid, kind, id) { if (kind !== 'shot') return false; citeShot(pid, id); return true; },
-    candidates() {},
-    state() { return { l: CITE_STATE.landed.map(([k, p]) => [k, p]), h: CITE_STATE.heads.map((b) => (b ? 1 : 0)).join(''), p: CITE_STATE.pop }; },
+    interact(pid, kind, id) { if (kind === 'cradio') { citeRadioOn(pid); return true; } if (kind !== 'shot') return false; citeShot(pid, id); return true; },
+    candidates(cand, px, pz) { citeMissionCandidates(cand, px, pz); },
+    mission() { return citeMission(); },
+    spawnFactor() { return CITE_STATE.ms === 2 ? 0.45 : 1; },
+    state() { return { l: CITE_STATE.landed.map(([k, p]) => [k, p]), h: CITE_STATE.heads.map((b) => (b ? 1 : 0)).join(''), p: CITE_STATE.pop, ms: CITE_STATE.ms, at: +CITE_STATE.alertT.toFixed(0) }; },
     reconcile(s) { citeReconcile(s); },
     pingLabels(near) { for (const m of WORLD.citeHeads || []) if (!m.shot) near(m.pos.x, m.pos.z, 'MANNEQUIN'); },
-    objective() { return CITE_STATE.heads.every(Boolean) && CITE_STATE.heads.length ? 1 : 0; },
+    objective() { return CITE_STATE.ms >= 3 ? 1 : 0; },
   },
 };
 
 /* ─── Règles : atouts parachutés, mannequins, population ─── */
 function citeReset() {
-  Object.assign(CITE_STATE, { landed: [], heads: (WORLD.citeHeads || []).map(() => false), pop: 1954, lastPop: -1, dropT: 0, dropRound: 0, anims: [] });
+  Object.assign(CITE_STATE, { landed: [], heads: (WORLD.citeHeads || []).map(() => false), pop: 1954, lastPop: -1, dropT: 0, dropRound: 0, anims: [], ms: 0, alertT: 0, sirenT: 0 });
   for (const p of WORLD.perks) citeHidePerk(p);
   for (const m of WORLD.citeHeads || []) { m.shot = false; m.head.visible = true; m.col.off = false; }
 }
@@ -7916,6 +8549,7 @@ function citeLandPerk(key, padIdx, animate) {
   if (animate) { CITE_STATE.anims.push({ p, t: 0 }); Sfx.shellWhistle?.(_v1.set(pad.x, 0, pad.z), 1.2); }
 }
 function citeHost(dt) {
+  citeMissionHost(dt);
   // Une machine d'atout par manche, de la 1re à la 5e (Second Souffle d'abord).
   if (G.round >= 1 && CITE_STATE.dropRound < G.round && CITE_STATE.landed.length < WORLD.perks.length) {
     CITE_STATE.dropT += dt;
@@ -7940,6 +8574,7 @@ function citeApply(type, d) {
     UI.message(n < CITE_STATE.heads.length ? `MANNEQUIN ${n} / ${CITE_STATE.heads.length}` : 'LES MANNEQUINS SE TAISENT', n < CITE_STATE.heads.length ? '' : 'Quelque chose attend à la station-service.');
     return true;
   }
+  if (type === 'cms') { citeMissionApply(d); return true; }
   if (type === 'mreward') {
     Sfx.jingle([0, 4, 7, 12, 16, 19, 24], 392, 'triangle', 0.1);
     return true;
@@ -7958,6 +8593,7 @@ function citeReconcile(s) {
   if (Array.isArray(s.l)) for (const [k, p] of s.l) if (!WORLD.perks.find((q) => q.key === k)?.landed) citeLandPerk(k, p, false);
   if (typeof s.h === 'string') s.h.split('').forEach((c, i) => { if (c === '1' && !CITE_STATE.heads[i]) citeApply('mhead', { i }); });
   if (typeof s.p === 'number') CITE_STATE.pop = s.p;
+  if (typeof s.ms === 'number' && s.ms !== CITE_STATE.ms) citeMissionApply({ ms: s.ms, at: s.at }, true); else if (typeof s.at === 'number' && Math.abs(s.at - CITE_STATE.alertT) > 2) CITE_STATE.alertT = s.at;
 }
 function citeVisuals(dt) {
   // Chute des machines.
@@ -7980,6 +8616,7 @@ function citeVisuals(dt) {
     CITE_STATE.lastPop = pop; WORLD.popSign.t = G.time; drawPopSign(pop);
   }
   if (WORLD.cloud) { WORLD.cloud.uniforms.uTime.value += dt; }
+  citeMissionVisuals(dt);
 }
 function drawPopSign(n) {
   const c = WORLD.popSign.canvas, x = c.getContext('2d'), w = c.width, h = c.height;
@@ -7990,6 +8627,49 @@ function drawPopSign(n) {
   x.font = font(34, 700); x.fillStyle = '#2b2a28'; x.fillText('POPULATION', w / 2, h * 0.5);
   x.font = font(96); x.fillStyle = n < 1000 ? '#b3261e' : '#1f3b52'; x.fillText(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' '), w / 2, h * 0.76);
   WORLD.popSign.tex.needsUpdate = true;
+}
+
+/* ─── Mission « Alerte atomique » : mannequins → radio d'urgence → tenir 60 s ─── */
+const CITE_ALERT = 60;
+function citeMissionHost(dt) {
+  const S = CITE_STATE;
+  if (S.ms === 0 && S.heads.length && S.heads.every(Boolean)) G.emit('cms', { ms: 1 });
+  if (S.ms === 2) {
+    S.alertT -= dt; G.toSpawn = Math.max(G.toSpawn, 6 + G.players.size * 2); if (G.breakT > 0) G.breakT = Math.max(G.breakT, 2);
+    if (S.alertT <= 0) { G.emit('cms', { ms: 3 }); for (const [pid] of G.players) G.addPoints(pid, 3000, false); const s = WORLD.boxSpots[0]; G.spawnDrop('maxammo', s.pos, true); }
+    else { S.syncT = (S.syncT || 0) - dt; if (S.syncT <= 0) { S.syncT = 1; G.netEvent('cms', { ms: 2, at: +S.alertT.toFixed(0) }); } }
+  }
+}
+function citeRadioOn(pid) { if (CITE_STATE.ms !== 1 || !G.power) return G.tell(pid, 'deny'); G.emit('cms', { ms: 2, at: CITE_ALERT }); }
+function citeMissionApply(d, quiet) {
+  const S = CITE_STATE, prev = S.ms; S.ms = d.ms; if (d.at !== undefined) S.alertT = d.at; else if (d.ms === 2 && prev !== 2) S.alertT = CITE_ALERT;
+  if (quiet || prev === S.ms) return;
+  if (S.ms === 1) { UI.message('LES MANNEQUINS SE TAISENT', "La radio d'urgence de l'abri s'allume…"); Sfx.radio?.(WORLD.citeRadio?.pos || P.pos, 0.8); }
+  if (S.ms === 2) { UI.message('ALERTE ATOMIQUE', 'Survivez 60 secondes !'); Sfx.siren?.(); R.flash = Math.max(R.flash || 0, 1.2); }
+  if (S.ms === 3) { UI.banner?.('ALERTE LEVÉE', '+3000 points · la Cité tient encore'); Sfx.jingle([0, 4, 7, 12, 16, 19, 24], 392, 'triangle', 0.14); }
+  UI.objective();
+}
+function citeMissionVisuals(dt) {
+  const S = CITE_STATE, r = WORLD.citeRadio; if (r) r.lamp.color.set(S.ms === 1 && G.power ? (Math.sin(G.time * 6) > 0 ? 0xff3020 : 0x401010) : S.ms >= 2 ? 0x30ff50 : 0x401010);
+  if (S.ms === 2) {
+    if (!G.authority) S.alertT = Math.max(0, S.alertT - dt);
+    S.sirenT -= dt; if (S.sirenT <= 0) { S.sirenT = 7; Sfx.siren?.(); }
+    if (Math.random() < dt * 0.25) { R.flash = Math.max(R.flash || 0, 0.6); Sfx.thunder?.(rand(0.2, 1.2)); }
+    const L = R.lights; if (L.shelter) L.shelter.intensity = (Math.sin(G.time * 8) > 0 ? 16 : 3);
+  }
+}
+function citeMissionCandidates(cand, px, pz) {
+  const r = WORLD.citeRadio; if (!r || CITE_STATE.ms !== 1) return;
+  const d = Math.hypot(px - r.pos.x, pz - r.pos.z);
+  if (!G.power) cand(d, { kind: 'info', text: "Radio d'urgence — il faut du courant", range: 1.8, deny: true });
+  else cand(d, { kind: 'cradio', text: "Maintenir pour lancer l'alerte par radio", range: 1.8, hold: true, holdTime: 3 });
+}
+function citeMission() {
+  const S = CITE_STATE, n = S.heads.filter(Boolean).length;
+  if (S.ms === 0) return { title: 'ALERTE ATOMIQUE', line: `Abattre les mannequins au foulard rouge (${n}/${S.heads.length || 6})`, sub: 'Visez la tête · maisons, jardins, abri, station-service' };
+  if (S.ms === 1) return { title: 'ALERTE ATOMIQUE', line: "Lancer l'alerte avec la radio d'urgence", sub: G.power ? 'Abri antiatomique · maintenir E' : "Abri antiatomique · il faut d'abord du courant" };
+  if (S.ms === 2) return { title: 'ALERTE ATOMIQUE', line: `Survivre à l'alerte — ${Math.max(0, Math.ceil(S.alertT))} s`, bar: 1 - S.alertT / CITE_ALERT };
+  return null;
 }
 
 
@@ -8045,7 +8725,7 @@ function citeDecor() {
   kCar(X(37), X(17) + 1.4, 1.25, 0xc9d9df, true); kCar(X(17) + 1, X(12) + 1, Math.PI / 2, 0xd9636a); kCar(X(19) + 0.4, X(25) + 1, -Math.PI / 2 + 0.03, 0x6fb7c8);
   // Panneau POPULATION (décompte des morts), à l'entrée ouest.
   { const c = makeCanvas(512, 320), tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-    const g = KIT.g(X(3) + 1, X(15) + 0.2, 0); for (const s of [-1, 1]) KIT.b(g, s * 1.5, 1.6, 0, 0.14, 3.2, 0.14, k.woodDark);
+    const g = KIT.g(X(1) + 0.4, X(15) + 1, Math.PI / 2); for (const s of [-1, 1]) KIT.b(g, s * 1.5, 1.6, 0, 0.14, 3.2, 0.14, k.woodDark);
     mesh(new THREE.PlaneGeometry(3.6, 2.25), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 }), 0, 2.6, 0.08, 0, g, false);
     const back = mesh(new THREE.PlaneGeometry(3.6, 2.25), k.woodDark, 0, 2.6, 0.06, Math.PI, g, false);
     g.userData.dynamic = true; WORLD.popSign = { canvas: c, tex }; drawPopSign(1954); }
@@ -8071,6 +8751,12 @@ function citeDecor() {
   kShelf(X(31), X(30) + 1.7, Math.PI, 1.6, 1.9); { const g = KIT.g(X(28) + 1, X(30) + 1.4, Math.PI); KIT.b(g, 0, 0.45, 0, 0.8, 0.9, 0.7, k.white); KIT.c(g, 0, 0.6, 0.36, 0.22, 0.22, 0.02, k.glass, 16, false).rotation.x = Math.PI / 2; KIT.solid(g, 0.8, 0.7, 0.9, 'metal'); } // machine à laver
   kShelf(X(17) + 0.3, X(26) + 1, Math.PI / 2, 1.4, 1.9); kTires(X(20) + 1.4, X(27) + 1.4, 2);
 
+  /* ── Finitions des intérieurs : placards hauts, salles de bains, plantes, bibliothèques ── */
+  kUpperCab(X(11) + 1, X(10) + 0.2, 0, 4.0); kUpperCab(X(33) - 0.2, X(24) + 1, -Math.PI / 2, 3.4, 0xe6efe6);
+  kToilet(X(10) + 0.5, X(7) + 0.35, 0); kSink(X(11) + 1.1, X(7) + 0.25, 0);
+  kToilet(X(30) + 0.5, X(31) - 0.35, Math.PI); kSink(X(31) + 1.0, X(31) - 0.25, Math.PI);
+  kPlant(X(4) + 0.5, X(14) + 1.5, 1.2); kPlant(X(22) + 0.5, X(26) + 1.5, 1.2); kPlant(X(14) + 1.5, X(14) + 1.5, 0.9, 0x3a6a8a); kPlant(X(32) + 1.5, X(26) + 1.5, 0.9, 0x3a6a8a);
+  kBookcase(X(4) + 0.2, X(11), Math.PI / 2, 1.2, 2.0); kBookcase(X(27) - 0.2, X(25), -Math.PI / 2, 1.2, 2.0);
   /* ── Jardins ── */
   kSwing(X(5) + 1, X(1) + 1, 0); kGrill(X(13), X(4) + 1, 0); kPicnic(X(16), X(2) + 1, 0.1); kDoghouse(X(19) + 1, X(0) + 1.2, -0.3);
   kClothesline(X(12), X(1) + 0.6, 0); kPool(X(4) + 1, X(5), 1.3);
@@ -8089,7 +8775,7 @@ function citeDecor() {
   for (const x of [X(29) + 0.9, X(31) + 0.9]) { const g = KIT.g(x, X(3) + 1.1, 0); for (const y of [0.45, 1.5]) { KIT.b(g, 0, y, 0, 1.0, 0.08, 2.0, k.steel); KIT.b(g, 0, y + 0.1, 0, 0.92, 0.12, 1.9, k.fabricTeal); } for (const [a, b] of [[-0.48, -0.95], [0.48, -0.95], [-0.48, 0.95], [0.48, 0.95]]) KIT.b(g, a, 1.0, b, 0.05, 2.0, 0.05, k.steel); KIT.solid(g, 1.0, 2.0, 2.0, 'metal'); }
   kShelf(X(24) + 0.3, X(8) + 1, Math.PI / 2, 1.8, 2.1); kShelf(X(24) + 0.3, X(10), Math.PI / 2, 1.8, 2.1); kTable(X(29), X(8) + 1.2, 0, 2.2, 1.0);
   for (const [x, z] of [[X(32) + 1.4, X(10) + 1.4], [X(32) + 0.7, X(10) + 1.5]]) barrel(x, z, fmat('plain', 0x3a5a7a, { rough: 0.5, metal: 0.4 }));
-  { const g = KIT.g(X(29) - 0.4, X(8) + 1.2, 0); KIT.b(g, 0, 0.88, 0, 0.5, 0.28, 0.3, KIT.m(0x4a4a3a)); KIT.b(g, 0.15, 0.95, 0.16, 0.12, 0.1, 0.02, k.screen, 0, false); } // poste radio
+  { const g = KIT.g(X(29) - 0.4, X(8) + 1.2, 0); KIT.b(g, 0, 0.88, 0, 0.5, 0.28, 0.3, KIT.m(0x4a4a3a)); KIT.b(g, 0.15, 0.95, 0.16, 0.12, 0.1, 0.02, k.screen, 0, false); const lamp = new THREE.MeshBasicMaterial({ color: 0x401010 }); KIT.s(g, -0.15, 1.05, 0.16, 0.03, lamp); WORLD.citeRadio = { pos: new THREE.Vector3(X(29) - 0.4, 1, X(8) + 1.2), lamp }; } // poste radio d'urgence
   WORLD.powerLamps.push(hangingLamp(X(28), 2.75, X(9), MATS.bulbRed), hangingLamp(X(25) + 1, 2.75, X(5), MATS.bulbRed));
 
   /* ── Station-service ── */
@@ -8221,7 +8907,8 @@ const PEN_PARTS = [
 
 MAPS.penitencier = {
   id: 'penitencier', name: 'LE PÉNITENCIER', sub: 'Île-prison, nuit d\'orage',
-  objName: 'Le Geôlier est tombé',
+  objName: 'Tentative d\'évasion',
+  powerParts: [{ name: 'FUSIBLE', kind: 'fuse', zones: [1, 2] }, { name: 'MANIVELLE', kind: 'crank', zones: [3, 4] }, { name: 'BIDON DE GAZOLE', kind: 'fuel', zones: [6] }],
   intro: ['LE PÉNITENCIER', 'Île-prison, baie des Tempêtes', '31 décembre 1933 — 23 h 07'],
   desc: "Un rocher battu par la tempête, une prison que personne n'a quittée. Les morts sortent de la baie. Le Geôlier fait sa ronde.",
   card: ['#0e1a24', '#4f6a80'],
@@ -8246,16 +8933,20 @@ MAPS.penitencier = {
     { block: ['stone', 0xb0aca4], blockIn: ['cellPaint', 0xffffff], blockTop: ['concrete', 0x8a8a84] },
   ],
   roofTex: ['concrete', 0x7a7a74], ceilTex: ['concrete', 0x8a8a84], wallMat: 'concrete', baseboard: null,
+  decals: { grime: 0.85, splash: 0.4, under: 0.6, crack: 0.3, stain: 0.25, mold: 0.25, scuff: 0.2, blood: 0.12, graffiti: 0.06, graffitiCell: 'scratch',
+    floor: { corridor: [['leak', 0.12, 1.4], ['crack', 0.18, 1.6], ['dirt', 0.15, 1.2]], cell: [['dirt', 0.3, 1], ['blood', 0.08, 1]], shower: [['leak', 0.4, 1.2], ['mold', 0.2, 1]], mess: [['dirt', 0.25, 1.2], ['stain', 0.1, 1]], yard: [['crack', 0.3, 1.8], ['leak', 0.25, 1.8]], infirm: [['blood', 0.15, 1.2], ['drag', 0.08, 1.6]], office: [['scuff', 0.1, 1]], dock: [['leak', 0.3, 1.6], ['oil', 0.15, 1.4]] } },
+  scatter: [{ kind: 'pebble', styles: ['yard'], n: 2, color: 0x6a6a66 }, { kind: 'paper', styles: ['corridor', 'office', 'mess', 'cell'], n: 0.3, color: 0xd8d4c8 }, { kind: 'chip', styles: ['corridor', 'yard', 'cell'], n: 0.8, color: 0x8a8a84 }, { kind: 'rock', ground: [0.5, 8], n: 0.15, color: 0x5a5e58, shadow: true }, { kind: 'tuft', styles: ['yard'], n: 1.2, color: 0x4a5a3a }],
+  details: { fascia: ['concrete', 0x7a7a74], plinth: ['concrete', 0x5e605c], crown: ['concrete', 0x6a6e68] },
   blockH: () => 5.0, blockMat: () => 'concrete',
   walls: [
-    { key: 'stone', h: 5.0, out: ['stone', 0xc8c4bc], in: ['cellPaint', 0xffffff], mat: 'concrete' },
-    { key: 'stoneWin', look: 'window', h: 5.0, out: ['stone', 0xc8c4bc], in: ['cellPaint', 0xffffff], trim: ['concrete', 0x6a6a64], lit: 0xffc27a, mat: 'concrete' },
+    { key: 'stone', h: 5.0, out: ['stone', 0xc8c4bc], in: ['cellPaint', 0xffffff], wire: true, mat: 'concrete' },
+    { key: 'stoneWin', look: 'window', h: 5.0, out: ['stone', 0xc8c4bc], in: ['cellPaint', 0xffffff], trim: ['concrete', 0x6a6a64], lit: 0xffc27a, bars: true, mat: 'concrete' },
     { key: 'cellWall', h: 3.0, out: ['cellPaint', 0xffffff], in: ['cellPaint', 0xffffff], mat: 'concrete' },
     { key: 'bars', look: 'bars', h: 3.0, see: true, mat: 'metal' },
     { key: 'shower', h: 5.0, out: ['stone', 0xb0aca4], in: ['tileWall', 0xdfe8e4], mat: 'concrete' },
-    { key: 'yardWall', h: 5.5, out: ['stone', 0xa6a29a], in: ['stone', 0xa6a29a], mat: 'concrete' },
-    { key: 'office', h: 5.0, out: ['stone', 0xb0aca4], in: ['westPlank', 0x8a5a3a], mat: 'wood' },
-    { key: 'officeIn', h: 4.0, out: ['westPlank', 0x8a5a3a], in: ['westPlank', 0x8a5a3a], mat: 'wood' },
+    { key: 'yardWall', h: 5.5, out: ['stone', 0xa6a29a], in: ['stone', 0xa6a29a], wire: true, mat: 'concrete' },
+    { key: 'office', h: 5.0, out: ['stone', 0xb0aca4], in: ['westPlank', 0xb89068], mat: 'wood' },
+    { key: 'officeIn', h: 4.0, out: ['westPlank', 0xb89068], in: ['westPlank', 0xb89068], mat: 'wood' },
     { key: 'infirmIn', h: 4.0, out: ['plaster', 0xe0e8e2], in: ['plaster', 0xe0e8e2], mat: 'concrete' },
     { key: 'rail', look: 'rail', h: 1.1, see: true, mat: 'wood' },
     { key: 'chain', look: 'chain', h: 3.2, see: true, mat: 'metal' },
@@ -8335,7 +9026,7 @@ MAPS.penitencier = {
   env: {
     fog: 0x1c2832, fogDensity: 0.017, stormFog: 0.028, exposure: 1.5,
     sky: { zen: [0.008, 0.011, 0.018], disk: [0.8, 0.85, 0.95], diskSize: 0.9994, halo: [0.12, 0.16, 0.22], cloudA: [0.04, 0.05, 0.065], cloudB: [0.14, 0.17, 0.21], stars: 0, ridge: 0.7, glow: [0.26, 0.15, 0.07], cover: 1.35, flash: [0.85, 0.92, 1.0] },
-    sunDir: [0.35, 0.55, 0.76], sunColor: 0xa8bce0, sunI: 1.3, hemi: [0x7a8aa4, 0x2a2a28], hemiOut: 1.15, hemiIn: 0.95, envOut: 0.85, envIn: 0.6,
+    sunDir: [0.35, 0.55, 0.76], sunColor: 0xa8bce0, sunI: 1.3, hemi: [0x7a8aa4, 0x2a2a28], bounce: 0x5e605a, hemiOut: 1.35, hemiIn: 0.95, envOut: 0.85, envIn: 0.6,
     envMap: { low: [0.05, 0.055, 0.06], mid: [0.22, 0.27, 0.34], high: [0.08, 0.1, 0.13], glowDir: [-0.9, 0.05, 0.3], glow: [0.5, 0.3, 0.12] },
     precip: 'rain', snow: 0, tint: [0.9, 1.0, 1.1], frost: false, flares: false, wind: 1.3, flashLight: 1.6,
     flashes: { min: 5, max: 14, a0: -Math.PI, a1: Math.PI, thunder: true, power: 1.6, decay: 3.5, storm: 1 },
@@ -8381,11 +9072,13 @@ MAPS.penitencier = {
     apply(type, d) { return penApply(type, d); },
     interact(pid, kind, id) { return penInteract(pid, kind, id); },
     candidates(cand, px, pz) { penCandidates(cand, px, pz); },
-    state() { return { pl: PEN_STATE.partLoc.join(''), pt: PEN_STATE.parts.join(''), b: PEN_STATE.built ? 1 : 0 }; },
+    state() { return { pl: PEN_STATE.partLoc.join(''), pt: PEN_STATE.parts.join(''), b: PEN_STATE.built ? 1 : 0, ms: PEN_STATE.ms, ks: PEN_STATE.keyState, kp: PEN_STATE.keyPos, bp: +PEN_STATE.boatP.toFixed(1) }; },
+    mission() { return penMission(); },
+    spawnFactor() { return PEN_STATE.ms === 3 ? 0.5 : 1; },
     reconcile(s) { penReconcile(s); },
     bossThink(z, dt) { penBossThink(z, dt); },
     bossDown(z, pid) { penBossDown(z, pid); },
-    objective() { return PEN_STATE.bossKills > 0 ? 1 : 0; },
+    objective() { return PEN_STATE.ms >= 4 ? 1 : 0; },
     pingLabels(near) { PEN_PARTS.forEach((p, i) => { if (!PEN_STATE.parts[i] && WORLD.penParts) { const m = WORLD.penParts[i]; near(m.position.x, m.position.z, p.name); } }); if (WORLD.shieldTable) near(WORLD.shieldTable.pos.x, WORLD.shieldTable.pos.z, 'ÉTABLI DE FORTUNE'); },
   },
 };
@@ -8393,6 +9086,7 @@ MAPS.penitencier = {
 /* ─── Règles : le Geôlier, le bouclier de fortune ─── */
 function penReset() {
   PEN_STATE.boss = null; PEN_STATE.bossRounds = new Set(); PEN_STATE.bossT = 0; PEN_STATE.bossKills = 0; PEN_STATE.parts = [0, 0, 0]; PEN_STATE.built = false; PEN_STATE.shieldRound = {};
+  Object.assign(PEN_STATE, { ms: 0, keyState: 0, keyPos: null, boatP: 0, summoned: false }); penMissionVisualReset();
   PEN_STATE.partLoc = PEN_PARTS.map(() => (Math.random() < 0.5 ? 0 : 1));
   P.shield = 0; penPlaceParts();
   if (WORLD.shieldTable) WORLD.shieldTable.shield.visible = false;
@@ -8403,10 +9097,13 @@ function penPlaceParts() {
 function penHost(dt) {
   // Le Geôlier à la 5e manche puis toutes les 5 manches, un quart d'heure après le début de la manche.
   const n = G.round;
-  if (n >= 5 && n % 5 === 0 && !PEN_STATE.bossRounds.has(n) && !(PEN_STATE.boss && PEN_STATE.boss.alive)) {
+  penMissionHost(dt);
+  // La mission appelle le Geôlier plus tôt : dès la 3e manche une fois le bouclier prêt.
+  const summon = PEN_STATE.ms === 1 && PEN_STATE.keyState === 0 && n >= 3 && !PEN_STATE.summoned && G.toSpawn > 0;
+  if ((summon || (n >= 5 && n % 5 === 0 && !PEN_STATE.bossRounds.has(n))) && !(PEN_STATE.boss && PEN_STATE.boss.alive)) {
     PEN_STATE.bossT += dt;
     if (PEN_STATE.bossT > 12) {
-      PEN_STATE.bossT = 0; PEN_STATE.bossRounds.add(n);
+      PEN_STATE.bossT = 0; PEN_STATE.bossRounds.add(n); if (summon) PEN_STATE.summoned = true;
       const cands = MAP.barricades.filter((b) => MAP.zoneActive[b.zone] && b.spawns.length); const b = pick(cands.length ? cands : MAP.barricades);
       const [sx, sz] = b.spawns[b.spawns.length - 1], x = tcx(sx), z = tcx(sz);
       const hp = Math.round((G.zHp || 1000) * 14 + 3500 * Math.max(1, G.players.size));
@@ -8426,16 +9123,20 @@ function penBossDown(z, pid) {
   G.emit('bossdown', { x: +z.pos.x.toFixed(1), z: +z.pos.z.toFixed(1) }); PEN_STATE.bossKills = (PEN_STATE.bossKills || 0) + 1;
   for (const [id] of G.players) G.addPoints(id, 500, false);
   G.spawnDrop('maxammo', z.pos, true); G.spawnDrop(pick(['instakill', 'double']), _v1.set(z.pos.x + 1.4, 0, z.pos.z), true);
+  if (PEN_STATE.keyState === 0) { const [kx, kz] = reachSpot(z.pos.x, z.pos.z); G.emit('pkeys', { s: 1, p: [+kx.toFixed(2), +kz.toFixed(2)] }); } // il lâche son trousseau (toujours dans une zone praticable)
 }
 function penApply(type, d) {
   if (type === 'boss') { const z = ZOMBIES.find((q) => q.id === d.id); Sfx.siren(); R.flash = 2.2; Sfx.thunder?.(0.2); UI.message('LE GEÔLIER EST LÀ', 'Il cadenasse les machines et la caisse. Visez le corps : son casque arrête les balles.'); if (z) PEN_STATE.boss = z; return true; }
   if (type === 'bossdown') { UI.message('LE GEÔLIER EST TOMBÉ', '+500 pour tout le monde.'); Sfx.jingle([0, 3, 7, 12, 15], 330, 'sawtooth', 0.12); PEN_STATE.boss = null; return true; }
   if (type === 'part') { PEN_STATE.parts[d.i] = 1; if (WORLD.penParts) WORLD.penParts[d.i].visible = false; Sfx.pickup(); const n = PEN_STATE.parts.filter(Boolean).length; UI.message(`${PEN_PARTS[d.i].name} TROUVÉE`, n < 3 ? `Pièces du bouclier : ${n} / 3` : "Toutes les pièces : assemblez le bouclier à l'établi des douches."); return true; }
   if (type === 'built') { PEN_STATE.built = true; if (WORLD.shieldTable) WORLD.shieldTable.shield.visible = true; Sfx.hammer?.(WORLD.shieldTable?.pos || P.pos); Sfx.jingle([0, 7, 12], 392); UI.message('BOUCLIER ASSEMBLÉ', "Chacun peut en prendre un à l'établi."); return true; }
+  if (type === 'pkeys' || type === 'pms') { penMissionApply(type, d); return true; }
   if (type === 'shield') { if (d.pid === P.id) { P.shield = P.shieldMax = 1500; UI.message('BOUCLIER DE FORTUNE', 'Il encaisse les trois quarts des coups jusqu\'à se briser.'); Sfx.buy(); } return true; }
   return false;
 }
 function penInteract(pid, kind, id) {
+  if (kind === 'pkey') { if (PEN_STATE.keyState === 1) G.emit('pkeys', { s: 2, who: G.players.get(pid)?.name || '' }); return true; }
+  if (kind === 'pboat') { if (PEN_STATE.ms === 2) G.emit('pms', { ms: 3, bp: 0 }); return true; }
   if (kind === 'part') { const i = +id; if (PEN_STATE.parts[i]) return true; G.emit('part', { i }); return true; }
   if (kind === 'build') { if (PEN_STATE.built || PEN_STATE.parts.some((v) => !v)) { G.tell(pid, 'deny'); return true; } G.emit('built', {}); return true; }
   if (kind === 'takeShield') {
@@ -8445,6 +9146,7 @@ function penInteract(pid, kind, id) {
   return false;
 }
 function penCandidates(cand, px, pz) {
+  penMissionCandidates(cand, px, pz);
   (WORLD.penParts || []).forEach((m, i) => { if (!PEN_STATE.parts[i] && m.visible) cand(Math.hypot(px - m.position.x, pz - m.position.z), { kind: 'part', id: i, text: `Ramasser : ${PEN_PARTS[i].name} (bouclier)`, range: 1.6 }); });
   const T = WORLD.shieldTable; if (!T) return;
   const d = Math.hypot(px - T.pos.x, pz - T.pos.z), n = PEN_STATE.parts.filter(Boolean).length;
@@ -8457,11 +9159,82 @@ function penReconcile(s) {
   if (typeof s.pl === 'string' && s.pl.length === 3) { const pl = s.pl.split('').map(Number); if (pl.join('') !== PEN_STATE.partLoc.join('')) { PEN_STATE.partLoc = pl; penPlaceParts(); } }
   if (typeof s.pt === 'string') s.pt.split('').forEach((c, i) => { if (c === '1' && !PEN_STATE.parts[i]) { PEN_STATE.parts[i] = 1; if (WORLD.penParts) WORLD.penParts[i].visible = false; } });
   if (s.b && !PEN_STATE.built) { PEN_STATE.built = true; if (WORLD.shieldTable) WORLD.shieldTable.shield.visible = true; }
+  if (typeof s.ks === 'number' && s.ks !== PEN_STATE.keyState) penMissionApply('pkeys', { s: s.ks, p: s.kp }, true);
+  if (typeof s.ms === 'number' && s.ms !== PEN_STATE.ms) penMissionApply('pms', { ms: s.ms, bp: s.bp }, true); else if (typeof s.bp === 'number' && Math.abs(s.bp - PEN_STATE.boatP) > 2) PEN_STATE.boatP = s.bp;
 }
 function penVisuals(dt) {
   if (WORLD.penParts) for (const m of WORLD.penParts) if (m.visible) { m.rotation.y += dt * 1.2; m.position.y = m.userData.y + Math.sin(G.time * 2 + m.position.x) * 0.05; }
   if (WORLD.beacons) for (const b of WORLD.beacons) b.m.visible = Math.sin(G.time * 2.4 + b.ph) > 0.2;
   if (WORLD.lighthouse) WORLD.lighthouse.rotation.y += dt * 0.55;
+  penMissionVisuals(dt);
+}
+
+/* ─── Mission « L'évasion » : bouclier → clés du Geôlier → vedette → tenir → le rocher garde tout le monde ─── */
+const PEN_BOAT_TIME = 60, PEN_BOAT_R = 9;
+function penMissionHost(dt) {
+  const S = PEN_STATE;
+  if (S.ms === 0 && S.built) G.emit('pms', { ms: 1 });
+  if (S.ms === 1 && S.keyState === 2) G.emit('pms', { ms: 2 });
+  if (S.ms === 3) {
+    const b = WORLD.penBoat; let near = false; if (b) for (const [, p] of G.players) if (!p.down && !p.dead && Math.hypot(p.pos.x - b.dock.x, p.pos.z - b.dock.z) < PEN_BOAT_R) near = true;
+    S.boatP = near ? Math.min(PEN_BOAT_TIME, S.boatP + dt) : Math.max(0, S.boatP - dt * 0.6);
+    G.toSpawn = Math.max(G.toSpawn, 5 + G.players.size * 2); if (G.breakT > 0) G.breakT = Math.max(G.breakT, 2);
+    if (S.boatP >= PEN_BOAT_TIME) { G.emit('pms', { ms: 4 }); for (const [pid] of G.players) G.addPoints(pid, 3000, false); }
+    else { S.syncT = (S.syncT || 0) - dt; if (S.syncT <= 0) { S.syncT = 0.6; G.netEvent('pms', { ms: 3, bp: +S.boatP.toFixed(1) }); } }
+  }
+}
+function penMissionApply(type, d, quiet) {
+  const S = PEN_STATE;
+  if (type === 'pkeys') {
+    const prev = S.keyState; S.keyState = d.s; if (d.p) S.keyPos = d.p;
+    if (!WORLD.penKeys) { const g = new THREE.Group(); g.userData.dynamic = true; R.scene.add(g); KIT.c(g, 0, 0, 0, 0.12, 0.12, 0.02, MATS.brass, 14).rotation.x = Math.PI / 2; for (let i = 0; i < 3; i++) { const k = KIT.b(g, 0.08 + i * 0.03, -0.12, 0, 0.025, 0.2, 0.01, MATS.brass); k.rotation.z = -0.3 + i * 0.3; } KIT.glow(g, 0, 0, 0, 0xffd070, 1.2, 0.6); WORLD.penKeys = g; }
+    WORLD.penKeys.visible = S.keyState === 1; if (S.keyPos) WORLD.penKeys.position.set(S.keyPos[0], groundAt(S.keyPos[0], S.keyPos[1]) + 0.6, S.keyPos[1]);
+    if (!quiet && S.keyState === 1 && prev === 0) UI.message('LE TROUSSEAU DU GEÔLIER', 'Ramassez ses clés.');
+    if (!quiet && S.keyState === 2 && prev !== 2) { UI.message('CLÉS DU GEÔLIER', `${d.who ? d.who + ' · ' : ''}le hangar des quais est à vous`); Sfx.pickup(); }
+  } else {
+    const prev = S.ms; S.ms = d.ms; if (d.bp !== undefined) S.boatP = d.bp; else if (d.ms === 3 && prev !== 3) S.boatP = 0;
+    if (!quiet && prev !== S.ms) {
+      if (S.ms === 1) UI.message("L'ÉVASION", 'Le bouclier est prêt. Il vous faut les clés du Geôlier.');
+      if (S.ms === 2) UI.message("L'ÉVASION", 'Préparez la vedette amarrée au sud des quais.');
+      if (S.ms === 3) { UI.message('LE MOTEUR CHAUFFE', 'Tenez les quais autour de la vedette !'); Sfx.generatorStart?.(WORLD.penBoat?.dock || P.pos); }
+      if (S.ms === 4) penBoatDoom();
+    }
+  }
+  UI.objective();
+}
+// La vedette largue les amarres… et la foudre la frappe : personne ne quitte le rocher.
+function penBoatDoom() {
+  const b = WORLD.penBoat; Sfx.jingle([0, 3, 7, 12, 15, 19], 330, 'sawtooth', 0.12); UI.banner?.("PERSONNE NE QUITTE LE ROCHER", "+3000 points · la vedette a sombré"); if (!b) return;
+  b.leave = 0.0001;
+}
+function penMissionVisualReset() { const b = WORLD.penBoat; if (b) { b.leave = 0; b.g.position.copy(b.home); b.g.rotation.set(0, 0.06, 0); b.g.visible = true; } if (WORLD.penKeys) WORLD.penKeys.visible = false; }
+function penMissionVisuals(dt) {
+  const S = PEN_STATE, b = WORLD.penBoat;
+  if (WORLD.penKeys && WORLD.penKeys.visible) WORLD.penKeys.rotation.y += dt * 1.5;
+  if (S.ms === 3 && !G.authority) S.boatP = Math.min(PEN_BOAT_TIME, S.boatP + dt * 0.5);
+  if (S.ms === 3 && b && Math.random() < dt * 4) FX.soft.spawn(b.g.position.x - 2.4, 2.2, b.g.position.z, rand(-0.2, 0.2), rand(0.8, 1.4), rand(-0.2, 0.2), rand(1.5, 2.5), rand(0.3, 0.5), 0.3, 0.3, 0.32, 0.5, -0.1, 1.4, 1.0);
+  if (b && b.leave > 0) {
+    b.leave += dt; const t = b.leave;
+    if (t < 4) b.g.position.z = b.home.z + t * t * 1.2;
+    else if (b.leave - dt < 4) { R.flash = 2.5; Sfx.thunder?.(0); fxExplosion(_v1.set(b.g.position.x, 1, b.g.position.z), 6); }
+    else { b.g.position.y = b.home.y - (t - 4) * 0.5; b.g.rotation.z = Math.min(0.8, (t - 4) * 0.2); if (t > 10) b.g.visible = false; }
+  }
+}
+function penMissionCandidates(cand, px, pz) {
+  const S = PEN_STATE;
+  if (S.keyState === 1 && WORLD.penKeys) cand(Math.hypot(px - WORLD.penKeys.position.x, pz - WORLD.penKeys.position.z), { kind: 'pkey', text: 'Ramasser les clés du Geôlier', range: 1.6 });
+  const b = WORLD.penBoat; if (!b) return; const d = Math.hypot(px - b.dock.x, pz - b.dock.z);
+  if (S.ms === 2) cand(d, { kind: 'pboat', text: 'Maintenir pour préparer la vedette', range: 2.4, hold: true, holdTime: 4 });
+  else if (S.ms === 3) cand(d, { kind: 'info', text: `Le moteur chauffe : ${Math.round((S.boatP / PEN_BOAT_TIME) * 100)} %`, range: 3 });
+  else if (S.ms < 2) cand(d, { kind: 'info', text: S.keyState === 2 ? 'Vedette amarrée' : 'Vedette amarrée — il faut les clés du Geôlier', range: 2.4, deny: S.keyState !== 2 });
+}
+function penMission() {
+  const S = PEN_STATE, n = S.parts.filter(Boolean).length;
+  if (S.ms === 0) return n < 3 ? { title: "L'ÉVASION", line: `Fabriquer le bouclier : trouver les pièces (${n}/3)`, sub: PEN_PARTS.map((p, i) => `${S.parts[i] ? '✔' : '○'} ${p.name}`).join('   ·   ') } : { title: "L'ÉVASION", line: "Assembler le bouclier à l'établi des douches", sub: '' };
+  if (S.ms === 1) { if (S.keyState === 1) return { title: "L'ÉVASION", line: 'Ramasser les clés du Geôlier', sub: 'Là où il est tombé' }; if (S.boss && S.boss.alive) return { title: "L'ÉVASION", line: 'Abattre le Geôlier et prendre ses clés', sub: 'Visez le corps : son casque arrête les balles' }; return { title: "L'ÉVASION", line: 'Attirer le Geôlier et prendre ses clés', sub: G.round < 3 ? 'Il fera sa ronde dès la 3e manche' : 'Il arrive pendant la manche' }; }
+  if (S.ms === 2) return { title: "L'ÉVASION", line: 'Préparer la vedette amarrée au sud des quais', sub: 'Maintenir E au bord du quai' };
+  if (S.ms === 3) return { title: "L'ÉVASION", line: `Défendre la vedette — restez à moins de ${PEN_BOAT_R} m`, bar: S.boatP / PEN_BOAT_TIME };
+  return null;
 }
 
 
@@ -8564,7 +9337,7 @@ function penDecor() {
   barrel(X(28), X(24) + 0.6, MATS.rust); barrel(X(28) + 0.7, X(24) + 0.5, MATS.olive); barrel(X(36), X(29) + 1.3, MATS.rust, true);
   for (const [x, z, ry] of [[X(19) + 0.2, X(28), Math.PI / 2], [X(44) + 1.8, X(26), -Math.PI / 2]]) { const b = mesh(new THREE.TorusGeometry(0.32, 0.08, 8, 20), KIT.m(0xe8601a, { rough: 0.6 }), x, 1.2, z, ry, R.scene, false); }
   // Vedette amarrée au sud.
-  { const g = KIT.g(X(33), X(32) + 0.6, 0.06, -0.55), hullM = KIT.m(0x2e3a44, { rough: 0.5, metal: 0.3 }), deck = fmat('planks', 0x9a8466);
+  { const g = KIT.g(X(33), X(32) + 0.6, 0.06, -0.55), hullM = KIT.m(0x2e3a44, { rough: 0.5, metal: 0.3 }), deck = fmat('planks', 0x9a8466); g.userData.dynamic = true; WORLD.penBoat = { g, home: g.position.clone(), dock: new THREE.Vector3(X(33), 1, X(30) - 0.6) };
     const hull = new THREE.CylinderGeometry(1.4, 1.1, 10, 16, 1, false, 0, Math.PI); hull.rotateZ(Math.PI / 2); hull.rotateX(Math.PI / 2); hull.scale(1, 0.7, 1);
     const hm = mesh(hull, hullM, 0, 0.6, 0, 0, g); KIT.b(g, 0, 0.62, 0, 9.4, 0.08, 2.4, deck); KIT.b(g, -1.2, 1.5, 0, 3, 1.7, 2.0, KIT.m(0xd8d4c8, { rough: 0.6 })); KIT.b(g, -1.2, 2.4, 0, 3.3, 0.1, 2.2, hullM);
     KIT.b(g, 0.35, 1.7, 0, 0.02, 0.6, 1.6, k.glass, 0, false); const m = KIT.c(g, -2.4, 3.2, 0, 0.05, 0.05, 1.6, steel, 6);
@@ -8598,11 +9371,12 @@ function penDecor() {
     const g = KIT.g(x, z, 0, surfH(x, z)); for (const [a, b] of [[-1.3, -1.3], [1.3, -1.3], [-1.3, 1.3], [1.3, 1.3]]) KIT.b(g, a, 4.5, b, 0.3, 9, 0.3, fmat('concrete', 0x9a968e));
     KIT.b(g, 0, 9.3, 0, 3.6, 0.3, 3.6, fmat('concrete', 0x9a968e)); KIT.b(g, 0, 10.4, 0, 3.2, 1.9, 3.2, KIT.m(0x3a3e40, { rough: 0.7 })); KIT.b(g, 0, 11.45, 0, 3.8, 0.2, 3.8, dark);
     const head = new THREE.Group(); head.userData.dynamic = true; head.position.set(0, 11.9, 0); g.add(head);
-    const cone = new THREE.Mesh(new THREE.CylinderGeometry(7, 0.4, 90, 20, 1, true), beamMat); cone.geometry.translate(0, -45, 0); cone.geometry.rotateX(-Math.PI / 2); head.add(cone);
+    const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 6, 60, 20, 1, true), beamMat); cone.geometry.translate(0, -30, 0); cone.geometry.rotateX(-Math.PI / 2); head.add(cone);
     mesh(new THREE.CylinderGeometry(0.45, 0.35, 0.7, 14), dark, 0, 0, 0, 0, head).rotation.x = Math.PI / 2;
     WORLD.beams.push({ head, ph });
   }
   penFar(beamMat);
+  penDetails();
 }
 
 // Au loin : rochers du rivage, phare, pont suspendu, ville de l'autre côté de la baie.
@@ -8615,7 +9389,7 @@ function penFar(beamMat) {
   { const g = KIT.g(190, 140, 0, -1), white = fmat('plaster', 0xe8e4da); const isl = mesh(new THREE.CylinderGeometry(14, 22, 5, 14), rock, 0, 0, 0, 0, g);
     KIT.c(g, 0, 12, 0, 2.4, 3.2, 20, white, 16); KIT.c(g, 0, 22.4, 0, 3.6, 3.6, 0.4, KIT.m(0x2a2a2a)); KIT.c(g, 0, 23.6, 0, 2.2, 2.2, 2.4, new THREE.MeshStandardMaterial({ color: 0xfff4d0, emissive: 0xffe6a0, emissiveIntensity: 1.5 }), 16); KIT.c(g, 0, 25.4, 0, 0.3, 2.6, 1.4, KIT.m(0x7a2a22), 16);
     const rot = new THREE.Group(); rot.userData.dynamic = true; rot.position.set(0, 23.6, 0); g.add(rot);
-    for (const s of [1, -1]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(14, 0.8, 220, 20, 1, true), beamMat.clone()); c.material.uniforms.uInt.value = 0.16; c.geometry.translate(0, -110, 0); c.geometry.rotateX(-Math.PI / 2 * s); rot.add(c); }
+    for (const s of [1, -1]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 14, 220, 20, 1, true), beamMat.clone()); c.material.uniforms.uInt.value = 0.16; c.geometry.translate(0, -110, 0); c.geometry.rotateX(-Math.PI / 2 * s); rot.add(c); }
     WORLD.lighthouse = rot; }
   // Pont suspendu rouge (silhouette dans la brume, feux de balisage).
   { const red = new THREE.MeshStandardMaterial({ color: 0x5a1e18, roughness: 0.7, fog: false }), g = KIT.g(-260, -170, 0.75);
@@ -8634,6 +9408,25 @@ function penFar(beamMat) {
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping; const m = mesh(mergeGeometries(parts), mat, 0, 0, 0, 0, R.scene, false); m.frustumCulled = false; }
 }
 
+/* ─── Finitions du Pénitencier : conduites, lampes grillagées, numéros de cellule, panneaux ─── */
+function penDetails() {
+  const X = PEN.X, k = kitMats(), dark = KIT.m(0x2a2c2e, { rough: 0.6, metal: 0.5 }), pipeM = KIT.m(0x5a5e5a, { rough: 0.5, metal: 0.6 });
+  // Conduites au plafond du couloir des cellules, avec colliers.
+  { const p = new Batch(new THREE.CylinderGeometry(1, 1, 1, 8), pipeM), cl = new Batch(boxG(0.06, 0.16, 0.3), dark);
+    for (const [z, r] of [[X(11) + 0.4, 0.09], [X(11) + 0.7, 0.06], [X(12) + 1.4, 0.07]]) p.add((X(10) + X(34)) / 2, 3.78, z, 0, 0, Math.PI / 2, r, X(34) - X(10), r);
+    for (let x = X(10) + 1; x < X(34); x += 2.5) cl.add(x, 3.85, X(11) + 0.55); p.build(); cl.build(); }
+  // Lampes grillagées le long des couloirs et sur les façades.
+  const caged = (x, y, z, ry, col = 0xffe2b0) => { const g = KIT.g(x, z, ry, y); KIT.b(g, 0, 0, 0, 0.2, 0.06, 0.08, dark); KIT.s(g, 0, -0.08, 0.06, 0.07, KM.bulb, 1, 1.2, 1); for (let i = 0; i < 4; i++) { const b = KIT.b(g, -0.06 + (i % 2) * 0.12, -0.08, 0.02 + (i > 1 ? 0.08 : 0), 0.01, 0.18, 0.01, dark, 0, false); } KIT.glow(g, 0, -0.08, 0.08, col, 0.9, 0.7); };
+  for (let x = X(12); x < X(34); x += 4) { caged(x, 2.7, X(10) + 0.12, 0); caged(x + 2, 2.7, X(13) - 0.12, Math.PI); }
+  for (let x = X(19); x < X(46); x += 6) caged(x, 3.2, X(23) - 0.12, Math.PI, 0xffb070);
+  // Numéros peints au-dessus des cellules.
+  { const atlas = textTexture(512, 256, (c) => { c.fillStyle = 'rgba(0,0,0,0)'; c.clearRect(0, 0, 512, 256); c.font = font(52); c.textAlign = 'center'; c.textBaseline = 'middle'; for (let i = 0; i < 32; i++) { const cx = (i % 8) * 64 + 32, cy = ((i / 8) | 0) * 64 + 32; c.fillStyle = '#e8e2c8'; c.fillText(String(i + 1).padStart(2, '0'), cx, cy); } }, { repeat: false });
+    const mat = new THREE.MeshStandardMaterial({ map: atlas, transparent: true, roughness: 0.8, depthWrite: false }); let n = 0;
+    for (let x = 11; x <= 32; x++) for (const [z, ry] of [[X(10) + 0.13, 0], [X(13) - 0.13, Math.PI]]) { if (n >= 32) break; const geo = new THREE.PlaneGeometry(0.42, 0.42), uv = geo.attributes.uv, i = n++; for (let j = 0; j < uv.count; j++) { uv.setX(j, ((i % 8) + uv.getX(j)) / 8); uv.setY(j, 1 - (((i / 8) | 0) + 1 - uv.getY(j)) / 4); } mesh(geo, mat, X(x) + 1, 3.25, z, ry, R.scene, false); } }
+  // Panneaux d'avertissement et gyrophares sur l'enceinte.
+  for (const [x, z, ry, lines] of [[X(20), X(23) - 0.05, Math.PI, ['ZONE INTERDITE', 'LES GARDES TIRENT']], [X(36), X(-0.5) + 0.05, 0, ['DÉFENSE D\'APPROCHER', 'DU MUR']], [X(46) - 0.05, X(14), -Math.PI / 2, ['DIRECTION', 'ACCÈS RÉSERVÉ']]]) mesh(new THREE.PlaneGeometry(1.5, 0.6), new THREE.MeshStandardMaterial({ map: woodSign(lines, { w: 512, h: 200, bg: '#b83a2a', color: '#f2eee4' }), roughness: 0.6 }), x, 2.4, z, ry, R.scene, false);
+}
+
 
 // ───────────────────────── MAP_FILON ─────────────────────────
 /* ═══════════════════ CARTE : LE FILON MAUDIT ═══════════════════
@@ -8644,11 +9437,12 @@ function penFar(beamMat) {
    apportez des bonbons ; la banque garde vos points d'une partie à l'autre. */
 
 const FIL = (() => { const OX = 4, OZ = 4, X = (lx) => (lx + OX) * TILE; return { OX, OZ, X, T: (lx, lz) => [lx + OX, lz + OZ] }; })();
-const FIL_STATE = { giant: null, candy: {}, ally: null, allyT: 0, freed: false };
+const FIL_STATE = { giant: null, candy: {}, ally: null, allyT: 0, freed: false, ms: 0, rubble: [0, 0, 0], gold: [0, 0, 0], fed: false };
 
 MAPS.filon = {
   id: 'filon', name: 'FILON MAUDIT', sub: 'Ville minière engloutie, 1880',
-  objName: 'Le Colosse est libre',
+  objName: 'Le trésor du Filon',
+  powerParts: [{ name: 'COURROIE DE CUIR', kind: 'belt', zones: [2, 3] }, { name: 'BIDON DE PÉTROLE', kind: 'fuel', zones: [5] }, { name: 'BOBINE DE CUIVRE', kind: 'coil', zones: [6] }],
   intro: ['FILON MAUDIT', 'Ville minière engloutie, 182 m sous terre', '2 juin 1880 — heure inconnue'],
   desc: "Une ville du Far West avalée par la terre. Un saloon, une banque, une église… et un géant enfermé chez le shérif qui adore les bonbons.",
   card: ['#2a1a10', '#b07a3e'],
@@ -8668,20 +9462,24 @@ MAPS.filon = {
   styleDefs: [
     { floor: ['dirt', 0x9a8a78], ceil: ['rock', 0x7a6a5a], roof: ['rock', 0x6a5a4a], noSlab: true }, { floor: ['dirt', 0xb09a80] }, { floor: ['planks', 0x9a7a58], ceil: ['planks', 0x7a5a3a], roof: ['westPlank', 0x8a6a4a] },
     { floor: ['parquet', 0xb08a60], ceil: ['planks', 0x6a4a2e] }, { floor: ['planks', 0xa08060], ceil: ['planks', 0x7a5a3a] }, { floor: ['checker', 0xd8d0c0], ceil: ['plaster', 0xd8ccb0] },
-    { floor: ['planks', 0x8a7a6a], ceil: ['planks', 0x6a5a4a] }, { floor: ['parquet', 0x9a7a5a], ceil: ['planks', 0x5a3a26] },
+    { floor: ['planks', 0x8a7a6a], ceil: ['planks', 0x6a5a4a] }, { floor: ['parquet', 0x9a7a5a], ceil: ['planks', 0x8a6a4a], ceilH: 5.0 },
     { block: ['rock', 0x9a8470], blockTop: ['rock', 0x7a6a58], rough: 0.55 },
   ],
   roofTex: ['westPlank', 0x7a5a3a], ceilTex: ['planks', 0x6a4a2e], wallMat: 'wood', baseboard: ['planks', 0x3a2618],
+  decals: { grime: 0.6, splash: 0.5, under: 0.3, crack: 0.1, stain: 0.12, mold: 0.08, scuff: 0.15, blood: 0.05,
+    floor: { street: [['dirt', 0.3, 1.8]], walk: [['scuff', 0.15, 1]], saloon: [['stain', 0.2, 1], ['scuff', 0.15, 1]], mine: [['dirt', 0.3, 1.6]], store: [['dirt', 0.12, 1]], jail: [['dirt', 0.2, 1], ['blood', 0.08, 1]] } },
+  scatter: [{ kind: 'straw', styles: ['street'], n: 2, color: 0xc8a868 }, { kind: 'pebble', styles: ['street', 'mine'], n: 3, color: 0x7a6a58 }, { kind: 'clod', styles: ['street', 'mine'], n: 1, color: 0x6a5a48 }, { kind: 'rock', ground: [0.5, 6], n: 0.25, color: 0x6a5a4a, shadow: true }, { kind: 'paper', styles: ['street', 'walk'], n: 0.15, color: 0xd8c8a0 }],
+  details: { fascia: ['planks', 0x5a3e28], plinth: ['stone', 0x6e665c], crown: ['planks', 0x4a3220], wainscot: ['planks', 0x6a4a30] },
   blockH: () => 6.5, blockMat: () => 'earth',
   walls: [
     { key: 'plank', h: 4.2, out: ['westPlank', 0xb08a60], in: ['westPlank', 0x9a7a58], mat: 'wood' },
-    { key: 'plankWin', look: 'window', h: 4.2, out: ['westPlank', 0xb08a60], in: ['westPlank', 0x9a7a58], trim: ['planks', 0x5a3a22], lit: 0xffb060, mat: 'wood' },
+    { key: 'plankWin', look: 'window', h: 4.2, out: ['westPlank', 0xb08a60], in: ['westPlank', 0x9a7a58], trim: ['planks', 0x5a3a22], lit: 0xffb060, shutter: 0x5a3e28, mat: 'wood' },
     { key: 'red', h: 4.2, out: ['westPlank', 0xb85a42], in: ['wallpaper', 0xb89a7a], mat: 'wood' },
-    { key: 'redWin', look: 'window', h: 4.2, out: ['westPlank', 0xb85a42], in: ['wallpaper', 0xb89a7a], trim: ['planks', 0xe8d8b0], lit: 0xffb060, mat: 'wood' },
+    { key: 'redWin', look: 'window', h: 4.2, out: ['westPlank', 0xb85a42], in: ['wallpaper', 0xb89a7a], trim: ['planks', 0xe8d8b0], lit: 0xffb060, shutter: 0x3a2a1a, mat: 'wood' },
     { key: 'brick', h: 4.6, out: ['brick', 0xd8b8a0], in: ['plaster', 0xd8ccb0], mat: 'concrete' },
-    { key: 'brickWin', look: 'window', h: 4.6, out: ['brick', 0xd8b8a0], in: ['plaster', 0xd8ccb0], trim: ['planks', 0x3a2a1a], lit: 0xffc27a, mat: 'concrete' },
+    { key: 'brickWin', look: 'window', h: 4.6, out: ['brick', 0xd8b8a0], in: ['plaster', 0xd8ccb0], trim: ['planks', 0x3a2a1a], lit: 0xffc27a, bars: true, mat: 'concrete' },
     { key: 'white', h: 5.0, out: ['westPlank', 0xe8e0cc], in: ['plaster', 0xe0d4bc], mat: 'wood' },
-    { key: 'whiteWin', look: 'window', h: 5.0, out: ['westPlank', 0xe8e0cc], in: ['plaster', 0xe0d4bc], trim: ['planks', 0x3a2a1a], lit: 0xff9a50, mat: 'wood' },
+    { key: 'whiteWin', look: 'window', h: 5.0, out: ['westPlank', 0xe8e0cc], in: ['plaster', 0xe0d4bc], trim: ['planks', 0x3a2a1a], lit: 0xff9a50, stained: true, mat: 'wood' },
     { key: 'inner', h: 3.4, out: ['westPlank', 0x8a6a4a], in: ['westPlank', 0x8a6a4a], mat: 'wood' },
     { key: 'bars', look: 'bars', h: 3.4, see: true, mat: 'metal' },
     { key: 'rail', look: 'rail', h: 1.1, see: true, mat: 'wood' },
@@ -8755,7 +9553,7 @@ MAPS.filon = {
   env: {
     fog: 0x33261b, fogDensity: 0.019, stormFog: 0.03, exposure: 1.65,
     sky: { zen: [0.01, 0.015, 0.035], disk: [5, 5.2, 5.6], diskSize: 0.9994, halo: [0.3, 0.38, 0.55], cloudA: [0.03, 0.035, 0.05], cloudB: [0.12, 0.14, 0.2], stars: 1.4, ridge: 0, glow: [0, 0, 0], cover: 0.4, flash: [1, 0.8, 0.6] },
-    sunDir: [0.18, 0.95, 0.24], sunColor: 0xa8c0f0, sunI: 2.2, hemi: [0xb89066, 0x3a2a1a], hemiOut: 1.25, hemiIn: 1.05, envOut: 0.75, envIn: 0.62,
+    sunDir: [0.18, 0.95, 0.24], sunColor: 0xa8c0f0, sunI: 2.2, hemi: [0xb89066, 0x3a2a1a], bounce: 0x7a5a40, hemiOut: 1.25, hemiIn: 1.05, envOut: 0.75, envIn: 0.62,
     envMap: { low: [0.08, 0.06, 0.04], mid: [0.26, 0.18, 0.11], high: [0.1, 0.08, 0.06], glowDir: [0, 1, 0], glow: [0.2, 0.25, 0.35] },
     precip: 'dust', snow: 0, tint: [1.06, 1.0, 0.9], frost: false, flares: false, wind: 0.15,
     storm: { title: 'ÉBOULEMENT', sub: 'La caverne tremble. Ils courent.' },
@@ -8768,7 +9566,7 @@ MAPS.filon = {
   lights(pl) {
     const X = FIL.X;
     pl('lanternW', 0xffa040, 42, 22, X(12), 3.0, X(19) + 1); pl('lanternE', 0xffa040, 42, 22, X(28), 3.0, X(20) + 1);
-    pl('saloon', 0xffb060, 26, 17, X(11) + 1, 3.0, X(12)); pl('church', 0xff9a50, 26, 18, X(27) + 1, 3.6, X(29));
+    pl('saloon', 0xffb060, 34, 18, X(11) + 1, 2.9, X(12)); pl('church', 0xffa860, 34, 20, X(27) + 1, 4.2, X(27)); pl('church2', 0xffb070, 22, 12, X(27) + 1, 2.6, X(32));
     pl('mine', 0xffa040, 36, 18, X(43), 2.6, X(19) + 1); pl('mine2', 0xffa040, 30, 16, X(38), 2.6, X(20)); pl('bank', 0xffd090, 14, 14, X(29), 3.0, X(12));
     if (settings.quality >= 1) pl('jail', 0xffa050, 14, 13, X(10), 2.9, X(25));
   },
@@ -8790,11 +9588,12 @@ MAPS.filon = {
     apply(type, d) { return filApply(type, d); },
     interact(pid, kind, id) { return filInteract(pid, kind, id); },
     candidates(cand, px, pz) { filCandidates(cand, px, pz); },
-    state() { return { f: FIL_STATE.freed ? 1 : 0, a: FIL_STATE.ally, t: +FIL_STATE.allyT.toFixed(0), c: Object.keys(FIL_STATE.candy).filter((k) => FIL_STATE.candy[k]) }; },
+    state() { return { f: FIL_STATE.freed ? 1 : 0, a: FIL_STATE.ally, t: +FIL_STATE.allyT.toFixed(0), c: Object.keys(FIL_STATE.candy).filter((k) => FIL_STATE.candy[k]), ms: FIL_STATE.ms, rb: FIL_STATE.rubble.join(''), gp: FIL_STATE.gold.join('') }; },
+    mission() { return filMission(); },
     reconcile(s) { filReconcile(s); },
     fast() { const g = FIL_STATE.giant; return g ? [+g.pos.x.toFixed(2), +g.pos.z.toFixed(2), +g.yaw.toFixed(2), g.state === 'slam' ? 1 : 0] : undefined; },
     fastApply(a) { filFastApply(a); },
-    objective() { return FIL_STATE.freed ? 1 : 0; },
+    objective() { return FIL_STATE.ms >= 4 ? 1 : 0; },
     pingLabels(near) { const g = FIL_STATE.giant; if (g) near(g.pos.x, g.pos.z, 'LE COLOSSE'); const c = WORLD.candyShop; if (c) near(c.pos.x, c.pos.z, 'BONBONS'); const b = WORLD.bankDesk; if (b) near(b.pos.x, b.pos.z, 'BANQUE'); },
   },
 };
@@ -8873,25 +9672,28 @@ function filSlamHit(p, pid) {
 }
 function filReset() {
   if (!FIL_STATE.giant && ZV.list) FIL_STATE.giant = new Giant();
-  Object.assign(FIL_STATE, { candy: {}, ally: null, allyT: 0, freed: false });
+  Object.assign(FIL_STATE, { candy: {}, ally: null, allyT: 0, freed: false, ms: 0, rubble: [0, 0, 0], gold: [0, 0, 0], fed: false }); filMissionVisualReset();
   const g = FIL_STATE.giant; if (g) { g.state = 'caged'; g.net = null; const [cx, cz] = SPOTS.cage; g.place(tcx(cx), tcx(cz), 0); g.animate(0); }
 }
 function filHost(dt) {
   const g = FIL_STATE.giant; if (g) g.think(dt);
   // Grille de la cellule achetée : le Colosse sort.
   if (!FIL_STATE.freed && MAP.doors[FIL_STATE.cageDoor]?.open) G.emit('freed', {});
+  filMissionHost(dt);
 }
 function filVisuals(dt) {
   const g = FIL_STATE.giant; if (g) { if (!G.authority && !g.net) { /* en attente d'état */ } g.animate(dt); }
   if (WORLD.shaft) WORLD.shaft.material.uniforms.uTime.value += dt;
+  filMissionVisuals(dt);
 }
 function filApply(type, d) {
   const g = FIL_STATE.giant;
   if (type === 'freed') { FIL_STATE.freed = true; if (g) g.state = 'idle'; Sfx.zombie(g ? g.pos : P.pos, 'groan', 0.4); UI.message('LE COLOSSE EST LIBRE', 'Il attend dans la grand-rue. Il adore les bonbons du magasin général.'); return true; }
   if (type === 'candy') { FIL_STATE.candy[d.pid] = true; if (d.pid === P.id) { UI.message('BONBONS', 'Donnez-les au Colosse : il vous suivra et écrasera les infectés pendant 40 s.'); Sfx.pickup(); } return true; }
-  if (type === 'feed') { FIL_STATE.candy[d.pid] = false; FIL_STATE.ally = d.pid; FIL_STATE.allyT = 40; if (g) g.state = 'idle'; Sfx.jingle([0, 4, 7, 12], 262, 'triangle', 0.14); UI.message('LE COLOSSE VOUS SUIT', `${d.pid === P.id ? 'Il vous protège' : (G.players.get(d.pid)?.name || 'Un camarade') + ' a un allié'} pendant 40 secondes.`); return true; }
+  if (type === 'feed') { FIL_STATE.candy[d.pid] = false; FIL_STATE.ally = d.pid; FIL_STATE.allyT = 40; FIL_STATE.fed = true; if (g) g.state = 'idle'; Sfx.jingle([0, 4, 7, 12], 262, 'triangle', 0.14); UI.message('LE COLOSSE VOUS SUIT', `${d.pid === P.id ? 'Il vous protège' : (G.players.get(d.pid)?.name || 'Un camarade') + ' a un allié'} pendant 40 secondes.`); return true; }
   if (type === 'gbored') { FIL_STATE.ally = null; FIL_STATE.allyT = 0; return true; }
   if (type === 'gslam') { if (g) g.slamAnim = 1.1; setTimeout(() => { const p = _v1.set(d.x, 0.2, d.z); fxSnowBurst(p, 50); Sfx.explosion(p, 0.5); const dd = Math.hypot(P.pos.x - d.x, P.pos.z - d.z); FX.shake = Math.max(FX.shake, clamp(1 - dd / 18, 0, 0.8)); }, 450); return true; }
+  if (type === 'fms' || type === 'frock' || type === 'fgold') { filMissionApply(type, d); return true; }
   if (type === 'bank') { if (d.pid === P.id) { const bal = Math.max(0, (store.get('bank', 0) | 0) + d.d); store.set('bank', bal); UI.message(d.d > 0 ? 'DÉPÔT À LA BANQUE' : 'RETRAIT', `Solde : ${bal} points (conservés d'une partie à l'autre)`); Sfx.buy(); } return true; }
   return false;
 }
@@ -8899,16 +9701,19 @@ function filInteract(pid, kind, id) {
   const g = FIL_STATE.giant;
   if (kind === 'candy') { if (FIL_STATE.candy[pid]) { G.tell(pid, 'deny'); return true; } if (G.pay(pid, 1000)) G.emit('candy', { pid }); return true; }
   if (kind === 'feed') { if (!FIL_STATE.candy[pid] || !FIL_STATE.freed || (FIL_STATE.ally && FIL_STATE.allyT > 0)) { G.tell(pid, 'deny'); return true; } G.emit('feed', { pid }); return true; }
+  if (kind === 'fgold') { const i = +id; if (FIL_STATE.rubble[i] && !FIL_STATE.gold[i]) G.emit('fgold', { i, who: G.players.get(pid)?.name || '' }); return true; }
+  if (kind === 'fvault') { if (FIL_STATE.ms === 3) { G.emit('fms', { ms: 4 }); for (const [p2] of G.players) G.addPoints(p2, 3000, false); } return true; }
   if (kind === 'bankDep') { if (G.pay(pid, 1000)) G.emit('bank', { pid, d: 1000 }); return true; }
   if (kind === 'bankWd') { G.addPoints(pid, 900, false); G.emit('bank', { pid, d: -1000 }); return true; }
   return false;
 }
 function filCandidates(cand, px, pz) {
   const g = FIL_STATE.giant, S = FIL_STATE;
+  filMissionCandidates(cand, px, pz);
   if (g) {
     const d = Math.hypot(px - g.pos.x, pz - g.pos.z) - 0.8;
     if (!S.freed) { /* la grille de sa cellule s'achète comme une porte */ }
-    else if (S.ally && S.allyT > 0) cand(d, { kind: 'info', text: `Le Colosse suit ${S.ally === P.id ? 'vous' : G.players.get(S.ally)?.name || 'un camarade'} (${Math.ceil(S.allyT)} s)`, range: 3 });
+    else if (S.ally && S.allyT > 0) cand(d, { kind: 'info', text: `${S.ally === P.id ? 'Le Colosse vous suit' : 'Le Colosse suit ' + (G.players.get(S.ally)?.name || 'un camarade')} (${Math.ceil(S.allyT)} s)`, range: 3 });
     else if (S.candy[P.id]) cand(d, { kind: 'feed', text: 'Donner les bonbons au Colosse', range: 3.2 });
     else cand(d, { kind: 'info', text: 'Le Colosse a faim de bonbons (magasin général)', range: 3, deny: true });
   }
@@ -8924,6 +9729,9 @@ function filReconcile(s) {
   if (s.f && !FIL_STATE.freed) filApply('freed', {});
   FIL_STATE.ally = s.a ?? null; if (Math.abs(FIL_STATE.allyT - (s.t || 0)) > 2) FIL_STATE.allyT = s.t || 0;
   if (Array.isArray(s.c)) { FIL_STATE.candy = {}; for (const k of s.c) FIL_STATE.candy[k] = true; }
+  if (typeof s.rb === 'string') s.rb.split('').forEach((c, i) => { if (c === '1' && !FIL_STATE.rubble[i]) filMissionApply('frock', { i }, true); });
+  if (typeof s.gp === 'string') s.gp.split('').forEach((c, i) => { if (c === '1' && !FIL_STATE.gold[i]) filMissionApply('fgold', { i }, true); });
+  if (typeof s.ms === 'number' && s.ms !== FIL_STATE.ms) filMissionApply('fms', { ms: s.ms }, true);
 }
 function filFastApply(a) {
   const g = FIL_STATE.giant; if (!g || !Array.isArray(a) || G.authority) return;
@@ -8940,6 +9748,68 @@ function giantPath(gx, gz) {
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = x + dx, b = z + dz; if (!inMap(a, b) || !isTrench(a, b) || edgeBlocked(x, z, a, b)) continue; const j = ti(a, b); if (dist[j] < 0) { dist[j] = dist[i] + 1; q.push(j); } }
   }
   return dist;
+}
+
+/* ─── Mission « Le trésor du Filon » : Colosse libéré → bonbons → trois éboulis brisés, trois pépites → chambre forte ─── */
+const FIL_RUBBLE = [[8, 19], [41, 20], [22, 12]]; // carreaux locaux : grand-rue ouest, galerie de mine, magasin général
+function filRubbleSpots() {
+  return FIL_RUBBLE.map(([lx, lz]) => { let best = null, bd = 1e9; const [cx, cz] = FIL.T(lx, lz); for (let z = cz - 3; z <= cz + 3; z++) for (let x = cx - 3; x <= cx + 3; x++) { if (!inMap(x, z) || MAP.type[ti(x, z)] !== T_FLOOR) continue; const d = Math.hypot(x - cx, z - cz); if (d < bd) { bd = d; best = [x, z]; } } return best ? new THREE.Vector3(tcx(best[0]), 0, tcx(best[1])) : new THREE.Vector3(tcx(cx), 0, tcx(cz)); });
+}
+function filBuildMission() {
+  if (WORLD.filRubble) return;
+  const rock = fmat('rock', 0x8a7866), plank = fmat('planks', 0x5a3e28), gold = new THREE.MeshStandardMaterial({ color: 0xd8b040, emissive: 0xffb020, emissiveIntensity: 0.6, roughness: 0.3, metalness: 1 });
+  WORLD.filRubble = filRubbleSpots().map((p) => {
+    const g = new THREE.Group(); g.userData.dynamic = true; g.position.copy(p); R.scene.add(g);
+    for (let i = 0; i < 9; i++) { const s = rand(0.25, 0.55); const r = mesh(new THREE.DodecahedronGeometry(s, 0), rock, rand(-0.6, 0.6), s * 0.6 + (i > 5 ? 0.4 : 0), rand(-0.6, 0.6), rand(TAU), g); r.rotation.x = rand(TAU); }
+    for (let i = 0; i < 2; i++) { const b = mesh(boxG(1.6, 0.14, 0.2), plank, rand(-0.3, 0.3), 0.5 + i * 0.25, rand(-0.3, 0.3), rand(TAU), g); b.rotation.z = rand(-0.5, 0.5); }
+    const glint = KIT.glow(g, 0, 0.9, 0, 0xffc040, 0.6, 0.5);
+    const col = { x0: p.x - 0.7, x1: p.x + 0.7, z0: p.z - 0.7, z1: p.z + 0.7, y0: 0, y1: 1.1, mat: 'concrete' }; MAP.props.push(col);
+    const nug = new THREE.Group(); nug.userData.dynamic = true; nug.position.set(p.x, 0.25, p.z); nug.visible = false; R.scene.add(nug);
+    for (let i = 0; i < 3; i++) mesh(new THREE.DodecahedronGeometry(rand(0.06, 0.1), 0), gold, rand(-0.08, 0.08), rand(0, 0.08), rand(-0.08, 0.08), rand(TAU), nug, false);
+    KIT.glow(nug, 0, 0.05, 0, 0xffc040, 1.2, 0.7);
+    return { g, glint, col, nug, pos: p };
+  });
+}
+function filMissionVisualReset() { filBuildMission(); for (const r of WORLD.filRubble) { r.g.visible = true; r.col.off = false; r.nug.visible = false; } }
+function filMissionHost(dt) {
+  const S = FIL_STATE, g = S.giant;
+  if (S.ms === 0 && S.freed) G.emit('fms', { ms: 1 });
+  if (S.ms === 1 && S.fed) G.emit('fms', { ms: 2 });
+  if (S.ms === 2) {
+    // Le Colosse, quand il accompagne un soldat, fracasse l'éboulis qu'il frôle.
+    if (g && S.ally && S.allyT > 0) WORLD.filRubble.forEach((r, i) => { if (!S.rubble[i] && Math.hypot(g.pos.x - r.pos.x, g.pos.z - r.pos.z) < 3.6) { G.emit('gslam', { x: +r.pos.x.toFixed(2), z: +r.pos.z.toFixed(2) }); G.emit('frock', { i }); g.slamT = 1.25; } });
+    if (S.gold.every(Boolean)) G.emit('fms', { ms: 3 });
+  }
+}
+function filMissionApply(type, d, quiet) {
+  const S = FIL_STATE; filBuildMission();
+  if (type === 'frock') { const r = WORLD.filRubble[d.i]; if (!r || S.rubble[d.i]) return; S.rubble[d.i] = 1; setTimeout(() => { r.g.visible = false; r.col.off = true; if (!S.gold[d.i]) r.nug.visible = true; if (!quiet) { fxSnowBurst(_v1.set(r.pos.x, 0.4, r.pos.z), 60); for (let k = 0; k < 14; k++) FX.glow.spawn(r.pos.x, 0.6, r.pos.z, rand(-3, 3), rand(1, 4), rand(-3, 3), rand(0.3, 0.7), 0.05, 1, 0.8, 0.3, 1, 9, 0.5); } }, quiet ? 0 : 450); if (!quiet) UI.message('ÉBOULIS BRISÉ', "De l'or brille dans les gravats !"); }
+  else if (type === 'fgold') { S.gold[d.i] = 1; const r = WORLD.filRubble[d.i]; if (r) r.nug.visible = false; if (!quiet) { const n = S.gold.filter(Boolean).length; UI.message('PÉPITE', `${d.who ? d.who + ' · ' : ''}${n}/3`); Sfx.pickup(); } }
+  else { const prev = S.ms; S.ms = d.ms; if (!quiet && prev !== S.ms) {
+    if (S.ms === 1) UI.message('LE TRÉSOR DU FILON', 'Le Colosse est libre. Donnez-lui des bonbons du magasin général.');
+    if (S.ms === 2) UI.message('LE TRÉSOR DU FILON', 'Menez-le jusqu\'aux éboulis qui brillent : il les brisera pour vous.');
+    if (S.ms === 3) UI.message("TOUT L'OR EST À VOUS", 'Déposez-le dans la chambre forte de la banque.');
+    if (S.ms === 4) { UI.banner?.('LE TRÉSOR DU FILON', '+3000 points · +2000 à la banque'); Sfx.jingle([0, 4, 7, 12, 16, 19, 24], 392, 'triangle', 0.14); store.set('bank', (store.get('bank', 0) | 0) + 2000); }
+  } }
+  UI.objective();
+}
+function filMissionVisuals(dt) {
+  if (!WORLD.filRubble) return; const t = G.time;
+  for (const r of WORLD.filRubble) { if (r.g.visible) r.glint.material.opacity = FIL_STATE.ms >= 2 ? 0.35 + Math.sin(t * 3 + r.pos.x) * 0.25 : 0.12; if (r.nug.visible) { r.nug.rotation.y += dt; r.nug.position.y = 0.25 + Math.sin(t * 2.5) * 0.05; } }
+}
+const filVaultPos = () => { const d = MAP.doors.find((q) => q.label === 'La chambre forte'); return d ? { d, x: tcx(d.x), z: tcx(d.z) } : null; };
+function filMissionCandidates(cand, px, pz) {
+  const S = FIL_STATE; if (!WORLD.filRubble) return;
+  WORLD.filRubble.forEach((r, i) => { if (r.nug.visible) cand(Math.hypot(px - r.pos.x, pz - r.pos.z), { kind: 'fgold', id: i, text: "Ramasser la pépite d'or", range: 1.6 }); });
+  if (S.ms === 3) { const v = filVaultPos(); if (v) cand(Math.hypot(px - v.x, pz - v.z) - 0.4, v.d.open ? { kind: 'fvault', text: "Maintenir pour déposer l'or dans la chambre forte", range: 2.4, hold: true, holdTime: 3 } : { kind: 'info', text: 'Chambre forte fermée — ouvrez-la', range: 2.4, deny: true }); }
+}
+function filMission() {
+  const S = FIL_STATE, n = S.gold.filter(Boolean).length;
+  if (S.ms === 0) return { title: 'LE TRÉSOR DU FILON', line: 'Libérer le Colosse de la prison du shérif', sub: 'La grille de sa cellule s\'achète comme une porte' };
+  if (S.ms === 1) return { title: 'LE TRÉSOR DU FILON', line: 'Donner des bonbons au Colosse', sub: 'Comptoir du magasin général · 1000' };
+  if (S.ms === 2) return { title: 'LE TRÉSOR DU FILON', line: `Guider le Colosse vers les éboulis, ramasser l'or (${n}/3)`, sub: S.ally && S.allyT > 0 ? `${S.ally === P.id ? 'Il vous suit' : 'Il suit ' + (G.players.get(S.ally)?.name || 'un camarade')} encore ${Math.ceil(S.allyT)} s` : 'Il ne suit personne : redonnez-lui des bonbons' };
+  if (S.ms === 3) { const v = filVaultPos(); return { title: 'LE TRÉSOR DU FILON', line: "Déposer l'or dans la chambre forte de la banque", sub: v && !v.d.open ? 'Il faut d\'abord ouvrir la chambre forte' : 'Maintenir E devant la chambre forte' }; }
+  return null;
 }
 
 
@@ -9046,6 +9916,7 @@ function filDecor() {
   kGable(X(7), X(23), X(14), X(30), 4.55, 1.6, fv(['westPlank', 0x6a5a48]), 0.3, fv(['westPlank', 0xb08a60]));
 
   filCave();
+  filDetails();
 }
 
 // La caverne : voûte bosselée percée d'un puits de lune, stalactites, parois, stalagmites.
@@ -9078,6 +9949,35 @@ function filCave() {
       vertexShader: 'varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ vUv = uv; vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
       fragmentShader: 'uniform float uTime; varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ float f = pow(abs(dot(vN, vV)), 2.0); float n = 0.75 + 0.25 * sin(vUv.x * 40.0 + uTime * 0.6) * sin(vUv.y * 12.0 - uTime * 0.3); gl_FragColor = vec4(vec3(0.6, 0.72, 1.0), f * n * 0.09 * smoothstep(0.0, 0.3, vUv.y)); }' });
     const c = new THREE.Mesh(new THREE.CylinderGeometry(hr - 1, hr + 1.5, 17, 28, 1, true), mat); c.position.set(hx, 7.5, hz); c.renderOrder = 6; R.scene.add(c); WORLD.shaft = c; }
+}
+
+/* ─── Finitions du Filon : église habitée, filons d'or, cristaux, lanternes ─── */
+function filDetails() {
+  const X = FIL.X, woodDark = fmat('planks', 0x4e3526), beam = fmat('planks', 0x5a3e28), gold = fmat('plain', 0xc8a84a, { rough: 0.3, metal: 0.8 }), wax = fmat('plain', 0xf2eee0);
+  // Église : charpente apparente, deux lustres à bougies, tapis d'allée, chaire, croix, bénitier, chandeliers.
+  { const cx = X(27) + 1, z0 = X(23), z1 = X(34), y = 4.95, tr = new Batch(boxG(0.22, 0.3, 1), beam);
+    for (let z = z0 + 1.6; z < z1; z += 2.4) { tr.add(cx, y - 0.15, z, Math.PI / 2, 0, 0, 1, 1, X(33) - X(22) - 0.2); for (const s of [-1, 1]) { const b = tr.add(cx + s * 5.2, y - 0.75, z, Math.PI / 2, 0, s * 0.85, 1, 1, 1.6); } }
+    tr.add(cx, y - 0.15, (z0 + z1) / 2, 0, 0, 0, 1, 1, z1 - z0 - 0.2); tr.build();
+    for (const z of [X(26), X(30)]) { const ch = KIT.g(cx, z, 0, 3.7); KIT.c(ch, 0, 1.0, 0, 0.015, 0.015, 2.0, MATS.iron, 4, false); KIT.c(ch, 0, 0, 0, 0.75, 0.75, 0.05, MATS.iron, 18); for (let i = 0; i < 10; i++) { const a = (i / 10) * TAU; KIT.c(ch, Math.cos(a) * 0.72, 0.1, Math.sin(a) * 0.72, 0.025, 0.025, 0.16, wax, 6, false); KIT.glow(ch, Math.cos(a) * 0.72, 0.26, Math.sin(a) * 0.72, 0xffb050, 0.42, 0.85); } }
+    kRug(cx, (X(24) + X(32)) / 2, 0, 1.3, X(32) - X(24), 0x7a1a1a);
+    { const p = KIT.g(X(25) + 0.6, X(31) + 0.6, 0.6); KIT.c(p, 0, 0.55, 0, 0.35, 0.42, 1.1, woodDark, 8); KIT.b(p, 0, 1.15, 0.1, 0.6, 0.06, 0.45, woodDark); KIT.solid(p, 0.8, 0.8, 1.1); }
+    { const c = KIT.g(cx, X(33) + 1.8, 0); KIT.b(c, 0, 3.3, 0, 0.16, 1.6, 0.08, gold); KIT.b(c, 0, 3.6, 0, 0.9, 0.14, 0.08, gold); KIT.glow(c, 0, 3.4, 0.1, 0xffd080, 1.6, 0.35); }
+    for (const s of [-1, 1]) { const st = KIT.g(cx + s * 1.6, X(32) + 1.2, 0); KIT.c(st, 0, 0.6, 0, 0.03, 0.08, 1.2, gold, 8); KIT.c(st, 0, 1.25, 0, 0.035, 0.035, 0.22, wax, 6, false); KIT.glow(st, 0, 1.42, 0, 0xffb050, 0.55, 0.9); }
+    { const f = KIT.g(cx + 2.4, X(23) + 1.4, 0); KIT.c(f, 0, 0.45, 0, 0.12, 0.18, 0.9, fmat('stone', 0xb8b0a4), 10); KIT.c(f, 0, 0.95, 0, 0.32, 0.18, 0.16, fmat('stone', 0xb8b0a4), 12); KIT.solid(f, 0.6, 0.6, 1.0, 'concrete'); }
+  }
+  // Galerie de mine : filons d'or qui luisent dans la roche, minerai dans le wagonnet, pics et pelles.
+  { const goldGlow = new THREE.MeshStandardMaterial({ color: 0x9a7a2a, emissive: 0xd8a030, emissiveIntensity: 0.28, roughness: 0.35, metalness: 0.9 }), vein = new Batch(new THREE.DodecahedronGeometry(0.05, 0), goldGlow, false);
+    for (let i = 0; i < 22; i++) { const x = X(37) + rand(0.4, X(47) - X(37) - 0.4), side = Math.random() < 0.5 ? X(18) - 0.02 : X(22) + 0.02, y = rand(0.8, 2.6), n = 3 + (Math.random() * 3) | 0, a = rand(-0.6, 0.6); for (let j = 0; j < n; j++) vein.add(x + Math.cos(a) * j * 0.07, y + Math.sin(a) * j * 0.07, side, rand(TAU), rand(TAU), 0, rand(0.5, 1), rand(0.5, 1), 0.6); }
+    vein.build();
+    const cartOre = new Batch(new THREE.DodecahedronGeometry(0.13, 0), goldGlow); for (let i = 0; i < 9; i++) cartOre.add(X(44) + rand(-0.4, 0.4), 1.24, X(19) + 1 + rand(-0.6, 0.6), rand(TAU), rand(TAU)); cartOre.build();
+    for (const [x, ry] of [[X(40) + 0.4, 0.3], [X(45) + 1, -0.4]]) { const t = KIT.g(x, X(22) - 0.35, ry); const h = KIT.b(t, 0, 0.75, 0, 0.05, 1.5, 0.05, fmat('planks', 0x9a7a5a)); h.rotation.z = 0.2; const hd = KIT.b(t, 0.15, 1.45, 0, 0.6, 0.06, 0.06, MATS.iron); hd.rotation.z = 0.2; }
+  }
+  // Cristaux de la caverne : touches de couleur froide le long des parois, hors du jeu.
+  { const cm = new THREE.MeshStandardMaterial({ color: 0x6a8aff, emissive: 0x3a5aff, emissiveIntensity: 0.9, roughness: 0.15, metalness: 0.2, transparent: true, opacity: 0.85 }), cr = new Batch(new THREE.OctahedronGeometry(0.3, 0), cm, false), W = MAP_W * TILE, D = MAP_D * TILE, glows = KIT.g(0, 0);
+    let placed = 0; for (let i = 0; i < 400 && placed < 26; i++) { const x = rand(-6, W + 6), z = rand(-6, D + 6), e = edgeAt(x, z); if (e < 3 || e > 9) continue; const y = surfH(x, z); for (let j = 0; j < 7; j++) cr.add(x + rand(-0.5, 0.5), y + rand(0, 0.4), z + rand(-0.5, 0.5), rand(TAU), rand(-0.5, 0.5), rand(-0.5, 0.5), rand(0.5, 1), rand(1.2, 3.2), rand(0.5, 1)); if (placed % 3 === 0) KIT.glow(glows, x, y + 0.8, z, 0x5a7aff, 3.2, 0.5); placed++; }
+    cr.build(); }
+  // Lanternes suspendues aux auvents des trottoirs.
+  for (let x = X(8); x < X(35); x += 7.2) for (const z of [X(18) - 0.6, X(22) + 0.6]) { const l = KIT.g(x, z, 0, 3.0); KIT.c(l, 0, 0.2, 0, 0.012, 0.012, 0.4, MATS.iron, 4, false); KIT.b(l, 0, -0.1, 0, 0.18, 0.26, 0.18, MATS.iron); KIT.glow(l, 0, -0.1, 0, 0xffa040, 1.2, 0.85); }
 }
 
 

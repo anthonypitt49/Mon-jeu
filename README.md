@@ -20,10 +20,14 @@ Les cartes sont des créations originales, inspirées de l'ambiance des cartes Z
 
 | Carte | Ambiance | Particularités |
 |---|---|---|
-| **Poste 7** | Tranchées gelées, hiver 1917 | La carte d'origine : bunker, dépôt du générateur, le Cratère et son biplan en feu, téléphone de mortier, barbelés électrifiés, objectif caché de la radio. Un géant d'acier arpente l'horizon. |
-| **Cité Atomique** | Village témoin d'un site d'essais nucléaires, au crépuscule | Deux pavillons, un abri antiatomique, une station-service, un bus en feu. Les machines d'atouts **tombent du ciel**, une par manche, à un endroit différent à chaque partie. Six mannequins cachent un secret. |
-| **Le Pénitencier** | Île-prison, nuit d'orage | Blocs de cellules, cantine, infirmerie, douches, bureau du directeur, quais battus par les vagues, phare et pont suspendu. **Le Geôlier**, un boss casqué, surgit toutes les 5 manches et cadenasse atouts et caisse. Trois pièces cachées permettent de fabriquer un **bouclier**. |
-| **Filon Maudit** | Ville minière du Far West engloutie sous la montagne | Galerie de mine, grand-rue, saloon, magasin, banque, prison, église, sous une voûte de roche percée d'un puits de lumière. **Le Colosse**, un géant enfermé chez le shérif : libérez-le, offrez-lui des bonbons et il écrase les infectés pour vous. **Banque** : les points déposés sont conservés d'une partie à l'autre. |
+| **Poste 7** | Tranchées gelées, hiver 1917 | La carte d'origine : bunker, dépôt du générateur, le Cratère (un vrai trou d'obus, en pente) et son biplan en feu, char abandonné, canon de campagne, téléphone de mortier, barbelés électrifiés, objectif caché de la radio. Un géant d'acier arpente l'horizon. |
+| **Cité Atomique** | Village témoin d'un site d'essais nucléaires, au crépuscule | Deux pavillons meublés (cuisines, salles de bains, bibliothèques), un abri antiatomique, une station-service, un bus scolaire calciné, un camion de déménagement, des berlines des années 50. Les machines d'atouts **tombent du ciel**, une par manche. Mission : **Alerte atomique**. |
+| **Le Pénitencier** | Île-prison, nuit d'orage | Blocs de cellules, cantine, infirmerie, douches, bureau du directeur, quais battus par les vagues, phare et pont suspendu. **Le Geôlier**, un boss casqué, cadenasse atouts et caisse. Trois pièces cachées permettent de fabriquer un **bouclier**. Mission : **L'évasion**. |
+| **Filon Maudit** | Ville minière du Far West engloutie sous la montagne | Galerie de mine, grand-rue, saloon, magasin, banque, prison, église à charpente apparente, sous une voûte de roche percée d'un puits de lumière. **Le Colosse**, un géant enfermé chez le shérif : libérez-le, offrez-lui des bonbons et il écrase les infectés pour vous. **Banque** : les points déposés sont conservés d'une partie à l'autre. Mission : **Le trésor du Filon**. |
+
+### Décors
+
+Les quatre cartes ont été reprises en détail : fenêtres avec encadrements, appuis, croisillons, volets, jardinières ou barreaux selon le bâtiment ; vitres qui reflètent vraiment (plus de « murs transparents ») ; avant-toits, gouttières, plinthes, corniches et lambris ; fils barbelés en hélice sur les murs d'enceinte ; salissures, coulures, fissures, moisissures, graffitis et traces de sang ; débris, feuilles, douilles et gravats semés au sol ; meubles et objets posés là où ils ont un sens (plus rien ne flotte ni ne traverse un mur).
 
 ## Commandes
 
@@ -54,11 +58,37 @@ Sur téléphone ou tablette, des commandes tactiles s'affichent : joystick à ga
 
 **Ça marche sur n'importe quel réseau** (maison, école, partage de connexion 4G) : la partie passe par des relais publics gratuits (MQTT sur WebSocket), et quand deux ordinateurs arrivent à se parler directement, les positions et les infectés prennent ce chemin plus court. Dans le salon, chaque camarade affiche **DIRECT** ou **RELAIS**. Si les relais sont bloqués, le jeu se rabat tout seul sur la connexion directe.
 
-**L'hôte et ses amis doivent avoir la même version** (affichée en haut du menu, par exemple « V4.0 ») : le jeu se met à jour tout seul en arrivant sur le menu. Si un ami a encore une ancienne version, il recharge la page avec Ctrl+F5.
+**L'hôte et ses amis doivent avoir la même version** (affichée en haut du menu, par exemple « V4.1 ») : le jeu se met à jour tout seul en arrivant sur le menu. Si un ami a encore une ancienne version, il recharge la page avec Ctrl+F5.
 
 - **Relève de l'hôte** : si l'hôte quitte ou perd sa connexion, un camarade reprend automatiquement la partie en quelques secondes.
 - **Signaler** (Q ou PING) : un losange à votre couleur apparaît chez tout le monde, avec la distance.
 - **Spectateur** : éliminé en co-op, vous suivez un camarade jusqu'à la manche suivante, où vous revenez **avec vos armes**.
+
+## Le courant : il se mérite
+
+Le générateur ne s'allume plus d'un simple appui. En haut de l'écran, le **bandeau d'objectif** vous guide :
+
+1. **Trouver trois pièces** (fusible, bidon, bobine, courroie… selon la carte). Elles sont cachées **à un endroit différent à chaque partie**, dans les zones à ouvrir ; le bandeau indique les zones où chercher.
+2. **Les installer** au générateur (maintenir E).
+3. **Lancer le moteur** (maintenir E).
+4. **Défendre le générateur** pendant 45 secondes de montée en régime : les infectés affluent, et la jauge ne progresse que si un soldat reste à moins de 8 mètres. Elle redescend si tout le monde s'éloigne.
+
+Récompense : +500 points par soldat, et tout ce qui demande du courant s'allume.
+
+## Missions
+
+Chaque carte a une mission en plusieurs étapes, toujours affichée dans le bandeau en haut de l'écran (avec, tant que le courant n'est pas rétabli, une seconde ligne « En parallèle »). L'accomplir donne l'étoile au classement.
+
+| Carte | Mission | Étapes |
+|---|---|---|
+| **Poste 7** | Opération Aube blanche | L'objectif caché de la radio (solution plus bas). |
+| **Cité Atomique** | Alerte atomique | Abattre les six mannequins au foulard rouge → lancer l'alerte avec la radio d'urgence de l'abri (il faut du courant) → **survivre 60 secondes** à l'alerte, sous la sirène. +3000 points par soldat. |
+| **Le Pénitencier** | L'évasion | Trouver les trois pièces du bouclier et l'assembler → le Geôlier fait sa ronde dès la 3ᵉ manche : l'abattre et **ramasser ses clés** → préparer la vedette amarrée aux quais → **la défendre 60 secondes** à moins de 9 mètres… mais personne ne quitte le rocher. +3000 points par soldat. |
+| **Filon Maudit** | Le trésor du Filon | Libérer le Colosse → lui donner des bonbons → le **guider** jusqu'aux trois éboulis qui brillent (il les fracasse en passant ; 40 s par sachet de bonbons) → ramasser les trois pépites → les déposer dans la **chambre forte** de la banque. +3000 points par soldat et +2000 sur votre compte en banque. |
+
+## Difficulté
+
+Quatre niveaux dans les options : **Recrue**, **Régulier**, **Vétéran** et **Cauchemar**. Les manches sont plus fournies et plus rapides qu'avant (les coureurs arrivent plus tôt, les infectés spéciaux aussi), sans que les infectés frappent plus fort : le défi vient du nombre et de la pression, pas de morts injustes. En **Cauchemar**, les coureurs sont là dès la 2ᵉ manche et les spéciaux arrivent très tôt.
 
 ## Contenu commun
 
@@ -66,17 +96,14 @@ Sur téléphone ou tablette, des commandes tactiles s'affichent : joystick à ga
 - **12 armes** : pistolet, fusil à verrou, fusil à pompe, mitraillette, carabine, fusil d'assaut, fusil-mitrailleur, revolver, fusil de précision, lance-grenades, prototype cryogénique Givre-7 et le **Rayonneur**, un pistolet à énergie verte dont le trait éclabousse les infectés autour de l'impact (caisse uniquement).
 - **Caisse de ravitaillement** (arme aléatoire, elle change d'emplacement) et **établi d'armurier** (amélioration des armes).
 - **8 bonus lâchés par les infectés** : munitions max, mort subite, points doubles, frappe d'artillerie, barricades, **Braderie** (caisse à 10 points pendant 30 s), **Sang Infecté** (les infectés ne vous voient plus pendant 20 s) et **Prime** (+500 points pour tout le monde).
-- **Manches** : marquées à la craie rouge jusqu'à la 5ᵉ, de plus en plus dures ensuite, avec des brutes blindées, le Givreux (manche 7+), le Hurleur (manche 11+) et une tempête toutes les 6 manches.
+- **Manches** : marquées à la craie rouge jusqu'à la 5ᵉ, de plus en plus dures ensuite, avec des brutes blindées (manche 5+), le Givreux (manche 6+), le Hurleur (manche 9+) et une tempête toutes les 6 manches. Ces seuils valent en Régulier : ils arrivent plus tard en Recrue, plus tôt en Vétéran et en Cauchemar.
 - **Morts réalistes** : les infectés s'effondrent sur place (plus de corps qui s'envolent), et vous encaissez plus de coups qu'avant.
 - **Classement des camarades** (bouton *Classement*) : meilleurs résultats par carte, avec une étoile quand l'objectif de la carte est accompli.
 - Neige, cendres, pluie et poussière selon la carte ; éclairs, fusées éclairantes, sons 100 % synthétisés et spatialisés ; 4 niveaux de graphismes avec résolution dynamique.
 
 ## Objectifs (étoile au classement)
 
-- **Poste 7** : l'objectif caché de la radio (solution ci-dessous).
-- **Cité Atomique** : abattre les têtes des six mannequins.
-- **Le Pénitencier** : abattre le Geôlier.
-- **Filon Maudit** : libérer le Colosse.
+L'étoile récompense la mission de la carte (voir **Missions**) : la radio de Poste 7, l'alerte atomique tenue, la vedette défendue jusqu'au bout, l'or déposé dans la chambre forte.
 
 <details>
 <summary>Solution de l'objectif caché de Poste 7 (à ne pas lire si vous voulez chercher)</summary>
