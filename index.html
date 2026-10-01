@@ -146,6 +146,8 @@ h1 em { display: block; color: transparent; font-style: inherit; -webkit-text-st
 .stats td { padding: 7px 8px; text-align: right; font-family: var(--f-mono); border-bottom: 1px solid #ffffff0c; }
 .stats td:first-child { font-family: var(--f-body); font-weight: 700; }
 .go-record { color: var(--gold); font-weight: 800; letter-spacing: .12em; font-size: .78rem; }
+.go-mission { color: #c8d6dc; font-weight: 700; letter-spacing: .08em; font-size: .78rem; }
+.go-mission b { color: var(--gold); }
 .go-rank { color: var(--frost); font-weight: 700; letter-spacing: .08em; font-size: .86rem; }
 .go-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
 
@@ -261,6 +263,8 @@ body.touch #shieldbar { left: 50%; margin-left: -90px; bottom: calc(env(safe-are
 .ping small { font: 400 .64rem var(--f-mono); color: #d8eef5; white-space: nowrap; }
 .ping.pop i { animation: pingPop .55s ease-out; }
 .ping.off i { width: 10px; height: 10px; }
+.ping.obj { --c: var(--gold); opacity: .92; }
+.ping.obj i { border-radius: 2px; background: #2a1d0599; }
 @keyframes pingPop { from { transform: rotate(45deg) scale(2.4); opacity: .15; } }
 body.spectating #crosshair, body.spectating #ammo, body.spectating #weapon, body.spectating #grenades, body.spectating #hpbar, body.spectating #stamina, body.spectating #prompt, body.spectating #downed { display: none; }
 #spectate { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 64px); transform: translateX(-50%); display: grid; justify-items: center; gap: 4px; padding: 10px 18px; background: #06101899; border-top: 1px solid #9ce8ff55; border-bottom: 1px solid #9ce8ff55; color: #e6f8ff; font: 700 .95rem var(--f-body); letter-spacing: .08em; text-align: center; white-space: nowrap; }
@@ -502,6 +506,7 @@ body.touch .control-strip { display: none; }
       <h2>SECTEUR PERDU</h2>
       <div class="go-rounds">Vous avez tenu <b id="goRounds">0</b> <span id="goRoundsWord">manche</span></div>
       <table class="stats"><thead><tr><th>SOLDAT</th><th>POINTS</th><th>ÉLIM.</th><th>TÊTES</th><th>PRÉCISION</th><th>À TERRE</th></tr></thead><tbody id="goStats"></tbody></table>
+      <div class="go-mission" id="goMission"></div>
       <div class="go-record" id="goRecord"></div>
       <div class="go-rank" id="goRank"></div>
       <div class="go-actions"><button id="retryButton" class="btn"><span>↻</span> Rejouer</button><button id="goMenuButton" class="btn outline-button">Menu principal</button></div>
@@ -670,7 +675,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '4.2'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '4.3'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -6342,7 +6347,7 @@ function questApply(type, d) {
   if (type === 'quest') {
     const prev = QUEST.stage;
     QUEST.stage = d.s; QUEST.spots = d.sp || QUEST.spots; QUEST.taken = d.tk || QUEST.taken; QUEST.calib = d.c ?? QUEST.calib; if (d.h !== undefined) QUEST.hold = d.h;
-    WORLD.tubes.forEach((t, i) => { const k = QUEST.spots.indexOf(i); t.g.visible = QUEST.stage === 2 && k >= 0 && !QUEST.taken[k]; });
+    (WORLD.tubes || []).forEach((t, i) => { /* lampes : Poste 7 seulement */ const k = QUEST.spots.indexOf(i); t.g.visible = QUEST.stage === 2 && k >= 0 && !QUEST.taken[k]; });
     if (d.s === 2 && prev < 2) UI.message('OBJECTIF SECRET', "Réparez l'émetteur radio du poste de commandement.");
     if (d.s === 6 && prev < 6) { QUEST.done = true; Sfx.jingle([0, 4, 7, 12, 16, 19, 24], 392, 'triangle', 0.14); UI.banner('OPÉRATION AUBE BLANCHE ACCOMPLIE', '+3000 points · le secteur tient bon'); UI.subtitle(QLINES.done[0]); }
     UI.objective();
@@ -6403,6 +6408,7 @@ function questObjective() {
   if (s === 3) o.sub = 'Poste de commandement';
   if (s === 4) o.bar = QUEST.calib / 20;
   if (s === 5) { o.line += ` — ${Math.max(0, Math.ceil(QUEST.hold))} s`; o.bar = 1 - QUEST.hold / 90; }
+  if (s !== 2) o.at = [RADIO_POS.x, 1.4, RADIO_POS.z];
   return o;
 }
 
@@ -6623,9 +6629,10 @@ function pwrObjective() {
   if (G.power) return null;
   const parts = pwrParts(), n = PWR.got.filter(Boolean).length;
   if (PWR.stage === 0) return { title: 'RÉTABLIR LE COURANT', line: `Trouver les pièces du générateur (${n}/3)`, sub: parts.map((p, i) => `${PWR.got[i] ? '✔' : '○'} ${p.name}`).join('   ·   '), hint: pwrHint() };
-  if (PWR.stage === 1) return { title: 'RÉTABLIR LE COURANT', line: 'Installer les pièces au générateur', sub: ZONE_NAMES[MAP.zone[ti(SPOTS.power.x, SPOTS.power.z)]] || '' };
-  if (PWR.stage === 2) return { title: 'RÉTABLIR LE COURANT', line: 'Lancer le moteur du générateur (maintenir E)', sub: '' };
-  if (PWR.stage === 3) return { title: 'DÉFENDRE LE GÉNÉRATEUR', line: `Restez à moins de ${PWR_RADIUS} m pendant la montée en régime`, bar: PWR.prog / PWR.need };
+  const at = [WORLD.power.pos.x, 1.8, WORLD.power.pos.z];
+  if (PWR.stage === 1) return { title: 'RÉTABLIR LE COURANT', line: 'Installer les pièces au générateur', sub: ZONE_NAMES[MAP.zone[ti(SPOTS.power.x, SPOTS.power.z)]] || '', at };
+  if (PWR.stage === 2) return { title: 'RÉTABLIR LE COURANT', line: 'Lancer le moteur du générateur (maintenir E)', sub: '', at };
+  if (PWR.stage === 3) return { title: 'DÉFENDRE LE GÉNÉRATEUR', line: `Restez à moins de ${PWR_RADIUS} m pendant la montée en régime`, bar: PWR.prog / PWR.need, at };
   return null;
 }
 // Zones où chercher encore (aide légère : le nom de la zone de la pièce la plus proche non trouvée).
@@ -6908,13 +6915,14 @@ const NET = {
   },
   bindHostConn(c) {
     c.on('data', (m) => {
+      if (this.isHost && this.active && c === this.staleHost && Array.isArray(m)) { this.staleHostMsg(c, m); return; }
       if (this.isHost || !this.active) return;
       if (c === this.oldConn && this.migrating) this.cancelMigration(this.oldHost, this.oldEpoch); // fausse alerte : l'ancien hôte parle encore
       if (this.host !== c || !Array.isArray(m)) return;
       if (m[0] === 'hostok' && this.migrating) { this.backToOldHost(); return; }
       this.heardHost(); if (this.migrating) this.migrationDone(); this.onClientMsg(m);
     });
-    c.on('close', () => { if (c === this.oldConn) { this.oldConn = null; return; } if (this.active && this.host === c && !this.isHost) this.lostHost('close'); });
+    c.on('close', () => { if (c === this.staleHost) { this.staleHost = null; return; } if (c === this.oldConn) { this.oldConn = null; return; } if (this.active && this.host === c && !this.isHost) this.lostHost('close'); });
     c.on('error', () => {});
   },
 
@@ -6972,12 +6980,30 @@ const NET = {
     UI.message(`${G.players.get(this.hostId)?.name || 'UN CAMARADE'} DIRIGE LA PARTIE`, 'La partie continue.');
   },
   becomeHost() {
+    // Connexion directe : la liaison de l'ancien hôte reste ouverte ; s'il n'était que figé et se remet à parler, on lui dit de se retirer.
+    if (this.peer && this.oldConn?.open) { this.staleHost = this.oldConn; this.oldConn = null; }
     this.isHost = true; this.migrating = false; this.hostId = P.id; this.heard.clear(); this.snapT = 0; this.snapN = 0; this.dropOld(); this.rtcCloseAll();
     if (this.room) this.conns.clear();
     this.lobby = [{ id: P.id, name: P.name }, ...[...G.players.values()].filter((p) => !p.isLocal).map((p) => ({ id: p.id, name: p.name }))];
     takeOverWorld();
     if (this.peer) this.claimCode();
     UI.message(`${this.oldName} A QUITTÉ LA PARTIE`, 'Vous dirigez maintenant la partie.'); UI.team();
+  },
+  // Ancien hôte revenu sur sa liaison directe : tant qu'il se croit hôte, on lui annonce la nouvelle époque ;
+  // quand il dit bonjour, il devient un camarade comme un autre.
+  staleHostMsg(c, m) {
+    if (m[0] === 'hello') { this.staleHost = null; this.accept(c); this.heard.set(c.peer, this.vt); this.onHostMsg(c, m); return; }
+    const now = performance.now(); if (now - (this.staleT || 0) < 1500) return; this.staleT = now;
+    try { c.send(['newhost', { h: P.id, e: this.epoch }]); } catch { /* perdu */ }
+  },
+  peerStepDown(c, h, e) {
+    this.isHost = false; G.authority = false; this.epoch = e; this.hostId = h; this.migrating = false;
+    for (const [id, k] of this.conns) if (k !== c) { try { k.close(); } catch { /* fermé */ } } // les autres ont déjà rejoint le nouvel hôte
+    this.conns.clear(); this.heard.clear(); this.rtcCloseAll(); this.host = c; this.bindHostConn(c); this.heardHost();
+    for (const z of ZOMBIES) if (z.alive) { z.remote = true; z.net.buf = []; z.lastSeen = performance.now(); }
+    try { c.send(['hello', { name: P.name, v: GAME_VERSION }]); } catch { /* perdu */ }
+    this.localAction('inv');
+    UI.message('LIAISON RÉTABLIE', `${G.players.get(h)?.name || 'Un camarade'} dirige désormais la partie.`);
   },
   // L'ancien hôte revient après une coupure (salon Claude) : il redevient simple camarade.
   stepDown(h, e) {
@@ -7037,6 +7063,7 @@ const NET = {
     if (this.peer) { try { this.peer.destroy(); } catch { /* détruit */ } }
     if (this.codePeer) { try { this.codePeer.destroy(); } catch { /* détruit */ } }
     clearInterval(this.relayRetry); this.relayFound = false;
+    if (this.staleHost) { try { this.staleHost.close(); } catch { /* fermé */ } this.staleHost = null; }
     this.peer = null; this.codePeer = null; this.active = false; this.isHost = false; this.lobby = []; this.code = ''; this.boardSent = false;
     this.migrating = false; this.hostId = null; this.epoch = 0; this.rtcCloseAll(); this.via = null; this.verWarn = '';
     P.id = 'me';
@@ -7051,9 +7078,12 @@ const NET = {
   broadcast(type, data, except) {
     if (!this.active || !this.isHost) return;
     if (this.room) {
-      if (!this.conns.size && type !== 'bye') return;
+      // Le signal de présence part toujours sur le salon, même sans camarade inscrit : un ancien hôte qui revient
+      // après un gel l'entend, voit l'époque plus récente et se retire (sinon chacun resterait hôte de sa partie).
+      const all = type === 'bye' || type === 'ka';
+      if (!this.conns.size && !all) return;
       let t = null; // camarades à joindre par le relais (les autres l'ont reçu par leur liaison directe)
-      if (this.via === 'relay' && this.links.size && type !== 'bye') {
+      if (this.via === 'relay' && this.links.size && !all) {
         t = []; for (const id of this.conns.keys()) if (id !== except && !RTC.send(this.links.get(id), [type, data])) t.push(id);
         if (!t.length) return;
       }
@@ -7079,6 +7109,7 @@ const NET = {
   onHostMsg(c, [type, d]) {
     const pid = c.peer, rec = G.players.get(pid);
     switch (type) {
+      case 'newhost': if (this.peer && d && (d.e | 0) > this.epoch && d.h === pid) this.peerStepDown(c, d.h, d.e | 0); break;
       case 'hello': {
         const name = String(d?.name || 'SOLDAT').slice(0, 12).toUpperCase();
         if (d?.v !== GAME_VERSION && !rec) this.sendTo(pid, 'ver', GAME_VERSION);
@@ -7213,15 +7244,16 @@ function noteShots(rec, n, snd) {
 }
 function localFlags() { return (P.crouch > 0.5 ? 1 : 0) | (P.sprint ? 2 : 0) | (P.ads > 0.5 ? 4 : 0) | (P.down ? 8 : 0) | (P.dead ? 16 : 0) | (P.reload ? 32 : 0) | (P.torch ? 64 : 0); }
 function applyWorldState(s) {
-  for (const id of s.doors) { const d = MAP.doors[id]; d.open = true; d.anim = 1; d.group.visible = false; }
-  refreshZones();
-  s.planks.forEach((n, i) => { const b = MAP.barricades[i]; b.planks = n; for (let k = 0; k < 6; k++) { b.plankShown[k] = k < n; b.plankAnim[k] = 0.999; } });
-  if (s.power) { G.power = true; setPowerVisuals(true, true); Sfx.hum(WORLD.generator ? WORLD.generator.group.position : WORLD.power.pos); }
-  if (s.q) questApply('quest', s.q);
-  if (s.pw) pwrApply(s.pw, true);
-  if (s.mx !== undefined) mapHook('reconcile', s.mx, true);
-  if (Array.isArray(s.lk)) syncLocks(s.lk);
-  G.round = s.round; UI.round(s.round); if (s.box) placeBox(s.box.loc); G.blizzard = s.blizzard; WEATHER.target = s.blizzard ? 1 : 0;
+  // Étapes indépendantes : une erreur dans l'une (état d'une carte, par exemple) n'empêche plus d'appliquer les suivantes.
+  const step = (f) => { try { f(); } catch (e) { console.error(e); } };
+  step(() => { for (const id of s.doors || []) { const d = MAP.doors[id]; if (!d) continue; d.open = true; d.anim = 1; d.group.visible = false; } refreshZones(); });
+  step(() => (s.planks || []).forEach((n, i) => { const b = MAP.barricades[i]; if (!b) return; b.planks = n; for (let k = 0; k < 6; k++) { b.plankShown[k] = k < n; b.plankAnim[k] = 0.999; } }));
+  step(() => { if (s.power) { G.power = true; setPowerVisuals(true, true); Sfx.hum(WORLD.generator ? WORLD.generator.group.position : WORLD.power.pos); } });
+  step(() => { if (s.q && MAP_ID === 'poste7') questApply('quest', s.q); });
+  step(() => { if (s.pw) pwrApply(s.pw, true); });
+  step(() => { if (s.mx !== undefined) mapHook('reconcile', s.mx, true); });
+  step(() => { if (Array.isArray(s.lk)) syncLocks(s.lk); });
+  G.round = s.round; UI.round(s.round); step(() => { if (s.box) placeBox(s.box.loc); }); G.blizzard = s.blizzard; WEATHER.target = s.blizzard ? 1 : 0;
 }
 function applySnapshot(d) {
   const now = performance.now(), seen = new Set();
@@ -7431,6 +7463,25 @@ function updatePings(dt) {
     if (p.off !== off) { p.off = off; p.el.classList.toggle('off', off); }
     if (p.dist !== dist) { p.dist = dist; p.s.textContent = `${p.who ? p.who + ' · ' : ''}${dist} m`; }
   }
+}
+
+// Repère doré de l'objectif en cours (posé par le bandeau d'objectif) ; masqué de près et hors partie.
+const OBJM = { el: null, at: null, dist: -1, off: null };
+function updateObjMarker() {
+  if (!OBJM.el) { OBJM.el = document.createElement('div'); OBJM.el.className = 'ping obj'; OBJM.el.innerHTML = '<i></i><b>OBJECTIF</b><small></small>'; $('pings').appendChild(OBJM.el); }
+  const a = OBJM.at, live = G.mode === 'playing' && a && !P.dead;
+  const d = live ? Math.hypot(a[0] - P.pos.x, a[2] - P.pos.z) : 0;
+  if (!live || d < 3) { OBJM.el.style.display = 'none'; return; }
+  OBJM.el.style.display = '';
+  const cam = R.camera, W = innerWidth, H = innerHeight, m = 36;
+  _pd.set(a[0], a[1], a[2]); _pd.project(cam);
+  let sx = (_pd.x * 0.5 + 0.5) * W, sy = (-_pd.y * 0.5 + 0.5) * H, off = false;
+  // Dans le dos : au milieu du bord gauche ou droit (côté où tourner), loin du bandeau et des compteurs du bas.
+  if (_pd.z > 1) { sx = W - sx < W / 2 ? m : W - m; sy = H * 0.5; off = true; }
+  if (sx < m || sx > W - m || sy < m || sy > H - m) off = true;
+  OBJM.el.style.transform = `translate(${clamp(sx, m, W - m).toFixed(1)}px,${clamp(sy, Math.min(170, H * 0.3), H - Math.min(150, H * 0.3)).toFixed(1)}px)`;
+  if (OBJM.off !== off) { OBJM.off = off; OBJM.el.classList.toggle('off', off); }
+  const dm = Math.round(d); if (OBJM.dist !== dm) { OBJM.dist = dm; OBJM.el.lastChild.textContent = `${dm} m`; }
 }
 
 /* ─── Mort en co-op : on suit un camarade (clic ou Espace pour changer) ─── */
@@ -7799,6 +7850,7 @@ const UI = {
     const el = $('objective'); if (!el) return;
     const live = G.mode === 'playing' || G.mode === 'paused', pw = live && pwrObjective(), ms = live && (mapHook('mission') || questObjective());
     const o = live ? (pw || ms || { title: 'SURVIVRE', line: G.round > 0 ? `Manche ${G.round} — tenez la position` : 'Préparez-vous', sub: '' }) : null;
+    OBJM.at = o && o.at ? o.at : null;
     if (!o) { el.classList.add('hidden'); return; }
     // Le courant passe d'abord, mais la mission de la carte reste visible en seconde ligne.
     const next = pw && ms ? `${ms.title} — ${ms.line}` : '';
@@ -7840,6 +7892,9 @@ const UI = {
     $('goRounds').textContent = d.round; $('goRoundsWord').textContent = d.round > 1 ? 'manches' : 'manche';
     $('goStats').innerHTML = d.stats.map((s) => `<tr><td>${escapeHtml(s.name)}</td><td>${s.points}</td><td>${s.kills}</td><td>${s.heads}</td><td>${s.acc == null ? '—' : s.acc + ' %'}</td><td>${s.downs ?? 0}</td></tr>`).join('');
     const best = store.get(MAP_ID === 'poste7' ? 'best' : 'best_' + MAP_ID, { round: 0 });
+    // Bilan des objectifs : mission de la carte (étoile au classement) et courant.
+    const ms = mapHook('mission') || questObjective();
+    $('goMission').innerHTML = (d.obj ? `<b>★ ${escapeHtml(M.objName || 'Mission accomplie')}</b>` : `Mission inachevée${ms ? ' : ' + escapeHtml(ms.line) : ''}`) + ` · courant ${G.power ? 'rétabli' : 'jamais rétabli'}`;
     $('goRecord').textContent = record ? 'NOUVEAU RECORD PERSONNEL' : `RECORD PERSONNEL : MANCHE ${best.round || d.round}`;
     $('retryButton').classList.toggle('hidden', NET.active && !NET.isHost);
     $('bestRound').textContent = `MANCHE ${Math.max(best.round || 0, d.round)}`;
@@ -8103,7 +8158,7 @@ function frame(now) {
     if (G.mode === 'playing') updatePlayer(dt);
     NET.clientTick(dt);
   } else if (G.mode === 'menu') updateMenu(dt, time);
-  updatePings(dt);
+  updatePings(dt); updateObjMarker();
   updateWeather(dt, time);
   if (M.anim && G.mode !== 'paused') M.anim(dt, time);
   updateFX(dt, time);
@@ -8712,7 +8767,8 @@ function citeMissionCandidates(cand, px, pz) {
 function citeMission() {
   const S = CITE_STATE, n = S.heads.filter(Boolean).length;
   if (S.ms === 0) return { title: 'ALERTE ATOMIQUE', line: `Abattre les mannequins au foulard rouge (${n}/${S.heads.length || 6})`, sub: 'Visez la tête · maisons, jardins, abri, station-service' };
-  if (S.ms === 1) return { title: 'ALERTE ATOMIQUE', line: "Lancer l'alerte avec la radio d'urgence", sub: G.power ? 'Abri antiatomique · maintenir E' : "Abri antiatomique · il faut d'abord du courant" };
+  const r = WORLD.citeRadio;
+  if (S.ms === 1) return { title: 'ALERTE ATOMIQUE', line: "Lancer l'alerte avec la radio d'urgence", sub: G.power ? 'Abri antiatomique · maintenir E' : "Abri antiatomique · il faut d'abord du courant", at: r && G.power ? [r.pos.x, 1.4, r.pos.z] : null };
   if (S.ms === 2) return { title: 'ALERTE ATOMIQUE', line: `Survivre à l'alerte — ${Math.max(0, Math.ceil(S.alertT))} s`, bar: 1 - S.alertT / CITE_ALERT };
   return null;
 }
@@ -8952,7 +9008,7 @@ const PEN_PARTS = [
 
 MAPS.penitencier = {
   id: 'penitencier', name: 'LE PÉNITENCIER', sub: 'Île-prison, nuit d\'orage',
-  objName: 'Tentative d\'évasion',
+  objName: 'Évasion tentée, vedette défendue',
   powerParts: [{ name: 'FUSIBLE', kind: 'fuse', zones: [1, 2] }, { name: 'MANIVELLE', kind: 'crank', zones: [3, 4] }, { name: 'BIDON DE GAZOLE', kind: 'fuel', zones: [6] }],
   intro: ['LE PÉNITENCIER', 'Île-prison, baie des Tempêtes', '31 décembre 1933 — 23 h 07'],
   desc: "Un rocher battu par la tempête, une prison que personne n'a quittée. Les morts sortent de la baie. Le Geôlier fait sa ronde.",
@@ -9208,6 +9264,8 @@ function penReconcile(s) {
   if (typeof s.ms === 'number' && s.ms !== PEN_STATE.ms) penMissionApply('pms', { ms: s.ms, bp: s.bp }, true); else if (typeof s.bp === 'number' && Math.abs(s.bp - PEN_STATE.boatP) > 2) PEN_STATE.boatP = s.bp;
 }
 function penVisuals(dt) {
+  // Invités : l'annonce du Geôlier peut précéder son apparition dans l'instantané ; on le retrouve dès qu'il est là.
+  if (!G.authority && !(PEN_STATE.boss && PEN_STATE.boss.alive)) PEN_STATE.boss = ZOMBIES.find((z) => z.alive && z.kind === 'warden') || null;
   if (WORLD.penParts) for (const m of WORLD.penParts) if (m.visible) { m.rotation.y += dt * 1.2; m.position.y = m.userData.y + Math.sin(G.time * 2 + m.position.x) * 0.05; }
   if (WORLD.beacons) for (const b of WORLD.beacons) b.m.visible = Math.sin(G.time * 2.4 + b.ph) > 0.2;
   if (WORLD.lighthouse) WORLD.lighthouse.rotation.y += dt * 0.55;
@@ -9275,10 +9333,11 @@ function penMissionCandidates(cand, px, pz) {
 }
 function penMission() {
   const S = PEN_STATE, n = S.parts.filter(Boolean).length;
-  if (S.ms === 0) return n < 3 ? { title: "L'ÉVASION", line: `Fabriquer le bouclier : trouver les pièces (${n}/3)`, sub: PEN_PARTS.map((p, i) => `${S.parts[i] ? '✔' : '○'} ${p.name}`).join('   ·   ') } : { title: "L'ÉVASION", line: "Assembler le bouclier à l'établi des douches", sub: '' };
-  if (S.ms === 1) { if (S.keyState === 1) return { title: "L'ÉVASION", line: 'Ramasser les clés du Geôlier', sub: 'Là où il est tombé' }; if (S.boss && S.boss.alive) return { title: "L'ÉVASION", line: 'Abattre le Geôlier et prendre ses clés', sub: 'Visez le corps : son casque arrête les balles' }; return { title: "L'ÉVASION", line: 'Attirer le Geôlier et prendre ses clés', sub: G.round < 3 ? 'Il fera sa ronde dès la 3e manche' : 'Il arrive pendant la manche' }; }
-  if (S.ms === 2) return { title: "L'ÉVASION", line: 'Préparer la vedette amarrée au sud des quais', sub: 'Maintenir E au bord du quai' };
-  if (S.ms === 3) return { title: "L'ÉVASION", line: `Défendre la vedette — restez à moins de ${PEN_BOAT_R} m`, bar: S.boatP / PEN_BOAT_TIME };
+  const T = WORLD.shieldTable, b = WORLD.penBoat, dock = b ? [b.dock.x, 1.2, b.dock.z] : null;
+  if (S.ms === 0) return n < 3 ? { title: "L'ÉVASION", line: `Fabriquer le bouclier : trouver les pièces (${n}/3)`, sub: PEN_PARTS.map((p, i) => `${S.parts[i] ? '✔' : '○'} ${p.name}`).join('   ·   ') } : { title: "L'ÉVASION", line: "Assembler le bouclier à l'établi des douches", sub: '', at: T ? [T.pos.x, 1.4, T.pos.z] : null };
+  if (S.ms === 1) { if (S.keyState === 1) return { title: "L'ÉVASION", line: 'Ramasser les clés du Geôlier', sub: 'Là où il est tombé', at: S.keyPos ? [S.keyPos[0], 1, S.keyPos[1]] : null }; if (S.boss && S.boss.alive) return { title: "L'ÉVASION", line: 'Abattre le Geôlier et prendre ses clés', sub: 'Visez le corps : son casque arrête les balles' }; return { title: "L'ÉVASION", line: 'Attirer le Geôlier et prendre ses clés', sub: G.round < 3 ? 'Il fera sa ronde dès la 3e manche' : 'Il arrive pendant la manche' }; }
+  if (S.ms === 2) return { title: "L'ÉVASION", line: 'Préparer la vedette amarrée au sud des quais', sub: 'Maintenir E au bord du quai', at: dock };
+  if (S.ms === 3) return { title: "L'ÉVASION", line: `Défendre la vedette — restez à moins de ${PEN_BOAT_R} m`, bar: S.boatP / PEN_BOAT_TIME, at: dock };
   return null;
 }
 
@@ -9669,9 +9728,22 @@ class Giant {
     if (this.state === 'caged') { const [cx, cz] = SPOTS.cage; tx = tcx(cx); tz = tcx(cz); spd = 0.6; }
     else if (S.ally && S.allyT > 0) {
       const o = G.players.get(S.ally); S.allyT -= dt;
-      // Un infecté près de lui ou de son maître : il fonce l'écraser.
-      let best = null, bd = 7 * 7; for (const z of ZOMBIES) { if (!z.alive || z.state === 'rise') continue; const d = (z.pos.x - this.pos.x) ** 2 + (z.pos.z - this.pos.z) ** 2; if (d < bd) { bd = d; best = z; } }
-      if (best) { tx = best.pos.x; tz = best.pos.z; spd = 3.2; } else if (o && !o.dead) { const d = Math.hypot(o.pos.x - this.pos.x, o.pos.z - this.pos.z); if (d > 3) { tx = o.pos.x; tz = o.pos.z; spd = Math.min(4, 1.5 + d * 0.3); } }
+      // Un infecté près de lui fonce sur son maître : il l'écrase, mais sans s'éloigner de plus de 8 m de celui qu'il suit.
+      // Il ignore les infectés encore dehors (derrière une barricade) et abandonne une proie qu'il n'arrive pas à approcher.
+      let best = null, bd = 7 * 7; for (const z of ZOMBIES) {
+        if (!z.alive || z.state === 'rise' || (this.ignore && this.ignore.get(z.id) > this.t) || !isTrench(tileOf(z.pos.x), tileOf(z.pos.z))) continue;
+        if (o && Math.hypot(z.pos.x - o.pos.x, z.pos.z - o.pos.z) > 8) continue;
+        const d = (z.pos.x - this.pos.x) ** 2 + (z.pos.z - this.pos.z) ** 2; if (d < bd) { bd = d; best = z; }
+      }
+      if (best) {
+        if (this.prey !== best.id) { this.prey = best.id; this.preyT = 0; this.preyD = bd; }
+        this.preyT += dt; if (bd < this.preyD - 1) { this.preyD = bd; this.preyT = 0; }
+        if (this.preyT > 3) { (this.ignore ||= new Map()).set(best.id, this.t + 6); this.prey = null; best = null; }
+      }
+      // Mission : un éboulis brillant à moins de 6 m de son maître ? il va lui-même le fracasser.
+      let rock = null;
+      if (S.ms === 2 && o && WORLD.filRubble) { let rd = 6; WORLD.filRubble.forEach((r, i) => { const d = Math.hypot(r.pos.x - o.pos.x, r.pos.z - o.pos.z); if (!S.rubble[i] && d < rd) { rd = d; rock = r; } }); }
+      if (best) { tx = best.pos.x; tz = best.pos.z; spd = 3.2; } else if (rock) { tx = rock.pos.x; tz = rock.pos.z; spd = 2.6; } else if (o && !o.dead) { const d = Math.hypot(o.pos.x - this.pos.x, o.pos.z - this.pos.z); if (d > 3) { tx = o.pos.x; tz = o.pos.z; spd = Math.min(4, 1.5 + d * 0.3); } }
       this.slamT -= dt;
       if (this.slamT <= 0 && ZOMBIES.some((z) => z.alive && z.state !== 'rise' && z.pos.distanceToSquared(this.pos) < 3.4 * 3.4)) { this.slamT = 1.25; G.emit('gslam', { x: +this.pos.x.toFixed(2), z: +this.pos.z.toFixed(2) }); this.pend = 0.45; }
       if (this.pend !== undefined && this.pend !== null) { this.pend -= dt; if (this.pend <= 0) { this.pend = null; filSlamHit(this.pos.clone(), S.ally); } }
@@ -9687,12 +9759,17 @@ class Giant {
         this.pathT = (this.pathT || 0) - dt;
         if (this.pathT <= 0 || this.pathGoal !== gx + ',' + gz) { this.pathT = 0.5; this.pathGoal = gx + ',' + gz; this.path = giantPath(gx, gz); }
         const P2 = this.path; let bx = -1, bz = -1, bd = P2 ? P2[ti(cx, cz)] : -1;
-        if (P2 && bd >= 0) for (const [ox, oz] of NB8) { const nx = cx + ox, nz = cz + oz; if (!inMap(nx, nz)) continue; const d = P2[ti(nx, nz)]; if (d >= 0 && d < bd && !edgeBlocked(cx, cz, nx, nz) && (ox === 0 || oz === 0 || (isTrench(cx + ox, cz) && isTrench(cx, cz + oz)))) { bd = d; bx = nx; bz = nz; } }
+        // Diagonale seulement si les deux chemins en L sont libres (pas d'angle de cloison) ; en ligne droite s'il est coincé.
+        const diagOk = (ox, oz) => this.unstick <= 0 && isTrench(cx + ox, cz) && isTrench(cx, cz + oz) && !edgeBlocked(cx, cz, cx + ox, cz) && !edgeBlocked(cx + ox, cz, cx + ox, cz + oz) && !edgeBlocked(cx, cz, cx, cz + oz) && !edgeBlocked(cx, cz + oz, cx + ox, cz + oz);
+        if (P2 && bd >= 0) for (const [ox, oz] of NB8) { const nx = cx + ox, nz = cz + oz; if (!inMap(nx, nz)) continue; const d = P2[ti(nx, nz)]; if (d >= 0 && d < bd && !edgeBlocked(cx, cz, nx, nz) && (ox === 0 || oz === 0 || diagOk(ox, oz))) { bd = d; bx = nx; bz = nz; } }
         if (bx >= 0) { dx = tcx(bx) - this.pos.x; dz = tcx(bz) - this.pos.z; }
       }
       const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
     }
     if (this.slamT > 0.7) spd = 0; // il frappe : il s'arrête
+    // Garde-fou : il veut avancer mais ne progresse plus depuis 1 s (accroché à un meuble ou un angle) → 2 s en ligne droite.
+    this.unstick = (this.unstick || 0) - dt; this.progT = (this.progT || 0) + dt;
+    if (this.progT > 1) { const moved = this.lastP ? Math.hypot(this.pos.x - this.lastP.x, this.pos.z - this.lastP.z) : 1; if (spd > 0.8 && moved < 0.3) this.unstick = 2; this.lastP = this.pos.clone(); this.progT = 0; }
     this.vel.x = damp(this.vel.x, dx * spd, 5, dt); this.vel.z = damp(this.vel.z, dz * spd, 5, dt);
     this.pos.x += this.vel.x * dt; this.pos.z += this.vel.z * dt;
     if (this.state !== 'caged') collideCircle(this.pos, 0.75, pBlocked);
@@ -9721,7 +9798,10 @@ function filReset() {
   const g = FIL_STATE.giant; if (g) { g.state = 'caged'; g.net = null; const [cx, cz] = SPOTS.cage; g.place(tcx(cx), tcx(cz), 0); g.animate(0); }
 }
 function filHost(dt) {
-  const g = FIL_STATE.giant; if (g) g.think(dt);
+  const g = FIL_STATE.giant;
+  // Après une relève, le nouvel hôte simule le Colosse : on oublie la dernière position reçue, sinon l'animation l'y ramène sans cesse.
+  if (g && g.net) { g.net = null; g.vel.set(0, 0, 0); }
+  if (g) g.think(dt);
   // Grille de la cellule achetée : le Colosse sort.
   if (!FIL_STATE.freed && MAP.doors[FIL_STATE.cageDoor]?.open) G.emit('freed', {});
   filMissionHost(dt);
@@ -9850,10 +9930,14 @@ function filMissionCandidates(cand, px, pz) {
 }
 function filMission() {
   const S = FIL_STATE, n = S.gold.filter(Boolean).length;
-  if (S.ms === 0) return { title: 'LE TRÉSOR DU FILON', line: 'Libérer le Colosse de la prison du shérif', sub: 'La grille de sa cellule s\'achète comme une porte' };
-  if (S.ms === 1) return { title: 'LE TRÉSOR DU FILON', line: 'Donner des bonbons au Colosse', sub: 'Comptoir du magasin général · 1000' };
-  if (S.ms === 2) return { title: 'LE TRÉSOR DU FILON', line: `Guider le Colosse vers les éboulis, ramasser l'or (${n}/3)`, sub: S.ally && S.allyT > 0 ? `${S.ally === P.id ? 'Il vous suit' : 'Il suit ' + (G.players.get(S.ally)?.name || 'un camarade')} encore ${Math.ceil(S.allyT)} s` : 'Il ne suit personne : redonnez-lui des bonbons' };
-  if (S.ms === 3) { const v = filVaultPos(); return { title: 'LE TRÉSOR DU FILON', line: "Déposer l'or dans la chambre forte de la banque", sub: v && !v.d.open ? 'Il faut d\'abord ouvrir la chambre forte' : 'Maintenir E devant la chambre forte' }; }
+  const g = S.giant, shop = WORLD.candyShop, near = (list) => { let b = null, bd = 1e9; for (const p of list) { const d = Math.hypot(p[0] - P.pos.x, p[2] - P.pos.z); if (d < bd) { bd = d; b = p; } } return b; };
+  const cage = MAP.doors[S.cageDoor], feedAt = S.candy[P.id] && g ? [g.pos.x, 3.2, g.pos.z] : shop ? [shop.pos.x, 1.4, shop.pos.z] : null;
+  if (S.ms === 0) return { title: 'LE TRÉSOR DU FILON', line: 'Libérer le Colosse de la prison du shérif', sub: 'La grille de sa cellule s\'achète comme une porte', at: cage ? [tcx(cage.x), 1.6, tcx(cage.z)] : null };
+  if (S.ms === 1) return { title: 'LE TRÉSOR DU FILON', line: 'Donner des bonbons au Colosse', sub: 'Comptoir du magasin général · 1000', at: feedAt };
+  const nug = (WORLD.filRubble || []).filter((r) => r.nug.visible).map((r) => [r.pos.x, 0.8, r.pos.z]), rocks = (WORLD.filRubble || []).filter((r, i) => !S.rubble[i]).map((r) => [r.pos.x, 1.2, r.pos.z]);
+  const following = S.ally && S.allyT > 0;
+  if (S.ms === 2) return { at: nug.length ? near(nug) : following ? near(rocks) : feedAt, title: 'LE TRÉSOR DU FILON', line: `Guider le Colosse vers les éboulis, ramasser l'or (${n}/3)`, sub: S.ally && S.allyT > 0 ? `${S.ally === P.id ? 'Il vous suit' : 'Il suit ' + (G.players.get(S.ally)?.name || 'un camarade')} encore ${Math.ceil(S.allyT)} s` : 'Il ne suit personne : redonnez-lui des bonbons' };
+  if (S.ms === 3) { const v = filVaultPos(); return { at: v ? [v.x, 1.4, v.z] : null, title: 'LE TRÉSOR DU FILON', line: "Déposer l'or dans la chambre forte de la banque", sub: v && !v.d.open ? 'Il faut d\'abord ouvrir la chambre forte' : 'Maintenir E devant la chambre forte' }; }
   return null;
 }
 

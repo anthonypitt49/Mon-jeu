@@ -23,7 +23,7 @@ Les cartes sont des créations originales, inspirées de l'ambiance des cartes Z
 | **Poste 7** | Tranchées gelées, hiver 1917 | La carte d'origine : bunker, dépôt du générateur, le Cratère (un vrai trou d'obus, en pente) et son biplan en feu, char abandonné, canon de campagne, téléphone de mortier, barbelés électrifiés, objectif caché de la radio. Un géant d'acier arpente l'horizon. |
 | **Cité Atomique** | Village témoin d'un site d'essais nucléaires, au crépuscule | Deux pavillons meublés (cuisines, salles de bains, bibliothèques), un abri antiatomique, une station-service, un bus scolaire calciné, un camion de déménagement, des berlines des années 50. Les machines d'atouts **tombent du ciel**, une par manche. Mission : **Alerte atomique**. |
 | **Le Pénitencier** | Île-prison, nuit d'orage | Blocs de cellules, cantine, infirmerie, douches, bureau du directeur, quais battus par les vagues, phare et pont suspendu. **Le Geôlier**, un boss casqué, cadenasse atouts et caisse. Trois pièces cachées permettent de fabriquer un **bouclier**. Mission : **L'évasion**. |
-| **Filon Maudit** | Ville minière du Far West engloutie sous la montagne | Galerie de mine, grand-rue, saloon, magasin, banque, prison, église à charpente apparente, sous une voûte de roche percée d'un puits de lumière. **Le Colosse**, un géant enfermé chez le shérif : libérez-le, offrez-lui des bonbons et il écrase les infectés pour vous. **Banque** : les points déposés sont conservés d'une partie à l'autre. Mission : **Le trésor du Filon**. |
+| **Filon Maudit** | Ville minière du Far West engloutie sous la montagne | Galerie de mine, grand-rue, saloon, magasin, banque, prison, église à charpente apparente, sous une voûte de roche percée d'un puits de lumière. **Le Colosse**, un géant enfermé chez le shérif : libérez-le, offrez-lui des bonbons et il écrase les infectés autour de vous (sans s'égarer) et fracasse les éboulis brillants près desquels vous le menez. **Banque** : les points déposés sont conservés d'une partie à l'autre. Mission : **Le trésor du Filon**. |
 
 ### Décors
 
@@ -60,9 +60,9 @@ Sur téléphone ou tablette, des commandes tactiles s'affichent : joystick à ga
 
 **Si aucun relais ne répond chez l'hôte**, le salon l'affiche en orange : la partie passe en connexion directe, que seuls les joueurs du même Wi-Fi peuvent rejoindre. Le jeu retente les relais toutes les 12 secondes et, dès que l'un d'eux répond, affiche un **nouveau code** à donner aux amis. Côté invité, le message d'erreur dit pourquoi la partie est introuvable : hôte en connexion directe, partie hébergée sur claude.ai, relais bloqués par votre réseau, ou code erroné.
 
-**L'hôte et ses amis doivent avoir la même version** (affichée en haut du menu, par exemple « V4.2 ») : le jeu se met à jour tout seul en arrivant sur le menu. Si un ami a encore une ancienne version, il recharge la page avec Ctrl+F5.
+**L'hôte et ses amis doivent avoir la même version** (affichée en haut du menu, par exemple « V4.3 ») : le jeu se met à jour tout seul en arrivant sur le menu. Si un ami a encore une ancienne version, il recharge la page avec Ctrl+F5.
 
-- **Relève de l'hôte** : si l'hôte quitte ou perd sa connexion, un camarade reprend automatiquement la partie en quelques secondes.
+- **Relève de l'hôte** : si l'hôte quitte ou perd sa connexion, un camarade reprend automatiquement la partie en quelques secondes. Si l'ordinateur de l'hôte n'avait fait que geler (chargement, ralentissement), il rejoint tout seul la partie reprise à son retour : plus de partie coupée en deux.
 - **Signaler** (Q ou PING) : un losange à votre couleur apparaît chez tout le monde, avec la distance.
 - **Spectateur** : éliminé en co-op, vous suivez un camarade jusqu'à la manche suivante, où vous revenez **avec vos armes**.
 
@@ -79,7 +79,7 @@ Récompense : +500 points par soldat, et tout ce qui demande du courant s'allume
 
 ## Missions
 
-Chaque carte a une mission en plusieurs étapes, toujours affichée dans le bandeau en haut de l'écran (avec, tant que le courant n'est pas rétabli, une seconde ligne « En parallèle »). L'accomplir donne l'étoile au classement.
+Chaque carte a une mission en plusieurs étapes, toujours affichée dans le bandeau en haut de l'écran (avec, tant que le courant n'est pas rétabli, une seconde ligne « En parallèle »). Dès qu'une étape se joue à un endroit précis (générateur, radio, établi, clés, vedette, magasin, Colosse, éboulis, chambre forte), un **repère doré « OBJECTIF »** indique la direction et la distance ; les étapes de fouille (pièces, mannequins, lampes) restent à chercher. L'accomplir donne l'étoile au classement, et l'écran de fin rappelle si la mission a été accomplie et si le courant a été rétabli.
 
 | Carte | Mission | Étapes |
 |---|---|---|
