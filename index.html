@@ -680,7 +680,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '4.4'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '4.5'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -868,6 +868,17 @@ function buildSprites() {
     x.fillStyle = g; x.fillRect(0, 0, s, s); x.strokeStyle = 'rgba(15,12,10,.6)'; x.lineWidth = 1;
     for (let k = 0; k < 6; k++) { const a = rng() * TAU; x.beginPath(); x.moveTo(32, 32); x.lineTo(32 + Math.cos(a) * (10 + rng() * 14), 32 + Math.sin(a) * (10 + rng() * 14)); x.stroke(); }
     T.hole = toTex(c, { repeat: false }); }
+  // Éclaboussure murale : gerbe de gouttelettes vers le haut de l'impact, coulures vers le bas (le bas de la texture = le sol).
+  { const s = 128, c = makeCanvas(s), x = c.getContext('2d'), col = () => `rgba(${70 + rng() * 45},${3 + rng() * 6},${5 + rng() * 5},`;
+    for (let k = 0; k < 7; k++) { x.fillStyle = col() + (0.75 + rng() * 0.2) + ')'; x.beginPath(); x.ellipse(64 + (rng() - 0.5) * 18, 60 + (rng() - 0.5) * 14, 5 + rng() * 9, 4 + rng() * 7, rng() * TAU, 0, TAU); x.fill(); }
+    for (let k = 0; k < 70; k++) { const a = rng() * TAU, d = 10 + rng() * 48 * (0.4 + 0.6 * Math.abs(Math.cos(a))), r = 0.6 + rng() * 2.6; x.fillStyle = col() + (0.6 + rng() * 0.35) + ')'; x.beginPath(); x.ellipse(64 + Math.cos(a) * d, 60 + Math.sin(a) * d * 0.8, r * 1.8, r, a, 0, TAU); x.fill(); }
+    for (let k = 0; k < 5; k++) { const x0 = 50 + rng() * 28, y0 = 60 + rng() * 8, L = 18 + rng() * 44, w = 1.4 + rng() * 2; x.fillStyle = col() + '0.8)'; x.fillRect(x0 - w / 2, y0, w, L); x.beginPath(); x.ellipse(x0, y0 + L, w * 0.9, w * 1.3, 0, 0, TAU); x.fill(); }
+    T.spatter = toTex(c, { repeat: false }); }
+  // Empreinte de semelle (talon et avant-pied), en gris neutre : teintée selon le sol.
+  { const s = 64, c = makeCanvas(s, 128), x = c.getContext('2d');
+    x.fillStyle = 'rgba(255,255,255,.85)'; x.beginPath(); x.ellipse(32, 38, 20, 30, 0, 0, TAU); x.fill(); x.beginPath(); x.ellipse(32, 98, 16, 20, 0, 0, TAU); x.fill();
+    x.globalCompositeOperation = 'destination-out'; x.fillStyle = 'rgba(0,0,0,.45)'; for (let k = 0; k < 7; k++) x.fillRect(14, 18 + k * 7, 36, 2.5); for (let k = 0; k < 4; k++) x.fillRect(18, 86 + k * 7, 28, 2.5);
+    T.print = toTex(c, { repeat: false }); }
   T.scorch = toTex(radial(128, [[0, 'rgba(10,8,6,.95)'], [0.45, 'rgba(25,20,16,.7)'], [1, 'rgba(0,0,0,0)']]), { repeat: false });
   return T;
 }
@@ -975,6 +986,12 @@ const Sfx = {
     this.verb = ctx.createConvolver(); this.verb.buffer = ir;
     this.verbSend = ctx.createGain(); this.verbSend.gain.value = 0.2;
     this.verbSend.connect(this.verb); this.verb.connect(this.master);
+    // Écho extérieur des détonations : un retour assourdi, plus ou moins lointain selon le terrain (désert, île, plaine, mine).
+    const EC = { cite: [0.55, 0.2], penitencier: [0.34, 0.15], filon: [0.16, 0.1], poste7: [0.42, 0.15] }[MAP_ID] || [0.4, 0.15];
+    this.echoSend = ctx.createGain(); this.echoSend.gain.value = 0;
+    const dl = ctx.createDelay(1.5), lp = ctx.createBiquadFilter(), fb = ctx.createGain(), eg = ctx.createGain();
+    dl.delayTime.value = EC[0]; lp.type = 'lowpass'; lp.frequency.value = 1100; fb.gain.value = 0.28; eg.gain.value = EC[1] / 0.15;
+    this.echoSend.connect(dl); dl.connect(lp); lp.connect(eg); eg.connect(this.master); lp.connect(fb); fb.connect(dl);
     // Tampons de bruit.
     const nb = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), nd = nb.getChannelData(0);
     for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
@@ -999,7 +1016,7 @@ const Sfx = {
       L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0;
     } else { L.setPosition(p.x, p.y, p.z); L.setOrientation(_v1.x, _v1.y, _v1.z, 0, 1, 0); }
   },
-  setReverb(w) { if (this.ready) this.verbSend.gain.setTargetAtTime(w, this.ctx.currentTime, 0.4); },
+  setReverb(w, echo = 0) { if (!this.ready) return; this.verbSend.gain.setTargetAtTime(w, this.ctx.currentTime, 0.4); this.echoSend.gain.setTargetAtTime(echo, this.ctx.currentTime, 0.4); },
   // Sortie : spatialisée si une position est fournie.
   out(pos, { gain = 1, verb = 0.3, ref = 2.5, bus } = {}) {
     const ctx = this.ctx, g = ctx.createGain(); g.gain.value = gain;
@@ -1039,6 +1056,7 @@ const Sfx = {
     if (profile === 'ray') { const o = this.out(local ? null : pos, { gain: local ? 0.45 : 0.6, verb: 0.35, ref: 6 }); this.tone(o, { type: 'square', f: 1900, f2: 260, a: 0.002, d: 0.22, peak: 0.35 }); this.tone(o, { type: 'sine', f: 900, f2: 120, a: 0.002, d: 0.28, peak: 0.5 }); this.burst(o, { type: 'highpass', f: 5000, d: 0.05, peak: 0.2 }); return; }
     const P = GUN_SOUNDS[profile] || GUN_SOUNDS.pistol;
     const o = this.out(local ? null : pos, { gain: local ? P.gain : P.gain * 1.4, verb: P.verb, ref: 6 });
+    if (this.echoSend) { const e = this.ctx.createGain(); e.gain.value = local ? 0.15 : 0.1; o.connect(e); e.connect(this.echoSend); }
     this.burst(o, { type: 'bandpass', f: P.crack, q: 0.7, d: P.cd, peak: 1 });
     this.burst(o, { type: 'lowpass', f: P.body, q: 0.5, a: 0.003, d: P.bd, peak: 0.9, sweep: P.body * 0.3 });
     this.tone(o, { f: P.thump, f2: P.thump * 0.4, d: 0.18, peak: 0.8 });
@@ -4024,16 +4042,22 @@ function initFX() {
   FX.glow = new Particles(settings.quality >= 2 ? 1200 : 600, TEX.sprites.spark, true);
   // Décalcomanies (sang, impacts, brûlures).
   const dm = (tex, rough) => new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, roughness: rough });
-  FX.decalMats = { blood: dm(TEX.sprites.blood, 0.35), hole: dm(TEX.sprites.hole, 0.9), scorch: dm(TEX.sprites.scorch, 1) };
+  FX.decalMats = { blood: dm(TEX.sprites.blood, 0.35), hole: dm(TEX.sprites.hole, 0.9), scorch: dm(TEX.sprites.scorch, 1), spatter: dm(TEX.sprites.spatter, 0.3) };
+  FX.decalMats.blood.color.set(0x8c8c8c); FX.decalMats.spatter.color.set(0xa0a0a0); // sang épais, plus sombre qu'en gouttelettes
+  // Empreintes : réserve à part (elles ne chassent ni le sang ni les impacts), teinte selon le sol de la carte.
+  const pm = dm(TEX.sprites.print, 1); pm.color.set(MAP_ID === 'filon' ? 0x24180f : 0x1a2232); pm.opacity = MAP_ID === 'filon' ? 0.6 : 0.85;
+  FX.prints = []; FX.printIdx = 0;
+  for (let i = 0; i < (settings.quality >= 2 ? 48 : 24); i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), pm); m.visible = false; m.renderOrder = 2; m.userData.dynamic = true; R.scene.add(m); FX.prints.push({ m, life: 0 }); }
   const pg = new THREE.PlaneGeometry(1, 1);
-  for (let i = 0; i < Q.decals; i++) { const m = new THREE.Mesh(pg, FX.decalMats.hole); m.visible = false; m.renderOrder = 2; m.receiveShadow = true; R.scene.add(m); FX.decals.push({ m, life: 0 }); }
+  // « dynamic » : sans ce drapeau, la fusion des objets fixes (lancée juste après) les avalait, et plus aucun impact, sang ni brûlure ne s'affichait.
+  for (let i = 0; i < Q.decals; i++) { const m = new THREE.Mesh(pg, FX.decalMats.hole); m.visible = false; m.renderOrder = 2; m.receiveShadow = true; m.userData.dynamic = true; R.scene.add(m); FX.decals.push({ m, life: 0 }); }
   // Douilles.
   FX.casingMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.006, 0.006, 0.028, 6), MATS.brass, 48); FX.casingMesh.frustumCulled = false; FX.casingMesh.castShadow = false; R.scene.add(FX.casingMesh);
   for (let i = 0; i < 48; i++) { FX.casings.push({ p: new THREE.Vector3(0, -99, 0), v: new THREE.Vector3(), r: new THREE.Euler(), w: new THREE.Vector3(), life: 0 }); FX.casingMesh.setMatrixAt(i, _m1.makeTranslation(0, -99, 0)); }
   FX.casingIdx = 0;
   // Traçantes.
   const tm = new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-  for (let i = 0; i < 16; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 1), tm.clone()); m.visible = false; R.scene.add(m); FX.tracers.push({ m, life: 0 }); }
+  for (let i = 0; i < 16; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 1), tm.clone()); m.visible = false; m.userData.dynamic = true; R.scene.add(m); FX.tracers.push({ m, life: 0 }); }
   // Fusée éclairante.
   FX.flare.sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.sprites.glow, color: 0xffe6d0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
   FX.flare.sprite.scale.set(6, 6, 1); FX.flare.sprite.visible = false; R.scene.add(FX.flare.sprite);
@@ -4058,23 +4082,25 @@ function fxBlood(p, dir, amount = 1, frozen = false) {
     FX.soft.spawn(p.x, p.y, p.z, dir.x * s + rand(-1.4, 1.4), dir.y * s + rand(-0.5, 2), dir.z * s + rand(-1.4, 1.4), rand(0.35, 0.9), rand(0.03, 0.09), c[0], c[1], c[2], 0.95, 9, 1.5, 0.05);
   }
   FX.soft.spawn(p.x, p.y, p.z, dir.x * 0.4, 0.2, dir.z * 0.4, 0.5, 0.25 * amount, frozen ? 0.8 : 0.35, frozen ? 0.9 : 0.02, frozen ? 1 : 0.03, 0.5, 0, 2, 0.5);
-  if (Math.random() < 0.55 * amount) {
-    // Flaque de sang au sol sous le point d'impact.
-    const gx = p.x + dir.x * rand(0.3, 1.2), gz = p.z + dir.z * rand(0.3, 1.2), gy = groundAt(gx, gz);
-    addDecal(frozen ? 'hole' : 'blood', _v1.set(gx, gy + 0.02, gz), _v2.set(0, 1, 0), rand(0.5, 1.2) * Math.min(1.6, amount), 90);
+  if (Math.random() < 0.45 * amount) {
+    // Gouttes projetées au sol dans l'axe du tir (la vraie flaque se forme sous le corps, voir bloodPool).
+    const k = rand(0.4, 1.6), gx = p.x + dir.x * k, gz = p.z + dir.z * k, gy = groundAt(gx, gz);
+    addDecal(frozen ? 'hole' : 'blood', _v1.set(gx, gy + 0.035, gz), _v2.set(0, 1, 0), rand(0.22, 0.5) * Math.min(1.4, amount), 90);
   }
 }
 function fxImpact(p, n, mat) {
   const col = mat === 'wood' ? [0.35, 0.26, 0.17] : mat === 'metal' ? [0.4, 0.4, 0.42] : mat === 'concrete' ? [0.55, 0.55, 0.56] : [0.42, 0.36, 0.3];
   const snowy = mat === 'earth' && n.y > 0.5;
   for (let i = 0; i < 7; i++) FX.soft.spawn(p.x, p.y, p.z, n.x * rand(0.5, 2.5) + rand(-0.6, 0.6), n.y * rand(0.5, 2.5) + rand(0, 1.2), n.z * rand(0.5, 2.5) + rand(-0.6, 0.6), rand(0.3, 0.7), rand(0.02, 0.05), snowy ? 0.9 : col[0], snowy ? 0.92 : col[1], snowy ? 0.96 : col[2], 1, 8, 1);
-  FX.soft.spawn(p.x + n.x * 0.05, p.y + n.y * 0.05, p.z + n.z * 0.05, n.x * 0.4, 0.3, n.z * 0.4, rand(0.6, 1.1), 0.18, snowy ? 0.85 : col[0] * 1.4, snowy ? 0.88 : col[1] * 1.4, snowy ? 0.92 : col[2] * 1.4, 0.55, 0, 1.5, 0.6);
+  FX.soft.spawn(p.x + n.x * 0.05, p.y + n.y * 0.05, p.z + n.z * 0.05, n.x * 0.5, 0.25, n.z * 0.5, rand(0.35, 0.65), 0.1, snowy ? 0.85 : col[0] * 1.15, snowy ? 0.88 : col[1] * 1.15, snowy ? 0.92 : col[2] * 1.15, 0.38, 0, 2.2, 0.4);
   if (mat === 'metal' || mat === 'concrete') for (let i = 0; i < 6; i++) FX.glow.spawn(p.x, p.y, p.z, n.x * rand(1, 5) + rand(-2, 2), n.y * rand(1, 4) + rand(0, 3), n.z * rand(1, 5) + rand(-2, 2), rand(0.1, 0.3), 0.04, 1, 0.75, 0.4, 1, 12, 0.5);
   addDecal('hole', p, n, rand(0.07, 0.12), 40);
   Sfx.impact(p, mat);
 }
-function fxMuzzleSmoke(p, dir) {
-  for (let i = 0; i < 3; i++) FX.soft.spawn(p.x + dir.x * 0.1, p.y + dir.y * 0.1, p.z + dir.z * 0.1, dir.x * rand(0.3, 1) + rand(-0.2, 0.2), rand(0.1, 0.5), dir.z * rand(0.3, 1) + rand(-0.2, 0.2), rand(0.5, 1), 0.08, 0.7, 0.7, 0.72, 0.25, -0.2, 1.2, 0.5);
+// Poudre sans fumée : une bouffée légère, poussée à 50 cm devant l'arme pour ne pas voiler la visée.
+function fxMuzzleSmoke(p, dir, heavy = false) {
+  if (!heavy && Math.random() < 0.5) return;
+  FX.soft.spawn(p.x + dir.x * 0.5, p.y + dir.y * 0.5, p.z + dir.z * 0.5, dir.x * rand(0.6, 1.4) + rand(-0.15, 0.15), rand(0.15, 0.45), dir.z * rand(0.6, 1.4) + rand(-0.15, 0.15), rand(0.35, 0.7), 0.06, 0.62, 0.62, 0.64, heavy ? 0.2 : 0.11, -0.2, 1.6, 0.35);
 }
 function fxExplosion(p, radius = 5) {
   for (let i = 0; i < 40; i++) { const a = rand(TAU), e = rand(-0.2, 1), s = rand(2, 9); FX.glow.spawn(p.x, p.y + 0.2, p.z, Math.cos(a) * s * (1 - Math.abs(e) * 0.5), e * s + 2, Math.sin(a) * s * (1 - Math.abs(e) * 0.5), rand(0.15, 0.45), rand(0.3, 0.9), 1, rand(0.45, 0.8), 0.25, 1, 2, 3, 1.5); }
@@ -4103,17 +4129,46 @@ function fxBreath(cam) {
   const x = cam.position.x + _v1.x * 0.35, y = cam.position.y - 0.12, z = cam.position.z + _v1.z * 0.35;
   for (let i = 0; i < 6; i++) FX.soft.spawn(x + rand(-0.03, 0.03), y, z + rand(-0.03, 0.03), _v1.x * rand(0.3, 0.7) + rand(-0.1, 0.1), rand(0.05, 0.2), _v1.z * rand(0.3, 0.7) + rand(-0.1, 0.1), rand(0.8, 1.4), 0.06, 0.92, 0.95, 1, 0.16, -0.05, 1.4, 0.18);
 }
-function addDecal(type, p, n, size, life) {
+function addDecal(type, p, n, size, life, rot = rand(TAU)) {
   const d = FX.decals[FX.decalIdx]; FX.decalIdx = (FX.decalIdx + 1) % FX.decals.length;
-  if (!d) return;
-  d.m.material = FX.decalMats[type]; d.m.visible = true; d.life = life; d.maxLife = life;
+  if (!d) return null;
+  d.m.material = FX.decalMats[type]; d.m.visible = true; d.life = life; d.maxLife = life; d.grow = null;
   d.m.position.copy(p).addScaledVector(n, 0.012);
-  _v3.copy(p).add(n); d.m.lookAt(_v3); d.m.rotateZ(rand(TAU)); d.m.scale.set(size, size, 1);
+  _v3.copy(p).add(n); d.m.lookAt(_v3); d.m.rotateZ(rot); d.m.scale.set(size, size, 1);
+  return d;
+}
+// Un obstacle disparaît (porte ouverte, éboulis dégagé, machine déplacée) : ses impacts et éclaboussures partent avec lui
+// au lieu de flotter dans le vide. Le sang au sol reste.
+function decalsOff(x0, z0, x1, z1, m = 0.08) {
+  for (const d of FX.decals || []) if (d.life > 0) { const p = d.m.position; if (p.y > 0.12 && p.x > x0 - m && p.x < x1 + m && p.z > z0 - m && p.z < z1 + m) { d.life = 0; d.m.visible = false; } }
+}
+const decalsOffObj = (o) => { if (!o) return; const b = new THREE.Box3().setFromObject(o); if (!b.isEmpty()) decalsOff(b.min.x, b.min.z, b.max.x, b.max.z); };
+// Flaque sous un corps : s'étale en quelques secondes (le sang s'écoule), puis reste après que le corps a disparu.
+function bloodPool(x, z, size) {
+  const d = addDecal('blood', _v1.set(x, groundAt(x, z) + 0.036, z), _v2.set(0, 1, 0), 0.1, 75);
+  if (d) d.grow = { t: 0, T: rand(5, 8), to: size };
+}
+// Empreinte de pas (neige, terre battue) : alternée gauche/droite, orientée dans le sens de la marche.
+function addPrint(x, z, yaw, side) {
+  const d = FX.prints && FX.prints[FX.printIdx]; if (!d) return; FX.printIdx = (FX.printIdx + 1) % FX.prints.length;
+  const px = x + Math.cos(yaw) * 0.11 * side, pz = z - Math.sin(yaw) * 0.11 * side;
+  d.m.position.set(px, groundAt(px, pz) + 0.035, pz); /* au-dessus des bosses du sol (±2 cm) : l'écart ne se voit pas à hauteur d'yeux */ d.m.rotation.set(-Math.PI / 2, 0, yaw + rand(-0.08, 0.08)); d.m.scale.set(0.14, 0.32, 1); d.m.visible = true; d.life = 40;
 }
 function spawnCasing(p, dir, right, shell) {
   const c = FX.casings[FX.casingIdx]; FX.casingIdx = (FX.casingIdx + 1) % FX.casings.length;
   c.p.copy(p); c.v.copy(right).multiplyScalar(rand(1.5, 2.6)).addScaledVector(dir, rand(-0.3, 0.3)); c.v.y += rand(1.2, 2.2);
   c.w.set(rand(-20, 20), rand(-20, 20), rand(-20, 20)); c.life = 3.5; c.shell = shell; c.bounced = 0;
+  // Hauteur du tireur au-dessus du terrain (caisse, toit, passerelle) : les douilles tombent à ses pieds, relief compris.
+  const fh = (x, z) => (M.floorH ? M.floorH(x, z) : 0); c.dh = Math.max(0, propSupport(P.pos, 0.3, P.pos.y + 0.05, 0.3) - fh(P.pos.x, P.pos.z));
+}
+// Sol sous une douille : relief de la carte, et caillebotis des boyaux du Poste 7 (bande d'un mètre au centre, dessus à 11 cm).
+function casingFloor(x, z) {
+  let y = M.floorH ? M.floorH(x, z) : 0;
+  if (MAP_ID === 'poste7') {
+    const tx = tileOf(x), tz = tileOf(z);
+    if (inMap(tx, tz) && (MAP.style[ti(tx, tz)] === STYLE_TRENCH || tType(tx, tz) === T_DOOR) && Math.min(Math.abs(x - tcx(tx)), Math.abs(z - tcx(tz))) < 0.45) y = Math.max(y, 0.112);
+  }
+  return y;
 }
 function fireTracer(from, to, col = 0xffd9a0, w = 1, life = 0.05, full = false) {
   const t = FX.tracers.find((q) => q.life <= 0); if (!t) return;
@@ -4139,13 +4194,18 @@ function shakeAt(p, amt, radius) { const d = R.camera.position.distanceTo(p); FX
 function updateFX(dt, time) {
   FX.soft.update(dt); FX.glow.update(dt);
   const fogD = R.scene.fog.density; FX.soft.mat.uniforms.uFogD.value = fogD; FX.glow.mat.uniforms.uFogD.value = fogD;
-  for (const d of FX.decals) if (d.life > 0) { d.life -= dt; if (d.life <= 0) d.m.visible = false; else if (d.life < 5) d.m.scale.multiplyScalar(1 - dt * 0.1); }
+  for (const d of FX.decals) if (d.life > 0) {
+    d.life -= dt; if (d.life <= 0) { d.m.visible = false; continue; }
+    if (d.grow) { const g = d.grow; g.t += dt; const s = 0.1 + (g.to - 0.1) * (1 - (1 - Math.min(1, g.t / g.T)) ** 2.5); d.m.scale.set(s, s, 1); if (g.t >= g.T) d.grow = null; }
+    else if (d.life < 5) d.m.scale.multiplyScalar(1 - dt * 0.1);
+  }
+  for (const d of FX.prints || []) if (d.life > 0) { d.life -= dt; if (d.life <= 0) d.m.visible = false; else if (d.life < 6) d.m.scale.multiplyScalar(1 - dt * 0.12); }
   // Douilles : chute, rebonds, tintement.
   for (let i = 0; i < FX.casings.length; i++) {
     const c = FX.casings[i]; if (c.life <= 0) continue;
     c.life -= dt; c.v.y -= 9.8 * dt; c.p.addScaledVector(c.v, dt);
-    const floorY = 0.1;
-    if (c.p.y < floorY) { c.p.y = floorY; if (c.v.y < -0.6 && c.bounced < 2) { c.v.y *= -0.35; c.v.x *= 0.5; c.v.z *= 0.5; c.bounced++; if (c.bounced === 1) Sfx.casing(c.p, c.shell); } else { c.v.set(0, 0, 0); c.w.multiplyScalar(0.8); } }
+    const floorY = casingFloor(c.p.x, c.p.z) + (c.dh || 0) + (c.shell ? 0.015 : 0.007); // couchée, pas en lévitation
+    if (c.p.y < floorY) { c.p.y = floorY; if (c.v.y < -0.6 && c.bounced < 2) { c.v.y *= -0.35; c.v.x *= 0.5; c.v.z *= 0.5; c.bounced++; if (c.bounced === 1) Sfx.casing(c.p, c.shell); } else { c.v.set(0, 0, 0); c.w.set(0, 0, 0); c.r.x = Math.PI / 2; c.r.y = 0; } }
     c.r.x += c.w.x * dt; c.r.y += c.w.y * dt; c.r.z += c.w.z * dt;
     _q1.setFromEuler(c.r); _m1.compose(c.p, _q1, _v2.set(c.shell ? 2.4 : 1, c.shell ? 1.9 : 1, c.shell ? 2.4 : 1));
     if (c.life <= 0) _m1.makeTranslation(0, -99, 0);
@@ -5096,6 +5156,8 @@ class Zombie {
     this.t += dt;
     if (!this.limbs) { if (this.t > 9) this.destroy(); return; } // éclaté en glace : rien à animer
     if (this.rag) {
+      // Le corps s'est posé : le sang commence à s'étaler dessous (plus large pour les gros gabarits).
+      if (!this.pooled && this.t > 1.1) { this.pooled = true; const P = this.rag.p, k = this.headless ? 0.8 : 0.4; /* sous le torse ; vers le cou si la tête a sauté */ bloodPool(lerp(P[0].x, P[2].x, k), lerp(P[0].z, P[2].z, k), rand(0.75, 1.15) * Math.min(1.6, this.scale) * (this.headless ? 1.2 : 1)); }
       const cam = R.camera.position;
       if (this.rag.age < 4 || cam.distanceToSquared(this.rag.p[0]) < 900) this.rag.step(Math.min(dt, 1 / 30));
       if (this.t > 6) { this.rag.baseY -= dt * 0.22; this.rag.apply(); }
@@ -5288,6 +5350,10 @@ function stepSound(loud) {
   const i = ti(tileOf(P.pos.x), tileOf(P.pos.z)), st = MAP.style[i];
   const surf = M.stepSurface ? M.stepSurface(st) : st === STYLE_BUNKER ? 'concrete' : st === STYLE_DUGOUT ? 'wood' : (st === STYLE_YARD || st === STYLE_CRATER ? 'snow' : (Math.random() < 0.7 ? 'wood' : 'snow'));
   Sfx.step(surf, null, loud * (P.perks.has('sprint') ? 0.6 : 1));
+  // Empreintes dans la neige (Poste 7) et la terre battue (Filon).
+  // (Poste 7 : seulement les étendues de neige plates, ni les caillebotis des tranchées ni le relief bosselé du cratère.)
+  const soft = MAP_ID === 'poste7' ? st === STYLE_YARD : MAP_ID === 'filon' && surf === 'snow';
+  if (soft) { P.foot = -(P.foot || 1); addPrint(P.pos.x, P.pos.z, P.yaw, P.foot); }
 }
 
 function updateCamera(dt) {
@@ -5306,7 +5372,8 @@ function updateCamera(dt) {
   R.lights.torch.intensity = P.torch ? 5.5 : 0;
   // Réverbération selon l'endroit (bunker couvert = plus résonant).
   const roofed = MAP.roof[ti(tileOf(P.pos.x), tileOf(P.pos.z))];
-  Sfx.setReverb(roofed ? 0.42 : 0.2);
+  // Sous la montagne (Filon), la caverne résonne partout ; ailleurs, l'écho ne revient que dehors.
+  Sfx.setReverb(roofed || MAP_ID === 'filon' ? 0.42 : 0.2, roofed ? 0 : 1);
   // Adaptation de l'œil : plus sombre sous abri.
   const L = R.lights; L.hemi.intensity = damp(L.hemi.intensity, (roofed ? M.env.hemiIn : M.env.hemiOut) + R.flash * (M.env.flashLight ?? 0.6), 2, dt);
   R.scene.environmentIntensity = damp(R.scene.environmentIntensity, roofed ? M.env.envIn : M.env.envOut, 2, dt);
@@ -5453,7 +5520,8 @@ function shoot(w, S) {
   _org.copy(cam.position); cam.getWorldDirection(_dir); _right.setFromMatrixColumn(cam.matrixWorld, 0); _up.setFromMatrixColumn(cam.matrixWorld, 1);
   const moving = Math.hypot(P.vel.x, P.vel.z) > 1 ? 1.6 : 1;
   const spread = lerp(S.spread, S.ads, P.ads) * (1 + P.bloom) * moving * (P.onGround ? 1 : 2.2) * lerp(1, 0.75, P.crouch) * (P.perks.has('deadshot') ? 0.65 : 1);
-  const muzzleW = _v3.copy(_org).addScaledVector(_dir, 0.6).addScaledVector(_right, 0.12 * (1 - P.ads)).addScaledVector(_up, -0.1);
+  // Vecteur propre : _v3 sert aussi aux impacts (traceShot), qui le réécrivaient (fumée et traçante partaient alors de l'infecté touché).
+  const muzzleW = (_muzzleW ||= new THREE.Vector3()).copy(_org).addScaledVector(_dir, 0.6).addScaledVector(_right, 0.12 * (1 - P.ads)).addScaledVector(_up, -0.1);
   R.lights.muzzle.position.copy(muzzleW);
   if (S.freeze) { cryoBlast(S, _org, _dir); }
   else if (S.projectile) { launchProjectile(muzzleW.clone(), _dir.clone().multiplyScalar(36).add(_v2.set(0, 1.2, 0)), S, P.id, w.up); }
@@ -5478,13 +5546,14 @@ function shoot(w, S) {
   P.rec.p += rk * rand(0.8, 1.2); P.rec.y += rk * rand(-0.5, 0.5); P.pitch += rk * 0.22; P.kick = 1; P.bloom = Math.min(2.5, P.bloom + (S.auto ? 0.22 : 0.5));
   VM.flashT = S.freeze ? 0.08 : 0.045;
   if (!S.freeze && !S.projectile && !S.ray) spawnCasing(_v2.copy(_org).addScaledVector(_right, 0.18).addScaledVector(_up, -0.12).addScaledVector(_dir, 0.35), _dir, _right, !!S.pellets);
-  fxMuzzleSmoke(muzzleW, _dir);
+  fxMuzzleSmoke(muzzleW, _dir, !!(S.pellets || S.cycle));
   Sfx.gun(S.snd, null, true);
   if (S.cycle) setTimeout(() => Sfx.reloadSeq(S.cycle === 'bolt' ? 'bolt' : 'pump', P.cycleDur), 120);
   P.shotN = (P.shotN || 0) + 1; P.shotSnd = S.snd;
   UI.ammo();
   if (w.mag === 0 && w.reserve > 0) setTimeout(() => { if (curW() === w && w.mag === 0) tryReload(); }, 220);
 }
+let _muzzleW = null;
 // Tir à balle : mur, infectés traversés (pénétration), dégâts décroissants.
 function traceShot(o, d, S, up) {
   const range = S.range ? S.range * 3 : 110;
@@ -5499,6 +5568,12 @@ function traceShot(o, d, S, up) {
     if (head) dmg *= (S.head || 2) * (P.perks.has('deadshot') ? 1.3 : 1); else if (h.part === 'limb') dmg *= 0.75;
     const point = _v3.copy(o).addScaledVector(d, h.dist);
     fxBlood(point, d, S.pellets ? 0.5 : 1);
+    // Éclaboussure sur le mur juste derrière l'infecté (coulures vers le bas sur un mur, flaque sur un sol).
+    const gap = wall ? wallDist - h.dist : 99;
+    if (gap < 3.5 && Math.random() < (S.pellets ? 0.35 : 1) * (0.15 + 0.7 * (1 - gap / 3.5))) {
+      const k = 1 - gap / 3.5, up = Math.abs(wallN.y) > 0.6;
+      addDecal(up ? 'blood' : 'spatter', wallPoint.clone().add(new THREE.Vector3(rand(-0.12, 0.12), rand(-0.1, 0.1), rand(-0.12, 0.12))), wallN, (up ? 0.5 : 0.42) * (0.6 + 0.8 * k) * (head ? 1.25 : 1), 120, up ? rand(TAU) : rand(-0.2, 0.2));
+    }
     Sfx.flesh(point, head);
     h.z.flinch(d, h.part);
     kill = G.hitZombie(h.z, dmg, P.id, { head, part: h.part, dir: d.clone(), weapon: VM.key, point: point.clone() }) || kill;
@@ -6022,7 +6097,7 @@ const G = {
       }
       case 'rend': Sfx.roundEnd(); UI.message('MANCHE TERMINÉE', 'Profitez du répit pour vous réarmer.'); if (this.blizzard) WEATHER.target = 0; break;
       case 'door': {
-        const dr = MAP.doors[d.id]; dr.open = true; dr.anim = 0.0001; refreshZones(); Sfx.door(_v1.set(tcx(dr.x), 1.2, tcx(dr.z)));
+        const dr = MAP.doors[d.id]; dr.open = true; dr.anim = 0.0001; decalsOffObj(dr.group); refreshZones(); Sfx.door(_v1.set(tcx(dr.x), 1.2, tcx(dr.z)));
         const newly = dr.zones.map((z) => ZONE_NAMES[z]); UI.message('PASSAGE OUVERT', newly.join(' ↔ '));
         this.flowT = 0; break;
       }
@@ -8375,7 +8450,7 @@ setInterval(() => {
   while (el > 1e-3) { const dt = Math.min(0.05, el); G.update(dt); el -= dt; }
 }, 250);
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'playing' && !NET.active) pauseGame(); });
-window.SP = { GLOWB, SECRET, Sfx, tip, tipsTick, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
+window.SP = { GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
   sim(sec, dt = 0.05) { for (let t = 0; t < sec; t += dt) { if (G.mode === 'playing' || (G.mode === 'paused' && NET.active)) { G.update(dt); if (G.mode === 'playing') updatePlayer(dt); NET.clientTick(dt); } updateFX(dt, performance.now() / 1000 + t); } } };
 
 
@@ -8835,7 +8910,7 @@ function citeReset() {
   for (const p of WORLD.perks) citeHidePerk(p);
   for (const m of WORLD.citeHeads || []) { m.shot = false; m.head.visible = true; m.col.off = false; }
 }
-function citeHidePerk(p) { p.group.visible = false; p.group.position.y = 0; p.pos.set(0, -100, 0); if (p.col) p.col.off = true; p.landed = false; }
+function citeHidePerk(p) { decalsOffObj(p.group); p.group.visible = false; p.group.position.y = 0; p.pos.set(0, -100, 0); if (p.col) p.col.off = true; p.landed = false; }
 // Place une machine sur un emplacement (avec ou sans chute).
 function citeLandPerk(key, padIdx, animate) {
   const p = WORLD.perks.find((q) => q.key === key), pad = CITE_PADS[padIdx]; if (!p || !pad || p.landed) return;
@@ -8865,7 +8940,7 @@ function citeApply(type, d) {
   if (type === 'pdrop') { citeLandPerk(d.k, d.p, true); UI.message('RAVITAILLEMENT AÉRIEN', `${PERKS[d.k].name} vient de tomber du ciel.`); return true; }
   if (type === 'mhead') {
     const m = (WORLD.citeHeads || [])[d.i]; if (!m || m.shot) return true;
-    m.shot = true; CITE_STATE.heads[d.i] = true; m.head.visible = false; m.col.off = true;
+    m.shot = true; CITE_STATE.heads[d.i] = true; m.head.visible = false; m.col.off = true; decalsOff(m.col.x0, m.col.z0, m.col.x1, m.col.z1);
     const hp = m.pos; fxSparks(_v1.set(hp.x, hp.y, hp.z), 8); for (let i = 0; i < 10; i++) FX.soft.spawn(hp.x, hp.y, hp.z, rand(-1, 1), rand(0.5, 2), rand(-1, 1), 0.8, 0.06, 0.9, 0.85, 0.8, 0.8, 9, 0.8);
     Sfx.sparkle(hp);
     const n = CITE_STATE.heads.filter(Boolean).length;
@@ -10108,7 +10183,7 @@ function filMissionHost(dt) {
 }
 function filMissionApply(type, d, quiet) {
   const S = FIL_STATE; filBuildMission();
-  if (type === 'frock') { const r = WORLD.filRubble[d.i]; if (!r || S.rubble[d.i]) return; S.rubble[d.i] = 1; setTimeout(() => { r.g.visible = false; r.col.off = true; if (!S.gold[d.i]) r.nug.visible = true; if (!quiet) { fxSnowBurst(_v1.set(r.pos.x, 0.4, r.pos.z), 60); for (let k = 0; k < 14; k++) FX.glow.spawn(r.pos.x, 0.6, r.pos.z, rand(-3, 3), rand(1, 4), rand(-3, 3), rand(0.3, 0.7), 0.05, 1, 0.8, 0.3, 1, 9, 0.5); } }, quiet ? 0 : 450); if (!quiet) UI.message('ÉBOULIS BRISÉ', "De l'or brille dans les gravats !"); }
+  if (type === 'frock') { const r = WORLD.filRubble[d.i]; if (!r || S.rubble[d.i]) return; S.rubble[d.i] = 1; setTimeout(() => { decalsOffObj(r.g); r.g.visible = false; r.col.off = true; if (!S.gold[d.i]) r.nug.visible = true; if (!quiet) { fxSnowBurst(_v1.set(r.pos.x, 0.4, r.pos.z), 60); for (let k = 0; k < 14; k++) FX.glow.spawn(r.pos.x, 0.6, r.pos.z, rand(-3, 3), rand(1, 4), rand(-3, 3), rand(0.3, 0.7), 0.05, 1, 0.8, 0.3, 1, 9, 0.5); } }, quiet ? 0 : 450); if (!quiet) UI.message('ÉBOULIS BRISÉ', "De l'or brille dans les gravats !"); }
   else if (type === 'fgold') { S.gold[d.i] = 1; const r = WORLD.filRubble[d.i]; if (r) r.nug.visible = false; if (!quiet) { const n = S.gold.filter(Boolean).length; UI.message('PÉPITE', `${d.who ? d.who + ' · ' : ''}${n}/3`); Sfx.pickup(); } }
   else { const prev = S.ms; S.ms = d.ms; if (!quiet && prev !== S.ms) {
     if (S.ms === 1) UI.message('LE TRÉSOR DU FILON', 'Le Colosse est libre. Donnez-lui des bonbons du magasin général.');

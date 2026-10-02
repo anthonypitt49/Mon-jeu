@@ -60,7 +60,7 @@ Sur téléphone ou tablette, des commandes tactiles s'affichent : joystick à ga
 
 **Si aucun relais ne répond chez l'hôte**, le salon l'affiche en orange : la partie passe en connexion directe, que seuls les joueurs du même Wi-Fi peuvent rejoindre. Le jeu retente les relais toutes les 12 secondes et, dès que l'un d'eux répond, affiche un **nouveau code** à donner aux amis. Côté invité, le message d'erreur dit pourquoi la partie est introuvable : hôte en connexion directe, partie hébergée sur claude.ai, relais bloqués par votre réseau, ou code erroné.
 
-**L'hôte et ses amis doivent avoir la même version** (affichée en haut du menu, par exemple « V4.4 ») : le jeu se met à jour tout seul en arrivant sur le menu. Si un ami a encore une ancienne version, il recharge la page avec Ctrl+F5.
+**L'hôte et ses amis doivent avoir la même version** (affichée en haut du menu, par exemple « V4.5 ») : le jeu se met à jour tout seul en arrivant sur le menu. Si un ami a encore une ancienne version, il recharge la page avec Ctrl+F5.
 
 - **Relève de l'hôte** : si l'hôte quitte ou perd sa connexion, un camarade reprend automatiquement la partie en quelques secondes. Si l'ordinateur de l'hôte n'avait fait que geler (chargement, ralentissement), il rejoint tout seul la partie reprise à son retour : plus de partie coupée en deux.
 - **Signaler** (Q ou PING) : un losange à votre couleur apparaît chez tout le monde, avec la distance.
@@ -104,6 +104,7 @@ Quatre niveaux dans les options : **Recrue**, **Régulier**, **Vétéran** et **
 - **8 bonus lâchés par les infectés** : munitions max, mort subite, points doubles, frappe d'artillerie, barricades, **Braderie** (caisse à 10 points pendant 30 s), **Sang Infecté** (les infectés ne vous voient plus pendant 20 s) et **Prime** (+500 points pour tout le monde).
 - **Manches** : marquées à la craie rouge jusqu'à la 5ᵉ, de plus en plus dures ensuite, avec des brutes blindées (manche 5+), le Givreux (manche 6+), le Hurleur (manche 9+) et une tempête toutes les 6 manches. Ces seuils valent en Régulier : ils arrivent plus tard en Recrue, plus tôt en Vétéran et en Cauchemar.
 - **Morts réalistes** : les infectés s'effondrent sur place (plus de corps qui s'envolent), et vous encaissez plus de coups qu'avant.
+- **Réalisme des tirs** : impacts de balles, traces de sang et brûlures d'explosion bien visibles ; éclaboussures sur le mur juste derrière un infecté touché ; flaque qui s'étale lentement sous les corps (et coule entre les lattes des caillebotis) ; empreintes de pas dans la neige du Poste 7 et la terre battue du Filon ; douilles qui retombent et se couchent au sol ; fumée de bouche légère, qui part bien du canon ; écho des coups de feu en plein air.
 - **Classement des camarades** (bouton *Classement*) : meilleurs résultats par carte, avec une étoile quand l'objectif de la carte est accompli.
 - **Astuces** pour les nouveaux joueurs : chacune s'affiche une seule fois, au bon moment (réparer les fenêtres, le repère d'objectif, signaler en co-op…).
 - **Plus léger à faire tourner** : halos lumineux regroupés, ombres réservées aux objets qui comptent, décor découpé par zones pour que la carte graphique ignore ce qui est hors de vue (jusqu'à 45 % de triangles en moins selon la carte).
