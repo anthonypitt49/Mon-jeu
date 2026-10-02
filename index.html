@@ -223,6 +223,10 @@ body.touch #shieldbar { left: 50%; margin-left: -90px; bottom: calc(env(safe-are
 #progress i { position: absolute; inset: 0; transform-origin: left; background: var(--frost); }
 #message { position: absolute; top: max(31%, 178px); left: 50%; transform: translateX(-50%); width: min(90%, 760px); text-align: center; color: #e6f8ff; font: 800 1.35rem/1.2 var(--f-display); letter-spacing: .14em; text-transform: uppercase; opacity: 0; transition: opacity .35s; }
 #message.show { opacity: 1; }
+#tip { position: absolute; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: min(560px, 86vw); padding: 7px 14px; border-left: 3px solid var(--gold); background: #07101cd0; color: #e6eef2; font: 600 .82rem/1.35 var(--f-body); letter-spacing: .02em; opacity: 0; transition: opacity .4s; pointer-events: none; }
+#tip::before { content: 'ASTUCE · '; color: var(--gold); font-weight: 800; letter-spacing: .14em; font-size: .7rem; }
+#tip.show { opacity: 1; }
+body.touch #tip { bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 150px); font-size: .74rem; }
 #message small { display: block; margin-top: 6px; font: 600 .86rem var(--f-body); letter-spacing: .1em; color: var(--mist); }
 .room-code { position: absolute; top: calc(18px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); color: var(--frost); font: .8rem var(--f-mono); letter-spacing: .18em; background: #071018cc; padding: 6px 14px; border: 1px solid #9ce8ff55; }
 #compass { position: absolute; top: calc(52px + env(safe-area-inset-top, 0px)); left: 50%; width: 300px; height: 22px; margin-left: -150px; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); }
@@ -543,6 +547,7 @@ body.touch .control-strip { display: none; }
     <div id="banner"><b id="bannerTitle"></b><span id="bannerSub"></span></div>
     <div id="prompt"></div>
     <div id="message"></div>
+    <div id="tip"></div>
     <div id="fps" class="hidden"></div>
   </section>
 
@@ -675,7 +680,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '4.3'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '4.4'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -1812,6 +1817,7 @@ function resize() {
 }
 function renderFrame(time) {
   if (R.final) { R.final.uniforms.uTime.value = time; }
+  if (GLOWB.length) syncGlows();
   if (R.composer) R.composer.render();
   else { const r = R.renderer; r.autoClear = false; r.clear(); r.render(R.scene, R.camera); r.clearDepth(); r.render(R.viewScene, R.viewCam); }
 }
@@ -2015,9 +2021,19 @@ class Batch {
   add(x, y, z, ry = 0, rx = 0, rz = 0, sx = 1, sy = 1, sz = 1) { _e1.set(rx, ry, rz, 'YXZ'); _q1.setFromEuler(_e1); this.m.push(new THREE.Matrix4().compose(_v1.set(x, y, z), _q1, _v2.set(sx, sy, sz))); return this.m.length - 1; }
   build(parent = R.scene) {
     if (!this.m.length) return null;
-    const im = new THREE.InstancedMesh(this.geo, this.mat, this.m.length);
-    this.m.forEach((m, k) => im.setMatrixAt(k, m)); im.instanceMatrix.needsUpdate = true;
-    im.castShadow = this.shadow; im.receiveShadow = true; im.computeBoundingSphere(); parent.add(im); this.mesh = im; return im;
+    // Lots lourds (sacs de sable, barbelés…) : découpés en zones de 32 m, pour que la caméra et l'ombre ignorent ce qu'elles ne voient pas.
+    const tris = (this.geo.index ? this.geo.index.count : this.geo.attributes.position.count) / 3;
+    if (parent === R.scene && this.m.length * tris > 20000) {
+      const cells = new Map();
+      for (const m of this.m) { const k = Math.floor(m.elements[12] / 32) + ',' + Math.floor(m.elements[14] / 32); if (!cells.has(k)) cells.set(k, []); cells.get(k).push(m); }
+      if (cells.size > 1) { let first = null; for (const list of cells.values()) { const im = this.inst(list, parent); first ||= im; } this.mesh = first; return first; }
+    }
+    return (this.mesh = this.inst(this.m, parent));
+  }
+  inst(list, parent) {
+    const im = new THREE.InstancedMesh(this.geo, this.mat, list.length);
+    list.forEach((m, k) => im.setMatrixAt(k, m)); im.instanceMatrix.needsUpdate = true;
+    im.castShadow = this.shadow; im.receiveShadow = true; im.computeBoundingSphere(); parent.add(im); return im;
   }
 }
 function mesh(geo, mat, x = 0, y = 0, z = 0, ry = 0, parent = R.scene, shadow = true) {
@@ -2080,6 +2096,7 @@ function buildWorld() {
   buildDoors();
   buildInteractables();
   buildPowerParts();
+  buildSecret();
   M.decor();
   if (M.flat) flatDecals();
   scatterAll(M.scatter);
@@ -2089,6 +2106,14 @@ function buildWorld() {
 // Fusionne les accessoires fixes : même texture et même finition → un seul appel de dessin, la teinte passe dans les sommets.
 function mergeStatic() {
   R.scene.updateMatrixWorld(true);
+  // Les petits objets (moins de ~22 cm) ne projettent plus d'ombre : invisible à l'œil, mais autant d'appels de dessin en moins.
+  const _s = new THREE.Vector3();
+  R.scene.traverse((o) => {
+    if (!o.isMesh || o.isSkinnedMesh || !o.castShadow || !o.geometry) return;
+    if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+    o.matrixWorld.decompose(_v1, _q1, _s);
+    if (o.geometry.boundingSphere.radius * Math.max(_s.x, _s.y, _s.z) < 0.22 && !o.isInstancedMesh) o.castShadow = false;
+  });
   const groups = new Map();
   const isDynamic = (o) => { for (let p = o; p; p = p.parent) if (p.userData.dynamic) return true; return false; };
   const own = (m, k) => Object.prototype.hasOwnProperty.call(m, k);
@@ -2116,6 +2141,57 @@ function mergeStatic() {
     if (tint) { m2 = mat.clone(); m2.color.set(0xffffff); m2.vertexColors = true; if (mat.userData.snow) snowify(m2, mat.userData.snow); }
     const m = new THREE.Mesh(merged, m2); m.castShadow = cast; m.receiveShadow = true; R.scene.add(m);
     for (const o of list) o.parent.remove(o);
+  }
+  batchGlows();
+}
+
+/* ─── Halos lumineux fixes : un seul appel de dessin pour tous ───
+   Les halos d'origine restent dans la scène (calque masqué) : le code qui les fait vaciller, clignoter ou disparaître
+   continue de les modifier, et le lot recopie leur état à chaque image. */
+const GLOWB = [];
+function batchGlows() {
+  const isDyn = (o) => { for (let p = o; p; p = p.parent) if (p.userData.dynamic) return true; return false; };
+  const list = [];
+  R.scene.traverse((o) => { if (o.isSprite && !o.userData.glowB && o.material.map === TEX.sprites.glow && o.material.blending === THREE.AdditiveBlending && o.material.depthTest && o.material.sizeAttenuation && !o.material.rotation && o.center.x === 0.5 && o.center.y === 0.5 && !isDyn(o)) list.push(o); });
+  if (list.length < 6) return;
+  const base = new THREE.PlaneGeometry(1, 1), geo = new THREE.InstancedBufferGeometry(), n = list.length;
+  geo.index = base.index; geo.setAttribute('position', base.attributes.position); geo.setAttribute('uv', base.attributes.uv);
+  const off = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3), col = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4), sz = new THREE.InstancedBufferAttribute(new Float32Array(n * 2), 2);
+  for (const a of [off, col, sz]) a.setUsage(THREE.DynamicDrawUsage);
+  geo.setAttribute('aOff', off); geo.setAttribute('aCol', col); geo.setAttribute('aSize', sz); geo.instanceCount = n;
+  const mat = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { map: { value: TEX.sprites.glow } }]),
+    vertexShader: `attribute vec3 aOff; attribute vec4 aCol; attribute vec2 aSize; varying vec2 vUv; varying vec4 vCol;
+      #include <fog_pars_vertex>
+      void main() { vUv = uv; vCol = aCol; vec4 mvPosition = viewMatrix * vec4(aOff, 1.0); mvPosition.xy += position.xy * aSize; gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+      }`,
+    fragmentShader: `uniform sampler2D map; varying vec2 vUv; varying vec4 vCol;
+      #include <fog_pars_fragment>
+      void main() { vec4 t = texture2D(map, vUv); gl_FragColor = vec4(t.rgb * vCol.rgb, t.a * vCol.a); if (gl_FragColor.a < 0.004) discard;
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+        #include <fog_fragment>
+      }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: true,
+  });
+  const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false; mesh.renderOrder = 1; mesh.userData.dynamic = true; R.scene.add(mesh);
+  for (const s of list) { s.userData.glowB = true; s.layers.set(31); }
+  GLOWB.push({ mesh, list, off, col, sz });
+  syncGlows();
+}
+const _gs = new THREE.Vector3();
+function syncGlows() {
+  for (const B of GLOWB) {
+    const { list, off, col, sz } = B, o = off.array, c = col.array, z = sz.array;
+    for (let i = 0; i < list.length; i++) {
+      const s = list[i]; let vis = true; for (let p = s; p; p = p.parent) { if (!p.visible) { vis = false; break; } if (!p.parent && p !== R.scene) vis = false; }
+      const e = s.matrixWorld.elements, m = s.material;
+      o[i * 3] = e[12]; o[i * 3 + 1] = e[13]; o[i * 3 + 2] = e[14];
+      z[i * 2] = Math.hypot(e[0], e[1], e[2]); z[i * 2 + 1] = Math.hypot(e[4], e[5], e[6]);
+      c[i * 4] = m.color.r; c[i * 4 + 1] = m.color.g; c[i * 4 + 2] = m.color.b; c[i * 4 + 3] = vis && m.visible ? m.opacity : 0;
+    }
+    off.needsUpdate = col.needsUpdate = sz.needsUpdate = true;
   }
 }
 
@@ -2414,9 +2490,10 @@ function mergeGroup(group) {
   }
 }
 function helixGeo(len, r, turns) {
-  const pts = []; const N = turns * 24;
+  // 14 segments par tour et une section triangulaire : un fil de 9 mm n'en demande pas plus (2,3 fois moins de triangles).
+  const pts = []; const N = turns * 14;
   for (let k = 0; k <= N; k++) { const t = k / N, a = t * turns * TAU; pts.push(new THREE.Vector3(Math.cos(a) * r, t * len - len / 2, Math.sin(a) * r)); }
-  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), N, 0.009, 4, false);
+  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), N, 0.009, 3, false);
 }
 
 // Garde-fou : aucun obstacle ne doit boucher l'arrivée d'une barricade côté intérieur (les infectés y resteraient coincés).
@@ -3059,6 +3136,16 @@ function scatterAll(list) {
     if (sp.ground) { const [e0, e1] = sp.ground, area = (W + 2 * e1 * T) * (D + 2 * e1 * T), tries = Math.round(area / 4 * sp.n);
       for (let k = 0; k < tries; k++) { const px = rand(-e1 * T, W + e1 * T), pz = rand(-e1 * T, D + e1 * T), e = edgeAt(px, pz); if (e < e0 || e > e1) continue; const tx = tileOf(px), tz = tileOf(pz); if (inMap(tx, tz) && MAP.type[ti(tx, tz)] !== T_SOLID) continue; add(px, surfH(px, pz), pz); } }
     if (!pts.length) continue;
+    // Qualité basse : moins d'éléments semés (le sol reste habillé) ; puis découpage en zones de 32 m (culling).
+    const dens = [0.5, 0.75, 1, 1][clamp(settings.quality | 0, 0, 3)];
+    const keep = dens < 1 ? pts.filter(() => Math.random() < dens) : pts;
+    const tris = (geo.index ? geo.index.count : geo.attributes.position.count) / 3, cells = new Map();
+    for (const p of keep) { const k = keep.length * tris > 15000 ? Math.floor(p[0] / 32) + ',' + Math.floor(p[2] / 32) : '0'; if (!cells.has(k)) cells.set(k, []); cells.get(k).push(p); }
+    for (const cpts of cells.values()) scatterMesh(sp, geo, mat, cpts, s0, s1, base, jit);
+  }
+}
+function scatterMesh(sp, geo, mat, pts, s0, s1, base, jit) {
+  {
     const im = new THREE.InstancedMesh(geo, mat, pts.length), c = new THREE.Color();
     pts.forEach(([x, y, z], i) => {
       const s = rand(s0, s1); _e1.set(sp.kind === 'rock' || sp.kind === 'pebble' || sp.kind === 'clod' || sp.kind === 'chip' ? rand(-0.3, 0.3) : 0, rand(TAU), 0, 'YXZ'); _q1.setFromEuler(_e1);
@@ -5618,7 +5705,7 @@ const G = {
     while (PROJ.length) { R.scene.remove(PROJ.pop().m); }
     setPowerVisuals(false, true);
     placeBox(0);
-    pwrReset();
+    pwrReset(); secretReset();
     mapHook('reset');
     Sfx.stopHum();
   },
@@ -5667,7 +5754,7 @@ const G = {
     }
     updateProjectiles(dt);
     this.updateDrops(dt);
-    this.updateDoorsAnim(dt); this.updatePlanksAnim(dt); this.updateBoxBench(dt); pwrVisuals(dt); mapHook('visuals', dt);
+    this.updateDoorsAnim(dt); this.updatePlanksAnim(dt); this.updateBoxBench(dt); pwrVisuals(dt); secretVisuals(); mapHook('visuals', dt);
     for (const [, r] of this.players) if (r.avatar) r.avatar.update(dt);
     if (this.pu.instakill > 0) this.pu.instakill = Math.max(0, this.pu.instakill - dt);
     if (this.pu.double > 0) this.pu.double = Math.max(0, this.pu.double - dt);
@@ -5870,6 +5957,7 @@ const G = {
     else if (kind === 'repair') this.repair(pid, id);
     else if (kind === 'unlock') { if (this.pay(pid, 2000)) this.emit('unlock', { id }); }
     else if (pwrInteract(pid, kind, id)) { /* courant en plusieurs étapes */ }
+    else if (secretInteract(pid, kind, id)) { /* disques cachés */ }
     else if (mapHook('interact', pid, kind, id)) { /* règle propre à la carte */ }
     else if (kind === 'revive') { const t = this.players.get(id); if (t && t.down) this.emit('revived', { pid: id }); }
   },
@@ -5939,6 +6027,7 @@ const G = {
         this.flowT = 0; break;
       }
       case 'power': this.power = true; PWR.stage = 4; pwrApply({ s: 4 }, true); setPowerVisuals(true); UI.message('LE COURANT EST RÉTABLI', 'Atouts et établi d\'armurier en service.'); UI.objective(); break;
+      case 'secret': secretApply(d); break;
       case 'pwr': { // message de la pièce d'abord : « PIÈCES RÉUNIES » (la consigne suivante) doit rester affiché
         if (d.k !== undefined && !PWR.got[d.k]) { const n = (d.g || PWR.got).filter(Boolean).length; UI.message(`${pwrParts()[d.k].name}`, `${d.who ? d.who + ' · ' : ''}pièce ${n}/3`); Sfx.pickup(); }
         pwrApply(d); UI.objective(); break; }
@@ -6155,7 +6244,7 @@ function updateInteraction(dt) {
     WORLD.wallBuys.forEach((wb, i) => { const w = WEAPONS[wb.weapon], has = P.weapons.find((q) => q.key === wb.weapon); cand(Math.hypot(px - wb.pos.x, pz - wb.pos.z), has ? { kind: 'wall', id: i, text: `Munitions — ${has.up ? w.up.name : w.name}`, cost: ammoCost(wb.weapon, has.up), range: 1.7 } : { kind: 'wall', id: i, text: `Acheter ${w.name}`, cost: w.cost, range: 1.7 }); });
     for (const p of WORLD.perks) if (p.locked) cand(Math.hypot(px - p.pos.x, pz - p.pos.z), { kind: 'unlock', id: 'p:' + p.key, text: `Briser le cadenas du Geôlier — ${PERKS[p.key].name}`, cost: 2000, range: 1.7 });
     for (const p of WORLD.perks) { if (p.locked) continue; const def = PERKS[p.key]; const cost = p.key === 'revive' && !G.solo ? def.coopCost : def.cost; const needP = p.needsPower && !G.power && !(p.key === 'revive' && G.solo); cand(Math.hypot(px - p.pos.x, pz - p.pos.z), P.perks.has(p.key) ? { kind: 'info', text: `${def.name} — déjà actif`, range: 1.7 } : needP ? { kind: 'info', text: `${def.name} — il faut rétablir le courant`, range: 1.7, deny: true } : { kind: 'perk', id: p.key, text: `${def.name} — ${def.desc}`, cost, range: 1.7 }); }
-    pwrCandidates(cand, px, pz);
+    pwrCandidates(cand, px, pz); secretCandidates(cand, px, pz);
     const bx = G.box, spot = WORLD.boxSpots[bx.loc];
     { const d = Math.hypot(px - spot.pos.x, pz - spot.pos.z);
       if (bx.state === 'idle' && bx.locked) cand(d, { kind: 'unlock', id: 'b', text: 'Briser le cadenas du Geôlier — caisse', cost: 2000, range: 1.9 });
@@ -6640,6 +6729,113 @@ function pwrHint() {
   const z = []; PWR.tiles.forEach((t, i) => { if (t >= 0 && !PWR.got[i]) z.push(ZONE_NAMES[MAP.zone[t]]); });
   return z.length ? 'Cherchez : ' + [...new Set(z)].join(', ') : '';
 }
+
+
+// ───────────────────────── 11E_EXTRAS ─────────────────────────
+/* ═══════════════════ SECRET MUSICAL ET ASTUCES ═══════════════════
+   Trois disques cachés par carte (toujours aux mêmes endroits) : les trois écoutés, le morceau de la carte se joue pour tous.
+   Astuces : une seule fois par joueur, au bon moment, pour ceux qui découvrent le jeu. */
+
+const SECRET = { got: [0, 0, 0], spots: [], meshes: [] };
+// Trois cachettes fixes par carte (graine tirée du nom de la carte), dans des zones différentes, sur un sol dégagé.
+function secretSpots() {
+  let h = 7; for (const c of MAP_ID) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const rnd = mulberry32(h), out = [], zones = new Set();
+  const clear = (x, z) => { const cx = tcx(x), cz = tcx(z); for (const b of MAP.props) if (!b.off && b.x0 < cx + 0.6 && b.x1 > cx - 0.6 && b.z0 < cz + 0.6 && b.z1 > cz - 0.6) return false; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const t = tType(x + dx, z + dz); if (t === T_RAMP || t === T_DOOR) return false; } return true; };
+  const cand = []; for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) { const i = ti(x, z); if (MAP.type[i] === T_FLOOR && clear(x, z) && Math.hypot(x - SPOTS.start[0], z - SPOTS.start[1]) > 4) cand.push(i); }
+  for (let tries = 0; tries < 400 && out.length < 3 && cand.length; tries++) {
+    const i = cand[(rnd() * cand.length) | 0], zn = MAP.zone[i];
+    if (zones.has(zn) && tries < 300) continue; zones.add(zn); out.push(i);
+  }
+  return out;
+}
+function buildSecret() {
+  SECRET.spots = secretSpots();
+  const vinyl = KIT.m(0x111111, { rough: 0.35, metal: 0.3 }), label = KIT.m(0xb03a2a, { rough: 0.6 });
+  SECRET.meshes = SECRET.spots.map((t, k) => {
+    const x = (t % MAP_W) * TILE + TILE / 2 + 0.55, z = Math.floor(t / MAP_W) * TILE + TILE / 2 - 0.4, g = new THREE.Group();
+    g.userData.dynamic = true; g.position.set(x, groundAt(x, z) + 0.012, z); g.rotation.set(0, k * 1.7, 0); R.scene.add(g);
+    const d = mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.012, 24), vinyl, 0, 0, 0, 0, g, false); d.rotation.z = 0.06;
+    mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.014, 16), label, 0, 0.001, 0, 0, g, false);
+    g.userData.glint = KIT.glow(g, 0.08, 0.05, 0.04, 0xfff4d8, 0.22, 0);
+    return g;
+  });
+}
+const secretState = () => SECRET.got.join('');
+// Un reflet bref de temps en temps : un joueur attentif remarque le disque.
+function secretVisuals() { const t = G.time; SECRET.meshes.forEach((g, i) => { const s = g.userData.glint; if (s && g.visible) s.material.opacity = Math.max(0, Math.sin(t * 1.3 + i * 2.1)) ** 24 * 0.9; }); }
+function secretReset() { SECRET.got = [0, 0, 0]; for (const g of SECRET.meshes) g.visible = true; }
+function secretApply(d, quiet) {
+  const i = d.i; if (SECRET.got[i]) return; SECRET.got[i] = 1; const g = SECRET.meshes[i]; if (g) g.visible = false;
+  if (quiet) return;
+  const n = SECRET.got.filter(Boolean).length;
+  if (g) Sfx.musicBox?.(g.position);
+  if (n < 3) UI.message('♪', `Un vieux disque… ${n} / 3`);
+  else { UI.banner('♪ ' + M.name.toUpperCase(), 'Les trois vieux disques sont réunis'); Sfx.song?.(); }
+}
+function secretInteract(pid, kind, id) {
+  if (kind !== 'secret') return false;
+  const i = id | 0; if (SECRET.got[i] === 0 && SECRET.meshes[i]) G.emit('secret', { i });
+  return true;
+}
+function secretCandidates(cand, px, pz) {
+  SECRET.meshes.forEach((g, i) => { if (!SECRET.got[i] && g.visible) cand(Math.hypot(px - g.position.x, pz - g.position.z), { kind: 'secret', id: i, text: 'Écouter le vieux disque', range: 1.1, hold: true, holdTime: 1.2 }); });
+}
+function secretReconcile(s) { if (typeof s === 'string') s.split('').forEach((c, i) => { if (c === '1' && !SECRET.got[i]) secretApply({ i }, true); }); }
+
+/* ─── Astuces : une fois par joueur, au bon moment ─── */
+const TIPS = {
+  repair: 'Maintenez E près d\'une fenêtre pour la reclouer : chaque planche rapporte des points.',
+  objective: 'Le bandeau en haut indique le but. Le repère doré OBJECTIF montre où aller.',
+  power: 'Sans courant, pas d\'atouts ni d\'établi : les pièces du générateur sont dans les zones à ouvrir.',
+  ping: 'En co-op, Q (ou PING) signale un infecté, un objet ou un endroit à vos camarades.',
+  perks: 'Le courant est rétabli : les machines d\'atouts fonctionnent (quatre atouts au plus).',
+  box: 'La caisse de ravitaillement donne une arme au hasard ; elle change parfois de place.',
+  down: 'À terre ! Un camarade peut vous relever en maintenant E près de vous.',
+};
+const tipSeen = store.get('tips', {});
+function tip(id) {
+  if (tipSeen[id] || !TIPS[id] || G.mode !== 'playing') return;
+  tipSeen[id] = 1; store.set('tips', tipSeen);
+  const el = $('tip'); if (!el) return; el.textContent = TIPS[id]; el.classList.add('show');
+  clearTimeout(tip.t); tip.t = setTimeout(() => el.classList.remove('show'), 7000);
+}
+// Déclencheurs (appelés quatre fois par seconde pendant la partie).
+function tipsTick() {
+  if (G.mode !== 'playing') return;
+  if (G.round >= 1 && G.time > 4) tip('objective');
+  if (MAP.barricades.some((b) => b.planks < 6 && MAP.zoneActive[b.zone] && Math.hypot(b.center.x - P.pos.x, b.center.z - P.pos.z) < 6)) tip('repair');
+  if (G.round >= 2 && !G.power) tip('power');
+  if (G.power) tip('perks');
+  if (NET.active && G.time > 20) tip('ping');
+  const bx = WORLD.boxSpots[G.box.loc]; if (bx && Math.hypot(bx.pos.x - P.pos.x, bx.pos.z - P.pos.z) < 5) tip('box');
+  if (P.down && NET.active) tip('down');
+}
+
+/* ─── Le morceau (synthétisé) : ré mineur, 88 battements par minute, 16 mesures ─── */
+Sfx.song = function () {
+  if (!this.ready) return 0;
+  const o = this.out(null, { gain: 0.55, verb: 0.32, bus: this.musicBus }), b = 60 / 88, D = 146.83;
+  const prog = [[0, 3, 7], [-4, 0, 3], [3, 7, 10], [-2, 2, 5]]; // Rém, Si♭, Fa, Do
+  const MEL = [
+    [7, null, 5, 3, 2, 3, 5, null], [8, null, 7, 5, 3, null, 2, null], [3, 5, 7, 10, 12, null, 10, 7], [10, null, 12, 10, 7, null, 5, null],
+    [12, null, 10, 7, 5, 7, 8, 7], [8, null, 12, 10, 8, 7, 5, null], [5, 7, 8, 10, 12, 15, 17, null], [14, null, 12, 10, 7, 5, 2, null],
+  ];
+  for (let bar = 0; bar < 16; bar++) {
+    const t0 = 0.3 + bar * 4 * b, ch = prog[bar % 4], root = ch[0];
+    for (let e = 0; e < 8; e++) this.tone(o, { type: 'triangle', f: (D / 2) * 2 ** (([0, 0, 7, 0, 12, 0, 7, 0][e] + root) / 12), d: b * 0.42, peak: 0.3, t: t0 + (e * b) / 2 });
+    if (bar >= 2) for (const n of ch) this.tone(o, { type: 'sine', f: D * 2 ** (n / 12), a: 0.4, d: 4 * b - 0.4, peak: 0.06, t: t0 });
+    for (let q = 0; q < 4; q++) {
+      const tq = t0 + q * b;
+      if (q % 2 === 0) this.tone(o, { type: 'sine', f: 120, f2: 42, a: 0.002, d: 0.22, peak: 0.55, t: tq });
+      else if (bar >= 4) this.burst(o, { type: 'bandpass', f: 1800, q: 0.7, d: 0.14, peak: 0.3, t: tq });
+      if (bar >= 8) for (const h of [0, 0.5]) this.burst(o, { type: 'highpass', f: 7000, q: 0.7, d: 0.04, peak: 0.1, t: tq + h * b });
+    }
+    if (bar >= 4 && bar < 15) MEL[(bar - 4) % 8].forEach((n, e) => { if (n == null) return; const f = 2 * D * 2 ** (n / 12), t = t0 + (e * b) / 2; this.tone(o, { type: 'square', f, d: b * 0.45, peak: 0.06, t }); this.tone(o, { type: 'triangle', f, d: b * 0.5, peak: 0.15, t }); });
+  }
+  const end = 0.3 + 16 * 4 * b; for (const n of [0, 3, 7, 12]) this.tone(o, { type: 'triangle', f: D * 2 ** (n / 12), a: 0.01, d: 2.5, peak: 0.14, t: end });
+  return end + 2.5;
+};
 
 
 // ───────────────────────── NET ─────────────────────────
@@ -7142,7 +7338,7 @@ const NET = {
   },
   applyHit(pid, d) { if (!Array.isArray(d)) return; const z = ZOMBIES.find((q) => q.id === d[0]); if (z) G.applyDamage(z, clamp(+d[1] || 0, 0, 5000), pid, { head: !!d[2], explosive: !!d[3], melee: !!d[4], freeze: !!d[5], dir: new THREE.Vector3(+d[6] || 0, 0, +d[7] || 1), crawl: !!d[8] }); },
   worldState() {
-    return { q: questState(), pw: pwrState(), mx: mapHook('state'), lk: lockList(), round: G.round, power: G.power, doors: MAP.doors.filter((q) => q.open).map((q) => q.id), planks: MAP.barricades.map((b) => b.planks), box: { loc: G.box.loc, state: 'idle' }, blizzard: G.blizzard };
+    return { q: questState(), sc: secretState(), pw: pwrState(), mx: mapHook('state'), lk: lockList(), round: G.round, power: G.power, doors: MAP.doors.filter((q) => q.open).map((q) => q.id), planks: MAP.barricades.map((b) => b.planks), box: { loc: G.box.loc, state: 'idle' }, blizzard: G.blizzard };
   },
   // Surveillance sur minuterie (elle continue quand l'onglet passe en arrière-plan) : signes de vie, silences, relève.
   watch() {
@@ -7175,7 +7371,7 @@ const NET = {
     const base = { p: ps, pu: [+G.pu.instakill.toFixed(1), +G.pu.double.toFixed(1), +G.pu.firesale.toFixed(1)], bt: +G.bench.t.toFixed(1) };
     const fx = mapHook('fast'); if (fx !== undefined) base.fx = fx; // personnages propres à la carte (géant…)
     // Toutes les secondes : état complet du secteur (rattrape un message perdu).
-    if (this.snapN % this.rate === 0) base.ws = { d: MAP.doors.map((q) => (q.open ? 1 : 0)).join(''), k: MAP.barricades.map((b) => b.planks).join(''), w: G.power ? 1 : 0, r: G.round, b: G.box.loc, bs: G.box.state, bn: G.bench.state, dr: G.drops.map((q) => q.id), q: questState(), tr: TRAPS.map((t) => [+t.active.toFixed(0), +t.cool.toFixed(0)]), pw: pwrState(), h: P.id, g: G.gid, rs: [G.toSpawn, +Math.max(0, G.breakT).toFixed(1)], sp: [+SUPPORT.t.toFixed(0), +SUPPORT.cool.toFixed(0), SUPPORT.owner], mx: mapHook('state'), lk: lockList() };
+    if (this.snapN % this.rate === 0) base.ws = { d: MAP.doors.map((q) => (q.open ? 1 : 0)).join(''), k: MAP.barricades.map((b) => b.planks).join(''), w: G.power ? 1 : 0, r: G.round, b: G.box.loc, bs: G.box.state, bn: G.bench.state, dr: G.drops.map((q) => q.id), q: questState(), sc: secretState(), tr: TRAPS.map((t) => [+t.active.toFixed(0), +t.cool.toFixed(0)]), pw: pwrState(), h: P.id, g: G.gid, rs: [G.toSpawn, +Math.max(0, G.breakT).toFixed(1)], sp: [+SUPPORT.t.toFixed(0), +SUPPORT.cool.toFixed(0), SUPPORT.owner], mx: mapHook('state'), lk: lockList() };
     // Messages de 4 Ko maximum dans le salon Claude : on découpe la liste des infectés.
     const chunk = this.via === 'peer' || (this.via === 'relay' && this.allDirect()) ? 999 : 28;
     for (let i = 0; i === 0 || i < zs.length; i += chunk) this.broadcast('snap', Object.assign(i === 0 ? base : { p: [] }, { z: zs.slice(i, i + chunk) }));
@@ -7251,6 +7447,7 @@ function applyWorldState(s) {
   step(() => { if (s.power) { G.power = true; setPowerVisuals(true, true); Sfx.hum(WORLD.generator ? WORLD.generator.group.position : WORLD.power.pos); } });
   step(() => { if (s.q && MAP_ID === 'poste7') questApply('quest', s.q); });
   step(() => { if (s.pw) pwrApply(s.pw, true); });
+  step(() => secretReconcile(s.sc));
   step(() => { if (s.mx !== undefined) mapHook('reconcile', s.mx, true); });
   step(() => { if (Array.isArray(s.lk)) syncLocks(s.lk); });
   G.round = s.round; UI.round(s.round); step(() => { if (s.box) placeBox(s.box.loc); }); G.blizzard = s.blizzard; WEATHER.target = s.blizzard ? 1 : 0;
@@ -7303,6 +7500,7 @@ function reconcileWorld(w) {
   if (w.g) G.gid = String(w.g).slice(0, 24);
   if (Array.isArray(w.sp)) { if (Math.abs(SUPPORT.t - w.sp[0]) > 2) SUPPORT.t = +w.sp[0] || 0; if (Math.abs(SUPPORT.cool - w.sp[1]) > 2) SUPPORT.cool = +w.sp[1] || 0; SUPPORT.owner = w.sp[2] ?? null; }
   if (Array.isArray(w.rs)) G.netRs = w.rs;
+  if (typeof w.sc === 'string' && w.sc !== secretState()) secretReconcile(w.sc);
   if (w.pw && (w.pw.s !== PWR.stage || w.pw.g?.join() !== PWR.got.join() || w.pw.t?.join() !== PWR.tiles.join() || Math.abs((w.pw.p || 0) - PWR.prog) > 2)) pwrApply(w.pw, true);
   if (w.mx !== undefined) mapHook('reconcile', w.mx, false);
   if (Array.isArray(w.lk)) syncLocks(w.lk);
@@ -7922,7 +8120,7 @@ const UI = {
     const [t, b, l, r] = ch.children; t.style.top = -(px + 9) + 'px'; b.style.top = px + 'px'; l.style.left = -(px + 9) + 'px'; r.style.left = px + 'px';
     // Boussole.
     const deg = ((-P.yaw * 180) / Math.PI % 360 + 360) % 360; $('compassStrip').style.transform = `translateX(${150 - 15 - (deg / 15) * 30 - 24 * 30 * 2}px)`;
-    this.objT = (this.objT || 0) - dt; if (this.objT <= 0) { this.objT = 0.25; if (QUEST.stage === 5 && G.authority === false) QUEST.hold = Math.max(0, QUEST.hold - 0.25); this.objective(); }
+    this.objT = (this.objT || 0) - dt; if (this.objT <= 0) { this.objT = 0.25; if (QUEST.stage === 5 && G.authority === false) QUEST.hold = Math.max(0, QUEST.hold - 0.25); this.objective(); tipsTick(); }
     if (settings.showFps) { this.fpsT = (this.fpsT || 0) - dt; if (this.fpsT <= 0) { this.fpsT = 0.5; $('fps').textContent = `${Math.round(R.fpsAvg)} IMG/S · ${Math.round((R.dynScale || 1) * 100)} %`; } }
   },
 };
@@ -8177,7 +8375,7 @@ setInterval(() => {
   while (el > 1e-3) { const dt = Math.min(0.05, el); G.update(dt); el -= dt; }
 }, 250);
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'playing' && !NET.active) pauseGame(); });
-window.SP = { PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
+window.SP = { GLOWB, SECRET, Sfx, tip, tipsTick, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
   sim(sec, dt = 0.05) { for (let t = 0; t < sec; t += dt) { if (G.mode === 'playing' || (G.mode === 'paused' && NET.active)) { G.update(dt); if (G.mode === 'playing') updatePlayer(dt); NET.clientTick(dt); } updateFX(dt, performance.now() / 1000 + t); } } };
 
 
@@ -9885,7 +10083,9 @@ function filBuildMission() {
   const rock = fmat('rock', 0x8a7866), plank = fmat('planks', 0x5a3e28), gold = new THREE.MeshStandardMaterial({ color: 0xd8b040, emissive: 0xffb020, emissiveIntensity: 0.6, roughness: 0.3, metalness: 1 });
   WORLD.filRubble = filRubbleSpots().map((p) => {
     const g = new THREE.Group(); g.userData.dynamic = true; g.position.copy(p); R.scene.add(g);
-    for (let i = 0; i < 9; i++) { const s = rand(0.25, 0.55); const r = mesh(new THREE.DodecahedronGeometry(s, 0), rock, rand(-0.6, 0.6), s * 0.6 + (i > 5 ? 0.4 : 0), rand(-0.6, 0.6), rand(TAU), g); r.rotation.x = rand(TAU); }
+    // Neuf cailloux fusionnés : un seul appel de dessin par éboulis.
+    const rocks = []; for (let i = 0; i < 9; i++) { const s = rand(0.25, 0.55), d = new THREE.DodecahedronGeometry(s, 0); d.rotateX(rand(TAU)); d.rotateY(rand(TAU)); d.translate(rand(-0.6, 0.6), s * 0.6 + (i > 5 ? 0.4 : 0), rand(-0.6, 0.6)); rocks.push(d.index ? d.toNonIndexed() : d); }
+    mesh(mergeGeometries(rocks), rock, 0, 0, 0, 0, g);
     for (let i = 0; i < 2; i++) { const b = mesh(boxG(1.6, 0.14, 0.2), plank, rand(-0.3, 0.3), 0.5 + i * 0.25, rand(-0.3, 0.3), rand(TAU), g); b.rotation.z = rand(-0.5, 0.5); }
     const glint = KIT.glow(g, 0, 0.9, 0, 0xffc040, 0.6, 0.5);
     const col = { x0: p.x - 0.7, x1: p.x + 0.7, z0: p.z - 0.7, z1: p.z + 0.7, y0: 0, y1: 1.1, mat: 'concrete' }; MAP.props.push(col);

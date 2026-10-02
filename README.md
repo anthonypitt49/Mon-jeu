@@ -60,7 +60,7 @@ Sur téléphone ou tablette, des commandes tactiles s'affichent : joystick à ga
 
 **Si aucun relais ne répond chez l'hôte**, le salon l'affiche en orange : la partie passe en connexion directe, que seuls les joueurs du même Wi-Fi peuvent rejoindre. Le jeu retente les relais toutes les 12 secondes et, dès que l'un d'eux répond, affiche un **nouveau code** à donner aux amis. Côté invité, le message d'erreur dit pourquoi la partie est introuvable : hôte en connexion directe, partie hébergée sur claude.ai, relais bloqués par votre réseau, ou code erroné.
 
-**L'hôte et ses amis doivent avoir la même version** (affichée en haut du menu, par exemple « V4.3 ») : le jeu se met à jour tout seul en arrivant sur le menu. Si un ami a encore une ancienne version, il recharge la page avec Ctrl+F5.
+**L'hôte et ses amis doivent avoir la même version** (affichée en haut du menu, par exemple « V4.4 ») : le jeu se met à jour tout seul en arrivant sur le menu. Si un ami a encore une ancienne version, il recharge la page avec Ctrl+F5.
 
 - **Relève de l'hôte** : si l'hôte quitte ou perd sa connexion, un camarade reprend automatiquement la partie en quelques secondes. Si l'ordinateur de l'hôte n'avait fait que geler (chargement, ralentissement), il rejoint tout seul la partie reprise à son retour : plus de partie coupée en deux.
 - **Signaler** (Q ou PING) : un losange à votre couleur apparaît chez tout le monde, avec la distance.
@@ -88,6 +88,10 @@ Chaque carte a une mission en plusieurs étapes, toujours affichée dans le band
 | **Le Pénitencier** | L'évasion | Trouver les trois pièces du bouclier et l'assembler → le Geôlier fait sa ronde dès la 3ᵉ manche : l'abattre et **ramasser ses clés** → préparer la vedette amarrée aux quais → **la défendre 60 secondes** à moins de 9 mètres… mais personne ne quitte le rocher. +3000 points par soldat. |
 | **Filon Maudit** | Le trésor du Filon | Libérer le Colosse → lui donner des bonbons → le **guider** jusqu'aux trois éboulis qui brillent (il les fracasse en passant ; 40 s par sachet de bonbons) → ramasser les trois pépites → les déposer dans la **chambre forte** de la banque. +3000 points par soldat et +2000 sur votre compte en banque. |
 
+## Secrets
+
+Chaque carte cache **trois vieux disques**, toujours aux mêmes endroits, dans trois zones différentes. Un léger reflet les trahit de temps en temps. Écoutez-les tous les trois (maintenir E) et le morceau de la carte se joue pour toute l'équipe.
+
 ## Difficulté
 
 Quatre niveaux dans les options : **Recrue**, **Régulier**, **Vétéran** et **Cauchemar**. Les manches sont plus fournies et plus rapides qu'avant (les coureurs arrivent plus tôt, les infectés spéciaux aussi), sans que les infectés frappent plus fort : le défi vient du nombre et de la pression, pas de morts injustes. En **Cauchemar**, les coureurs sont là dès la 2ᵉ manche et les spéciaux arrivent très tôt.
@@ -101,6 +105,8 @@ Quatre niveaux dans les options : **Recrue**, **Régulier**, **Vétéran** et **
 - **Manches** : marquées à la craie rouge jusqu'à la 5ᵉ, de plus en plus dures ensuite, avec des brutes blindées (manche 5+), le Givreux (manche 6+), le Hurleur (manche 9+) et une tempête toutes les 6 manches. Ces seuils valent en Régulier : ils arrivent plus tard en Recrue, plus tôt en Vétéran et en Cauchemar.
 - **Morts réalistes** : les infectés s'effondrent sur place (plus de corps qui s'envolent), et vous encaissez plus de coups qu'avant.
 - **Classement des camarades** (bouton *Classement*) : meilleurs résultats par carte, avec une étoile quand l'objectif de la carte est accompli.
+- **Astuces** pour les nouveaux joueurs : chacune s'affiche une seule fois, au bon moment (réparer les fenêtres, le repère d'objectif, signaler en co-op…).
+- **Plus léger à faire tourner** : halos lumineux regroupés, ombres réservées aux objets qui comptent, décor découpé par zones pour que la carte graphique ignore ce qui est hors de vue (jusqu'à 45 % de triangles en moins selon la carte).
 - Neige, cendres, pluie et poussière selon la carte ; éclairs, fusées éclairantes, sons 100 % synthétisés et spatialisés ; 4 niveaux de graphismes avec résolution dynamique.
 
 ## Objectifs (étoile au classement)
