@@ -29,6 +29,8 @@ Les cartes sont des créations originales, inspirées de l'ambiance des cartes Z
 
 Les quatre cartes ont été reprises en détail : fenêtres avec encadrements, appuis, croisillons, volets, jardinières ou barreaux selon le bâtiment ; vitres qui reflètent vraiment (plus de « murs transparents ») ; avant-toits, gouttières, plinthes, corniches et lambris ; fils barbelés en hélice sur les murs d'enceinte ; salissures, coulures, fissures, moisissures, graffitis et traces de sang ; débris, feuilles, douilles et gravats semés au sol ; meubles et objets posés là où ils ont un sens (plus rien ne flotte ni ne traverse un mur).
 
+**Poste 7 en textures photo** (graphismes « moyen » et plus) : planches usées des coffrages et des caillebotis, parois de boue, sol de boue piétinée sous la neige, sacs de sable en toile tachée (chaque sac différent), tôle ondulée rouillée, béton du bunker, et un éclairage d'ambiance tiré d'une vraie photo de ciel nocturne couvert. En graphismes « élevé » et « ultra », un **ombrage d'ambiance** assombrit les coins, les recoins et le pied des murs. Les photos (4 Mo) se chargent pendant que vous jouez ; en graphismes « bas » (téléphones), rien ne change. Ressources libres de droits (CC0) de [Poly Haven](https://polyhaven.com), voir [assets/poste7/CREDITS.md](assets/poste7/CREDITS.md). Les trois autres cartes suivront.
+
 ## Commandes
 
 | Clavier / souris | Action |
@@ -60,7 +62,7 @@ Sur téléphone ou tablette, des commandes tactiles s'affichent : joystick à ga
 
 **Si aucun relais ne répond chez l'hôte**, le salon l'affiche en orange : la partie passe en connexion directe, que seuls les joueurs du même Wi-Fi peuvent rejoindre. Le jeu retente les relais toutes les 12 secondes et, dès que l'un d'eux répond, affiche un **nouveau code** à donner aux amis. Côté invité, le message d'erreur dit pourquoi la partie est introuvable : hôte en connexion directe, partie hébergée sur claude.ai, relais bloqués par votre réseau, ou code erroné.
 
-**L'hôte et ses amis doivent avoir la même version** (affichée en haut du menu, par exemple « V4.5 ») : le jeu se met à jour tout seul en arrivant sur le menu. Si un ami a encore une ancienne version, il recharge la page avec Ctrl+F5.
+**L'hôte et ses amis doivent avoir la même version** (affichée en haut du menu, par exemple « V4.6 ») : le jeu se met à jour tout seul en arrivant sur le menu. Si un ami a encore une ancienne version, il recharge la page avec Ctrl+F5.
 
 - **Relève de l'hôte** : si l'hôte quitte ou perd sa connexion, un camarade reprend automatiquement la partie en quelques secondes. Si l'ordinateur de l'hôte n'avait fait que geler (chargement, ralentissement), il rejoint tout seul la partie reprise à son retour : plus de partie coupée en deux.
 - **Signaler** (Q ou PING) : un losange à votre couleur apparaît chez tout le monde, avec la distance.

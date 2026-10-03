@@ -185,7 +185,7 @@ function updateCamera(dt) {
   Sfx.setReverb(roofed || MAP_ID === 'filon' ? 0.42 : 0.2, roofed ? 0 : 1);
   // Adaptation de l'œil : plus sombre sous abri.
   const L = R.lights; L.hemi.intensity = damp(L.hemi.intensity, (roofed ? M.env.hemiIn : M.env.hemiOut) + R.flash * (M.env.flashLight ?? 0.6), 2, dt);
-  R.scene.environmentIntensity = damp(R.scene.environmentIntensity, roofed ? M.env.envIn : M.env.envOut, 2, dt);
+  R.scene.environmentIntensity = damp(R.scene.environmentIntensity, (roofed ? M.env.envIn : M.env.envOut) * (R.envK || 1), 2, dt);
   R.vHemi.intensity = L.hemi.intensity * 1.1;
   // Lumière renvoyée par le sol et les murs à l'intérieur : les plafonds ne sont plus des trous noirs.
   if (M.env.bounce) { R.inK = damp(R.inK || 0, roofed ? 1 : 0, 2, dt); L.hemi.groundColor.lerpColors(R.hemiG ||= new THREE.Color(M.env.hemi[1]), R.bounceC ||= new THREE.Color(M.env.bounce), R.inK); }

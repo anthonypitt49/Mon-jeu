@@ -81,8 +81,8 @@ const saveSettings = () => store.set('settings', settings);
 const QUALITY = [
   { name: 'bas', pr: 0.75, shadows: false, shadowSize: 0, bloom: false, snow: 1800, flashShadow: false, texSize: 256, grain: false, decals: 30 },
   { name: 'moyen', pr: 1, shadows: true, shadowSize: 1024, bloom: false, snow: 3500, flashShadow: false, texSize: 512, grain: true, decals: 60 },
-  { name: 'eleve', pr: 1.25, shadows: true, shadowSize: 2048, bloom: true, snow: 6000, flashShadow: true, texSize: 512, grain: true, decals: 90 },
-  { name: 'ultra', pr: 2, shadows: true, shadowSize: 4096, bloom: true, snow: 9000, flashShadow: true, texSize: 1024, grain: true, decals: 140 },
+  { name: 'eleve', pr: 1.25, shadows: true, shadowSize: 2048, bloom: true, snow: 6000, flashShadow: true, texSize: 512, grain: true, decals: 90, ao: 'half' },
+  { name: 'ultra', pr: 2, shadows: true, shadowSize: 4096, bloom: true, snow: 9000, flashShadow: true, texSize: 1024, grain: true, decals: 140, ao: 'full' },
 ];
 let Q = QUALITY[clamp(settings.quality | 0, 0, 3)];
 
@@ -92,7 +92,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '4.5'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '4.6'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };

@@ -8,8 +8,10 @@ const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } });
 await ctx.addInitScript((q) => { localStorage.setItem('sp_settings', JSON.stringify({ quality: q })); localStorage.setItem('sp_tips', JSON.stringify({ repair: 1, objective: 1, power: 1, ping: 1, perks: 1, box: 1, down: 1 })); }, q);
 const page = await ctx.newPage(); const errors = []; page.on('pageerror', (e) => errors.push(e.message));
 await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(dir, 'node_modules/three', u.pathname.replace('/npm/three@0.186.1/', '')), contentType: 'application/javascript' }); });
+await page.route('https://cdn.jsdelivr.net/npm/n8ao@2.0.1/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/n8ao/dist/N8AO.js'), contentType: 'application/javascript' }));
 await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 await page.goto('http://127.0.0.1:8088/index.html#carte=' + mapId); await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
+await page.waitForFunction(() => SP.PHOTO.state !== 'loading', null, { timeout: 120000 }); console.log('photo', await page.evaluate(() => SP.PHOTO.state + ' ao=' + !!SP.R.ao));
 await page.evaluate(() => document.getElementById('soloButton').click());
 const shot = async (n) => { await page.evaluate(() => { SP.renderFrame(1); }); await page.waitForTimeout(200); await page.screenshot({ path: path.join(dir, 'shots', `real_${mapId}${tag}_${n}.png`) }); };
 await page.evaluate(() => {
@@ -47,5 +49,5 @@ if (mapId === 'poste7' || mapId === 'filon') {
   await shot('5_lampe_neige');
   console.log('empreintes visibles', await page.evaluate(() => SP.FX.prints.filter((d) => d.m.visible).length));
 }
-console.log(mapId, 'erreurs', errors.length, errors.slice(0, 3), JSON.stringify(await page.evaluate(() => ({ alive: window.__z?.alive, weapon: SP.P.weapons[SP.P.slot]?.key }))));
+console.log(mapId, 'erreurs', errors.length, errors.slice(0, 3), JSON.stringify(await page.evaluate(() => ({ alive: window.__z?.alive, weapon: SP.P.weapons[SP.P.slot]?.key, ao: SP.PHOTO.ao, aoPass: !!SP.R.ao, drops: (SP.G.drops || []).map((d) => d.type || d.kind || d.k) }))));
 await browser.close();

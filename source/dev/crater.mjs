@@ -5,10 +5,12 @@ const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--ena
 const page = await (await browser.newContext({ viewport: { width: 960, height: 540 } })).newPage(); const errors = []; page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)); });
 await page.addInitScript(() => localStorage.setItem('sp_settings', JSON.stringify({ quality: 2 })));
 await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(dir, 'node_modules/three', u.pathname.replace('/npm/three@0.186.1/', '')), contentType: 'application/javascript' }); });
+await page.route('https://cdn.jsdelivr.net/npm/n8ao@2.0.1/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/n8ao/dist/N8AO.js'), contentType: 'application/javascript' }));
 await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
 await page.goto('http://127.0.0.1:8088/index.html'); await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
 await page.evaluate(() => document.getElementById('soloButton').click());
+await page.waitForFunction(() => SP.PHOTO.state !== 'loading', null, { timeout: 240000 }); // photos du Poste 7 envoyées à la carte graphique (lent en rendu logiciel)
 const log = (...a) => console.log(...a);
 // Portes du cratère.
 log('doors', await page.evaluate(() => { const { G, P, MAP } = SP; P.hp = P.maxHp = 1e9; SP.sim(0.5); G.me().points = 99999; const out = []; for (const d of MAP.doors.filter((q) => q.label === 'Le Cratère')) { P.pos.set(d.x * 2 + 1, 0, d.z * 2 + 1 + (d.z === 8 ? -1.2 : 1.2)); SP.sim(0.1); SP.INPUT.interactPressed = true; SP.sim(0.2); out.push(d.open); } return [out, MAP.zoneActive]; }));

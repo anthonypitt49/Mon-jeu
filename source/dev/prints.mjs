@@ -7,6 +7,7 @@ const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } });
 await ctx.addInitScript(() => { localStorage.setItem('sp_settings', JSON.stringify({ quality: 2 })); localStorage.setItem('sp_tips', JSON.stringify({ repair: 1, objective: 1, power: 1, ping: 1, perks: 1, box: 1, down: 1 })); });
 const page = await ctx.newPage(); const errors = []; page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(dir, 'node_modules/three', u.pathname.replace('/npm/three@0.186.1/', '')), contentType: 'application/javascript' }); });
+await page.route('https://cdn.jsdelivr.net/npm/n8ao@2.0.1/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/n8ao/dist/N8AO.js'), contentType: 'application/javascript' }));
 await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 await page.goto('http://127.0.0.1:8088/index.html#carte=poste7'); await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
 await page.evaluate(() => document.getElementById('soloButton').click());

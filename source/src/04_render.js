@@ -68,7 +68,14 @@ function buildComposer() {
   if (R.composer) { R.composer.dispose?.(); R.composer = null; }
   if (!Q.bloom && !Q.grain) return;
   const c = R.composer = new EffectComposer(renderer);
-  c.addPass(new RenderPass(R.scene, R.camera));
+  // Ombrage d'ambiance (N8AO, qualité élevée et ultra) : assombrit coins, recoins et pieds des murs ; il dessine aussi la scène.
+  R.ao = null;
+  if (Q.ao && R.N8AOPass) try {
+    const ao = new R.N8AOPass(R.scene, R.camera, innerWidth, innerHeight), cf = ao.configuration;
+    Object.assign(cf, { aoRadius: 1.6, distanceFalloff: 0.8, intensity: 2.2, color: new THREE.Color(0, 0, 0), halfRes: Q.ao === 'half', depthAwareUpsampling: true, gammaCorrection: false, aoSamples: Q.ao === 'half' ? 12 : 16, denoiseSamples: 8, denoiseRadius: 10 });
+    c.addPass(ao); R.ao = ao;
+  } catch (e) { R.N8AOPass = null; PHOTO.ao = 'failed: ' + (e?.message || e); }
+  if (!R.ao) c.addPass(new RenderPass(R.scene, R.camera));
   const vp = new RenderPass(R.viewScene, R.viewCam); vp.clear = false; vp.clearDepth = true; c.addPass(vp);
   if (Q.bloom) {
     R.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.5, 0.55, 0.9); c.addPass(R.bloom);

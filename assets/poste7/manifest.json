@@ -1,0 +1,40 @@
+{
+ "planks": {
+  "m": 1.8,
+  "maps": "cnr",
+  "lum": 0.0799
+ },
+ "mudwall": {
+  "m": 1.3,
+  "maps": "cnr",
+  "lum": 0.0616
+ },
+ "mudfloor": {
+  "m": 1.3,
+  "maps": "cnr",
+  "lum": 0.0725
+ },
+ "snow": {
+  "m": 2.0,
+  "maps": "cn",
+  "lum": 0.3787
+ },
+ "burlap": {
+  "m": 0.274,
+  "maps": "cn",
+  "lum": 0.2567
+ },
+ "tin": {
+  "m": 1.8,
+  "maps": "cnr",
+  "lum": 0.1855
+ },
+ "concrete": {
+  "m": 3.0,
+  "maps": "cnr",
+  "lum": 0.5134
+ },
+ "env": {
+  "lum": 0.22981
+ }
+}

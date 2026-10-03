@@ -8,6 +8,7 @@ const probe = async (mapId, nomerge) => {
   await ctx.addInitScript(() => localStorage.setItem('sp_settings', JSON.stringify({ quality: 2 })));
   const page = await ctx.newPage();
   await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(dir, 'node_modules/three', u.pathname.replace('/npm/three@0.186.1/', '')), contentType: 'application/javascript' }); });
+  await page.route('https://cdn.jsdelivr.net/npm/n8ao@2.0.1/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/n8ao/dist/N8AO.js'), contentType: 'application/javascript' }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
   await page.goto('http://127.0.0.1:8088/index.html?' + (nomerge ? 'nomerge=1' : '') + '#carte=' + mapId); await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
   const r = await page.evaluate(() => {

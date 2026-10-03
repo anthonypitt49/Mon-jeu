@@ -89,6 +89,8 @@ function buildMaterials() {
   MATS.bark = stdMat({ color: 0x2c2723, roughness: 0.95, map: TEX.grime.map, normalMap: TEX.earth.normalMap }, 1.2);
   MATS.char = stdMat({ color: 0x151312, roughness: 0.9, map: TEX.grime.map }, 0.8);
   MATS.cloth = stdMat({ color: 0x5d5a44, roughness: 0.95, map: TEX.cloth.map, normalMap: TEX.cloth.normalMap }, 0.9);
+  // Nom de la matière, recopié dans les clones des fusions : les textures photo (05p_photo.js) les retrouvent tous.
+  for (const k of Object.keys(PHOTO_SETS[MAP_ID] || {})) if (MATS[k]) MATS[k].userData.photo = k;
   MATS.wire = new THREE.LineBasicMaterial({ color: 0x191919 });
   MATS.wireMesh = stdMat({ color: 0x252525, roughness: 0.5, metalness: 0.8 });
   MATS.brass = stdMat({ color: 0xb58a3c, roughness: 0.35, metalness: 0.9 });

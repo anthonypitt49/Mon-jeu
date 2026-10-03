@@ -6,3 +6,4 @@ dev/index.html
 dev/*.log
 *.artifact.html
 _check.mjs
+dev/assets
