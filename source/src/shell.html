@@ -135,6 +135,14 @@ h1 em { display: block; color: transparent; font-style: inherit; -webkit-text-st
 .set-row select { grid-column: 2 / 4; padding: 7px; background: #02090d; color: var(--snow); border: 1px solid #9ce8ff55; font-weight: 700; letter-spacing: .06em; }
 .set-row.check { grid-template-columns: 1fr auto; }
 .set-row.check input { width: 18px; height: 18px; accent-color: var(--frost); }
+.set-more > summary { cursor: pointer; list-style: none; padding: 8px 0 2px; border-top: 1px solid #beeaf322; color: #a7c3cc; font-size: .72rem; font-weight: 700; letter-spacing: .12em; }
+.set-more > summary::-webkit-details-marker { display: none; }
+.set-more > summary::after { content: ' ▾'; color: var(--frost); }
+.set-more[open] > summary::after { content: ' ▴'; }
+.set-more > summary:focus-visible { outline: 1px solid var(--frost); outline-offset: 3px; }
+.set-more-body { display: grid; gap: 10px; padding: 8px 0 4px 12px; border-left: 1px solid #beeaf333; margin-top: 6px; }
+.set-more-body .set-row { grid-template-columns: 98px 1fr 52px; }
+.set-hint { margin: 0; color: #8ba5ad; font-size: .7rem; line-height: 1.4; letter-spacing: 0; font-weight: 400; }
 .sensitivity-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; color: #a7c3cc; font-size: .6rem; font-weight: 700; letter-spacing: .1em; }
 .go-card { width: min(94vw, 620px); }
 .go-card h2 { font-size: clamp(2.6rem, 7vw, 4.4rem); color: var(--blood); }
@@ -479,8 +487,14 @@ body.touch .control-strip { display: none; }
         <div class="set-row"><label for="optQuality">GRAPHISMES</label><select id="optQuality"><option value="0">Bas — performance</option><option value="1">Moyen</option><option value="2">Élevé</option><option value="3">Ultra</option></select></div>
         <div class="set-row"><label for="optSens">SENSIBILITÉ</label><input type="range" id="optSens" min="0.3" max="2.5" step="0.1"><output id="optSensV"></output></div>
         <div class="set-row"><label for="optFov">CHAMP DE VISION</label><input type="range" id="optFov" min="60" max="100" step="1"><output id="optFovV"></output></div>
-        <div class="set-row"><label for="optVol">VOLUME</label><input type="range" id="optVol" min="0" max="1" step="0.05"><output id="optVolV"></output></div>
-        <div class="set-row"><label for="optMusic">MUSIQUE</label><input type="range" id="optMusic" min="0" max="1" step="0.05"><output id="optMusicV"></output></div>
+        <div class="set-row"><label for="optVol">VOLUME GÉNÉRAL</label><input type="range" id="optVol" min="0" max="1" step="0.05"><output id="optVolV"></output></div>
+        <details class="set-more"><summary>VOLUMES DÉTAILLÉS</summary><div class="set-more-body">
+          <div class="set-row"><label for="optVolWeapons">ARMES</label><input type="range" id="optVolWeapons" min="0" max="1" step="0.05"><output id="optVolWeaponsV"></output></div>
+          <div class="set-row"><label for="optVolZombies">INFECTÉS</label><input type="range" id="optVolZombies" min="0" max="1" step="0.05"><output id="optVolZombiesV"></output></div>
+          <div class="set-row"><label for="optVolAmb">AMBIANCE</label><input type="range" id="optVolAmb" min="0" max="1" step="0.05"><output id="optVolAmbV"></output></div>
+          <div class="set-row"><label for="optMusic">MUSIQUE</label><input type="range" id="optMusic" min="0" max="1" step="0.05"><output id="optMusicV"></output></div>
+          <p class="set-hint">Armes : tirs, recharges, impacts de balles, explosions. Ambiance : vent, pluie, artillerie et tirs au loin. Le reste (pas, barricades, portes, interface) suit le volume général.</p>
+        </div></details>
         <div class="set-row check"><label for="optInvert">INVERSER L'AXE VERTICAL</label><input type="checkbox" id="optInvert"></div>
         <div class="set-row check"><label for="optFps">AFFICHER LES IMAGES/S</label><input type="checkbox" id="optFps"></div>
       </div>

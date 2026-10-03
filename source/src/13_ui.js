@@ -109,8 +109,10 @@ const UI = {
     const bind = (id, key, fmt, apply) => { const el = $(id), out = $(id + 'V'); el.value = settings[key]; out.textContent = fmt(settings[key]); el.oninput = () => { settings[key] = +el.value; out.textContent = fmt(settings[key]); saveSettings(); apply && apply(); }; };
     bind('optSens', 'sens', (v) => Math.round(v * 100) + '%', () => { $('sensitivitySlider').value = settings.sens; $('sensitivityValue').textContent = Math.round(settings.sens * 100) + '%'; });
     bind('optFov', 'fov', (v) => v + '°');
-    bind('optVol', 'volume', (v) => Math.round(v * 100) + '%', () => Sfx.applyVolume());
-    bind('optMusic', 'music', (v) => Math.round(v * 100) + '%', () => Sfx.applyVolume());
+    const pct = (v) => Math.round(v * 100) + '%', vol = () => Sfx.applyVolume();
+    bind('optVol', 'volume', pct, vol);
+    bind('optVolWeapons', 'volWeapons', pct, vol); bind('optVolZombies', 'volZombies', pct, vol); bind('optVolAmb', 'volAmb', pct, vol);
+    bind('optMusic', 'music', pct, vol);
     $('optInvert').checked = settings.invertY; $('optInvert').onchange = (e) => { settings.invertY = e.target.checked; saveSettings(); };
     $('optFps').checked = settings.showFps; $('optFps').onchange = (e) => { settings.showFps = e.target.checked; saveSettings(); $('fps').classList.toggle('hidden', !settings.showFps); };
     q.onchange = () => { settings.quality = +q.value; saveSettings(); applyQuality(); };

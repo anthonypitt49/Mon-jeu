@@ -67,7 +67,8 @@ const store = {
   set(k, v) { try { localStorage.setItem('sp_' + k, JSON.stringify(v)); } catch { /* stockage indisponible */ } },
 };
 const defaultQuality = IS_TOUCH ? 0 : 2;
-const settings = Object.assign({ quality: defaultQuality, sens: 1, fov: 78, volume: 0.8, music: 0.5, invertY: false, showFps: false, name: '', diff: 1 }, store.get('settings', {}));
+// Volumes : volume général, puis par famille de sons (armes, infectés, ambiance) et musique.
+const settings = Object.assign({ quality: defaultQuality, sens: 1, fov: 78, volume: 0.8, volWeapons: 1, volZombies: 1, volAmb: 1, music: 0.5, invertY: false, showFps: false, name: '', diff: 1 }, store.get('settings', {}));
 // Difficulté : points de vie du soldat, coup d'un infecté, résistance, nombre et cadence d'arrivée des infectés.
 // « early » avance (ou recule) d'autant de manches l'arrivée des coureurs et des infectés spéciaux.
 const DIFFS = [
