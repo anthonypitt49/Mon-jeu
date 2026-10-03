@@ -1,5 +1,6 @@
-/* ═══════════════════ AUDIO SYNTHÉTISÉ ═══════════════════
-   Tous les sons sont générés en direct avec Web Audio (aucun fichier), spatialisés en 3D. */
+/* ═══════════════════ AUDIO ═══════════════════
+   Sons générés en direct avec Web Audio, spatialisés en 3D. Quand les vrais sons (assets/sounds/) sont arrivés,
+   ils prennent la place des sons synthétisés correspondants ; ceux-ci restent en secours. */
 
 const Sfx = {
   ctx: null, ready: false, voices: 0,
@@ -36,6 +37,7 @@ const Sfx = {
     this.ready = true;
     this.applyVolume();
     this.startAmbience();
+    this.loadBank();
   },
   applyVolume() { if (!this.ctx) return; this.master.gain.value = settings.volume; this.musicBus.gain.value = settings.music * 0.55; },
   now() { return this.ctx.currentTime; },
@@ -67,6 +69,53 @@ const Sfx = {
   },
   src(buf = this.noise, rate = 1, loop = false) { const s = this.ctx.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate; s.loop = loop; s.start(this.ctx.currentTime, Math.random() * 1.5); return s; },
   filt(type, f, q = 1) { const b = this.ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; },
+  /* ─── Sons enregistrés (Freesound, CC0) ───
+     Servis à côté du jeu dans assets/sounds/ (voir source/tools/keep_sounds.py) et chargés une fois le son démarré.
+     Chaque fichier regroupe plusieurs prises (repères « cuts » du manifeste) : on en tire une au hasard, en variant un peu hauteur et volume.
+     Tant qu'un son manque (page ouverte en local, hors ligne, navigateur qui ne lit pas l'OGG), sa version synthétisée joue. */
+  bank: {}, bankInfo: { state: 'off', n: 0, failed: 0, ms: 0 },
+  async loadBank() {
+    const B = this.bankInfo;
+    if (B.state !== 'off' || location.protocol === 'file:' || /nosamples/.test(location.search)) return;
+    B.state = 'loading'; const t0 = performance.now(), base = 'assets/sounds/';
+    try {
+      const man = await (await fetch(base + 'manifest.json')).json();
+      const res = await Promise.allSettled(Object.entries(man).map(async ([name, e]) => {
+        const data = await (await fetch(base + name + '.ogg')).arrayBuffer();
+        const buf = await new Promise((ok, ko) => this.ctx.decodeAudioData(data, ok, ko)); // forme à rappels : vieux Safari
+        this.bank[name] = { buf, cuts: e.cuts, last: -1 };
+      }));
+      B.n = Object.keys(this.bank).length; B.failed = res.filter((r) => r.status === 'rejected').length; B.state = 'on';
+      this.windSample();
+    } catch (e) { B.state = 'failed'; B.err = String(e?.message || e); }
+    B.ms = Math.round(performance.now() - t0);
+  },
+  // Joue une prise enregistrée et renvoie sa durée (s) ; 0 si le son manque : l'appelant joue alors sa version synthétisée.
+  // to : sortie déjà prête (sinon out(pos, …)) ; cut : prise imposée (recharges, dans l'ordre) ; max : coupée en fondu au-delà (s).
+  play(name, pos, { gain = 1, verb = 0.3, ref = 2.5, rate = 1, cut = -1, t = 0, max = 0, bus, to } = {}) {
+    const b = this.ready && this.bank[name]; if (!b) return 0;
+    const ctx = this.ctx, n = b.cuts.length;
+    let k = cut >= 0 ? cut % n : (Math.random() * (b.last < 0 ? n : n - 1)) | 0;
+    if (cut < 0 && b.last >= 0 && n > 1 && k >= b.last) k++; // jamais deux fois de suite la même prise
+    b.last = k;
+    const [c0, c1] = b.cuts[k], r = rate * (0.96 + Math.random() * 0.08), t0 = ctx.currentTime + t;
+    const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = b.buf; s.playbackRate.value = r; g.gain.value = 0.9 + Math.random() * 0.2;
+    s.connect(g); g.connect(to || this.out(pos, { gain, verb, ref, bus }));
+    let len = c1 - c0;
+    if (max && len / r > max) { len = max * r; g.gain.setValueAtTime(g.gain.value, t0 + max * 0.6); g.gain.linearRampToValueAtTime(0.0001, t0 + max); }
+    s.start(t0, c0, len);
+    return len / r;
+  },
+  // Vent enregistré (Poste 7, le seul sous la neige) à la place du bruit filtré : setWind règle toujours sa force.
+  windSample() {
+    const b = this.bank.vent_neige; if (!b || !this.wind || this.wind.rec || MAP_ID !== 'poste7') return;
+    const ctx = this.ctx, t = ctx.currentTime, [c0, c1] = b.cuts[0], s = ctx.createBufferSource(), g = ctx.createGain();
+    s.buffer = b.buf; s.loop = true; s.loopStart = c0; s.loopEnd = c1;
+    g.gain.value = 0.0001; s.connect(g); g.connect(this.wind.g); s.start(t, c0 + Math.random() * (c1 - c0));
+    g.gain.setTargetAtTime(1, t, 1.2); this.wind.mix.gain.setTargetAtTime(0.0001, t, 1.2); // fondu de 3 s environ
+    setTimeout(() => { try { this.wind.src.stop(); } catch { /* déjà arrêté */ } }, 6000);
+    this.wind.rec = s;
+  },
   env(g, t, a, d, peak = 1, sus = 0) { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(Math.max(0.0001, sus), t + a + d); },
   // Brique : bruit filtré avec enveloppe.
   burst(dest, { type = 'bandpass', f = 1000, q = 1, a = 0.002, d = 0.1, peak = 1, rate = 1, sweep = 0, t = 0 } = {}) {
@@ -90,6 +139,7 @@ const Sfx = {
     const P = GUN_SOUNDS[profile] || GUN_SOUNDS.pistol;
     const o = this.out(local ? null : pos, { gain: local ? P.gain : P.gain * 1.4, verb: P.verb, ref: 6 });
     if (this.echoSend) { const e = this.ctx.createGain(); e.gain.value = local ? 0.15 : 0.1; o.connect(e); e.connect(this.echoSend); }
+    if (P.rec && this.play(P.rec[0], null, { to: o, rate: P.rec[1] || 1, max: P.rec[2] || 0 })) return;
     this.burst(o, { type: 'bandpass', f: P.crack, q: 0.7, d: P.cd, peak: 1 });
     this.burst(o, { type: 'lowpass', f: P.body, q: 0.5, a: 0.003, d: P.bd, peak: 0.9, sweep: P.body * 0.3 });
     this.tone(o, { f: P.thump, f2: P.thump * 0.4, d: 0.18, peak: 0.8 });
@@ -97,9 +147,11 @@ const Sfx = {
     if (P.tail) this.burst(o, { type: 'lowpass', f: 500, a: 0.02, d: P.tail, peak: 0.25, t: 0.04 });
   },
   click(f = 3500, peak = 0.3, t = 0, pos) { if (!this.ready) return; const o = this.out(pos, { verb: 0.05 }); this.burst(o, { f, q: 3, d: 0.025, peak, t }); this.tone(o, { f: f * 0.6, d: 0.03, peak: peak * 0.3, t }); },
+  // Recharges : chaque déclic joue la prise suivante de l'enregistrement (chargeur sorti, remis, culasse…), dans l'ordre.
   reloadSeq(kind, dur, pos) {
     if (!this.ready) return;
-    const s = (t, f, p) => setTimeout(() => this.click(f, p, 0, pos), t * 1000);
+    const rec = { bolt: 'culasse', pump: 'pompe', mag: 'recharge_chargeur' }[kind];
+    let k = 0; const s = (t, f, p) => { const c = k++; setTimeout(() => { if (!this.play(rec, pos, { cut: c, gain: p * 1.8, verb: 0.05 })) this.click(f, p, 0, pos); }, t * 1000); };
     if (kind === 'bolt') { s(0.05, 2400, 0.3); s(dur * 0.35, 1800, 0.4); s(dur * 0.8, 2600, 0.45); }
     else if (kind === 'shell') { s(0.02, 1400, 0.3); }
     else if (kind === 'pump') { s(0, 1500, 0.35); s(0.14, 1100, 0.4); }
@@ -108,6 +160,7 @@ const Sfx = {
   dry() { this.click(4200, 0.25); },
   casing(pos, shell) {
     if (!this.ready || Math.random() < 0.3) return;
+    if (this.play('douille', pos, { gain: 0.08, verb: 0.05, ref: 1, rate: shell ? 0.75 : 1, t: 0.25 })) return;
     const o = this.out(pos, { gain: 0.15, verb: 0.05, ref: 1 });
     const f = shell ? 900 : 3800 + Math.random() * 1600;
     this.tone(o, { f, d: 0.08, peak: 0.4, t: 0.25 }); this.tone(o, { f: f * 1.02, d: 0.05, peak: 0.25, t: 0.36 });
@@ -116,12 +169,15 @@ const Sfx = {
 
   /* ─── Impacts ─── */
   flesh(pos, head) {
-    if (!this.ready) return; const o = this.out(pos, { gain: 0.5, verb: 0.1 });
+    if (!this.ready || this.play('impact_chair', pos, { gain: head ? 0.55 : 0.42, verb: 0.1, rate: head ? 0.9 : 1 })) return;
+    const o = this.out(pos, { gain: 0.5, verb: 0.1 });
     this.burst(o, { type: 'lowpass', f: 700, d: 0.09, peak: 0.8 }); this.tone(o, { f: 140, f2: 60, d: 0.1, peak: 0.5 });
     if (head) this.burst(o, { f: 1800, q: 2, d: 0.2, sweep: 350, peak: 0.6, t: 0.01 });
   },
   impact(pos, mat) {
-    if (!this.ready || Math.random() < 0.5) return; const o = this.out(pos, { gain: 0.25, verb: 0.1, ref: 1.5 });
+    if (!this.ready || Math.random() < 0.5) return;
+    if (this.play(mat === 'metal' ? 'impact_metal' : mat === 'wood' ? 'impact_bois' : 'impact_terre', pos, { gain: 0.2, verb: 0.1, ref: 1.5 })) return;
+    const o = this.out(pos, { gain: 0.25, verb: 0.1, ref: 1.5 });
     if (mat === 'metal') { this.tone(o, { f: 2200 + Math.random() * 900, d: 0.18, peak: 0.3 }); this.burst(o, { type: 'highpass', f: 3000, d: 0.04, peak: 0.4 }); }
     else if (mat === 'wood') { this.burst(o, { f: 900, q: 2, d: 0.06, peak: 0.6 }); }
     else this.burst(o, { type: 'lowpass', f: 1400, d: 0.06, peak: 0.5 });
@@ -130,7 +186,10 @@ const Sfx = {
 
   /* ─── Pas ─── */
   step(surface, pos, loud = 1) {
-    if (!this.ready) return; const o = this.out(pos, { gain: 0.22 * loud, verb: 0.05, ref: 1.5 });
+    if (!this.ready) return;
+    const rec = surface === 'wood' ? 'pas_bois' : surface === 'mud' ? 'pas_boue' : surface === 'snow' && MAP_ID === 'poste7' ? 'pas_neige' : ''; // ailleurs, « snow » = terre sèche
+    if (rec && this.play(rec, pos, { gain: 0.15 * loud, verb: 0.05, ref: 1.5 })) return;
+    const o = this.out(pos, { gain: 0.22 * loud, verb: 0.05, ref: 1.5 });
     if (surface === 'wood') { this.tone(o, { f: 130 + Math.random() * 40, d: 0.07, peak: 0.6 }); this.burst(o, { type: 'lowpass', f: 900, d: 0.05, peak: 0.4 }); }
     else if (surface === 'concrete') { this.burst(o, { type: 'highpass', f: 1800, d: 0.04, peak: 0.45 }); this.burst(o, { type: 'lowpass', f: 300, d: 0.04, peak: 0.35 }); }
     else { for (let i = 0; i < 4; i++) this.burst(o, { f: 1400 + Math.random() * 1600, q: 1.5, d: 0.03 + Math.random() * 0.04, peak: 0.3 + Math.random() * 0.3, t: i * 0.018 }); this.burst(o, { type: 'lowpass', f: 400, d: 0.07, peak: 0.3 }); }
@@ -139,6 +198,8 @@ const Sfx = {
   /* ─── Voix des infectés ─── */
   zombie(pos, kind = 'groan', pitch = 1) {
     if (!this.ready || this.voices > 7) return;
+    const rec = this.play(kind === 'scream' ? 'zombie_cri' : kind === 'attack' ? 'zombie_attaque' : 'zombie_grogne', pos, { gain: kind === 'scream' ? 0.45 : kind === 'attack' ? 0.36 : 0.3, verb: 0.25, ref: 2.2, rate: pitch, max: 3.5 });
+    if (rec) { this.voices++; setTimeout(() => this.voices--, rec * 1000 + 60); return; }
     const ctx = this.ctx, t0 = ctx.currentTime, dur = kind === 'scream' ? 0.7 + Math.random() * 0.5 : kind === 'attack' ? 0.35 : 0.8 + Math.random() * 1.1;
     const o = this.out(pos, { gain: kind === 'scream' ? 0.45 : 0.32, verb: 0.25, ref: 2.2 });
     const osc = ctx.createOscillator(); osc.type = 'sawtooth';
@@ -161,8 +222,8 @@ const Sfx = {
   },
 
   /* ─── Barricades, portes, machines ─── */
-  plankRip(pos) { if (!this.ready) return; const o = this.out(pos, { gain: 0.55, verb: 0.2 }); this.burst(o, { f: 850, q: 2.5, d: 0.16, peak: 0.9 }); this.burst(o, { f: 2400, q: 4, d: 0.05, peak: 0.5, t: 0.02 }); this.tone(o, { f: 95, f2: 55, d: 0.15, peak: 0.5 }); },
-  hammer(pos) { if (!this.ready) return; const o = this.out(pos, { gain: 0.4, verb: 0.2 }); for (let i = 0; i < 3; i++) { this.tone(o, { f: 380 + i * 20, d: 0.05, peak: 0.6, t: i * 0.12 }); this.burst(o, { f: 2600, q: 2, d: 0.03, peak: 0.4, t: i * 0.12 }); } },
+  plankRip(pos) { if (!this.ready || this.play('planche_arrachee', pos, { gain: 0.5, verb: 0.2 })) return; const o = this.out(pos, { gain: 0.55, verb: 0.2 }); this.burst(o, { f: 850, q: 2.5, d: 0.16, peak: 0.9 }); this.burst(o, { f: 2400, q: 4, d: 0.05, peak: 0.5, t: 0.02 }); this.tone(o, { f: 95, f2: 55, d: 0.15, peak: 0.5 }); },
+  hammer(pos) { if (!this.ready) return; if (this.bank.marteau_clou) { for (let i = 0; i < 3; i++) this.play('marteau_clou', pos, { gain: 0.32, verb: 0.2, t: i * 0.16 + Math.random() * 0.03 }); return; } const o = this.out(pos, { gain: 0.4, verb: 0.2 }); for (let i = 0; i < 3; i++) { this.tone(o, { f: 380 + i * 20, d: 0.05, peak: 0.6, t: i * 0.12 }); this.burst(o, { f: 2600, q: 2, d: 0.03, peak: 0.4, t: i * 0.12 }); } },
   buy() { if (!this.ready) return; const o = this.out(null, { gain: 0.35, verb: 0.15, bus: this.ui }); [1318, 1976].forEach((f, i) => { this.tone(o, { f, d: 0.5, peak: 0.35, t: i * 0.1 }); this.tone(o, { f: f * 2.01, d: 0.25, peak: 0.1, t: i * 0.1 }); }); },
   // Obus de mortier qui arrive : sifflement descendant pendant `dur` secondes.
   shellWhistle(pos, dur = 1.2) { if (!this.ready) return; const o = this.out(pos, { gain: 0.5, verb: 0.35 }); this.tone(o, { f: 2100, f2: 520, a: 0.15, d: dur, peak: 0.22 }); this.tone(o, { f: 2150, f2: 540, a: 0.2, d: dur, peak: 0.1, detune: 12 }); },
@@ -221,7 +282,8 @@ const Sfx = {
 
   /* ─── Explosions et ambiance guerrière ─── */
   explosion(pos, big = 1) {
-    if (!this.ready) return; const o = this.out(pos, { gain: 1.1 * big, verb: 0.6, ref: 8 });
+    if (!this.ready || this.play('explosion', pos, { gain: 1.1 * big, verb: 0.6, ref: 8, rate: 1.15 - 0.15 * big })) return;
+    const o = this.out(pos, { gain: 1.1 * big, verb: 0.6, ref: 8 });
     this.burst(o, { type: 'lowpass', f: 3200, q: 0.4, a: 0.004, d: 1.3, sweep: 120, peak: 1 });
     this.tone(o, { f: 70, f2: 28, d: 0.7, peak: 1 });
     for (let i = 0; i < 10; i++) this.burst(o, { f: 1500 + Math.random() * 2500, q: 2, d: 0.03, peak: 0.25, t: 0.2 + Math.random() * 0.9 });
@@ -229,6 +291,7 @@ const Sfx = {
   artillery() {
     if (!this.ready) return; const ctx = this.ctx, p = ctx.createStereoPanner(); p.pan.value = Math.random() * 2 - 1;
     const g = ctx.createGain(); g.gain.value = 0.35 + Math.random() * 0.35; g.connect(p); p.connect(this.sfx);
+    if (this.play('artillerie_loin', null, { to: g, rate: 0.9 + Math.random() * 0.2 })) return;
     this.burst(g, { type: 'lowpass', f: 160, q: 0.7, a: 0.05, d: 2.4, peak: 1 });
     this.tone(g, { f: 42, f2: 25, a: 0.05, d: 1.3, peak: 0.7 });
   },
@@ -243,6 +306,7 @@ const Sfx = {
   distantMG() {
     if (!this.ready) return; const ctx = this.ctx, p = ctx.createStereoPanner(); p.pan.value = Math.random() * 2 - 1;
     const g = ctx.createGain(); g.gain.value = 0.08; g.connect(p); p.connect(this.sfx);
+    if (this.play('tir_lointain', null, { to: g, max: 3 })) return;
     const n = 5 + (Math.random() * 10) | 0; for (let i = 0; i < n; i++) this.burst(g, { type: 'bandpass', f: 600, q: 1, d: 0.08, peak: 1, t: i * 0.09 });
   },
   howl() {
@@ -290,8 +354,8 @@ const Sfx = {
     const ctx = this.ctx;
     this.mapLayers();
     // Vent : bruit brun filtré, modulé lentement.
-    const w = this.src(this.brown, 1, true), bp = this.filt('bandpass', 420, 0.7), g = ctx.createGain(); g.gain.value = 0.16;
-    w.connect(bp); bp.connect(g); g.connect(this.sfx); this.wind = { src: w, bp, g };
+    const w = this.src(this.brown, 1, true), bp = this.filt('bandpass', 420, 0.7), mix = ctx.createGain(), g = ctx.createGain(); g.gain.value = 0.16;
+    w.connect(bp); bp.connect(mix); mix.connect(g); g.connect(this.sfx); this.wind = { src: w, bp, mix, g };
     const w2 = this.src(this.noise, 0.5, true), hp = this.filt('bandpass', 2600, 2.5), g2 = ctx.createGain(); g2.gain.value = 0.012;
     w2.connect(hp); hp.connect(g2); g2.connect(this.sfx); this.whistle = { bp: hp, g: g2 };
     // Nappe musicale : accord mineur lent et désaccordé.
@@ -328,17 +392,18 @@ const Sfx = {
   },
 };
 
-// Signatures sonores des armes : fréquence du claquement, corps, grave, queue.
+// Signatures sonores des armes : fréquence du claquement, corps, grave, queue ;
+// rec : enregistrement qui les remplace quand il est chargé [son, hauteur, longueur max en s (armes automatiques)].
 const GUN_SOUNDS = {
-  pistol: { crack: 2600, cd: 0.05, body: 1800, bd: 0.14, thump: 110, tail: 0.35, gain: 0.55, verb: 0.35, mech: true },
-  revolver: { crack: 1900, cd: 0.08, body: 1300, bd: 0.28, thump: 80, tail: 0.6, gain: 0.8, verb: 0.45 },
-  rifle: { crack: 2100, cd: 0.08, body: 1500, bd: 0.3, thump: 70, tail: 0.9, gain: 0.85, verb: 0.5 },
-  carbine: { crack: 2400, cd: 0.06, body: 1700, bd: 0.2, thump: 85, tail: 0.6, gain: 0.7, verb: 0.4, mech: true },
-  smg: { crack: 3000, cd: 0.035, body: 2000, bd: 0.09, thump: 120, tail: 0.25, gain: 0.45, verb: 0.3, mech: true },
-  ar: { crack: 2600, cd: 0.045, body: 1700, bd: 0.12, thump: 95, tail: 0.4, gain: 0.55, verb: 0.35, mech: true },
-  lmg: { crack: 2200, cd: 0.05, body: 1400, bd: 0.16, thump: 75, tail: 0.5, gain: 0.65, verb: 0.4 },
-  shotgun: { crack: 1500, cd: 0.09, body: 900, bd: 0.35, thump: 60, tail: 0.8, gain: 0.95, verb: 0.5 },
-  sniper: { crack: 1800, cd: 0.1, body: 1200, bd: 0.4, thump: 55, tail: 1.3, gain: 1, verb: 0.6 },
+  pistol: { crack: 2600, cd: 0.05, body: 1800, bd: 0.14, thump: 110, tail: 0.35, gain: 0.55, verb: 0.35, mech: true, rec: ['tir_pistolet'] },
+  revolver: { crack: 1900, cd: 0.08, body: 1300, bd: 0.28, thump: 80, tail: 0.6, gain: 0.8, verb: 0.45, rec: ['tir_pistolet', 0.82] },
+  rifle: { crack: 2100, cd: 0.08, body: 1500, bd: 0.3, thump: 70, tail: 0.9, gain: 0.85, verb: 0.5, rec: ['tir_fusil'] },
+  carbine: { crack: 2400, cd: 0.06, body: 1700, bd: 0.2, thump: 85, tail: 0.6, gain: 0.7, verb: 0.4, mech: true, rec: ['tir_fusil', 1.1] },
+  smg: { crack: 3000, cd: 0.035, body: 2000, bd: 0.09, thump: 120, tail: 0.25, gain: 0.45, verb: 0.3, mech: true, rec: ['tir_auto', 1.12, 0.6] },
+  ar: { crack: 2600, cd: 0.045, body: 1700, bd: 0.12, thump: 95, tail: 0.4, gain: 0.55, verb: 0.35, mech: true, rec: ['tir_auto', 1, 0.9] },
+  lmg: { crack: 2200, cd: 0.05, body: 1400, bd: 0.16, thump: 75, tail: 0.5, gain: 0.65, verb: 0.4, rec: ['tir_auto', 0.9, 1] },
+  shotgun: { crack: 1500, cd: 0.09, body: 900, bd: 0.35, thump: 60, tail: 0.8, gain: 0.95, verb: 0.5, rec: ['tir_pompe'] },
+  sniper: { crack: 1800, cd: 0.1, body: 1200, bd: 0.4, thump: 55, tail: 1.3, gain: 1, verb: 0.6, rec: ['tir_fusil', 0.88] },
   launcher: { crack: 600, cd: 0.1, body: 500, bd: 0.2, thump: 90, tail: 0.3, gain: 0.6, verb: 0.3 },
   cryo: { crack: 5200, cd: 0.2, body: 3000, bd: 0.3, thump: 180, tail: 0.5, gain: 0.5, verb: 0.5 },
 };

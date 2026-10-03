@@ -157,7 +157,7 @@ function updatePlayer(dt) {
 }
 function stepSound(loud) {
   const i = ti(tileOf(P.pos.x), tileOf(P.pos.z)), st = MAP.style[i];
-  const surf = M.stepSurface ? M.stepSurface(st) : st === STYLE_BUNKER ? 'concrete' : st === STYLE_DUGOUT ? 'wood' : (st === STYLE_YARD || st === STYLE_CRATER ? 'snow' : (Math.random() < 0.7 ? 'wood' : 'snow'));
+  const surf = M.stepSurface ? M.stepSurface(st) : st === STYLE_BUNKER ? 'concrete' : st === STYLE_DUGOUT ? 'wood' : (st === STYLE_YARD || st === STYLE_CRATER ? 'snow' : (Math.random() < 0.7 ? 'wood' : 'mud')); // tranchées : caillebotis ou boue
   Sfx.step(surf, null, loud * (P.perks.has('sprint') ? 0.6 : 1));
   // Empreintes dans la neige (Poste 7) et la terre battue (Filon).
   // (Poste 7 : seulement les étendues de neige plates, ni les caillebotis des tranchées ni le relief bosselé du cratère.)

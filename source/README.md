@@ -12,7 +12,9 @@ Le jeu en ligne est **un seul fichier**, `index.html`, à la racine du dépôt. 
 | `dev/` | Les tests automatiques : un navigateur sans écran joue des parties, seul ou à plusieurs, et vérifie que tout se passe bien. |
 | `dev/runall.sh` | La batterie complète (environ 2 heures). |
 | `tools/fetch_assets.py` | Télécharge et prépare les textures photo et l'éclairage d'une carte (Poly Haven, CC0) dans `../assets/<carte>/`. |
-| `../assets/` | Les textures photo servies avec le jeu, et leurs crédits. |
+| `tools/fetch_sounds.py` | Cherche sur Freesound (CC0) 4 candidats par son et fabrique une page d'écoute, dans `../assets/sounds/candidats/` (non publié). Clé : variable d'environnement `FREESOUND_API_KEY`. |
+| `tools/keep_sounds.py` | Prépare les sons choisis à l'oreille (mono, découpés en prises, volume normalisé, OGG) dans `../assets/sounds/`, avec `manifest.json` et `CREDITS.md`. |
+| `../assets/` | Les textures photo et les sons servis avec le jeu, et leurs crédits. |
 | `dev/version.json` | La version annoncée aux joueurs déjà connectés (le jeu se recharge tout seul quand elle change). |
 
 Les dossiers `dev/node_modules/` (outils téléchargés), `dev/shots/` (captures) et `dev/results/` (résultats) ne sont pas dans le dépôt : ils se recréent.
