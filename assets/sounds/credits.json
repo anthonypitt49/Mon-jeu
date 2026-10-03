@@ -1,0 +1,170 @@
+{
+ "artillerie_loin": {
+  "id": 320788,
+  "name": "distant explosions",
+  "auteur": "Kostrava",
+  "url": "https://freesound.org/people/Kostrava/sounds/320788/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "culasse": {
+  "id": 204204,
+  "name": "22 Bolt.wav",
+  "auteur": "Danwardvs",
+  "url": "https://freesound.org/people/Danwardvs/sounds/204204/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "douille": {
+  "id": 778024,
+  "name": "Small_Bullet_Very_Soft_Hit_03",
+  "auteur": "BlondPanda",
+  "url": "https://freesound.org/people/BlondPanda/sounds/778024/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "explosion": {
+  "id": 609587,
+  "name": "Grenade Explosion SFX (medium-sized, meaty, realistic)",
+  "auteur": "unfa",
+  "url": "https://freesound.org/people/unfa/sounds/609587/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "impact_bois": {
+  "id": 349266,
+  "name": "Clatter wood_01.wav",
+  "auteur": "deleted_user_2104797",
+  "url": "https://freesound.org/people/deleted_user_2104797/sounds/349266/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "impact_chair": {
+  "id": 522091,
+  "name": "Pound of Flesh 1",
+  "auteur": "magnuswaker",
+  "url": "https://freesound.org/people/magnuswaker/sounds/522091/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "impact_metal": {
+  "id": 392975,
+  "name": "Ricochet 2.wav",
+  "auteur": "morganpurkis",
+  "url": "https://freesound.org/people/morganpurkis/sounds/392975/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "impact_terre": {
+  "id": 319229,
+  "name": "Single Rock hit dirt 2.wav",
+  "auteur": "worthahep88",
+  "url": "https://freesound.org/people/worthahep88/sounds/319229/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "marteau_clou": {
+  "id": 96138,
+  "name": "Thud3.wav",
+  "auteur": "BMacZero",
+  "url": "https://freesound.org/people/BMacZero/sounds/96138/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "pas_bois": {
+  "id": 533044,
+  "name": "Footsteps_Boots_Wood_Mono.wav",
+  "auteur": "Nox_Sound",
+  "url": "https://freesound.org/people/Nox_Sound/sounds/533044/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "pas_boue": {
+  "id": 548384,
+  "name": "Footsteps_Mountain_Boots_Mud_Mono.wav",
+  "auteur": "Nox_Sound",
+  "url": "https://freesound.org/people/Nox_Sound/sounds/548384/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "pas_neige": {
+  "id": 420546,
+  "name": "Footsteps_Snow_04.wav",
+  "auteur": "MarcMatthewsMusic",
+  "url": "https://freesound.org/people/MarcMatthewsMusic/sounds/420546/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "planche_arrachee": {
+  "id": 66780,
+  "name": "Crate Break 4.wav",
+  "auteur": "kevinkace",
+  "url": "https://freesound.org/people/kevinkace/sounds/66780/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "pompe": {
+  "id": 449612,
+  "name": "SXP_SHOTGUN_RACK_03",
+  "auteur": "dasBUTCHER84",
+  "url": "https://freesound.org/people/dasBUTCHER84/sounds/449612/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "recharge_chargeur": {
+  "id": 432141,
+  "name": "Rifle-or-shotgun-reload.wav",
+  "auteur": "MaximBomba",
+  "url": "https://freesound.org/people/MaximBomba/sounds/432141/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "tir_auto": {
+  "id": 520935,
+  "name": "ak 47 - burst.mp3",
+  "auteur": "ninebilly",
+  "url": "https://freesound.org/people/ninebilly/sounds/520935/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "tir_fusil": {
+  "id": 221640,
+  "name": "gunshot 1.wav",
+  "auteur": "Jakesapp23",
+  "url": "https://freesound.org/people/Jakesapp23/sounds/221640/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "tir_lointain": {
+  "id": 842326,
+  "name": "Distant Gunfire",
+  "auteur": "iainmccurdy",
+  "url": "https://freesound.org/people/iainmccurdy/sounds/842326/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "tir_pistolet": {
+  "id": 385811,
+  "name": "Single Pistol Gunshot 3.wav",
+  "auteur": "morganpurkis",
+  "url": "https://freesound.org/people/morganpurkis/sounds/385811/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "tir_pompe": {
+  "id": 266977,
+  "name": "gun shot5.mp3",
+  "auteur": "coolguy244e",
+  "url": "https://freesound.org/people/coolguy244e/sounds/266977/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "vent_neige": {
+  "id": 405601,
+  "name": "Howling Wind Ambience",
+  "auteur": "DBlover",
+  "url": "https://freesound.org/people/DBlover/sounds/405601/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "zombie_attaque": {
+  "id": 560589,
+  "name": "Z-Jump 02a.wav",
+  "auteur": "angelkunev",
+  "url": "https://freesound.org/people/angelkunev/sounds/560589/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "zombie_cri": {
+  "id": 435651,
+  "name": "Zombie Demon Scream",
+  "auteur": "Wakerone",
+  "url": "https://freesound.org/people/Wakerone/sounds/435651/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "zombie_grogne": {
+  "id": 463721,
+  "name": "Burp Monster Zombie groan moan",
+  "auteur": "EricsSoundschmiede",
+  "url": "https://freesound.org/people/EricsSoundschmiede/sounds/463721/",
+  "licence": "http://creativecommons.org/publicdomain/zero/1.0/"
+ }
+}

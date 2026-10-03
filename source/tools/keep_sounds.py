@@ -18,9 +18,11 @@ import array, json, math, os, subprocess, sys
 SR = 44100
 FRAME = 441  # 10 ms
 # Découpage, par son : écart (s) en dessous duquel deux événements n'en font qu'un, longueur maximale d'un événement (s),
-# nombre maximal d'événements gardés. Les tirs gardent leur queue (écho) ; les pas sont brefs et nombreux.
+# nombre maximal d'événements gardés, et en option le bond (dB, 12 par défaut) qui marque un nouveau départ sans silence entre deux.
+# Les tirs gardent leur queue (écho) ; les pas sont brefs et nombreux. Une rafale (balles tous les 0,1 s, le niveau ne retombe
+# que de 10 dB entre deux) se découpe balle par balle avec un écart court et un bond faible : le jeu en joue une par balle.
 CUT = {
-    'tir_pistolet': (0.5, 2.0, 4), 'tir_fusil': (0.6, 3.0, 4), 'tir_pompe': (0.6, 3.0, 4), 'tir_auto': (0.3, 1.2, 6),
+    'tir_pistolet': (0.5, 2.0, 4), 'tir_fusil': (0.6, 3.0, 4), 'tir_pompe': (0.6, 3.0, 4), 'tir_auto': (0.08, 1.2, 9, 6),
     'tir_lointain': (0.6, 4.0, 6),
     'recharge_chargeur': (0.12, 0.8, 6), 'culasse': (0.1, 0.6, 4), 'pompe': (0.1, 0.6, 3),
     'douille': (0.15, 0.8, 8),
@@ -55,7 +57,7 @@ def levels(a):
     return out
 
 
-def events(a, gap, longest, most):
+def events(a, gap, longest, most, jump=12):
     """Repère les événements : [début, fin] en échantillons, du plus ancien au plus récent."""
     lv = levels(a); n = len(lv)
     if not n: return []
@@ -71,7 +73,7 @@ def events(a, gap, longest, most):
     for i in range(n):
         if lv[i] <= off: armed, rise = True, i + 1; continue
         if lv[i] < on: continue
-        if armed or lv[i] - min(lv[max(0, i - 3):i], default=-999.0) >= 12:
+        if armed or lv[i] - min(lv[max(0, i - 3):i], default=-999.0) >= jump:
             if not starts or i - starts[-1][0] >= g: starts.append((i, max(rise, i - 30) if armed else i))
             armed = False
     cap, shortest = int(longest * SR / FRAME), int(min(0.15, max(0.03, longest / 40)) * SR / FRAME)
@@ -104,8 +106,7 @@ def peak_of(a): return max((abs(x) for x in a), default=0.0)
 
 
 def cut_sound(a, name):
-    gap, longest, most = CUT.get(name, (0.3, 2.0, 6))
-    ev = events(a, gap, longest, most)
+    ev = events(a, *CUT.get(name, (0.3, 2.0, 6)))
     if not ev: raise ValueError('aucun événement trouvé (fichier silencieux ?)')
     segs = []
     for s, e in ev:
