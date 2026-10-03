@@ -1,0 +1,11 @@
+import { chromium } from 'playwright';
+import path from 'path';
+const dir = path.dirname(new URL(import.meta.url).pathname);
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const page = await (await browser.newContext({ viewport: { width: 400, height: 300 } })).newPage();
+await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(dir, 'node_modules/three', u.pathname.replace('/npm/three@0.186.1/', '')), contentType: 'application/javascript' }); });
+await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
+await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
+await page.goto('http://127.0.0.1:8088/index.html'); await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
+const r = await page.evaluate(() => SP.MAP.barricades.map((b) => { const [ix, iz] = b.inner; const x0 = ix * 2, z0 = iz * 2; const hits = SP.MAP.props.filter((p) => p.x1 > x0 && p.x0 < x0 + 2 && p.z1 > z0 && p.z0 < z0 + 2).map((p) => `[${p.x0.toFixed(2)}..${p.x1.toFixed(2)} x ${p.z0.toFixed(2)}..${p.z1.toFixed(2)} y${(p.y0||0).toFixed(2)}-${p.y1.toFixed(2)} ${p.mat}]`); return `b${b.id} (${b.x},${b.z}) inner(${ix},${iz}) dir ${b.dir}: ${hits.join(' ')}`; }));
+console.log(r.join('\n')); await browser.close();

@@ -1,0 +1,8 @@
+# Régénérables : pas besoin de les garder dans le dépôt.
+dev/node_modules/
+dev/shots/
+dev/results/
+dev/index.html
+dev/*.log
+*.artifact.html
+_check.mjs

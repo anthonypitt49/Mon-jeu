@@ -1,0 +1,19 @@
+{
+  "name": "snowfall-protocol-tests",
+  "version": "1.0.0",
+  "description": "Tests automatiques de Snowfall Protocol (navigateur sans écran, serveurs locaux de co-op).",
+  "scripts": {
+    "servers": "sh servers.sh",
+    "test": "bash runall.sh"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "aedes": "^0.51.3",
+    "express": "^4.22.3",
+    "peer": "^1.0.2",
+    "peerjs": "^1.5.5",
+    "playwright": "1.56.1",
+    "three": "^0.186.1",
+    "ws": "^8.22.0"
+  }
+}

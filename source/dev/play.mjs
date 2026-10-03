@@ -1,0 +1,80 @@
+import { chromium } from 'playwright';
+import path from 'path';
+import fs from 'fs';
+const dir = path.dirname(new URL(import.meta.url).pathname);
+const out = path.join(dir, 'shots'); fs.mkdirSync(out, { recursive: true });
+const Q = +(process.env.Q ?? 1);
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const ctx = await browser.newContext({ viewport: { width: 1024, height: 576 } });
+await ctx.addInitScript((q) => { localStorage.setItem('sp_settings', JSON.stringify({ quality: q })); }, Q);
+const page = await ctx.newPage();
+const errors = [];
+page.on('console', (m) => { if (['error', 'warning'].includes(m.type())) errors.push(`[${m.type()}] ${m.text()}`); });
+page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message + '\n' + e.stack));
+await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(dir, 'node_modules/three', u.pathname.replace('/npm/three@0.186.1/', '')), contentType: 'application/javascript' }); });
+await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
+await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
+await page.goto('file://' + path.join(dir, 'index.html'));
+await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
+const ev = (f, a) => page.evaluate(f, a);
+const shot = async (name) => { await ev(() => { SP.renderFrame(performance.now() / 1000); }); await page.screenshot({ path: path.join(out, name + '.png') }); };
+const log = (...a) => console.log(...a);
+await page.click('#soloButton');
+await ev(() => SP.sim(5));
+log('after 5s', JSON.stringify(await ev(() => ({ r: SP.G.round, n: SP.ZOMBIES.length, ts: SP.G.toSpawn }))));
+await ev(() => SP.sim(18));
+log('after 23s', JSON.stringify(await ev(() => ({ r: SP.G.round, zs: SP.ZOMBIES.map((z) => [z.kind, z.state, +z.pos.x.toFixed(1), +z.pos.y.toFixed(1), +z.pos.z.toFixed(1)]), planks: SP.MAP.barricades.map((b) => b.planks).join(','), hp: SP.P.hp }))));
+// Look at nearest zombie and shoot it until dead.
+const aimShoot = async (n) => ev((n) => {
+  let kills0 = SP.P.stats.kills, shots = 0;
+  for (let i = 0; i < n; i++) {
+    const z = SP.ZOMBIES.filter((q) => q.alive && q.state !== 'rise').sort((a, b) => a.pos.distanceTo(SP.P.pos) - b.pos.distanceTo(SP.P.pos))[0];
+    if (!z) { SP.sim(0.5); continue; }
+    const c = SP.R.camera.position, h = z.hit[1].c; const dx = h.x - c.x, dy = h.y - c.y, dz = h.z - c.z;
+    SP.P.yaw = Math.atan2(-dx, -dz); SP.P.pitch = Math.atan2(dy, Math.hypot(dx, dz)); SP.P.rec.p = 0; SP.P.rec.y = 0;
+    SP.sim(0.05); SP.INPUT.firePressed = true; SP.sim(0.35); shots++;
+  }
+  return { kills: SP.P.stats.kills - kills0, shots, hits: SP.P.stats.hits, pts: SP.G.me().points, mag: SP.P.weapons[0].mag, res: SP.P.weapons[0].reserve };
+}, n);
+log('shoot', JSON.stringify(await aimShoot(14)));
+await shot('10_combat');
+// Rich: open everything.
+await ev(() => { SP.G.me().points = 60000; SP.UI.points(60000, 0); });
+const goInteract = async (x, z, yaw, holdSec = 0) => ev(([x, z, yaw, hold]) => { SP.P.pos.set(x, 0, z); SP.P.yaw = yaw; SP.P.pitch = 0; SP.sim(0.1); SP.INPUT.interactPressed = true; SP.sim(0.1); if (hold) { SP.INPUT.interactHeld = true; SP.sim(hold); SP.INPUT.interactHeld = false; } return { prompt: document.getElementById('prompt').textContent, pts: SP.G.me().points }; }, [x, z, yaw, holdSec]);
+log('door1', JSON.stringify(await goInteract(19, 15.3, Math.PI)), JSON.stringify(await ev(() => SP.MAP.doors.map((d) => d.open))));
+await ev(() => SP.sim(1.5));
+log('door2', JSON.stringify(await goInteract(19, 37.3, Math.PI)));
+log('door3', JSON.stringify(await goInteract(63, 15.3, Math.PI)));
+log('door4', JSON.stringify(await goInteract(31.4, 49, -Math.PI / 2)));
+await ev(() => SP.sim(1.5));
+log('doors', JSON.stringify(await ev(() => SP.MAP.doors.map((d) => d.open)), JSON.stringify(await ev(() => SP.MAP.zoneActive))));
+log('power', JSON.stringify(await goInteract(11.2, 53, Math.PI / 2)), await ev(() => SP.G.power));
+await ev(() => SP.sim(3));
+await ev(() => { SP.P.pos.set(20, 0, 50); SP.P.yaw = 2.4; SP.P.pitch = 0.05; SP.sim(0.2); });
+await shot('11_yard_power');
+log('perk armor', JSON.stringify(await goInteract(13, 36.6, 0)), await ev(() => [...SP.P.perks].join(',') + ' hp' + SP.P.maxHp));
+log('wall shotgun', JSON.stringify(await goInteract(27, 29, -Math.PI / 2)), await ev(() => SP.P.weapons.map((w) => w.key).join(',')));
+await ev(() => { SP.P.pos.set(19, 0, 33.5); SP.P.yaw = 0.3; SP.P.pitch = -0.1; SP.sim(0.3); });
+await shot('12_bunker');
+log('box', JSON.stringify(await goInteract(25, 9.6, 0)));
+await ev(() => SP.sim(4.6));
+log('box offer', JSON.stringify(await ev(() => ({ st: SP.G.box.state, key: SP.G.box.key }))));
+await shot('13_box');
+log('box take', JSON.stringify(await goInteract(25, 9.6, 0)), await ev(() => SP.P.weapons.map((w) => w.key).join(',')));
+log('bench', JSON.stringify(await goInteract(70, 39, -Math.PI / 2)));
+await ev(() => SP.sim(5));
+log('bench state', JSON.stringify(await ev(() => SP.G.bench.state)));
+await shot('14_bench');
+log('bench take', JSON.stringify(await goInteract(70, 39, -Math.PI / 2)), await ev(() => SP.P.weapons.map((w) => w.key + (w.up ? '+' : '')).join(',')));
+await ev(() => { SP.P.pos.set(60.8, 0, 36); SP.P.yaw = Math.PI; SP.P.pitch = 0.02; SP.sim(0.3); });
+await shot('15_eastTrench');
+// Play a few rounds automatically with god-mode off; watch performance of logic.
+const t0 = Date.now();
+await ev(() => { SP.P.pos.set(41, 0, 15); SP.sim(40); });
+log('sim40 ms', Date.now() - t0, JSON.stringify(await ev(() => ({ r: SP.G.round, alive: SP.ZOMBIES.filter((z) => z.alive).length, hp: SP.P.hp, down: SP.P.down, mode: SP.G.mode }))));
+await shot('16_late');
+await ev(() => { SP.P.hp = 1; SP.P.perks.clear(); SP.sim(30); });
+log('end', JSON.stringify(await ev(() => ({ mode: SP.G.mode, go: !document.getElementById('gameover').classList.contains('hidden') }))));
+await shot('17_gameover');
+log('ERRORS:', errors.length); errors.slice(0, 25).forEach((e) => log(e));
+await browser.close();

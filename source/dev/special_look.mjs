@@ -1,0 +1,18 @@
+import { chromium } from 'playwright';
+import path from 'path';
+const dir = path.dirname(new URL(import.meta.url).pathname);
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const page = await (await browser.newContext({ viewport: { width: 960, height: 540 } })).newPage(); const errors = []; page.on('pageerror', (e) => errors.push(e.message));
+await page.addInitScript(() => localStorage.setItem('sp_settings', JSON.stringify({ quality: 2 })));
+await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(dir, 'node_modules/three', u.pathname.replace('/npm/three@0.186.1/', '')), contentType: 'application/javascript' }); });
+await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
+await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
+await page.goto('http://127.0.0.1:8088/index.html'); await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
+await page.evaluate(() => document.getElementById('soloButton').click());
+await page.evaluate(() => { const { G, P } = SP; P.hp = P.maxHp = 1e9; SP.sim(0.5); G.toSpawn = 0; G.breakT = 1e9; for (const z of [...SP.ZOMBIES]) z.destroy();
+  P.pos.set(36, 0, 14.5); P.yaw = Math.PI / 2; P.pitch = 0.05; P.torch = true;
+  const a = new SP.Zombie({ x: 33.2, z: 14.0, y: 0, kind: 'frost', hp: 1e6, state: 'move', round: 14, yaw: Math.PI / 2 + 0.6 }); a.rise = 1;
+  const b = new SP.Zombie({ x: 32.6, z: 15.3, y: 0, kind: 'screamer', hp: 1e6, state: 'move', round: 14, yaw: Math.PI / 2 - 0.3 }); b.rise = 1; b.screaming = 0.6;
+  for (let i = 0; i < 5; i++) { for (const z of SP.ZOMBIES) z.syncMesh(0.05); } SP.G.me(); document.getElementById('message').style.display = 'none'; SP.renderFrame(1); SP.renderFrame(2); });
+await page.screenshot({ path: path.join(dir, 'shots/93_specials_look.png') });
+console.log('errors', errors); await browser.close();

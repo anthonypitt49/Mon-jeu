@@ -1,0 +1,33 @@
+import { chromium } from 'playwright';
+import path from 'path';
+const dir = path.dirname(new URL(import.meta.url).pathname);
+const Q = +(process.env.Q ?? 2);
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const ctx = await browser.newContext({ viewport: { width: 900, height: 506 } });
+await ctx.addInitScript((q) => { localStorage.setItem('sp_settings', JSON.stringify({ quality: q })); }, Q);
+const page = await ctx.newPage();
+const errors = []; page.on('pageerror', (e) => errors.push(e.message + '\n' + e.stack)); page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text().slice(0, 300)); });
+await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(dir, 'node_modules/three', u.pathname.replace('/npm/three@0.186.1/', '')), contentType: 'application/javascript' }); });
+await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
+await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
+await page.goto('http://127.0.0.1:8088/index.html');
+await page.waitForFunction(() => window.__spReady || document.querySelector('.loading-line.error'), null, { timeout: 120000 });
+const le = await page.evaluate(() => document.querySelector('.loading-line.error')?.textContent); if (le) console.log('LOAD ERROR', le);
+const shot = async (n) => { await page.evaluate(() => { SP.renderFrame(1); SP.renderFrame(1); }); await page.screenshot({ path: path.join(dir, 'shots', n + '.png') }); };
+await page.click('#soloButton');
+await page.evaluate(() => { SP.P.hp = SP.P.maxHp = 1e9; SP.sim(2); SP.G.toSpawn = 0; SP.G.breakT = 999; for (const z of [...SP.ZOMBIES]) z.destroy();
+  const kinds = ['walker', 'walker', 'runner', 'brute', 'walker', 'walker'];
+  for (let i = 0; i < 6; i++) { const z = SP.spawnTestZombie(44 + i * 1.3, 13.2 + (i % 2) * 1.5, kinds[i]); z.variant; }
+  SP.P.pos.set(40.2, 0, 14.2); SP.P.yaw = -Math.PI / 2 + 0.1; SP.P.pitch = 0.05; SP.P.torch = true; SP.sim(0.6); });
+await shot('50_chars');
+await page.evaluate(() => { SP.P.pos.set(41.8, 0, 14.0); SP.P.yaw = -Math.PI / 2 + 0.25; SP.P.pitch = 0.1; for (const z of SP.ZOMBIES) { z.speed = 0.01; } SP.sim(0.3); });
+await shot('51_closeup');
+// Kill with bullets → ragdoll.
+const d = await page.evaluate(() => { const zs = SP.ZOMBIES.filter((z) => z.alive).slice(0, 3); for (const z of zs) { z.updateHitboxes(); SP.G.applyDamage(z, 1e7, SP.P.id, { head: false, part: 'body', dir: new (SP.R.camera.position.constructor)(1, 0, 0.2) }); } SP.sim(0.35); return zs.map((z) => z.state); });
+await shot('52_falling');
+await page.evaluate(() => SP.sim(1.8));
+await shot('53_ragdoll');
+const rr = await page.evaluate(() => SP.ZOMBIES.filter((z) => z.rag).map((z) => ({ asleep: z.rag.asleep, pelvis: z.rag.p[0].toArray().map((v) => +v.toFixed(2)), head: z.rag.p[3].toArray().map((v) => +v.toFixed(2)) })));
+console.log('ragdolls', JSON.stringify(rr));
+console.log('ERRORS', errors.length); errors.slice(0, 10).forEach((e) => console.log(e));
+await browser.close();
