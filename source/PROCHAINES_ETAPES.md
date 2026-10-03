@@ -4,7 +4,7 @@ Note de passation entre sessions de travail : où en est le projet et ce qui vie
 
 ## Fait (version 4.7) : de vrais sons (Freesound, CC0) et des réglages de volume
 
-Mise en ligne le 3 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu avec salon co-op (https://claude.ai/artifact/Y51hhvwwXabwNxVY76hLTm), republié avec `assets/sounds/` à côté de ses fichiers. La copie d'essai privée en solo (https://claude.ai/artifact/6WPYsNChqCc7KrZd9wn6XL) n'a plus d'utilité ; ne la supprimer que si le propriétaire le demande.
+Mise en ligne le 3 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu avec salon co-op (https://claude.ai/artifact/Y51hhvwwXabwNxVY76hLTm), republié avec `assets/sounds/` à côté de ses fichiers. La copie d'essai privée en solo a été supprimée à la demande du propriétaire.
 
 - Le propriétaire a choisi à l'oreille un son pour chacun des 24 usages, sur la page d'écoute https://claude.ai/artifact/1YEH1wDYxt3Q6fm6TaQJhB (les 96 candidats et `candidats.json` y restent, si un choix est à refaire : les récupérer avec l'outil Artifact, action `read` et `path`, dans `../assets/sounds/candidats/`, plutôt que de relancer la recherche, dont les résultats bougent).
 - Ligne lancée : `python3 tools/keep_sounds.py tir_pistolet=385811 tir_fusil=221640 tir_pompe=266977 tir_auto=520935 recharge_chargeur=432141 culasse=204204 pompe=449612 douille=778024 impact_bois=349266 impact_terre=319229 impact_metal=392975 impact_chair=522091 pas_neige=420546 pas_boue=548384 pas_bois=533044 zombie_grogne=463721 zombie_cri=435651 zombie_attaque=560589 planche_arrachee=66780 marteau_clou=96138 explosion=609587 vent_neige=405601 artillerie_loin=320788 tir_lointain=842326`. Résultat dans `../assets/sounds/` (≈ 640 Ko), crédits dans `CREDITS.md`.
