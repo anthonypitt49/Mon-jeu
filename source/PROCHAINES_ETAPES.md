@@ -11,7 +11,11 @@ Note de passation entre sessions de travail : où en est le projet et ce qui vie
 
 ## Ensuite : de vrais sons (Freesound)
 
-**Bloqué sur la clé.** Session du 3 octobre 2026 : Freesound refuse `FREESOUND_API_KEY` (401 « Invalid token »). La valeur présente fait 47 caractères avec deux « _ », alors qu'une clé Freesound fait 40 lettres et chiffres : ce n'est sans doute pas la bonne valeur. La bonne est la « Client secret/Api key » de https://freesound.org/apiv2/apply ; la remplacer dans les réglages de l'environnement cloud, puis ouvrir une **nouvelle** session.
+**En attente du choix à l'oreille.** Session du 3 octobre 2026 : la clé Freesound est acceptée. 96 candidats CC0 téléchargés (4 par son, 24 sons) et publiés sur la page d'écoute privée du propriétaire : https://claude.ai/artifact/1YEH1wDYxt3Q6fm6TaQJhB (les .ogg, `index.html` et `candidats.json` y sont ; une nouvelle session les récupère avec l'outil Artifact, action `read` et `path`, dans `../assets/sounds/candidats/`, plutôt que de relancer la recherche, dont les résultats bougent avec le temps : les numéros choisis ne s'y retrouveraient plus).
+- `fetch_sounds.py` : plusieurs recherches par son, de la plus précise à la plus large (Freesound exige tous les mots ; « assault rifle single shot », « bullet impact wood » ou « footsteps wood boards » ne donnaient rien en CC0), un son jamais proposé pour deux usages, un seul candidat par auteur tant que possible. La page indique pour chaque candidat ce que `keep_sounds.py` en tirera (nombre et durée des prises).
+- `keep_sounds.py`, découpage corrigé sur ces vrais sons (4 candidats ne donnaient aucune prise) : un cri qui enfle lentement est reconnu, un râle sans silence aussi, et un déclic juste avant un tir ne fait plus perdre le tir. Sur les 92 candidats découpés, 56 inchangés ; les pas gardent la même durée.
+- Essai de bout en bout avec le premier candidat de chaque son (non gardé) : `node sounds.mjs` avec `SONS=` charge les 24 sons, les joue tous, 0 erreur.
+- [à vérifier à l'écoute] `tir_auto` est le son le plus faible : 2 candidats sur 4 sont des rafales (une seule prise de 1,2 s, jouée à chaque balle) et un autre est un pistolet électrique. Si aucun ne convient, garder « Aucun ».
 
 Déjà prêt (fonctionne avec des sons factices ; aucun vrai son n'est encore dans le dépôt) :
 - `tools/keep_sounds.py` (étape 4) : mono, grondement retiré, chaque enregistrement découpé en prises (un tir, un pas, un râle…) recollées avec un court silence, crête à -1 dB, OGG Vorbis ; le vent devient une boucle sans raccord. Écrit `../assets/sounds/<nom>.ogg`, `manifest.json` (repères des prises), `credits.json` et `CREDITS.md`.
@@ -19,9 +23,8 @@ Déjà prêt (fonctionne avec des sons factices ; aucun vrai son n'est encore da
 - `assets/sounds/manifest.json` vide (`{}`) : le jeu ne trouve aucun son et garde les siens, sans erreur 404.
 - `dev/sounds.mjs` (dans `runall.sh`) : vérifie le chargement et que chaque son chargé est bien joué ; `SONS=<dossier>` pour essayer un autre jeu de sons, `Q=nosamples` pour le secours.
 
-Reste à faire, une fois la clé corrigée :
-1. `python3 tools/fetch_sounds.py` : 4 candidats CC0 par son et page d'écoute dans `../assets/sounds/candidats/` (non publié).
-2. Publier la page d'écoute (Artifact avec les fichiers .ogg) pour que le propriétaire du jeu choisisse **à l'oreille** (Claude ne peut pas écouter ; les notes Freesound ne suffisent pas). La page fabrique la ligne `python3 tools/keep_sounds.py nom=numéro …` à recopier.
+Reste à faire :
+1. ~~Télécharger les candidats~~ et 2. ~~publier la page d'écoute~~ : faits (voir plus haut). Le propriétaire choisit **à l'oreille** (Claude ne peut pas écouter) et colle la ligne `python3 tools/keep_sounds.py nom=numéro …` fabriquée par la page.
 3. Lancer cette ligne, puis `cd dev && sh servers.sh && node sounds.mjs` (servi en HTTP) et vérifier le nombre de prises trouvées par son (affiché par le script ; un enregistrement mal découpé se règle dans `CUT`).
 4. Régler les volumes à l'oreille avec le propriétaire : les gains des appels `this.play` sont estimés d'après les sons synthétisés, pas écoutés.
 5. Vérifier sur iPhone : [à confirmer] les Safari un peu anciens ne décodent pas l'OGG ; ils garderont les sons synthétisés (secours prévu). Si c'est gênant, ajouter une copie `.m4a`.

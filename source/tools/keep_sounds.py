@@ -60,22 +60,33 @@ def events(a, gap, longest, most):
     lv = levels(a); n = len(lv)
     if not n: return []
     # Seuils relatifs à la crête, mais toujours au-dessus du bruit de fond (prise de son en extérieur, souffle).
+    # Un son sans silence (râle continu) a un fond proche de la crête : les seuils restent alors sous la crête.
     top, floor = max(lv), sorted(lv)[n // 5]
-    on, off = max(top - ON_DB, floor + 10), max(top - OFF_DB, floor + 4)
-    # Début : le niveau sort du fond, ou bondit d'un coup (pas qui s'enchaînent sans silence).
+    on = min(max(top - ON_DB, floor + 10), top - 6)
+    off = min(max(top - OFF_DB, floor + 4), on - 6)
+    # Début : le niveau dépasse `on` après être passé sous `off`, même en montant lentement (cri qui enfle),
+    # ou bondit d'un coup (pas qui s'enchaînent sans silence). La montée est gardée (au plus 300 ms).
     # Un début trop proche du précédent appartient au même événement (écho d'un tir, râle entrecoupé).
-    g, starts = max(1, int(gap * SR / FRAME)), []
+    g, starts, armed, rise = max(1, int(gap * SR / FRAME)), [], True, 0
     for i in range(n):
+        if lv[i] <= off: armed, rise = True, i + 1; continue
         if lv[i] < on: continue
-        prev = min(lv[max(0, i - 3):i], default=-999.0)
-        if (prev < off or lv[i] - prev >= 12) and (not starts or i - starts[-1] >= g): starts.append(i)
+        if armed or lv[i] - min(lv[max(0, i - 3):i], default=-999.0) >= 12:
+            if not starts or i - starts[-1][0] >= g: starts.append((i, max(rise, i - 30) if armed else i))
+            armed = False
     cap, shortest = int(longest * SR / FRAME), int(min(0.15, max(0.03, longest / 40)) * SR / FRAME)
     ev, end = [], 0
-    for k, s in enumerate(starts):
-        nxt = starts[k + 1] if k + 1 < len(starts) else n
+    for k, (s, front) in enumerate(starts):
+        nxt = starts[k + 1][0] if k + 1 < len(starts) else n
+        # La queue, jusqu'au fond ou au son suivant. Si le son repart (au-dessus de `on`) avant l'écart, c'est un début
+        # écarté plus haut : même événement, la queue continue (écho d'un tir ; déclic juste avant le tir).
         e = s + 1
-        while e < nxt and e - s < cap and lv[e] > off: e += 1  # la queue, jusqu'au fond ou au son suivant
-        s = max(end, s - 2); end = e  # 20 ms d'avance : l'attaque reste entière
+        while e < nxt and e - s < cap:
+            if lv[e] > off: e += 1; continue
+            back = next((j for j in range(e, min(nxt, s + cap, e + g)) if lv[j] >= on), None)
+            if back is None: break
+            e = back + 1
+        s = max(end, min(s - 2, front)); end = e  # 20 ms d'avance au moins : l'attaque reste entière
         if e - s >= shortest and max(lv[s:e]) >= top - KEEP_DB: ev.append([s, e])
     if len(ev) > most:  # on garde les plus nets, dans l'ordre de l'enregistrement
         ev = sorted(sorted(ev, key=lambda r: -max(lv[r[0]:r[1]]))[:most])
