@@ -84,10 +84,16 @@ def main(map_id):
         raw = get(api('files/' + hid)['hdri']['1k']['hdr']['url'])
         tmp = os.path.join(out, '_tmp.hdr'); open(tmp, 'wb').write(raw)
         hdr = cv2.imread(tmp, cv2.IMREAD_ANYDEPTH | cv2.IMREAD_COLOR); os.remove(tmp)
-        hdr = cv2.resize(hdr, (512, 256), interpolation=cv2.INTER_AREA)  # l'éclairage d'ambiance n'a pas besoin de plus
-        cv2.imwrite(os.path.join(out, 'env.hdr'), hdr)
-        rgb = hdr[..., ::-1]; w = np.cos((np.arange(256) + 0.5) / 256 * np.pi - np.pi / 2)[:, None]  # moyenne pondérée par l'aire
-        manifest['env'] = {'lum': round(float(((rgb @ np.array([0.2126, 0.7152, 0.0722])) * w).sum() / (w.sum() * 512)), 5)}
+        W, H = 256, 128  # l'éclairage d'ambiance n'a pas besoin de plus
+        rgb = cv2.resize(hdr, (W, H), interpolation=cv2.INTER_AREA)[..., ::-1].astype(np.float32)
+        # Format RGBE (3 octets de couleur + 1 d'exposant, comme un .hdr) dans un JSON : servi partout, y compris sur claude.ai.
+        mx = np.maximum(rgb.max(axis=2), 1e-32); e = np.floor(np.log2(mx)) + 1; sc = 256.0 / np.exp2(e)
+        rgbe = np.zeros((H, W, 4), np.uint8); rgbe[..., :3] = np.clip(rgb * sc[..., None], 0, 255).astype(np.uint8); rgbe[..., 3] = np.clip(e + 128, 0, 255)
+        rgbe[mx < 1e-32] = 0
+        import base64
+        json.dump({'w': W, 'h': H, 'rgbe': base64.b64encode(rgbe.tobytes()).decode()}, open(os.path.join(out, 'env.json'), 'w'))
+        w = np.cos((np.arange(H) + 0.5) / H * np.pi - np.pi / 2)[:, None]  # moyenne pondérée par l'aire
+        manifest['env'] = {'lum': round(float(((rgb @ np.array([0.2126, 0.7152, 0.0722])) * w).sum() / (w.sum() * W)), 5)}
         name = api('assets?t=hdris')[hid]['name']
         credits.append(f"| `env` (éclairage) | [{name}](https://polyhaven.com/a/{hid}) | {', '.join(api('assets?t=hdris')[hid].get('authors', {}).keys())} |")
         print('env', manifest['env'])
