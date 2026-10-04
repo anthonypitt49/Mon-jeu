@@ -2,6 +2,7 @@
 // usage : node fullscreen.mjs — trois appareils simulés : ordinateur, iPhone dans Safari, iPhone depuis l'icône de l'écran d'accueil.
 import { chromium } from 'playwright';
 import path from 'path';
+import fs from 'fs';
 const dir = path.dirname(new URL(import.meta.url).pathname);
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const errors = [], check = (ok, msg) => { if (!ok) errors.push('[plein écran] ' + msg); };
@@ -87,8 +88,12 @@ const vis = (page, sel) => page.evaluate((s) => { const e = document.querySelect
   await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(dir, 'node_modules/three', u.pathname.replace('/npm/three@0.186.1/', '')), contentType: 'application/javascript' }); });
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
   await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
-  await page.goto('http://127.0.0.1:8088/favicon-absent'); // page hôte quelconque, même serveur
-  await page.setContent('<iframe src="http://127.0.0.1:8088/index.html" style="width:1000px;height:600px;border:0"></iframe>');
+  // Page hôte d'une autre origine (comme claude.ai ; localhost ≠ 127.0.0.1, toutes deux locales pour que Chrome accepte le cadre) :
+  // sans allow="fullscreen", le cadre n'a pas droit au plein écran.
+  // Page servie par le serveur de test (une réponse interceptée passerait pour publique et Chrome refuserait le cadre local).
+  fs.mkdirSync(path.join(dir, 'results'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'results', 'hote.html'), '<!doctype html><iframe src="http://127.0.0.1:8088/index.html" style="width:1000px;height:600px;border:0"></iframe>');
+  await page.goto('http://localhost:8088/results/hote.html');
   const f = await (await page.$('iframe')).contentFrame();
   await f.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
   await f.click('#fullscreenButton'); await page.waitForTimeout(300);
