@@ -2,6 +2,22 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 4.9) : armes en main réalistes
+
+Demande du propriétaire : « prochaine étape réalisme ». Captures à l'appui, les armes en main (boîtes et cylindres sombres, mains en pavés) étaient l'écart le plus visible, à l'écran en permanence sur les quatre cartes ; le propriétaire a choisi de commencer par là.
+
+- **`src/08b_gunmodels.js`** (nouveau) : armes d'époque aux cotes réelles, dessinées en code. Atelier `gunKit` : pièces taillées dans un profil de côté extrudé aux arêtes arrondies (`pr`, `bx`, `curve` pour le chargeur cintré), pièces tournées autour de l'axe du canon (`lt`, `cy`), arcs (pontets), anneaux, cylindres verticaux. Les pièces fixes sont fusionnées par matière (`gunMerge`, y compris les mains) : 3 à 11 appels de dessin par arme, ≈ 8 000 triangles avec les mains.
+- Modèles : Colt 1911 (pistolet, la glissière recule à chaque tir), Webley Mk VI (revolver, le barillet tourne sur l'axe du canon), Mauser Kar98k (fusil à verrou ; le fusil de précision y ajoute une lunette), Winchester 1897 « trench gun » (pare-chaleur perforé, pompe rainurée tenue par la main gauche), Thompson M1921 (canon à ailettes, compensateur, poignée avant verticale), carabine M1, AK-47 à crosse bois (chargeur cintré), Lewis (manchon en aluminium, chargeur camembert qui tourne), lance-grenades type M79 ; le rayonneur et le prototype cryo restent des armes d'un autre monde, redessinés dans le même atelier. Couteau de tranchée Mark I (poing américain en laiton) et grenade Mills.
+- Matières peintes au démarrage (`gunMaterials`) : acier bruni brossé et usé par endroits, acier phosphaté, noyer verni (fil dans la longueur de la pièce), bakélite quadrillée, aluminium, laiton, cuir des gants, laine kaki des manches. Version améliorée : le givre veiné de bleu remplace acier et bois, comme avant.
+- **Mains gantées** (`gkGripHand`, `gkForeHand`) : doigts en arcs qui enserrent la poignée, pouce le long du flanc, index sur la détente, main gauche en coupe sous la droite pour le pistolet et le revolver, ou sous le garde-main, poignet, manchette et manche de capote.
+- Arme en main : tout ce qui passe à moins de 7 cm de l'œil est coupé (`clipViewmodel`, plan de coupe sur des copies des matières) ; en visée, la crosse contre la joue ne bouche plus la vue.
+- Coût : 10 à 40 ms pour construire une arme sur la machine de test. Chaque arme en main est gardée après sa première construction (`VM.cache`) ; la caisse mystère et l'établi réutilisent un modèle par arme (`gunShow`), sinon la caisse, qui change d'arme toutes les 0,1 à 0,35 s, en reconstruisait (et en accumulait) des dizaines.
+- Banc de contrôle : `dev/armes.mjs [armes] [up]` → `dev/shots/armes_<arme>.png` (profil, trois quarts, en main, en visée).
+
+Reste à faire sur les armes :
+1. [à vérifier] Le rendu sur iPhone (qualité « bas », textures 256 px) et le temps de construction de la première arme achetée.
+2. Animations : la main gauche ne suit pas encore le chargeur pendant le rechargement ; le chien du revolver ne bascule pas.
+
 ## Fait (version 4.8) : sons sur iPhone, plein écran sur téléphone
 
 Retour du propriétaire sur la 4.7 : sur iPhone, les sons ne marchaient pas, et le jeu se jouait avec la barre d'adresse de Safari.

@@ -529,7 +529,7 @@ function setBoxDisplay(key) {
   if (bx.display?.obj) bx.display.obj.removeFromParent(); // retiré de là où il est vraiment, même si la caisse a changé de place
   let obj;
   if (key === 'skull') { obj = new THREE.Sprite(new THREE.SpriteMaterial({ map: dropTexture('instakill'), color: 0x9fe8ff, depthWrite: false })); obj.scale.set(0.6, 0.6, 1); }
-  else { obj = buildGunModel(key, false, false).root; obj.rotation.y = Math.PI / 2; }
+  else obj = gunShow(key, false, 'box');
   obj.position.set(0, 0.8, 0); spot.group.add(obj);
   bx.display = Object.assign(bx.display || { cycleT: 0 }, { obj, key });
 }
@@ -555,9 +555,9 @@ function applyBenchState(d) {
   bn.state = d.state; bn.t = d.t ?? 0; if (d.key !== undefined) bn.key = d.key; if (d.owner !== undefined) bn.owner = d.owner;
   if (bn.display) { bn.display.removeFromParent(); bn.display = null; }
   if (d.state === 'working') {
-    bn.display = buildGunModel(bn.key, false, false).root; bn.display.rotation.y = Math.PI / 2; bw.anchor.add(bn.display); Sfx.grind(bw.pos, 4.4);
+    bn.display = gunShow(bn.key, false, 'bench'); bw.anchor.add(bn.display); Sfx.grind(bw.pos, 4.4);
     if (d.owner === P.id) { const i = P.weapons.findIndex((w) => w.key === bn.key); if (i >= 0) { P.weapons.splice(i, 1); P.slot = 0; P.reload = null; if (P.weapons.length) { const w = curW(); setViewmodel(w.key, w.up); } else { if (VM.root) VM.root.visible = false; VM.key = null; UI.weapon(); } } }
-  } else if (d.state === 'ready') { bn.display = buildGunModel(bn.key, true, false).root; bn.display.rotation.y = Math.PI / 2; bw.anchor.add(bn.display); Sfx.jingle([0, 7, 12, 16, 19], 392, 'sine', 0.1); }
+  } else if (d.state === 'ready') { bn.display = gunShow(bn.key, true, 'bench'); bw.anchor.add(bn.display); Sfx.jingle([0, 7, 12, 16, 19], 392, 'sine', 0.1); }
 }
 function setPowerVisuals(on, silent) {
   for (const lamp of WORLD.powerLamps) { lamp.bulb.material = on ? MATS.bulbWarm : MATS.bulbRed; lamp.glow.material.color.set(on ? 0xffd9a0 : 0xff3a22); }

@@ -40,26 +40,12 @@ const CHALK = {
   revolver: [[0.25, 0.42], [0.8, 0.42], [0.8, 0.5], [0.52, 0.5], [0.5, 0.58], [0.42, 0.6], [0.4, 0.66], [0.36, 0.9], [0.24, 0.88], [0.27, 0.62], [0.25, 0.52]],
 };
 
-/* ─── Matériaux d'armes ─── */
+/* ─── Matériaux d'armes : voir gunMaterials() (08b_gunmodels.js) ─── */
 const GM = {};
-function gunMaterials() {
-  GM.steel = new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.32, metalness: 0.85, map: TEX.grime.map });
-  GM.dark = new THREE.MeshStandardMaterial({ color: 0x17181a, roughness: 0.45, metalness: 0.7 });
-  GM.wood = new THREE.MeshStandardMaterial({ color: 0x6a4428, roughness: 0.55, metalness: 0.05, map: TEX.planks.map, normalMap: TEX.planks.normalMap });
-  GM.brass = MATS.brass;
-  const veins = paint(256, (u, v) => { const a = Math.abs(tfbm(u * 6, v * 6, 6, 4) - 0.5), b = Math.abs(tfbm(u * 14 + 3, v * 14, 14, 3) - 0.5); const k = Math.max(smooth(clamp(1 - a * 14, 0, 1)), smooth(clamp(1 - b * 18, 0, 1)) * 0.6); return [k * 0.55, k * 0.85, k, k]; });
-  const vt = toTex(veins.canvas);
-  const camo = paint(256, (u, v) => { const n1 = tfbm(u * 5, v * 5, 5, 4); const w = 0.62 + n1 * 0.3; return [w * 0.78, w * 0.88, w, n1]; });
-  GM.frost = new THREE.MeshStandardMaterial({ color: 0xc2d6e4, roughness: 0.28, metalness: 0.82, map: toTex(camo.canvas), emissive: 0x4ab8ff, emissiveMap: vt, emissiveIntensity: 1.4 });
-  GM.frostWood = new THREE.MeshStandardMaterial({ color: 0xe6f2fa, roughness: 0.35, metalness: 0.15, map: TEX.planks.map, emissive: 0x4ab8ff, emissiveMap: vt, emissiveIntensity: 1.1 });
-  GM.glove = new THREE.MeshStandardMaterial({ color: 0x2f2b27, roughness: 0.95, map: TEX.cloth.map, normalMap: TEX.cloth.normalMap });
-  GM.sleeve = new THREE.MeshStandardMaterial({ color: 0x55553f, roughness: 0.95, map: TEX.cloth.map, normalMap: TEX.cloth.normalMap });
-  GM.cryoGlass = new THREE.MeshStandardMaterial({ color: 0x9fe8ff, emissive: 0x33b8ff, emissiveIntensity: 1.6, roughness: 0.1, transparent: true, opacity: 0.85 });
-  GM.lens = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.05, metalness: 0.9 });
-}
 
 // Construit une arme orientée vers -Z, origine à la poignée.
 function buildGunModel(key, upgraded = false, withHands = false) {
+  if (GUN_MODELS[key]) return buildDetailedGun(key, upgraded, withHands); // modèles détaillés (08b_gunmodels.js)
   const g = new THREE.Group(), parts = { root: g };
   const S = upgraded ? GM.frost : GM.steel, W = upgraded ? GM.frostWood : GM.wood, D = GM.dark;
   const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); parent.add(m); return m; };
@@ -172,24 +158,15 @@ function buildGunModel(key, upgraded = false, withHands = false) {
   return parts;
 }
 
-// Couteau de tranchée et grenade (vue subjective).
-function buildKnife() {
-  const g = new THREE.Group();
-  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.028, 0.2), new THREE.MeshStandardMaterial({ color: 0x9aa2a8, metalness: 0.9, roughness: 0.25 })); blade.position.z = -0.14; g.add(blade);
-  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.035, 0.11), GM.wood); g.add(handle);
-  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.012, 0.012), GM.steel); guard.position.z = -0.05; g.add(guard);
-  const glove = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.075, 0.09), GM.glove); glove.position.set(0.0, -0.01, 0.01); g.add(glove);
-  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 0.34, 10), GM.sleeve); sleeve.position.set(0.03, -0.06, 0.2); sleeve.rotation.set(1.25, 0, -0.2); g.add(sleeve);
-  return g;
-}
-function buildGrenadeModel(hand) {
-  const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.075, 12), MATS.olive); g.add(body);
-  for (let k = 0; k < 4; k++) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.031, 0.004, 4, 12), MATS.olive); r.rotation.x = Math.PI / 2; r.position.y = -0.03 + k * 0.02; g.add(r); }
-  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.015, 0.02, 8), MATS.iron); top.position.y = 0.047; g.add(top);
-  const lever = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.06, 0.014), MATS.iron); lever.position.set(0.03, 0.02, 0); lever.rotation.z = 0.1; g.add(lever);
-  if (hand) { const gl = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, 0.09), GM.glove); gl.position.set(0.02, -0.02, 0.03); g.add(gl); const sl = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 0.36, 10), GM.sleeve); sl.position.set(0.05, -0.08, 0.2); sl.rotation.set(1.2, 0, 0.2); g.add(sl); }
-  return g;
+// Couteau de tranchée et grenade : buildKnife() et buildGrenadeModel() (08b_gunmodels.js).
+
+// Modèles d'exposition (caisse mystère, établi) : construits une fois par arme et réutilisés. La caisse en change plusieurs
+// fois par seconde quand elle tourne : sans cela, elle reconstruirait (et accumulerait) des milliers de triangles à chaque fois.
+const GUN_SHOW = new Map();
+function gunShow(key, up = false, slot = 'box') {
+  const id = slot + ':' + key + (up ? '+' : ''); let o = GUN_SHOW.get(id);
+  if (!o) { o = buildGunModel(key, up, false).root; GUN_SHOW.set(id, o); }
+  o.rotation.set(0, Math.PI / 2, 0); o.position.set(0, 0, 0); return o;
 }
 
 // Accroche les armes réelles au-dessus des silhouettes à la craie.

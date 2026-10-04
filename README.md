@@ -10,6 +10,8 @@ Tout le jeu tient dans un seul fichier : **`index.html`**.
 
 **En local** : ouvrez `index.html` dans Chrome, Edge ou Firefox. Une connexion Internet est nécessaire, car le moteur 3D (Three.js) et les polices sont chargés depuis un CDN.
 
+**Sur iPhone, en plein écran** : Safari ne laisse aucune page cacher sa barre d'adresse. Ajoutez le jeu à l'écran d'accueil (bouton *Partager*, puis *Sur l'écran d'accueil*) et lancez-le depuis son icône : il s'ouvre en plein écran. Le bouton *Plein écran* du menu l'explique pas à pas.
+
 **Autonome** : le jeu ne dépend ni de Claude ni d'aucun serveur à vous. Solo, co-op, classement, objectifs : tout fonctionne depuis GitHub Pages. La version publiée sur claude.ai n'est qu'une porte d'entrée de plus.
 
 ## Les cartes
@@ -105,6 +107,8 @@ Quatre niveaux dans les options : **Recrue**, **Régulier**, **Vétéran** et **
 - **Caisse de ravitaillement** (arme aléatoire, elle change d'emplacement) et **établi d'armurier** (amélioration des armes).
 - **8 bonus lâchés par les infectés** : munitions max, mort subite, points doubles, frappe d'artillerie, barricades, **Braderie** (caisse à 10 points pendant 30 s), **Sang Infecté** (les infectés ne vous voient plus pendant 20 s) et **Prime** (+500 points pour tout le monde).
 - **Manches** : marquées à la craie rouge jusqu'à la 5ᵉ, de plus en plus dures ensuite, avec des brutes blindées (manche 5+), le Givreux (manche 6+), le Hurleur (manche 9+) et une tempête toutes les 6 manches. Ces seuils valent en Régulier : ils arrivent plus tard en Recrue, plus tôt en Vétéran et en Cauchemar.
+- **Armes d'époque en main** : Colt 1911, revolver Webley, Mauser Kar98k, Winchester 1897 de tranchée, Thompson, carabine M1, AK à crosse bois, Lewis, couteau de tranchée et grenade Mills, aux vraies dimensions : acier bruni et usé, noyer verni, bakélite quadrillée, mains gantées qui enserrent la poignée.
+- **Vrais sons** (enregistrements libres de droits, Freesound) : tirs, recharges, impacts, pas, infectés, vent, artillerie au loin. Réglages : volume général, et volumes détaillés pour les armes, les infectés, l'ambiance et la musique.
 - **Morts réalistes** : les infectés s'effondrent sur place (plus de corps qui s'envolent), et vous encaissez plus de coups qu'avant.
 - **Réalisme des tirs** : impacts de balles, traces de sang et brûlures d'explosion bien visibles ; éclaboussures sur le mur juste derrière un infecté touché ; flaque qui s'étale lentement sous les corps (et coule entre les lattes des caillebotis) ; empreintes de pas dans la neige du Poste 7 et la terre battue du Filon ; douilles qui retombent et se couchent au sol ; fumée de bouche légère, qui part bien du canon ; écho des coups de feu en plein air.
 - **Classement des camarades** (bouton *Classement*) : meilleurs résultats par carte, avec une étoile quand l'objectif de la carte est accompli.

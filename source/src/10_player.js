@@ -8,7 +8,7 @@ const P = {
   rec: { p: 0, y: 0 }, kick: 0, sway: { x: 0, y: 0 }, stepT: 0, breathT: 3, hurtT: 0, lastHurtDir: 0, shotsFired: 0,
   stats: { kills: 0, heads: 0, shots: 0, hits: 0, downs: 0 },
 };
-const VM = { root: null, parts: null, key: null, up: false, flash: null, knife: null, nade: null };
+const VM = { root: null, parts: null, key: null, up: false, flash: null, knife: null, nade: null, cache: {} };
 
 function resetLocalPlayer(spawn) {
   Object.assign(P, { frostT: 0, hp: DIFF().hp, maxHp: DIFF().hp, down: false, dead: false, bleed: 0, selfRevive: 0, perks: new Set(), weapons: [{ key: 'pistol', up: false, mag: 12, reserve: 60 }], slot: 0, grenades: 2, ads: 0, fireCd: 0, reload: null, cycleT: 0, switchT: 0, switchTo: -1, knifeT: 0, nadeT: 0, bloom: 0, stamina: 1, hurtT: 0, cherryCd: 0 });
@@ -197,17 +197,28 @@ function updateCamera(dt) {
 }
 
 /* ─── Arme en main ─── */
+// Arme en main : ce qui passe à moins de 7 cm de l'œil est coupé (la crosse contre la joue, en visée, ne bouche plus la vue).
+// Matières propres à l'arme en main (copies), pour ne pas couper les armes du décor.
+const VM_CLIP = [new THREE.Plane(new THREE.Vector3(0, 0, -1), -0.07)];
+function clipViewmodel(root) { root.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); o.material.clippingPlanes = VM_CLIP; } }); }
+// Chaque arme en main est construite une fois puis gardée : changer d'arme ne coûte plus rien.
 function setViewmodel(key, up) {
   if (VM.root) R.viewScene.remove(VM.root);
-  VM.parts = buildGunModel(key, up, true); VM.key = key; VM.up = up;
-  VM.root = new THREE.Group(); VM.root.add(VM.parts.root); R.viewScene.add(VM.root);
-  VM.parts.root.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
-  const fm = new THREE.MeshBasicMaterial({ map: TEX.sprites.muzzle, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, color: key === 'cryo' ? 0x9fe8ff : 0xffffff });
-  VM.flash = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.28), fm); VM.flash.visible = false; VM.parts.muzzle.add(VM.flash);
-  VM.flashSide = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.14), fm); VM.flashSide.rotation.y = Math.PI / 2; VM.flashSide.position.z = -0.08; VM.flashSide.visible = false; VM.parts.muzzle.add(VM.flashSide);
+  const id = key + (up ? '+' : ''), p = VM.cache[id] ||= viewmodelParts(key, up);
+  VM.parts = p; VM.key = key; VM.up = up; VM.root = p.holder; VM.root.visible = true; R.viewScene.add(VM.root);
+  VM.flash = p.flash; VM.flashSide = p.flashSide;
   if (!VM.knife) { VM.knife = buildKnife(); VM.knife.visible = false; R.viewScene.add(VM.knife); VM.nade = buildGrenadeModel(true); VM.nade.visible = false; R.viewScene.add(VM.nade); }
   $('scope').style.opacity = 0;
   UI.weapon();
+}
+function viewmodelParts(key, up) {
+  const p = buildGunModel(key, up, true); clipViewmodel(p.root);
+  p.holder = new THREE.Group(); p.holder.add(p.root);
+  p.root.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+  const fm = new THREE.MeshBasicMaterial({ map: TEX.sprites.muzzle, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, color: key === 'cryo' ? 0x9fe8ff : 0xffffff });
+  p.flash = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.28), fm); p.flash.visible = false; p.muzzle.add(p.flash);
+  p.flashSide = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.14), fm); p.flashSide.rotation.y = Math.PI / 2; p.flashSide.position.z = -0.08; p.flashSide.visible = false; p.muzzle.add(p.flashSide);
+  return p;
 }
 function updateViewmodel(dt) {
   if (!VM.root) return;
@@ -234,7 +245,8 @@ function updateViewmodel(dt) {
   // Cycle verrou/pompe après le tir.
   if (P.cycleT > 0) { const q = 1 - P.cycleT / P.cycleDur, k = Math.sin(clamp((q - 0.2) / 0.7, 0, 1) * Math.PI); if (p.bolt && S.cycle === 'bolt') { p.bolt.position.z = k * 0.07; p.bolt.rotation.z = k * 0.6; rz += k * 0.15; } if (p.pump) p.pump.position.z = k * 0.09; }
   else { if (p.pump) p.pump.position.z = 0; if (p.bolt && !P.reload) { p.bolt.position.z = 0; p.bolt.rotation.z = 0; } }
-  if (p.cyl) p.cyl.rotation.y += P.kick * dt * 20;
+  if (p.cyl) p.cyl.rotation.z += P.kick * dt * 20; // barillet : tourne autour de l'axe du canon
+  if (p.slide) p.slide.position.z = Math.min(1, P.kick) * 0.022; // glissière du pistolet : recule au départ du coup
   if (p.pan && P.kick > 0.5) p.pan.rotation.y += dt * 8;
   if (p.glow) p.glow.material.emissiveIntensity = 1.2 + Math.sin(t * 5) * 0.4;
   // Changement d'arme : l'arme sort par le bas.

@@ -37,6 +37,7 @@ function stdMat(o, snow = 0) { const m = new THREE.MeshStandardMaterial(o); retu
 function initRenderer() {
   const canvas = $('game');
   const renderer = R.renderer = new THREE.WebGLRenderer({ canvas, antialias: settings.quality >= 1 && !Q.bloom, powerPreference: 'high-performance', stencil: false });
+  renderer.localClippingEnabled = true; // arme en main coupée près de l'œil (clipViewmodel)
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
   renderer.shadowMap.enabled = Q.shadows; renderer.shadowMap.type = THREE.PCFShadowMap;
   const E = M.env; FOG_COLOR.set(E.fog); MOON_DIR.set(...E.sunDir).normalize(); renderer.toneMappingExposure = E.exposure || 1.15;
