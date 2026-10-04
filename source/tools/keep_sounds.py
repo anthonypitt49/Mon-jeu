@@ -6,12 +6,15 @@ Usage (depuis source/) :
 Chaque argument : nom du son (liste WANT de fetch_sounds.py) = numéro Freesound du candidat retenu, ou son rang (1 à 4) sur la page d'écoute.
 La page d'écoute (../assets/sounds/candidats/index.html) fabrique cette ligne toute seule.
 
-Traitement : mono, grondement sous 25 Hz retiré, silences rognés, crête à -1 dB, OGG Vorbis (ffmpeg).
+Traitement : mono, grondement sous 25 Hz retiré, silences rognés, crête à -1 dB, OGG Vorbis et MP3 (ffmpeg).
 Chaque enregistrement est découpé en événements (un tir, un pas, un râle, un obus…), recollés avec un court silence :
 le jeu en joue un au hasard (ou dans l'ordre, pour une recharge), d'après les repères de manifest.json.
 Le vent est une boucle : un extrait refermé sur lui-même par un fondu enchaîné, sans raccord audible.
-Écrit ../assets/sounds/<nom>.ogg, manifest.json et CREDITS.md ; les sons gardés lors d'un appel précédent restent.
+Écrit ../assets/sounds/<nom>.ogg et <nom>.mp3, manifest.json et CREDITS.md ; les sons gardés lors d'un appel précédent restent.
+Le MP3 sert aux navigateurs qui ne lisent pas l'OGG (Safari, donc tous les iPhone). Son codeur ajoute un court silence au début,
+que tous les navigateurs ne retirent pas : le manifeste note où commence le premier son franc (« lead », en s), et le jeu recale.
 Options : --candidats DIR (défaut ../assets/sounds/candidats), --vers DIR (défaut ../assets/sounds).
+  --mp3 : refait seulement les MP3 et les repères « lead » des sons déjà gardés, à partir de leurs .ogg.
 """
 import array, json, math, os, subprocess, sys
 
@@ -34,18 +37,39 @@ CUT = {
 }
 LOOP = {'vent_neige': 24.0}  # boucles : longueur visée (s)
 ON_DB, OFF_DB, KEEP_DB = 32, 48, 20  # début d'événement, fin de queue, événement trop faible (dB sous la crête du fichier)
+LEAD = 0.03  # seuil du premier son franc (repère « lead ») ; le jeu emploie le même (Sfx.shift, src/02_audio.js)
 
 
-def decode(path):
+def decode(path, highpass=True):
     """Fichier → échantillons mono flottants (44,1 kHz), grondement retiré."""
-    raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', path, '-t', '180', '-af', 'highpass=f=25', '-ac', '1', '-ar', str(SR), '-f', 'f32le', '-'],
+    af = ['-af', 'highpass=f=25'] if highpass else []
+    raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', path, '-t', '180', *af, '-ac', '1', '-ar', str(SR), '-f', 'f32le', '-'],
                          check=True, capture_output=True).stdout
     a = array.array('f'); a.frombytes(raw); return a
 
 
-def encode(samples, path):
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'f32le', '-ar', str(SR), '-ac', '1', '-i', '-', '-c:a', 'libvorbis', '-q:a', '4', path],
-                   input=samples.tobytes(), check=True)
+def encode(samples, base):
+    """Écrit <base>.ogg et <base>.mp3."""
+    for ext, codec in (('.ogg', ['-c:a', 'libvorbis', '-q:a', '4']), ('.mp3', ['-c:a', 'libmp3lame', '-q:a', '4'])):
+        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'f32le', '-ar', str(SR), '-ac', '1', '-i', '-', *codec, base + ext],
+                       input=samples.tobytes(), check=True)
+
+
+def lead(a):
+    """Instant (s) du premier échantillon franc."""
+    return round(next((i for i, x in enumerate(a) if abs(x) >= LEAD), 0) / SR, 4)
+
+
+def remake_mp3(dest):
+    """Refait les MP3 et les repères « lead » des sons déjà gardés, depuis leurs .ogg (Vorbis : décodage à l'échantillon près)."""
+    mpath = os.path.join(dest, 'manifest.json'); man = json.load(open(mpath))
+    for name, e in man.items():
+        a = decode(os.path.join(dest, name + '.ogg'), highpass=False)
+        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'f32le', '-ar', str(SR), '-ac', '1', '-i', '-', '-c:a', 'libmp3lame', '-q:a', '4',
+                        os.path.join(dest, name + '.mp3')], input=a.tobytes(), check=True)
+        e['lead'] = lead(a)
+        print(f"{name}.mp3 : début franc à {e['lead']} s")
+    json.dump(dict(sorted(man.items())), open(mpath, 'w'), ensure_ascii=False, indent=1)
 
 
 def levels(a):
@@ -140,13 +164,15 @@ def loop_sound(a, name):
 def main(argv):
     here = os.path.dirname(os.path.abspath(__file__))
     cand = os.path.join(here, '..', '..', 'assets', 'sounds', 'candidats'); dest = os.path.join(here, '..', '..', 'assets', 'sounds')
-    picks = []
+    picks, mp3 = [], False
     it = iter(argv)
     for a in it:
         if a == '--candidats': cand = next(it)
         elif a == '--vers': dest = next(it)
+        elif a == '--mp3': mp3 = True
         elif '=' in a: picks.append(a.split('=', 1))
         else: raise SystemExit(f'Argument incompris : {a} (attendu : nom=numéro)')
+    if mp3: return remake_mp3(dest)
     if not picks: raise SystemExit(__doc__)
     meta = json.load(open(os.path.join(cand, 'candidats.json')))
     os.makedirs(dest, exist_ok=True)
@@ -165,8 +191,8 @@ def main(argv):
         p = peak_of(out) or 1.0
         g = 10 ** (-1 / 20) / p  # crête à -1 dB
         for i in range(len(out)): out[i] *= g
-        encode(out, os.path.join(dest, name + '.ogg'))
-        man[name] = {'id': c['id'], 'cuts': cuts, **({'loop': True} if name in LOOP else {})}
+        encode(out, os.path.join(dest, name))
+        man[name] = {'id': c['id'], 'cuts': cuts, 'lead': lead(out), **({'loop': True} if name in LOOP else {})}
         cred[name] = {k: c[k] for k in ('id', 'name', 'auteur', 'url', 'licence')}
         print(f"{name} ← {c['id']} « {c['name']} » : {len(cuts)} événement(s), {len(out) / SR:.2f} s")
     json.dump(dict(sorted(man.items())), open(mpath, 'w'), ensure_ascii=False, indent=1)

@@ -8,6 +8,8 @@ run() { local name=$1; shift; local t0=$(date +%s); timeout 900 "$@" > results/$
 run feat node feat.mjs
 run sounds node sounds.mjs
 run volumes node volumes.mjs
+run sounds_mp3 env Q=mp3 node sounds.mjs
+run fullscreen node fullscreen.mjs
 for m in poste7 cite penitencier filon; do run entries_$m env MAPID=$m node entries.mjs; done
 for m in poste7 cite penitencier filon; do run mapplay_$m node mapplay.mjs $m; done
 for m in poste7 cite penitencier filon; do run codfeat_$m node codfeat.mjs $m; done

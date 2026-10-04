@@ -30,6 +30,10 @@ const UI = {
     $('leaveLobby').onclick = () => { NET.leave(); $('lobby').classList.add('hidden'); $('joinPanel').classList.remove('hidden'); this.joinStatus("Laissez le code vide pour héberger une nouvelle partie, ou entrez le code d'un ami pour le rejoindre."); };
     // Plein écran, options.
     $('fullscreenButton').onclick = () => toggleFullscreen();
+    $('fsHelpClose').onclick = () => $('fsHelp').classList.add('hidden');
+    if (STANDALONE) document.body.classList.add('standalone');
+    const fsLabel = () => { $('fullscreenButton').textContent = document.fullscreenElement || document.webkitFullscreenElement ? '⛶ Quitter le plein écran' : '⛶ Plein écran'; };
+    document.addEventListener('fullscreenchange', fsLabel); document.addEventListener('webkitfullscreenchange', fsLabel);
     $('settingsButton').onclick = () => this.openSettings();
     $('pauseSettings').onclick = () => this.openSettings();
     $('settingsClose').onclick = () => { $('settings').classList.add('hidden'); };
@@ -290,9 +294,21 @@ function backToMenu() {
   menuCam.active = true; spawnMenuZombies();
   Sfx.setPad(0.35); WEATHER.target = 0;
 }
+// Plein écran. Sur iPhone, Safari ne laisse aucune page cacher sa barre d'adresse (pas de requestFullscreen hors vidéo) :
+// seul le jeu ajouté à l'écran d'accueil s'ouvre en plein écran (manifest.webmanifest, balises « appli web » de shell.html).
+// Le bouton explique alors comment faire. Dans une page hôte (Artifact claude.ai) sans permission, même explication.
+const FS_API = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+const IS_IOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const STANDALONE = navigator.standalone === true || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+function fullscreenHelp() {
+  const framed = window.top !== window.self;
+  $('fsHelpFramed').classList.toggle('hidden', !framed); $('fsHelpIos').classList.toggle('hidden', !IS_IOS); $('fsHelpOther').classList.toggle('hidden', IS_IOS || framed);
+  $('fsHelp').classList.remove('hidden');
+}
 function toggleFullscreen(force) {
   const el = $('shell');
-  if (document.fullscreenElement && !force) { G.wantFullscreen = false; document.exitFullscreen?.(); return; }
+  if (!FS_API) { if (!force) fullscreenHelp(); return; }
+  if ((document.fullscreenElement || document.webkitFullscreenElement) && !force) { G.wantFullscreen = false; (document.exitFullscreen || document.webkitExitFullscreen)?.call(document); return; }
   G.wantFullscreen = true;
   const req = el.requestFullscreen || el.webkitRequestFullscreen; if (req) { try { const p = req.call(el, { navigationUI: 'hide' }); if (p && p.catch) p.catch(() => {}); } catch { /* refusé */ } }
 }

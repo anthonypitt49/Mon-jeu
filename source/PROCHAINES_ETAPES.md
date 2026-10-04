@@ -2,6 +2,19 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 4.8) : sons sur iPhone, plein écran sur téléphone
+
+Retour du propriétaire sur la 4.7 : sur iPhone, les sons ne marchaient pas, et le jeu se jouait avec la barre d'adresse de Safari.
+
+- **Sons en MP3 en plus de l'OGG.** Safari (tous les iPhone) ne lit pas l'OGG : `keep_sounds.py` écrit aussi `<nom>.mp3` (`--mp3` les refait depuis les `.ogg` déjà gardés, sans les candidats), et `Sfx.loadBank()` prend l'OGG quand le navigateur sait le lire (`canPlayType`), sinon, ou si son décodage échoue, le MP3. `?mp3` force le MP3 (tests).
+- **Recalage des MP3.** Le codeur MP3 ajoute ≈ 25 ms de silence au début ; Chrome le retire, d'autres navigateurs peut-être pas. Le manifeste note pour chaque son où commence le premier échantillon franc (`lead`, seuil 0,03) ; le jeu mesure le même repère dans le MP3 décodé (`Sfx.shift`) et décale toutes les prises de la médiane des écarts (le silence du codeur est le même pour tous les fichiers ; une attaque brutale franchit le seuil quelques ms trop tôt). Mesuré : 0 ms dans Chrome ; 25 ms partout avec des MP3 sans en-tête de retrait (`-write_xing 0`), boucle du vent comprise.
+- **Bouton silencieux de l'iPhone.** Web Audio y obéit (pas les vidéos) : `navigator.audioSession.type = 'playback'` (API récente de Safari ; [à confirmer] à partir de quelle version d'iOS) fait jouer le jeu même en mode silencieux ; en contrepartie, la musique d'une autre appli s'arrête quand le son du jeu démarre. Le son en veille après un appel ou un verrouillage (« interrupted ») repart au toucher suivant (`Sfx.wake`).
+- **Plein écran.** Safari sur iPhone n'a pas de plein écran pour une page (seulement pour les vidéos) : la seule façon de jouer sans barre d'adresse est d'ajouter le jeu à l'écran d'accueil. `../manifest.webmanifest` (affichage `fullscreen`, paysage) et les balises « appli web » de `shell.html` (retirées de la version claude.ai par `build.mjs`), icônes dans `../assets/icons/` (`tools/make_icons.mjs`). Le bouton « ⛶ Plein écran » de l'en-tête, encadré et bien visible au tactile, passe en plein écran là où c'est possible (ordinateur, Android) ; sinon il ouvre une explication en trois étapes (Partager → Sur l'écran d'accueil → lancer depuis l'icône). Dans une page hôte sans permission (Artifact claude.ai), l'explication renvoie à l'adresse du jeu. Lancé depuis l'icône (`navigator.standalone`), le bouton disparaît. Au tactile, le lien « Commandes » (touches du clavier) et l'astuce « Échap » sont masqués ; l'en-tête ne déborde plus sur iPhone, à l'horizontale comme à la verticale.
+- [à confirmer] Depuis l'icône, iOS garde à part les réglages, le classement et la banque du Filon (stockage séparé de celui de Safari) : c'est dit dans l'explication.
+- Tests : `dev/fullscreen.mjs` (ordinateur, iPhone dans Safari, iPhone depuis l'icône, jeu dans une page hôte ; manifeste et icônes servis) et `Q=mp3 node sounds.mjs`, ajoutés à `runall.sh`.
+
+Reste à vérifier par le propriétaire, sur son iPhone : les vrais sons (et pas les anciens sons synthétisés), le son en mode silencieux, l'ajout à l'écran d'accueil et le jeu lancé depuis l'icône.
+
 ## Fait (version 4.7) : de vrais sons (Freesound, CC0) et des réglages de volume
 
 Mise en ligne le 3 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu avec salon co-op (https://claude.ai/artifact/Y51hhvwwXabwNxVY76hLTm), republié avec `assets/sounds/` à côté de ses fichiers. La copie d'essai privée en solo a été supprimée à la demande du propriétaire.
@@ -17,7 +30,7 @@ Mise en ligne le 3 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu ave
 - GitHub Pages : la première construction de la 4.7 a échoué sur une panne de GitHub (erreur 503 de son API), et la relance est restée bloquée dans la file. Un nouveau push sur `main` relance la construction ; vérifier ensuite que `version.json` en ligne affiche la bonne version.
 
 Comment ça marche dans le jeu :
-- `tools/keep_sounds.py` : mono, grondement retiré, chaque enregistrement découpé en prises (un tir, un pas, un râle…) recollées avec un court silence, crête à -1 dB, OGG Vorbis ; le vent devient une boucle sans raccord. Écrit `../assets/sounds/<nom>.ogg`, `manifest.json` (repères des prises), `credits.json` et `CREDITS.md`. Rejouer la ligne avec un seul `nom=numéro` remplace ce seul son.
+- `tools/keep_sounds.py` : mono, grondement retiré, chaque enregistrement découpé en prises (un tir, un pas, un râle…) recollées avec un court silence, crête à -1 dB, OGG Vorbis (et MP3 depuis la 4.8) ; le vent devient une boucle sans raccord. Écrit `../assets/sounds/<nom>.ogg`, `manifest.json` (repères des prises), `credits.json` et `CREDITS.md`. Rejouer la ligne avec un seul `nom=numéro` remplace ce seul son.
 - `src/02_audio.js` : `Sfx.loadBank()` charge le manifeste après le démarrage du son (jamais en `file://`, ni avec `?nosamples`) ; `Sfx.play(nom, pos, …)` tire une prise au hasard (jamais deux fois la même de suite), varie hauteur (± 4 %) et volume (± 10 %), passe par `Sfx.out` ; renvoie 0 si le son manque, et la fonction joue alors sa version synthétisée. Correspondances : voir `rec` dans `GUN_SOUNDS` et les appels à `this.play` (recharges : les prises dans l'ordre, une par déclic ; vent et pas dans la neige : Poste 7 seulement ; tranchées du Poste 7 : caillebotis ou boue).
 - `dev/sounds.mjs` (dans `runall.sh`) : vérifie le chargement et que chaque son chargé est bien joué ; `SONS=<dossier>` pour essayer un autre jeu de sons, `Q=nosamples` pour le secours. `dev/volumes.mjs` (dans `runall.sh`) : un analyseur par canal ; chaque son sort sur sa famille et seulement elle, 0 % coupe tout, les cinq curseurs s'enregistrent.
 
@@ -25,7 +38,7 @@ Marteau des barricades validé à l'oreille par le propriétaire en 4.7 (gain 0,
 
 Reste à vérifier sur les sons :
 1. [à écouter] Sons d'une seule prise, donc répétés à l'identique (hauteur et volume varient un peu) : `tir_pistolet`, `tir_fusil`, `tir_pompe`, `douille`, `impact_bois`, `impact_metal`, `impact_chair`, `zombie_cri`, `planche_arrachee`, `marteau_clou`. Les plus fréquents : `impact_chair` (chaque balle qui touche), `douille` (chaque tir), `marteau_clou` (trois coups identiques à chaque planche). Si la répétition s'entend, choisir pour eux un enregistrement à plusieurs prises.
-2. Vérifier sur iPhone : [à confirmer] les Safari un peu anciens ne décodent pas l'OGG ; ils garderont les sons synthétisés (secours prévu). Si c'est gênant, ajouter une copie `.m4a`.
+2. ~~Vérifier sur iPhone~~ : les sons ne marchaient pas sur iPhone en 4.7 ; copie MP3 ajoutée en 4.8 (voir plus haut).
 
 ## Fait (version 4.6)
 

@@ -21,7 +21,10 @@ await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
 await page.evaluate(() => document.querySelector('#soloButton').click());
 await page.waitForFunction(() => ['on', 'failed'].includes(SP.Sfx.bankInfo.state) || /nosamples/.test(location.search), null, { timeout: 60000 });
 const ev = (f, a) => page.evaluate(f, a);
-console.log('BANK', JSON.stringify(await ev(() => ({ ...SP.Sfx.bankInfo, names: Object.keys(SP.Sfx.bank), ctx: SP.Sfx.ctx.state }))));
+// shifts : recalage des MP3 (ms), quand le navigateur ne lit pas l'OGG ou avec Q=mp3.
+const bank = await ev(() => ({ ...SP.Sfx.bankInfo, names: Object.keys(SP.Sfx.bank), ctx: SP.Sfx.ctx.state, shifts: Object.fromEntries(Object.entries(SP.Sfx.bank).filter(([, b]) => b.d).map(([n, b]) => [n, +(b.d * 1000).toFixed(1)])) }));
+console.log('BANK', JSON.stringify(bank));
+if (/mp3/.test(process.env.Q || '') && bank.mp3 !== bank.n) errors.push(`[sons] Q=mp3 : ${bank.mp3} MP3 sur ${bank.n} sons`);
 // Chaque fonction sonore, en notant les enregistrements qu'elle a réellement joués.
 const r = await ev(async () => {
   const S = SP.Sfx, played = {}, orig = S.play.bind(S);

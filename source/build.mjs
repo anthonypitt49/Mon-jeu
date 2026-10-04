@@ -19,6 +19,7 @@ if (artifact) {
     .replace(/<meta charset="UTF-8">\s*/i, '')
     .replace(/<meta name="viewport"[^>]*>\s*/i, '')
     .replace(/<link rel="icon"[^>]*>\s*/i, '')
+    .replace(/<!-- appli web[\s\S]*?<!-- \/appli web -->\s*/i, '') // un Artifact ne s'installe pas sur l'écran d'accueil
     .replace(/<\/head>\s*/i, '')
     .replace(/<body>\s*/i, '')
     .replace(/\s*<\/body>\s*<\/html>\s*$/i, '\n');

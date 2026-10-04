@@ -5,9 +5,13 @@
 const Sfx = {
   ctx: null, ready: false, voices: 0,
   init() {
-    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    if (this.ctx) { this.wake(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    // iPhone : sans cela, le bouton « silencieux » coupe tout le son du jeu (Web Audio y obéit, contrairement aux vidéos).
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* API absente */ }
     const ctx = this.ctx = new AC();
+    // Safari met le son en veille (« interrupted ») après un appel, un verrouillage ou un passage dans une autre appli : on le relance au toucher suivant.
+    for (const e of ['touchend', 'pointerdown', 'keydown']) addEventListener(e, () => this.wake(), { passive: true });
     this.master = ctx.createGain();
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 10; comp.ratio.value = 5; comp.attack.value = 0.003; comp.release.value = 0.2;
     this.master.connect(comp); comp.connect(ctx.destination);
@@ -43,6 +47,7 @@ const Sfx = {
     this.startAmbience();
     this.loadBank();
   },
+  wake() { const c = this.ctx; if (c && c.state !== 'running' && c.state !== 'closed') c.resume().catch(() => { /* il faudra un geste */ }); },
   applyVolume() {
     // Affectation directe : un lissage (setTargetAtTime) n'avance pas dans Chrome tant que le canal est silencieux,
     // et le premier tir après avoir coupé les armes sortait encore presque à plein volume.
@@ -82,23 +87,43 @@ const Sfx = {
   /* ─── Sons enregistrés (Freesound, CC0) ───
      Servis à côté du jeu dans assets/sounds/ (voir source/tools/keep_sounds.py) et chargés une fois le son démarré.
      Chaque fichier regroupe plusieurs prises (repères « cuts » du manifeste) : on en tire une au hasard, en variant un peu hauteur et volume.
-     Tant qu'un son manque (page ouverte en local, hors ligne, navigateur qui ne lit pas l'OGG), sa version synthétisée joue. */
-  bank: {}, bankInfo: { state: 'off', n: 0, failed: 0, ms: 0 },
+     Chaque son existe en OGG et en MP3 : l'OGG d'abord, le MP3 pour les navigateurs qui ne lisent pas l'OGG (Safari, tous les iPhone).
+     Tant qu'un son manque (page ouverte en local, hors ligne, format illisible), sa version synthétisée joue. */
+  bank: {}, bankInfo: { state: 'off', n: 0, failed: 0, ms: 0, mp3: 0 },
   async loadBank() {
     const B = this.bankInfo;
     if (B.state !== 'off' || location.protocol === 'file:' || /nosamples/.test(location.search)) return;
     B.state = 'loading'; const t0 = performance.now(), base = 'assets/sounds/';
+    const au = document.createElement('audio'), ogg = !/mp3/.test(location.search) && !!au.canPlayType?.('audio/ogg; codecs="vorbis"');
+    const get = async (name, ext) => {
+      const r = await fetch(base + name + '.' + ext); if (!r.ok) throw new Error(name + '.' + ext + ' : ' + r.status);
+      const data = await r.arrayBuffer();
+      return new Promise((ok, ko) => this.ctx.decodeAudioData(data, ok, ko)); // forme à rappels : vieux Safari
+    };
     try {
       const man = await (await fetch(base + 'manifest.json')).json();
       const res = await Promise.allSettled(Object.entries(man).map(async ([name, e]) => {
-        const data = await (await fetch(base + name + '.ogg')).arrayBuffer();
-        const buf = await new Promise((ok, ko) => this.ctx.decodeAudioData(data, ok, ko)); // forme à rappels : vieux Safari
-        this.bank[name] = { buf, cuts: e.cuts, last: -1 };
+        let buf = ogg && (await get(name, 'ogg').catch(() => null)), d = null;
+        if (!buf) { buf = await get(name, 'mp3'); d = this.shift(buf, e.lead); B.mp3++; }
+        this.bank[name] = { buf, cuts: e.cuts, last: -1, d };
       }));
+      // Le silence du codeur est le même pour tous les MP3 : la médiane des mesures, plus sûre qu'une mesure isolée
+      // (une attaque brutale franchit le seuil quelques millisecondes trop tôt).
+      const mp3 = Object.values(this.bank).filter((b) => b.d !== null), ds = mp3.map((b) => b.d).sort((a, b) => a - b), d = ds[ds.length >> 1] || 0;
+      for (const b of mp3) { b.d = d; if (d) b.cuts = b.cuts.map(([c0, c1]) => [Math.max(0, c0 + d), c1 + d]); }
       B.n = Object.keys(this.bank).length; B.failed = res.filter((r) => r.status === 'rejected').length; B.state = 'on';
       this.windSample();
     } catch (e) { B.state = 'failed'; B.err = String(e?.message || e); }
     B.ms = Math.round(performance.now() - t0);
+  },
+  // Recalage d'un MP3 : son codeur ajoute un court silence au début, que tous les navigateurs ne retirent pas.
+  // On cherche le premier échantillon franc et on le compare à sa place dans l'original (« lead » du manifeste, même seuil
+  // que tools/keep_sounds.py) : l'écart décale tous les repères du fichier.
+  shift(buf, lead) {
+    if (typeof lead !== 'number') return 0;
+    const x = buf.getChannelData(0), sr = buf.sampleRate, end = Math.min(x.length, Math.ceil((lead + 0.3) * sr));
+    for (let i = 0; i < end; i++) if (Math.abs(x[i]) >= 0.03) return clamp(i / sr - lead, -0.05, 0.1);
+    return 0;
   },
   // Joue une prise enregistrée et renvoie sa durée (s) ; 0 si le son manque : l'appelant joue alors sa version synthétisée.
   // to : sortie déjà prête (sinon out(pos, …)) ; cut : prise imposée (recharges, dans l'ordre) ; max : coupée en fondu au-delà (s).
@@ -120,7 +145,7 @@ const Sfx = {
   windSample() {
     const b = this.bank.vent_neige; if (!b || !this.wind || this.wind.rec || MAP_ID !== 'poste7') return;
     const ctx = this.ctx, t = ctx.currentTime, [c0, c1] = b.cuts[0], s = ctx.createBufferSource(), g = ctx.createGain();
-    s.buffer = b.buf; s.loop = true; s.loopStart = c0; s.loopEnd = c1;
+    s.buffer = b.buf; s.loop = true; s.loopStart = c0; s.loopEnd = Math.min(c1, b.buf.duration);
     g.gain.value = 0.0001; s.connect(g); g.connect(this.wind.g); s.start(t, c0 + Math.random() * (c1 - c0));
     g.gain.setTargetAtTime(1, t, 1.2); this.wind.mix.gain.setTargetAtTime(0.0001, t, 1.2); // fondu de 3 s environ
     setTimeout(() => { try { this.wind.src.stop(); } catch { /* déjà arrêté */ } }, 6000);

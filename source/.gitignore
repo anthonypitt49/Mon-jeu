@@ -7,4 +7,5 @@ dev/*.log
 *.artifact.html
 _check.mjs
 dev/assets
+dev/manifest.webmanifest
 __pycache__/

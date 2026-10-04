@@ -13,8 +13,9 @@ Le jeu en ligne est **un seul fichier**, `index.html`, à la racine du dépôt. 
 | `dev/runall.sh` | La batterie complète (environ 2 heures). |
 | `tools/fetch_assets.py` | Télécharge et prépare les textures photo et l'éclairage d'une carte (Poly Haven, CC0) dans `../assets/<carte>/`. |
 | `tools/fetch_sounds.py` | Cherche sur Freesound (CC0) 4 candidats par son et fabrique une page d'écoute, dans `../assets/sounds/candidats/` (non publié). Clé : variable d'environnement `FREESOUND_API_KEY`. |
-| `tools/keep_sounds.py` | Prépare les sons choisis à l'oreille (mono, découpés en prises, volume normalisé, OGG) dans `../assets/sounds/`, avec `manifest.json` et `CREDITS.md`. |
-| `../assets/` | Les textures photo et les sons servis avec le jeu, et leurs crédits. |
+| `tools/keep_sounds.py` | Prépare les sons choisis à l'oreille (mono, découpés en prises, volume normalisé, OGG et MP3 pour Safari et les iPhone) dans `../assets/sounds/`, avec `manifest.json` et `CREDITS.md`. `--mp3` refait seulement les MP3. |
+| `tools/make_icons.mjs` | Dessine les icônes de l'écran d'accueil (`../assets/icons/`) pour l'appli web décrite par `../manifest.webmanifest` : ajouté à l'écran d'accueil, le jeu s'ouvre en plein écran (seule façon sur iPhone). |
+| `../assets/` | Les textures photo, les sons et les icônes servis avec le jeu, et leurs crédits. |
 | `dev/version.json` | La version annoncée aux joueurs déjà connectés (le jeu se recharge tout seul quand elle change). |
 
 Les dossiers `dev/node_modules/` (outils téléchargés), `dev/shots/` (captures) et `dev/results/` (résultats) ne sont pas dans le dépôt : ils se recréent.
