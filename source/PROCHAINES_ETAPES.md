@@ -13,7 +13,7 @@ Retour du propriétaire sur la 4.7 : sur iPhone, les sons ne marchaient pas, et 
 - [à confirmer] Depuis l'icône, iOS garde à part les réglages, le classement et la banque du Filon (stockage séparé de celui de Safari) : c'est dit dans l'explication.
 - Tests : `dev/fullscreen.mjs` (ordinateur, iPhone dans Safari, iPhone depuis l'icône, jeu dans une page hôte ; manifeste et icônes servis) et `Q=mp3 node sounds.mjs`, ajoutés à `runall.sh`.
 
-Reste à vérifier par le propriétaire, sur son iPhone : les vrais sons (et pas les anciens sons synthétisés), le son en mode silencieux, l'ajout à l'écran d'accueil et le jeu lancé depuis l'icône.
+Vérifié par le propriétaire sur son iPhone (4 octobre 2026) : les vrais sons marchent, et le plein écran aussi (jeu ajouté à l'écran d'accueil).
 
 ## Fait (version 4.7) : de vrais sons (Freesound, CC0) et des réglages de volume
 
