@@ -21,10 +21,11 @@ Comment ça marche dans le jeu :
 - `src/02_audio.js` : `Sfx.loadBank()` charge le manifeste après le démarrage du son (jamais en `file://`, ni avec `?nosamples`) ; `Sfx.play(nom, pos, …)` tire une prise au hasard (jamais deux fois la même de suite), varie hauteur (± 4 %) et volume (± 10 %), passe par `Sfx.out` ; renvoie 0 si le son manque, et la fonction joue alors sa version synthétisée. Correspondances : voir `rec` dans `GUN_SOUNDS` et les appels à `this.play` (recharges : les prises dans l'ordre, une par déclic ; vent et pas dans la neige : Poste 7 seulement ; tranchées du Poste 7 : caillebotis ou boue).
 - `dev/sounds.mjs` (dans `runall.sh`) : vérifie le chargement et que chaque son chargé est bien joué ; `SONS=<dossier>` pour essayer un autre jeu de sons, `Q=nosamples` pour le secours. `dev/volumes.mjs` (dans `runall.sh`) : un analyseur par canal ; chaque son sort sur sa famille et seulement elle, 0 % coupe tout, les cinq curseurs s'enregistrent.
 
+Marteau des barricades validé à l'oreille par le propriétaire en 4.7 (gain 0,13 dans `hammer`, `02_audio.js`).
+
 Reste à vérifier sur les sons :
-1. Le propriétaire réécoute le marteau (en ligne) ; s'il faut encore baisser, c'est `gain` dans `hammer` (`02_audio.js`).
-2. [à écouter] Sons d'une seule prise, donc répétés à l'identique (hauteur et volume varient un peu) : `tir_pistolet`, `tir_fusil`, `tir_pompe`, `douille`, `impact_bois`, `impact_metal`, `impact_chair`, `zombie_cri`, `planche_arrachee`, `marteau_clou`. Les plus fréquents : `impact_chair` (chaque balle qui touche), `douille` (chaque tir), `marteau_clou` (trois coups identiques à chaque planche). Si la répétition s'entend, choisir pour eux un enregistrement à plusieurs prises.
-3. Vérifier sur iPhone : [à confirmer] les Safari un peu anciens ne décodent pas l'OGG ; ils garderont les sons synthétisés (secours prévu). Si c'est gênant, ajouter une copie `.m4a`.
+1. [à écouter] Sons d'une seule prise, donc répétés à l'identique (hauteur et volume varient un peu) : `tir_pistolet`, `tir_fusil`, `tir_pompe`, `douille`, `impact_bois`, `impact_metal`, `impact_chair`, `zombie_cri`, `planche_arrachee`, `marteau_clou`. Les plus fréquents : `impact_chair` (chaque balle qui touche), `douille` (chaque tir), `marteau_clou` (trois coups identiques à chaque planche). Si la répétition s'entend, choisir pour eux un enregistrement à plusieurs prises.
+2. Vérifier sur iPhone : [à confirmer] les Safari un peu anciens ne décodent pas l'OGG ; ils garderont les sons synthétisés (secours prévu). Si c'est gênant, ajouter une copie `.m4a`.
 
 ## Fait (version 4.6)
 
