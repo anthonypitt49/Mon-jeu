@@ -1,0 +1,96 @@
+{
+ "asphalt": {
+  "m": 3.0,
+  "maps": "cnr",
+  "lum": 0.1018,
+  "s": 1
+ },
+ "sidewalk": {
+  "m": 1.8,
+  "maps": "cnr",
+  "lum": 0.1811,
+  "s": 1
+ },
+ "grass": {
+  "m": 2.0,
+  "maps": "cnr",
+  "lum": 0.2373,
+  "s": 1
+ },
+ "desert": {
+  "m": 4.0,
+  "maps": "cnr",
+  "lum": 0.1977,
+  "s": 1
+ },
+ "shingle": {
+  "m": 8.0,
+  "maps": "cnr",
+  "lum": 0.0964,
+  "s": 1
+ },
+ "brick": {
+  "m": 2.0,
+  "maps": "cnr",
+  "lum": 0.3028,
+  "s": 1
+ },
+ "plaster": {
+  "m": 2.0,
+  "maps": "cnr",
+  "lum": 0.3731,
+  "s": 1
+ },
+ "parquet": {
+  "m": 2.0,
+  "maps": "cnr",
+  "lum": 0.1719,
+  "s": 1
+ },
+ "checker": {
+  "m": 2.0,
+  "maps": "cnr",
+  "lum": 0.0798,
+  "s": 1
+ },
+ "garage": {
+  "m": 1.886,
+  "maps": "cnr",
+  "lum": 0.1595,
+  "s": 1
+ },
+ "tiles": {
+  "m": 1.27,
+  "maps": "cnr",
+  "lum": 0.5701,
+  "s": 1
+ },
+ "concrete": {
+  "m": 2.71,
+  "maps": "cnr",
+  "lum": 0.2373,
+  "s": 1
+ },
+ "wood": {
+  "m": 1.2,
+  "maps": "cnr",
+  "lum": 0.2123,
+  "s": 1
+ },
+ "rock": {
+  "m": 1.83,
+  "maps": "cnr",
+  "lum": 0.111,
+  "s": 1
+ },
+ "paper": {
+  "m": 2.5,
+  "maps": "nr",
+  "lum": 0.5,
+  "s": 1
+ },
+ "env": {
+  "lum": 0.22335,
+  "az": 0.5996
+ }
+}

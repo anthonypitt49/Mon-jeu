@@ -12,7 +12,8 @@ Le jeu en ligne est **un seul fichier**, `index.html`, à la racine du dépôt. 
 | `dev/` | Les tests automatiques : un navigateur sans écran joue des parties, seul ou à plusieurs, et vérifie que tout se passe bien. |
 | `dev/runall.sh` | La batterie complète (environ 2 heures). |
 | `dev/armes.mjs` | Planche de contrôle des armes (profil, trois quarts, en main, en visée) dans `dev/shots/`, pour dessiner ou retoucher une arme (`src/08b_gunmodels.js`). |
-| `tools/fetch_assets.py` | Télécharge et prépare les textures photo et l'éclairage d'une carte (Poly Haven, CC0) dans `../assets/<carte>/`. |
+| `tools/fetch_assets.py` | Télécharge et prépare les textures photo et l'éclairage d'une carte (Poly Haven, CC0) dans `../assets/<carte>/` : `python3 tools/fetch_assets.py cite` ; `--petit` refait seulement les versions allégées (`_s`, 512 px) chargées en graphismes « bas ». |
+| `dev/photo.mjs` | Visite d'une carte en textures photo (`node photo.mjs cite 2` → captures dans `dev/shots/`) ; avec `CHECK=1`, vérifie seulement que chaque matière prévue a reçu sa photo (dans `runall.sh`). `dev/photoperf.mjs <carte>` mesure le coût des photos et de l'ombrage. |
 | `tools/fetch_sounds.py` | Cherche sur Freesound (CC0) 4 candidats par son et fabrique une page d'écoute, dans `../assets/sounds/candidats/` (non publié). Clé : variable d'environnement `FREESOUND_API_KEY`. |
 | `tools/keep_sounds.py` | Prépare les sons choisis à l'oreille (mono, découpés en prises, volume normalisé, OGG et MP3 pour Safari et les iPhone) dans `../assets/sounds/`, avec `manifest.json` et `CREDITS.md`. `--mp3` refait seulement les MP3. |
 | `tools/make_icons.mjs` | Dessine les icônes de l'écran d'accueil (`../assets/icons/`) pour l'appli web décrite par `../manifest.webmanifest` : ajouté à l'écran d'accueil, le jeu s'ouvre en plein écran (seule façon sur iPhone). |

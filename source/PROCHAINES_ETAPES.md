@@ -2,6 +2,29 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 5.0) : les trois autres cartes en textures photo
+
+Demande du propriétaire : « fais les textures photo des trois autres cartes, assure-toi que tout fasse du sens et inspire-toi des meilleurs jeux ». Repères : Nuketown (Cité Atomique), Mob of the Dead (Pénitencier), Buried (Filon Maudit) ; dans ces cartes, la matière dit l'époque et le lieu avant les objets. Règle suivie : chaque photo doit être plausible pour l'année de la carte (Cité 1957, Pénitencier 1933, Filon 1880).
+
+- **Méthode des cartes de plain-pied** (`ft` dans `PHOTO_SETS`) : les trois cartes peignent leurs murs et leurs sols avec les textures dessinées de `05b_flat.js` (`fmat`, `FLAT_TEX`, `FLAT_SCALE`). La photo remplace une texture dessinée partout où elle sert (`userData.ftex`, posé par `fmat`), à la même échelle (mètres par unité de texture) et avec la même teinte ; la luminosité moyenne est gardée (l'éclairage des cartes a été réglé pour les textures dessinées), à un facteur 0,45–2,4 près. `tint` corrige une photo dont la couleur ne colle pas ; `detail` garde le motif dessiné et ne prend à la photo que son relief et sa rugosité.
+- **Cité Atomique** (`fetch_assets.py cite`, 6,5 Mo) : asphalte fissuré, trottoirs en dalles, pelouses (teintées plus vertes : gazon arrosé d'un village témoin), terre craquelée du lac asséché (teintée ocre : sinon une croûte de sel), bardeaux d'asphalte gris, brique, enduit peint, parquet, damier de cuisine, sol de garage pour les dalles, carrelage blanc, béton de l'abri, chêne, roche des mesas. Les clins des pavillons gardent leur dessin (leurs ombres franches font la maison ; une photo de planches neuves les aplatissait) avec le grain de l'enduit peint ; le papier peint « atomique » garde son motif avec le relief d'un papier abîmé. Ciel : « Rogland Sunset » (crépuscule).
+- **Le Pénitencier** (4,4 Mo) : moellons bruts, rochers à lichens du rivage, béton crasseux, carrelage des douches, planches lavées des quais, vieilles planches du bureau du directeur (dehors et lambris), parquet, enduit peint, béton. La peinture en deux tons des cellules garde son dessin, avec le relief d'une peinture écaillée. Ciel : « Kloppenheim 04 ».
+- **Filon Maudit** (4,9 Mo) : vieilles planches des façades, terre battue, roche de la caverne, planches brunes délavées (planchers, plafonds, boiseries), parquet usé, brique de la banque, enduit, damier, ardoises, pierre des soubassements. Ciel : « Drachenfels Cellar » (cave voûtée, lumière de caverne).
+- **Cohérence d'époque** : le saloon du Filon (1880) était tapissé du papier peint « atomique » de la Cité (1957). Nouveau motif dessiné `victorian` (damas bordeaux à filets dorés, `05b_flat.js`), avec le relief du papier abîmé, pour les deux pièces rouges du saloon (`23_map_filon.js`).
+- **Ciel photographié et soleil du jeu** : le soleil d'un HDRI faisait un second soleil, dans une autre direction que la lumière de la carte (le camion de la Cité était surexposé d'un côté). `fetch_assets.py` écrête le soleil photographié (au plus 12 fois la luminance moyenne) et note sa direction (`az`) ; le jeu tourne le ciel pour l'aligner sur sa propre lumière (`photoEnv`, `PHOTO.envShift`). Le Poste 7 (ciel couvert, sans soleil) n'est pas touché.
+- **Téléphones (graphismes « bas »)** : ils n'avaient aucune photo jusqu'ici. `fetch_assets.py` écrit aussi des versions allégées (`<nom>_s.jpg` : couleur et relief en 512 px, rugosité en 256 px ; `--petit` les refait seules), chargées en « bas » ou avec `?photolite` : 0,8 à 1,2 Mo par carte.
+- **Ombrage d'ambiance (N8AO)** : étendu aux quatre cartes (« élevé » et « ultra »).
+- Corrigé au passage : les sols mélangés neige et boue du Poste 7 n'étaient pas comptés comme « faits » (`photoBlend` renvoie maintenant s'il a réussi).
+- Tests : `CHECK=1 node photo.mjs <carte> <qualité>` vérifie que chaque matière de `PHOTO_SETS` a reçu sa photo et que la version allégée sert en « bas » ; ajouté à `runall.sh` pour les quatre cartes, en « bas » et en « élevé ». `photoperf.mjs <carte>` mesure le coût.
+- Mesures (`photoperf.mjs`, rendu logiciel : seuls les écarts ont un sens, et ils sont bruités) :
+  - mémoire vidéo des textures en « élevé » : Cité 90 → 228 Mo, Pénitencier 75 → 168 Mo, Filon 76 → 177 Mo ; en « bas » (versions allégées) : Pénitencier 40 → 63 Mo, Filon 38 → 64 Mo ;
+  - temps d'image en « élevé » : photos sans effet mesurable (Cité 952 → 927 ms, Filon 1427 → 1467 ms) ; ombrage d'ambiance + 16 % (Cité) à + 18 % (Filon) ; au Pénitencier, écarts noyés dans le bruit ;
+  - en « bas », en régime établi, ≈ 3 ms par image avec ou sans photos (4 séries de 40 images) ; des pics de 90 à 260 ms dans les premières secondes et par moments, présents aussi sans photos (moins hauts) : à surveiller sur un vrai téléphone.
+
+Reste à faire sur les photos :
+1. [à vérifier] Sur iPhone : temps de chargement des versions allégées et mémoire (aucune photo n'y était chargée avant).
+2. Objets (meubles, voitures, machines) : encore en textures dessinées ; ce sont eux qui trahissent maintenant le plus le dessin à côté des murs et des sols photographiés.
+
 ## Fait (version 4.9) : armes en main réalistes
 
 Mise en ligne le 4 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu avec salon co-op. Tests avant mise en ligne : `feat.mjs`, `mapplay` sur les quatre cartes, `touch.mjs`, `sounds.mjs`, `volumes.mjs`, `coop.mjs`, `coopmap.mjs` (erreurs MQTT du conteneur seulement), changement d'arme sans reconstruction. `volumes.mjs` a échoué une fois de justesse sur un son de fond du canal « reste » pendant la mesure du tir (0,0236 pour un fond à 0,0192, marge de 20 %) ; relancé, il passe.
@@ -67,5 +90,5 @@ Reste à vérifier sur les sons :
 
 ## Puis
 
-- Textures photo pour la Cité Atomique, le Pénitencier et le Filon (même méthode : ajouter un jeu dans `SETS` de `fetch_assets.py` et dans `PHOTO_SETS` de `05p_photo.js`), puis étendre l'ombrage d'ambiance aux autres cartes.
+- ~~Textures photo pour la Cité Atomique, le Pénitencier et le Filon~~ : fait en 5.0 (voir plus haut).
 - Piste mémoire vidéo : compresser les textures en KTX2 (`ktx2-encoder`) si des machines modestes peinent.

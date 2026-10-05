@@ -43,8 +43,8 @@ MAPS.filon = {
   walls: [
     { key: 'plank', h: 4.2, out: ['westPlank', 0xb08a60], in: ['westPlank', 0x9a7a58], mat: 'wood' },
     { key: 'plankWin', look: 'window', h: 4.2, out: ['westPlank', 0xb08a60], in: ['westPlank', 0x9a7a58], trim: ['planks', 0x5a3a22], lit: 0xffb060, shutter: 0x5a3e28, mat: 'wood' },
-    { key: 'red', h: 4.2, out: ['westPlank', 0xb85a42], in: ['wallpaper', 0xb89a7a], mat: 'wood' },
-    { key: 'redWin', look: 'window', h: 4.2, out: ['westPlank', 0xb85a42], in: ['wallpaper', 0xb89a7a], trim: ['planks', 0xe8d8b0], lit: 0xffb060, shutter: 0x3a2a1a, mat: 'wood' },
+    { key: 'red', h: 4.2, out: ['westPlank', 0xb85a42], in: ['victorian', 0xead8c8], mat: 'wood' }, // damas victorien (le papier peint à étoiles atomiques est celui de la Cité, 1957)
+    { key: 'redWin', look: 'window', h: 4.2, out: ['westPlank', 0xb85a42], in: ['victorian', 0xead8c8], trim: ['planks', 0xe8d8b0], lit: 0xffb060, shutter: 0x3a2a1a, mat: 'wood' },
     { key: 'brick', h: 4.6, out: ['brick', 0xd8b8a0], in: ['plaster', 0xd8ccb0], mat: 'concrete' },
     { key: 'brickWin', look: 'window', h: 4.6, out: ['brick', 0xd8b8a0], in: ['plaster', 0xd8ccb0], trim: ['planks', 0x3a2a1a], lit: 0xffc27a, bars: true, mat: 'concrete' },
     { key: 'white', h: 5.0, out: ['westPlank', 0xe8e0cc], in: ['plaster', 0xe0d4bc], mat: 'wood' },

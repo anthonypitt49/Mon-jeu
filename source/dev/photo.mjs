@@ -1,5 +1,6 @@
 // Textures photo : tournée visuelle servie en HTTP (les photos ne se chargent pas en file://), après chargement des photos.
 // usage : node photo.mjs <carte> [qualité=2] [préfixe=photo] ['[[tx,tz],...]' points] ; env Q='nophoto' pour la version dessinée.
+// env CHECK=1 : vérification seule, sans tournée (photos appliquées à toutes les matières prévues, version allégée en qualité « bas »).
 import { chromium } from 'playwright';
 import path from 'path';
 import fs from 'fs';
@@ -20,7 +21,14 @@ await page.goto('http://127.0.0.1:8088/index.html?' + (process.env.Q || '') + '#
 await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
 await page.waitForFunction(() => ['on', 'failed', 'off'].includes(SP.PHOTO.state) && (SP.PHOTO.state !== 'off' || /nophoto/.test(location.search) || SP.settings.quality < 1), null, { timeout: 120000 });
 await page.waitForTimeout(1500);
-console.log('PHOTO', JSON.stringify(await page.evaluate(() => ({ ...SP.PHOTO, aoPass: !!SP.R.ao }))));
+const ph = await page.evaluate(() => ({ ...SP.PHOTO, aoPass: !!SP.R.ao, want: Object.keys(SP.PHOTO_SETS[SP.MAP_ID()] || {}) }));
+console.log('PHOTO', JSON.stringify(ph));
+if (!/nophoto/.test(process.env.Q || '')) {
+  if (ph.state !== 'on') errors.push(`[photo] état ${ph.state} ${ph.err || ''}`);
+  const missing = ph.want.filter((k) => !(ph.done || []).includes(k)); if (missing.length) errors.push('[photo] matières sans photo : ' + missing.join(', '));
+  if (!!ph.lite !== (q === 0)) errors.push(`[photo] version allégée ${ph.lite} en qualité ${q}`);
+}
+if (process.env.CHECK) { console.log('ERRORS', errors.length); for (const e of errors.slice(0, 10)) console.log(e); await browser.close(); process.exit(0); }
 await page.evaluate(() => document.querySelector('#soloButton').click());
 await page.waitForTimeout(400);
 const pts = await page.evaluate(([N, forced]) => {

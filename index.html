@@ -737,7 +737,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '4.9'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '5.0'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -2745,6 +2745,19 @@ const FLAT_TEX = {
     }
     for (let i = 0; i < 900; i++) { x.fillStyle = `rgba(80,60,40,${rng() * 0.05})`; x.fillRect(rng() * S, rng() * S, 3, 3); }
   }); } },
+  // Papier peint victorien (saloon, 1880) : bandes rouge sang et rouge brique, damas en médaillons, filets dorés. (1,2 m)
+  victorian: { relief: 0.6, canvas(S) { return canvasPaint(S, (x) => {
+    const k = S / 4; x.fillStyle = '#743a30'; x.fillRect(0, 0, S, S);
+    for (let i = 0; i < 4; i++) { x.fillStyle = '#663228'; x.fillRect(i * k + k * 0.5, 0, k * 0.5, S); x.fillStyle = 'rgba(190,150,92,.35)'; x.fillRect(i * k + k * 0.5 - S / 256, 0, S / 128, S); x.fillRect(i * k + k - S / 256, 0, S / 128, S); }
+    // Damas : médaillon en losange fleuri, rangées décalées, ton sur ton.
+    for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) {
+      const cx = i * k + k * 0.25, cy = j * k + (i % 2) * k * 0.5 + k * 0.25, a = k * 0.18;
+      x.fillStyle = 'rgba(176,128,84,.3)'; x.beginPath(); x.moveTo(cx, cy - a * 1.6); x.quadraticCurveTo(cx + a, cy - a * 0.4, cx, cy + a * 1.6); x.quadraticCurveTo(cx - a, cy - a * 0.4, cx, cy - a * 1.6); x.fill();
+      x.fillStyle = 'rgba(84,36,30,.7)'; x.beginPath(); x.ellipse(cx, cy, a * 0.32, a * 0.6, 0, 0, TAU); x.fill();
+      for (const sgn of [-1, 1]) { x.fillStyle = 'rgba(176,128,84,.26)'; x.beginPath(); x.ellipse(cx + sgn * a * 0.75, cy + a * 0.5, a * 0.42, a * 0.16, sgn * 0.7, 0, TAU); x.fill(); }
+    }
+    for (let i = 0; i < 1400; i++) { x.fillStyle = `rgba(40,20,10,${rng() * 0.07})`; x.fillRect(rng() * S, rng() * S, 4, 4); } // taches, fumée du saloon
+  }); } },
   // Blocs de pierre (pénitencier). (2 m)
   stone: { relief: 3, px(u, v, n) {
     const rows = 5, r = Math.floor(v * rows), fv = v * rows - r, cols = 3, fu0 = u * cols + (r % 2) * 0.5 + hash2(r, 3) * 0.2, c = Math.floor(fu0), fu = fu0 - c;
@@ -2803,7 +2816,7 @@ const FLAT_TEX = {
 };
 const FMATS = {};
 // Matière d'une carte de plain-pied : clé de texture + teinte ; échelle UV en mètres par répétition.
-const FLAT_SCALE = { brick: 1, siding: 2, plaster: 2, wallpaper: 1.2, stone: 2.4, cellPaint: 3, rock: 4, westPlank: 2, tileWall: 1, checker: 1, asphalt: 4, sidewalk: 2, lawn: 2, sand: 6, parquet: 2, dirt: 4, slab: 3, shingle: 2, chain: 1 };
+const FLAT_SCALE = { brick: 1, siding: 2, plaster: 2, wallpaper: 1.2, victorian: 1.2, stone: 2.4, cellPaint: 3, rock: 4, westPlank: 2, tileWall: 1, checker: 1, asphalt: 4, sidewalk: 2, lawn: 2, sand: 6, parquet: 2, dirt: 4, slab: 3, shingle: 2, chain: 1 };
 // o.vc : couleurs par sommet (géométries construites ici) ; sans, pour les objets et les lots instanciés.
 function fmat(key, color = 0xffffff, o = {}) {
   const vc = !!o.vc, k = `${key}_${color}_${o.rough ?? ''}_${o.metal ?? ''}_${o.side ?? ''}_${vc}_${o.snow ?? ''}`;
@@ -2817,7 +2830,7 @@ function fmat(key, color = 0xffffff, o = {}) {
     const t = ftex(key);
     m = stdMat({ map: t.map, normalMap: t.normalMap, roughness: o.rough ?? 0.9, metalness: o.metal ?? 0, color, vertexColors: vc, alphaTest: FLAT_TEX[key].alpha ? 0.5 : 0, side: o.side ?? THREE.FrontSide }, o.snow || 0);
   }
-  m.userData.scale = FLAT_SCALE[key] || 2; m.name = key + ':' + color.toString(16);
+  m.userData.scale = FLAT_SCALE[key] || 2; m.userData.ftex = key; m.name = key + ':' + color.toString(16); // ftex : photo de la carte (05p_photo.js)
   return (FMATS[k] = m);
 }
 // Matière à couleurs par sommet pour les murs et sols construits ici (spec = 'clé' ou ['clé', teinte]).
@@ -3452,11 +3465,14 @@ function flatDecals() {
 /* ═══════════════════ TEXTURES PHOTO ET ÉCLAIRAGE D'AMBIANCE (HDRI) ═══════════════════
    Ressources CC0 (Poly Haven) servies à côté du jeu, dans assets/<carte>/ (voir source/tools/fetch_assets.py).
    Le jeu démarre avec ses textures dessinées, puis les remplace d'un coup quand toutes les photos sont arrivées.
-   En cas d'échec (hors ligne, page ouverte en local, qualité « bas »), il garde simplement les siennes. */
+   En cas d'échec (hors ligne, page ouverte en local, ?nophoto), il garde simplement les siennes. */
 
 const PHOTO = { state: 'off', ms: 0, bytes: 0, files: 0, err: '' };
 // Matière du jeu → texture photo. uv : mètres couverts par une unité de coordonnée de texture (u, v) ;
 // rot : grain du bois tourné d'un quart de tour (poteaux) ; ns : intensité du relief.
+// Cartes de plain-pied (ft) : la clé est la texture dessinée de la carte (FLAT_TEX), remplacée partout où elle sert,
+// à la même échelle (FLAT_SCALE) et avec la même teinte ; detail : on garde le motif dessiné (papier peint, peinture
+// des cellules) et on ne prend à la photo que son relief et sa rugosité.
 const PHOTO_SETS = {
   poste7: {
     earth: { set: 'mudwall', uv: [2.2, 2.2] },
@@ -3471,6 +3487,24 @@ const PHOTO_SETS = {
     floor: { blend: ['snow', 'mudfloor'], uv: [3, 3] },
     snow: { blend: ['snow', 'mudfloor'], uv: [4, 4] },
   },
+  cite: {
+    asphalt: { ft: 1, set: 'asphalt' }, sidewalk: { ft: 1, set: 'sidewalk' }, sand: { ft: 1, set: 'desert', tint: [0.98, 0.84, 0.68] }, // lac asséché ocre, pas une croûte de sel
+    lawn: { ft: 1, set: 'grass', tint: [0.82, 1.12, 0.62] }, // pelouses arrosées du village témoin : plus vertes que l'herbe photographiée
+    siding: { ft: 1, set: 'plaster', detail: true, ns: 0.5 }, // clins dessinés (leurs ombres franches font la maison), grain de peinture photographié
+    shingle: { ft: 1, set: 'shingle' }, brick: { ft: 1, set: 'brick' }, plaster: { ft: 1, set: 'plaster' }, parquet: { ft: 1, set: 'parquet' },
+    checker: { ft: 1, set: 'checker' }, slab: { ft: 1, set: 'garage' }, tileWall: { ft: 1, set: 'tiles' }, concrete: { ft: 1, set: 'concrete' },
+    planks: { ft: 1, set: 'wood' }, rock: { ft: 1, set: 'rock' }, wallpaper: { ft: 1, set: 'paper', detail: true, ns: 0.6 },
+  },
+  penitencier: {
+    stone: { ft: 1, set: 'stone' }, rock: { ft: 1, set: 'rock' }, slab: { ft: 1, set: 'floor' }, tileWall: { ft: 1, set: 'tiles' },
+    planks: { ft: 1, set: 'pier' }, westPlank: { ft: 1, set: 'panel' }, parquet: { ft: 1, set: 'parquet' }, plaster: { ft: 1, set: 'plaster' },
+    cellPaint: { ft: 1, set: 'paint', detail: true, ns: 1.2 }, concrete: { ft: 1, set: 'concrete' },
+  },
+  filon: {
+    westPlank: { ft: 1, set: 'boards' }, dirt: { ft: 1, set: 'dirt' }, rock: { ft: 1, set: 'rock' }, planks: { ft: 1, set: 'walk' },
+    parquet: { ft: 1, set: 'floor' }, brick: { ft: 1, set: 'brick' }, plaster: { ft: 1, set: 'plaster' }, checker: { ft: 1, set: 'checker' },
+    shingle: { ft: 1, set: 'shingle' }, stone: { ft: 1, set: 'stone' }, victorian: { ft: 1, set: 'paper', detail: true, ns: 0.6 },
+  },
 };
 
 // Luminance moyenne (linéaire) d'une image, sur une vignette 16 × 16.
@@ -3484,13 +3518,14 @@ function texLum(img) {
   } catch { return 0; }
 }
 
+// En qualité « bas » (téléphones), versions allégées des photos (512 px) : quatre fois moins de mémoire vidéo.
 function photoWanted() {
-  return !!PHOTO_SETS[MAP_ID] && settings.quality >= 1 && location.protocol !== 'file:' && !/nophoto/.test(location.search);
+  return !!PHOTO_SETS[MAP_ID] && location.protocol !== 'file:' && !/nophoto/.test(location.search);
 }
 
 // Ombrage d'ambiance : module chargé seulement quand le réglage le demande ; en cas d'échec, le jeu s'en passe.
 async function aoStart() {
-  if (!Q.ao || R.N8AOPass || !PHOTO_SETS[MAP_ID] || /noao/.test(location.search)) return; // d'abord le Poste 7 seul
+  if (!Q.ao || R.N8AOPass || !PHOTO_SETS[MAP_ID] || /noao/.test(location.search)) return; // seulement sur les cartes en textures photo
   try { R.N8AOPass = (await import('n8ao')).N8AOPass; buildComposer(); PHOTO.ao = Q.ao; } catch (e) { PHOTO.ao = 'failed: ' + (e?.message || e); }
 }
 
@@ -3505,10 +3540,10 @@ async function photoStart() {
     const bmp = typeof createImageBitmap === 'function' && !safari ? new THREE.ImageBitmapLoader().setOptions({ imageOrientation: 'flipY', premultiplyAlpha: 'none', colorSpaceConversion: 'none' }) : null;
     const tl = new THREE.TextureLoader();
     const load = (url) => (bmp ? bmp.loadAsync(url).then((b) => { const t = new THREE.Texture(b); t.flipY = false; t.needsUpdate = true; return t; }) : tl.loadAsync(url));
-    const tex = {}, jobs = [];
+    const tex = {}, jobs = [], lite = Q.texSize < 512 || /photolite/.test(location.search); PHOTO.lite = lite;
     for (const [key, e] of Object.entries(man)) {
       if (key === 'env') continue;
-      for (const m of e.maps) jobs.push(load(`${base}${key}_${m}.jpg`).then((t) => {
+      for (const m of e.maps) jobs.push(load(`${base}${key}_${m}${lite && e.s ? '_s' : ''}.jpg`).then((t) => {
         t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = aniso; t.colorSpace = m === 'c' ? THREE.SRGBColorSpace : THREE.NoColorSpace;
         (tex[key] ||= {})[m] = t; PHOTO.files++;
       }));
@@ -3561,10 +3596,11 @@ async function photoApply(man, tex) {
   // Les fusions du décor ont pu cloner une matière (teintes par sommet) : on retrouve toutes les copies par leur nom.
   const all = {}; R.scene.traverse((o) => { if (!o.material) return; for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.userData.photo) (all[m.userData.photo] ||= new Set()).add(m); });
   for (const [name, s] of Object.entries(spec)) {
+    if (s.ft) { if (await photoFlat(name, s, man, tex)) done.add(name); continue; }
     const base = MATS[name]; if (!base) continue;
     const mats = all[name] || new Set(); mats.add(base);
     await photoFrame();
-    if (s.blend) { photoBlend(mats, s, man, tex, base); continue; }
+    if (s.blend) { if (photoBlend(mats, s, man, tex, base)) done.add(name); continue; }
     const t = tex[s.set], e = man[s.set]; if (!t || !t.c) continue;
     // Même luminosité moyenne qu'avant : l'éclairage de la carte a été réglé pour les textures dessinées.
     const old = base.map?.image ? texLum(base.map.image) * (0.2126 * base.color.r + 0.7152 * base.color.g + 0.0722 * base.color.b) : e.lum;
@@ -3583,10 +3619,31 @@ async function photoApply(man, tex) {
   PHOTO.done = [...done];
 }
 
+// Carte de plain-pied : une texture dessinée (FLAT_TEX) remplacée dans toutes ses matières (teintes et copies
+// fusionnées comprises), à la même échelle ; même luminosité moyenne qu'avant, la teinte de chaque matière est gardée.
+async function photoFlat(key, s, man, tex) {
+  const t = tex[s.set], e = man[s.set]; if (!t || (!t.c && !s.detail)) return false;
+  const mats = new Set(Object.values(FMATS).filter((m) => m.userData.ftex === key));
+  R.scene.traverse((o) => { if (o.material) for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.userData.ftex === key) mats.add(m); });
+  if (!mats.size) return false; // texture absente de la carte : erreur de PHOTO_SETS (signalée par dev/photo.mjs)
+  await photoFrame();
+  const r = (FLAT_SCALE[key] || 2) / (s.tm || e.m);
+  const map = !s.detail && t.c ? photoTex(t.c, r, r, s.rot) : null, nrm = t.n ? photoTex(t.n, r, r, s.rot) : null, rgh = t.r ? photoTex(t.r, r, r, s.rot) : null;
+  const first = [...mats].find((m) => m.map?.image), old = first ? texLum(first.map.image) : e.lum, k = clamp(old / Math.max(1e-4, e.lum), 0.45, 2.4);
+  for (const m of mats) {
+    if (m.userData.photoDone) continue; m.userData.photoDone = 1;
+    if (map) { m.map = map; m.color.multiplyScalar(k); if (s.tint) { m.color.r *= s.tint[0]; m.color.g *= s.tint[1]; m.color.b *= s.tint[2]; } }
+    if (nrm) { m.normalMap = nrm; m.normalScale.set(s.ns || 1, s.ns || 1); }
+    if (rgh) { m.roughnessMap = rgh; m.roughness = 1; }
+    m.needsUpdate = true;
+  }
+  return true;
+}
+
 // Sol des tranchées et terrain : neige et boue photo mélangées selon la couleur des sommets (blanc = neige, brun = boue),
 // avec un relief qui s'adoucit sous la neige.
 function photoBlend(mats, s, man, tex, base) {
-  const [sn, md] = s.blend, ts = tex[sn], tm = tex[md], es = man[sn], em = man[md]; if (!ts?.c || !tm?.c) return;
+  const [sn, md] = s.blend, ts = tex[sn], tm = tex[md], es = man[sn], em = man[md]; if (!ts?.c || !tm?.c) return false;
   const rs = s.uv[0] / es.m, rm = s.uv[0] / em.m;
   const snowMap = photoTex(ts.c, rs, rs), mudMap = photoTex(tm.c, rs, rs), mudN = tm.n ? photoTex(tm.n, rs, rs) : null, mudR = tm.r ? photoTex(tm.r, rs, rs) : null;
   const old = base.map?.image ? texLum(base.map.image) : es.lum;
@@ -3612,6 +3669,7 @@ function photoBlend(mats, s, man, tex, base) {
     m.needsUpdate = true;
   }
   (PHOTO.blend ||= []).push(s.blend.join('+'));
+  return true;
 }
 
 // Éclairage d'ambiance photographié (ciel nocturne couvert) : même intensité moyenne que le ciel calculé qu'il remplace.
@@ -3619,8 +3677,11 @@ async function photoEnv(base, e) {
   // env.json : image RGBE (comme un .hdr) en base64 ; décodée en demi-flottants, ligne du haut en dernier (convention WebGL).
   const j = await (await fetch(base + 'env.json', { cache: 'force-cache' })).json(), W = j.w, H = j.h, src = Uint8Array.from(atob(j.rgbe), (ch) => ch.charCodeAt(0));
   const px = new Uint16Array(W * H * 4), h = THREE.DataUtils.toHalfFloat;
+  // Ciel tourné pour que son point le plus lumineux (az, noté par fetch_assets.py) tombe dans la direction du soleil du jeu
+  // (convention des cartes équirectangulaires de three.js : u = atan2(z, x) / 2π + 0,5).
+  const sh = typeof e.az === 'number' ? Math.round(((Math.atan2(MOON_DIR.z, MOON_DIR.x) / TAU + 0.5) - e.az) * W) : 0; PHOTO.envShift = sh;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const i = (y * W + x) * 4, o = ((H - 1 - y) * W + x) * 4, ex = src[i + 3], f = ex ? 2 ** (ex - 136) : 0;
+    const i = (y * W + x) * 4, o = ((H - 1 - y) * W + (((x + sh) % W) + W) % W) * 4, ex = src[i + 3], f = ex ? 2 ** (ex - 136) : 0;
     px[o] = h((src[i] + 0.5) * f); px[o + 1] = h((src[i + 1] + 0.5) * f); px[o + 2] = h((src[i + 2] + 0.5) * f); px[o + 3] = h(1);
   }
   const hdr = new THREE.DataTexture(px, W, H, THREE.RGBAFormat, THREE.HalfFloatType);
@@ -9335,7 +9396,7 @@ setInterval(() => {
   while (el > 1e-3) { const dt = Math.min(0.05, el); G.update(dt); el -= dt; }
 }, 250);
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'playing' && !NET.active) pauseGame(); });
-window.SP = { buildGunModel, buildKnife, buildGrenadeModel, clipViewmodel, GM, PHOTO, MATS, GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
+window.SP = { PHOTO_SETS, buildGunModel, buildKnife, buildGrenadeModel, clipViewmodel, GM, PHOTO, MATS, GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
   sim(sec, dt = 0.05) { for (let t = 0; t < sec; t += dt) { if (G.mode === 'playing' || (G.mode === 'paused' && NET.active)) { G.update(dt); if (G.mode === 'playing') updatePlayer(dt); NET.clientTick(dt); } updateFX(dt, performance.now() / 1000 + t); } } };
 
 
@@ -10736,8 +10797,8 @@ MAPS.filon = {
   walls: [
     { key: 'plank', h: 4.2, out: ['westPlank', 0xb08a60], in: ['westPlank', 0x9a7a58], mat: 'wood' },
     { key: 'plankWin', look: 'window', h: 4.2, out: ['westPlank', 0xb08a60], in: ['westPlank', 0x9a7a58], trim: ['planks', 0x5a3a22], lit: 0xffb060, shutter: 0x5a3e28, mat: 'wood' },
-    { key: 'red', h: 4.2, out: ['westPlank', 0xb85a42], in: ['wallpaper', 0xb89a7a], mat: 'wood' },
-    { key: 'redWin', look: 'window', h: 4.2, out: ['westPlank', 0xb85a42], in: ['wallpaper', 0xb89a7a], trim: ['planks', 0xe8d8b0], lit: 0xffb060, shutter: 0x3a2a1a, mat: 'wood' },
+    { key: 'red', h: 4.2, out: ['westPlank', 0xb85a42], in: ['victorian', 0xead8c8], mat: 'wood' }, // damas victorien (le papier peint à étoiles atomiques est celui de la Cité, 1957)
+    { key: 'redWin', look: 'window', h: 4.2, out: ['westPlank', 0xb85a42], in: ['victorian', 0xead8c8], trim: ['planks', 0xe8d8b0], lit: 0xffb060, shutter: 0x3a2a1a, mat: 'wood' },
     { key: 'brick', h: 4.6, out: ['brick', 0xd8b8a0], in: ['plaster', 0xd8ccb0], mat: 'concrete' },
     { key: 'brickWin', look: 'window', h: 4.6, out: ['brick', 0xd8b8a0], in: ['plaster', 0xd8ccb0], trim: ['planks', 0x3a2a1a], lit: 0xffc27a, bars: true, mat: 'concrete' },
     { key: 'white', h: 5.0, out: ['westPlank', 0xe8e0cc], in: ['plaster', 0xe0d4bc], mat: 'wood' },

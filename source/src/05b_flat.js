@@ -49,6 +49,19 @@ const FLAT_TEX = {
     }
     for (let i = 0; i < 900; i++) { x.fillStyle = `rgba(80,60,40,${rng() * 0.05})`; x.fillRect(rng() * S, rng() * S, 3, 3); }
   }); } },
+  // Papier peint victorien (saloon, 1880) : bandes rouge sang et rouge brique, damas en médaillons, filets dorés. (1,2 m)
+  victorian: { relief: 0.6, canvas(S) { return canvasPaint(S, (x) => {
+    const k = S / 4; x.fillStyle = '#743a30'; x.fillRect(0, 0, S, S);
+    for (let i = 0; i < 4; i++) { x.fillStyle = '#663228'; x.fillRect(i * k + k * 0.5, 0, k * 0.5, S); x.fillStyle = 'rgba(190,150,92,.35)'; x.fillRect(i * k + k * 0.5 - S / 256, 0, S / 128, S); x.fillRect(i * k + k - S / 256, 0, S / 128, S); }
+    // Damas : médaillon en losange fleuri, rangées décalées, ton sur ton.
+    for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) {
+      const cx = i * k + k * 0.25, cy = j * k + (i % 2) * k * 0.5 + k * 0.25, a = k * 0.18;
+      x.fillStyle = 'rgba(176,128,84,.3)'; x.beginPath(); x.moveTo(cx, cy - a * 1.6); x.quadraticCurveTo(cx + a, cy - a * 0.4, cx, cy + a * 1.6); x.quadraticCurveTo(cx - a, cy - a * 0.4, cx, cy - a * 1.6); x.fill();
+      x.fillStyle = 'rgba(84,36,30,.7)'; x.beginPath(); x.ellipse(cx, cy, a * 0.32, a * 0.6, 0, 0, TAU); x.fill();
+      for (const sgn of [-1, 1]) { x.fillStyle = 'rgba(176,128,84,.26)'; x.beginPath(); x.ellipse(cx + sgn * a * 0.75, cy + a * 0.5, a * 0.42, a * 0.16, sgn * 0.7, 0, TAU); x.fill(); }
+    }
+    for (let i = 0; i < 1400; i++) { x.fillStyle = `rgba(40,20,10,${rng() * 0.07})`; x.fillRect(rng() * S, rng() * S, 4, 4); } // taches, fumée du saloon
+  }); } },
   // Blocs de pierre (pénitencier). (2 m)
   stone: { relief: 3, px(u, v, n) {
     const rows = 5, r = Math.floor(v * rows), fv = v * rows - r, cols = 3, fu0 = u * cols + (r % 2) * 0.5 + hash2(r, 3) * 0.2, c = Math.floor(fu0), fu = fu0 - c;
@@ -107,7 +120,7 @@ const FLAT_TEX = {
 };
 const FMATS = {};
 // Matière d'une carte de plain-pied : clé de texture + teinte ; échelle UV en mètres par répétition.
-const FLAT_SCALE = { brick: 1, siding: 2, plaster: 2, wallpaper: 1.2, stone: 2.4, cellPaint: 3, rock: 4, westPlank: 2, tileWall: 1, checker: 1, asphalt: 4, sidewalk: 2, lawn: 2, sand: 6, parquet: 2, dirt: 4, slab: 3, shingle: 2, chain: 1 };
+const FLAT_SCALE = { brick: 1, siding: 2, plaster: 2, wallpaper: 1.2, victorian: 1.2, stone: 2.4, cellPaint: 3, rock: 4, westPlank: 2, tileWall: 1, checker: 1, asphalt: 4, sidewalk: 2, lawn: 2, sand: 6, parquet: 2, dirt: 4, slab: 3, shingle: 2, chain: 1 };
 // o.vc : couleurs par sommet (géométries construites ici) ; sans, pour les objets et les lots instanciés.
 function fmat(key, color = 0xffffff, o = {}) {
   const vc = !!o.vc, k = `${key}_${color}_${o.rough ?? ''}_${o.metal ?? ''}_${o.side ?? ''}_${vc}_${o.snow ?? ''}`;
@@ -121,7 +134,7 @@ function fmat(key, color = 0xffffff, o = {}) {
     const t = ftex(key);
     m = stdMat({ map: t.map, normalMap: t.normalMap, roughness: o.rough ?? 0.9, metalness: o.metal ?? 0, color, vertexColors: vc, alphaTest: FLAT_TEX[key].alpha ? 0.5 : 0, side: o.side ?? THREE.FrontSide }, o.snow || 0);
   }
-  m.userData.scale = FLAT_SCALE[key] || 2; m.name = key + ':' + color.toString(16);
+  m.userData.scale = FLAT_SCALE[key] || 2; m.userData.ftex = key; m.name = key + ':' + color.toString(16); // ftex : photo de la carte (05p_photo.js)
   return (FMATS[k] = m);
 }
 // Matière à couleurs par sommet pour les murs et sols construits ici (spec = 'clé' ou ['clé', teinte]).

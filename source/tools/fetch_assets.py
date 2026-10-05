@@ -3,6 +3,9 @@
 
 Toutes les ressources sont sous licence CC0 (Poly Haven) : libres, sans attribution obligatoire.
 Usage : python3 tools/fetch_assets.py poste7   (depuis source/ ; écrit ../assets/<carte>/)
+        python3 tools/fetch_assets.py cite --petit   (refait seulement les versions allégées, sans rien télécharger)
+Chaque image existe en deux tailles : 1024 px, et une version allégée « _s » (512 px, rugosité 256) pour la qualité
+« bas » (téléphones) : quatre fois moins de mémoire vidéo.
 Outils : pip install pillow numpy opencv-python-headless
 """
 import io, json, os, sys, urllib.request
@@ -21,8 +24,58 @@ SETS = {
         'tin':      {'id': 'worn_corrugated_iron',   'maps': 'cnr', 'px': 1024},
         'concrete': {'id': 'concrete_wall_003',      'maps': 'cnr', 'px': 1024},
     },
+    # Cité Atomique (1957, village témoin d'un site d'essais) : pavillons à clins peints, bardeaux d'asphalte,
+    # route fissurée, trottoirs en dalles, gazon, lac asséché du désert (terre craquelée), mesas striées.
+    'cite': {
+        'asphalt':  {'id': 'asphalt_02',               'maps': 'cnr', 'px': 1024},
+        'sidewalk': {'id': 'concrete_pavement',        'maps': 'cnr', 'px': 1024},
+        'grass':    {'id': 'leafy_grass',              'maps': 'cnr', 'px': 1024},
+        'desert':   {'id': 'dry_ground_01',            'maps': 'cnr', 'px': 1024},
+        'shingle':  {'id': 'grey_roof_01',             'maps': 'cnr', 'px': 1024},
+        'brick':    {'id': 'brick_wall_02',            'maps': 'cnr', 'px': 1024},
+        'plaster':  {'id': 'painted_plaster_wall',     'maps': 'cnr', 'px': 1024},
+        'parquet':  {'id': 'old_wooden_floor_01',      'maps': 'cnr', 'px': 1024},
+        'checker':  {'id': 'checkered_pavement_tiles', 'maps': 'cnr', 'px': 1024},
+        'garage':   {'id': 'garage_floor',             'maps': 'cnr', 'px': 1024},
+        'tiles':    {'id': 'long_white_tiles',         'maps': 'cnr', 'px': 1024},
+        'concrete': {'id': 'concrete_wall_008',        'maps': 'cnr', 'px': 1024},
+        'wood':     {'id': 'oak_wood_planks',          'maps': 'cnr', 'px': 1024},
+        'rock':     {'id': 'cliff_side',               'maps': 'cnr', 'px': 1024},
+        'paper':    {'id': 'decrepit_wallpaper',       'maps': 'nr',  'px': 1024},  # relief seul, sous le motif dessiné
+    },
+    # Le Pénitencier (1933, île-prison sous l'orage) : maçonnerie de moellons, béton crasseux, carrelage des douches,
+    # peinture écaillée des cellules, quais en planches lavées par le sel, rochers du rivage.
+    'penitencier': {
+        'stone':    {'id': 'rough_block_wall',         'maps': 'cnr', 'px': 1024},
+        'rock':     {'id': 'lichen_rock',              'maps': 'cnr', 'px': 1024},
+        'floor':    {'id': 'dirty_concrete',           'maps': 'cnr', 'px': 1024},
+        'tiles':    {'id': 'long_white_tiles',         'maps': 'cnr', 'px': 1024},
+        'pier':     {'id': 'weathered_planks',         'maps': 'cnr', 'px': 1024},
+        'panel':    {'id': 'old_planks_02',            'maps': 'cnr', 'px': 1024},
+        'parquet':  {'id': 'old_wooden_floor_01',      'maps': 'cnr', 'px': 1024},
+        'plaster':  {'id': 'painted_plaster_wall',     'maps': 'cnr', 'px': 1024},
+        'paint':    {'id': 'painted_concrete',         'maps': 'nr',  'px': 1024},  # relief de peinture écaillée, sous les deux tons
+        'concrete': {'id': 'concrete_wall_006',        'maps': 'cnr', 'px': 1024},
+    },
+    # Le Filon Maudit (1880, ville minière engloutie) : planches verticales délavées, trottoirs de bois, terre battue,
+    # roche striée de la caverne, brique de la banque, parquet usé du saloon, bardeaux de bois.
+    'filon': {
+        'boards':   {'id': 'old_planks_02',            'maps': 'cnr', 'px': 1024},
+        'dirt':     {'id': 'dirt_floor',               'maps': 'cnr', 'px': 1024},
+        'rock':     {'id': 'cliff_side',               'maps': 'cnr', 'px': 1024},
+        'walk':     {'id': 'weathered_brown_planks',   'maps': 'cnr', 'px': 1024},
+        'floor':    {'id': 'old_wood_floor',           'maps': 'cnr', 'px': 1024},
+        'brick':    {'id': 'brick_wall_02',            'maps': 'cnr', 'px': 1024},
+        'plaster':  {'id': 'painted_plaster_wall',     'maps': 'cnr', 'px': 1024},
+        'checker':  {'id': 'checkered_pavement_tiles', 'maps': 'cnr', 'px': 1024},
+        'shingle':  {'id': 'roof_slates_02',           'maps': 'cnr', 'px': 1024},
+        'stone':    {'id': 'rough_block_wall',         'maps': 'cnr', 'px': 1024},
+        'paper':    {'id': 'decrepit_wallpaper',       'maps': 'nr',  'px': 1024},  # relief seul, sous le damas dessiné
+    },
 }
-HDRI = {'poste7': 'kloppenheim_07'}  # nuit couverte, lumière naturelle diffuse
+# Éclairage d'ambiance : Poste 7, nuit couverte ; Cité, coucher de soleil sur un désert ; Pénitencier, nuit brumeuse ;
+# Filon, caverne de roche rousse.
+HDRI = {'poste7': 'kloppenheim_07', 'cite': 'rogland_sunset', 'penitencier': 'kloppenheim_04', 'filon': 'drachenfels_cellar'}
 KEYS = {'c': 'Diffuse', 'n': 'nor_gl', 'r': 'Rough'}  # relief au format OpenGL, celui de three.js
 QUAL = {'c': 80, 'n': 88, 'r': 80}
 
@@ -59,9 +112,23 @@ def dirty(out, key, mud_key):
     cv2.imwrite(os.path.join(out, f'{key}_n.jpg'), cv2.resize(((nm + 1) * 127.5).astype(np.uint8), (512, 512), interpolation=cv2.INTER_AREA), [cv2.IMWRITE_JPEG_QUALITY, 88])
     return round(luminance(Image.open(os.path.join(out, f'{key}_c.jpg'))), 4)
 
-def main(map_id):
+def small(out, manifest):
+    """Versions allégées pour la qualité « bas » : couleur 512 px, relief 512 px, rugosité 256 px."""
+    for key, e in manifest.items():
+        if key == 'env': continue
+        for m in e['maps']:
+            img = Image.open(os.path.join(out, f'{key}_{m}.jpg'))
+            px = 256 if m == 'r' else 512
+            if img.size[0] > px: img = img.resize((px, px), Image.LANCZOS)
+            img.save(os.path.join(out, f'{key}_{m}_s.jpg'), quality=QUAL[m] - 4, optimize=True, progressive=True)
+        e['s'] = 1
+
+def main(map_id, petit=False):
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'assets', map_id)
     os.makedirs(out, exist_ok=True)
+    if petit:
+        manifest = json.load(open(os.path.join(out, 'manifest.json'))); small(out, manifest)
+        json.dump(manifest, open(os.path.join(out, 'manifest.json'), 'w'), indent=1); print('versions allégées', map_id); return
     info = api('assets?t=textures')
     manifest, credits = {}, []
     for key, s in SETS[map_id].items():
@@ -74,6 +141,7 @@ def main(map_id):
             if img.size[0] != px: img = img.resize((px, px), Image.LANCZOS)
             img.save(os.path.join(out, f'{key}_{m}.jpg'), quality=QUAL[m], optimize=True, progressive=True)
             if m == 'c': entry['lum'] = round(luminance(img), 4)
+            elif 'c' not in s['maps'] and m == 'n': entry['lum'] = 0.5
         if s.get('dirty'): entry['lum'] = dirty(out, key, s['dirty'])
         manifest[key] = entry
         credits.append(f"| `{key}` | [{meta['name']}](https://polyhaven.com/a/{s['id']}) | {', '.join(meta.get('authors', {}).keys())} |")
@@ -86,6 +154,16 @@ def main(map_id):
         hdr = cv2.imread(tmp, cv2.IMREAD_ANYDEPTH | cv2.IMREAD_COLOR); os.remove(tmp)
         W, H = 256, 128  # l'éclairage d'ambiance n'a pas besoin de plus
         rgb = cv2.resize(hdr, (W, H), interpolation=cv2.INTER_AREA)[..., ::-1].astype(np.float32)
+        aligned = {}
+        if map_id != 'poste7':  # (Poste 7 : ciel couvert sans soleil, réglé avant ; inchangé)
+            # Le soleil photographié est écrêté (le jeu a déjà sa lumière directionnelle : sinon, deux soleils) et sa
+            # direction notée (az, colonne de l'image) : le jeu tourne le ciel pour la faire coïncider avec la sienne.
+            lum0 = rgb @ np.array([0.2126, 0.7152, 0.0722], np.float32)
+            wl = np.cos((np.arange(H) + 0.5) / H * np.pi - np.pi / 2)[:, None]
+            blur = cv2.GaussianBlur(lum0, (0, 0), 3)[: H // 2 + 4]  # au-dessus de l'horizon
+            aligned['az'] = round(float((np.unravel_index(np.argmax(blur), blur.shape)[1] + 0.5) / W), 4)
+            cap = 12 * float((lum0 * wl).sum() / (wl.sum() * W))
+            rgb *= np.minimum(1.0, cap / np.maximum(lum0, 1e-9))[..., None]
         # Format RGBE (3 octets de couleur + 1 d'exposant, comme un .hdr) dans un JSON : servi partout, y compris sur claude.ai.
         mx = np.maximum(rgb.max(axis=2), 1e-32); e = np.floor(np.log2(mx)) + 1; sc = 256.0 / np.exp2(e)
         rgbe = np.zeros((H, W, 4), np.uint8); rgbe[..., :3] = np.clip(rgb * sc[..., None], 0, 255).astype(np.uint8); rgbe[..., 3] = np.clip(e + 128, 0, 255)
@@ -93,14 +171,16 @@ def main(map_id):
         import base64
         json.dump({'w': W, 'h': H, 'rgbe': base64.b64encode(rgbe.tobytes()).decode()}, open(os.path.join(out, 'env.json'), 'w'))
         w = np.cos((np.arange(H) + 0.5) / H * np.pi - np.pi / 2)[:, None]  # moyenne pondérée par l'aire
-        manifest['env'] = {'lum': round(float(((rgb @ np.array([0.2126, 0.7152, 0.0722])) * w).sum() / (w.sum() * W)), 5)}
+        manifest['env'] = {'lum': round(float(((rgb @ np.array([0.2126, 0.7152, 0.0722])) * w).sum() / (w.sum() * W)), 5), **aligned}
         name = api('assets?t=hdris')[hid]['name']
         credits.append(f"| `env` (éclairage) | [{name}](https://polyhaven.com/a/{hid}) | {', '.join(api('assets?t=hdris')[hid].get('authors', {}).keys())} |")
         print('env', manifest['env'])
+    small(out, manifest)
     json.dump(manifest, open(os.path.join(out, 'manifest.json'), 'w'), indent=1)
     with open(os.path.join(out, 'CREDITS.md'), 'w') as f:
         f.write(f'# Ressources photo : {map_id}\n\nToutes sous licence [CC0](https://polyhaven.com/license) (domaine public), via Poly Haven. Merci à leurs auteurs.\n\n| Fichier | Ressource | Auteur(s) |\n|---|---|---|\n')
         f.write('\n'.join(credits) + '\n')
 
 if __name__ == '__main__':
-    main(sys.argv[1] if len(sys.argv) > 1 else 'poste7')
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    main(args[0] if args else 'poste7', '--petit' in sys.argv)

@@ -31,7 +31,13 @@ Les cartes sont des créations originales, inspirées de l'ambiance des cartes Z
 
 Les quatre cartes ont été reprises en détail : fenêtres avec encadrements, appuis, croisillons, volets, jardinières ou barreaux selon le bâtiment ; vitres qui reflètent vraiment (plus de « murs transparents ») ; avant-toits, gouttières, plinthes, corniches et lambris ; fils barbelés en hélice sur les murs d'enceinte ; salissures, coulures, fissures, moisissures, graffitis et traces de sang ; débris, feuilles, douilles et gravats semés au sol ; meubles et objets posés là où ils ont un sens (plus rien ne flotte ni ne traverse un mur).
 
-**Poste 7 en textures photo** (graphismes « moyen » et plus) : planches usées des coffrages et des caillebotis, parois de boue, sol de boue piétinée sous la neige, sacs de sable en toile tachée (chaque sac différent), tôle ondulée rouillée, béton du bunker, et un éclairage d'ambiance tiré d'une vraie photo de ciel nocturne couvert. En graphismes « élevé » et « ultra », un **ombrage d'ambiance** assombrit les coins, les recoins et le pied des murs. Les photos (4 Mo) se chargent pendant que vous jouez ; en graphismes « bas » (téléphones), rien ne change. Ressources libres de droits (CC0) de [Poly Haven](https://polyhaven.com), voir [assets/poste7/CREDITS.md](assets/poste7/CREDITS.md). Les trois autres cartes suivront.
+**Les quatre cartes en textures photo**, chacune avec un éclairage d'ambiance tiré d'une vraie photo de ciel :
+- **Poste 7** : planches usées des coffrages et des caillebotis, parois de boue, sol de boue piétinée sous la neige, sacs de sable en toile tachée (chaque sac différent), tôle ondulée rouillée, béton du bunker ; ciel nocturne couvert.
+- **Cité Atomique** : route d'asphalte fissurée, trottoirs en dalles, pelouses arrosées, terre craquelée du lac asséché, bardeaux d'asphalte, brique, peinture des clins, parquet, damier de la cuisine, carrelage des salles de bains, béton de l'abri ; coucher de soleil sur le désert.
+- **Le Pénitencier** : moellons des murs, béton crasseux des couloirs, peinture écaillée des cellules, carrelage des douches, quais en planches lavées par le sel, rochers du rivage ; nuit brumeuse.
+- **Filon Maudit** : planches délavées des façades, trottoirs de bois, terre battue de la grand-rue, roche de la caverne, parquet usé et papier peint damassé du saloon, brique de la banque, bardeaux, pierre de l'église ; lumière de caverne.
+
+Les photos (4 à 6,5 Mo par carte) se chargent pendant que vous jouez ; en graphismes « bas » (téléphones), une version allégée (≈ 1 Mo). En graphismes « élevé » et « ultra », un **ombrage d'ambiance** assombrit les coins, les recoins et le pied des murs. Ressources libres de droits (CC0) de [Poly Haven](https://polyhaven.com), crédits dans `assets/<carte>/CREDITS.md` ([Poste 7](assets/poste7/CREDITS.md), [Cité](assets/cite/CREDITS.md), [Pénitencier](assets/penitencier/CREDITS.md), [Filon](assets/filon/CREDITS.md)).
 
 ## Commandes
 
