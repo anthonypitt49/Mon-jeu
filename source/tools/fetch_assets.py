@@ -73,6 +73,30 @@ SETS = {
         'paper':    {'id': 'decrepit_wallpaper',       'maps': 'nr',  'px': 1024},  # relief seul, sous le damas dessiné
     },
 }
+# Objets (meubles, véhicules, machines, accessoires) : photos communes aux quatre cartes, dans ../assets/objets/,
+# chargées seulement pour les familles présentes sur la carte (PHOTO_SETS de 05p_photo.js). 512 px suffisent :
+# un objet occupe peu de place à l'écran. gray : photo sans sa couleur (le jeu garde la teinte de chaque objet) ;
+# renorm : carte de relief décentrée chez Poly Haven, recentrée ; diffuse : clé de la couleur quand ce n'est pas Diffuse.
+SETS['objets'] = {
+    'laine':     {'id': 'poly_wool_herringbone',     'maps': 'cnr', 'px': 512, 'gray': True},   # tweed d'ameublement, couvertures
+    'velours':   {'id': 'velour_velvet',             'maps': 'nr',  'px': 512},                 # banquettes et rideaux du saloon
+    'lin':       {'id': 'rough_linen',               'maps': 'cnr', 'px': 512, 'gray': True},   # toile : bâches, entoilage du biplan
+    'cuir':      {'id': 'brown_leather',             'maps': 'cnr', 'px': 512},
+    'skai':      {'id': 'leather_red_02',            'maps': 'nr',  'px': 512},                 # sellerie auto des années 50 (grain)
+    'teck':      {'id': 'teak_veneer',               'maps': 'cnr', 'px': 512},                 # mobilier 1957
+    'chene':     {'id': 'oak_veneer_01',             'maps': 'cnr', 'px': 512},                 # mobilier d'institution 1933
+    'noyer':     {'id': 'black_walnut_veneer_02',    'maps': 'cnr', 'px': 512},                 # mobilier 1880
+    'caisse':    {'id': 'wood_shutter',              'maps': 'cn',  'px': 512},                 # caisses, tonneaux : bois brut scié
+    'boispeint': {'id': 'distressed_painted_planks', 'maps': 'cnr', 'px': 512, 'gray': True},   # portes, volets, niche
+    'peinture':  {'id': 'rusty_metal_02',            'maps': 'cnr', 'px': 512, 'gray': True, 'contrast': 0.4, 'renorm': True},  # tôle peinte, carrosseries
+    'emaille':   {'id': 'beige_wall_001',            'maps': 'n',   'px': 512},                 # émail, porcelaine : ondulation seule
+    'rouille':   {'id': 'rusty_metal_04',            'maps': 'cnr', 'px': 512},                 # épaves calcinées, fûts, fonte (relief)
+    'acier':     {'id': 'rusty_metal_sheet',         'maps': 'cr',  'px': 512},
+    'galva':     {'id': 'corrugated_iron',           'maps': 'cnr', 'px': 512},                 # poubelles en tôle galvanisée
+    'olive':     {'id': 'green_metal_rust',          'maps': 'c',   'px': 512, 'gray': True},   # matériel militaire peint
+    'ecorce':    {'id': 'bark_willow_02',            'maps': 'cnr', 'px': 512},
+}
+
 # Éclairage d'ambiance : Poste 7, nuit couverte ; Cité, coucher de soleil sur un désert ; Pénitencier, nuit brumeuse ;
 # Filon, caverne de roche rousse.
 HDRI = {'poste7': 'kloppenheim_07', 'cite': 'rogland_sunset', 'penitencier': 'kloppenheim_04', 'filon': 'drachenfels_cellar'}
@@ -112,13 +136,27 @@ def dirty(out, key, mud_key):
     cv2.imwrite(os.path.join(out, f'{key}_n.jpg'), cv2.resize(((nm + 1) * 127.5).astype(np.uint8), (512, 512), interpolation=cv2.INTER_AREA), [cv2.IMWRITE_JPEG_QUALITY, 88])
     return round(luminance(Image.open(os.path.join(out, f'{key}_c.jpg'))), 4)
 
+def gray(img, contrast=1.0):
+    """Photo sans sa couleur (tissu, peinture) : le jeu garde la teinte de chaque objet et prend la trame, l'usure,
+    les taches. Luminosité ramenée autour de 0,7 (en sRGB) pour que la teinte du jeu reste lisible."""
+    a = np.asarray(img.convert('L'), dtype=np.float32)
+    a = a.mean() + (a - a.mean()) * contrast  # contrast < 1 : usure plus discrète (peinture d'un village neuf)
+    a = np.clip(a * (178.0 / max(1.0, a.mean())), 0, 255).astype(np.uint8)
+    return Image.fromarray(a).convert('RGB')
+
+def renorm(img):
+    """Carte de relief dont la moyenne n'est pas la normale droite (128, 128) : toute la surface penchait."""
+    a = np.asarray(img, dtype=np.float32) / 127.5 - 1
+    a[..., :2] -= a[..., :2].mean(axis=(0, 1)); a[..., 2] = np.sqrt(np.clip(1 - (a[..., :2] ** 2).sum(axis=2), 0.05, 1))
+    return Image.fromarray(np.clip((a + 1) * 127.5, 0, 255).astype(np.uint8))
+
 def small(out, manifest):
     """Versions allégées pour la qualité « bas » : couleur 512 px, relief 512 px, rugosité 256 px."""
     for key, e in manifest.items():
         if key == 'env': continue
         for m in e['maps']:
             img = Image.open(os.path.join(out, f'{key}_{m}.jpg'))
-            px = 256 if m == 'r' else 512
+            px = max(128, img.size[0] // 2)  # moitié de la définition (1024 → 512, rugosité 512 → 256)
             if img.size[0] > px: img = img.resize((px, px), Image.LANCZOS)
             img.save(os.path.join(out, f'{key}_{m}_s.jpg'), quality=QUAL[m] - 4, optimize=True, progressive=True)
         e['s'] = 1
@@ -139,14 +177,17 @@ def main(map_id, petit=False):
             img = img.convert('L' if m == 'r' else 'RGB')
             px = s['px'] if m != 'r' else min(512, s['px'])
             if img.size[0] != px: img = img.resize((px, px), Image.LANCZOS)
+            if m == 'c' and s.get('gray'): img = gray(img, s.get('contrast', 1.0))
+            if m == 'n' and s.get('renorm'): img = renorm(img)
             img.save(os.path.join(out, f'{key}_{m}.jpg'), quality=QUAL[m], optimize=True, progressive=True)
             if m == 'c': entry['lum'] = round(luminance(img), 4)
             elif 'c' not in s['maps'] and m == 'n': entry['lum'] = 0.5
+            if m == 'r': entry['rm'] = round(float(np.asarray(img, dtype=np.float32).mean() / 255), 3)  # rugosité moyenne
         if s.get('dirty'): entry['lum'] = dirty(out, key, s['dirty'])
         manifest[key] = entry
         credits.append(f"| `{key}` | [{meta['name']}](https://polyhaven.com/a/{s['id']}) | {', '.join(meta.get('authors', {}).keys())} |")
         print(key, entry)
-    if map_id in HDRI:
+    if map_id in HDRI:  # (objets : pas d'éclairage, seulement des matières communes aux quatre cartes)
         import cv2
         hid = HDRI[map_id]
         raw = get(api('files/' + hid)['hdri']['1k']['hdr']['url'])

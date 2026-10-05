@@ -121,6 +121,13 @@ const FLAT_TEX = {
 const FMATS = {};
 // Matière d'une carte de plain-pied : clé de texture + teinte ; échelle UV en mètres par répétition.
 const FLAT_SCALE = { brick: 1, siding: 2, plaster: 2, wallpaper: 1.2, victorian: 1.2, stone: 2.4, cellPaint: 3, rock: 4, westPlank: 2, tileWall: 1, checker: 1, asphalt: 4, sidewalk: 2, lawn: 2, sand: 6, parquet: 2, dirt: 4, slab: 3, shingle: 2, chain: 1 };
+// Familles d'objets : une clé par vraie matière (bois de meuble, tissu, émail, tôle peinte…), pour que chacune reçoive
+// sa propre photo (PHOTO_SETS) et ne soit pas fusionnée avec une autre. [texture dessinée de repli, mètres par unité d'UV]
+const OBJ_FAM = {
+  meuble: ['planks', 1], boisPeint: ['planks', 2], boisBrut: ['planks', 0.7], tissu: ['cloth', 0.6], velours: ['cloth', 0.6], cuir: ['cloth', 0.6],
+  skai: ['cloth', 0.6], toile: ['cloth', 1], email: ['grime', 2], tole: ['grime', 2], acier: ['grime', 2], galva: ['grime', 2], fonte: ['grime', 2],
+  rouille: ['grime', 2], olive: ['grime', 2], ecorce: ['grime', 2],
+};
 // o.vc : couleurs par sommet (géométries construites ici) ; sans, pour les objets et les lots instanciés.
 function fmat(key, color = 0xffffff, o = {}) {
   const vc = !!o.vc, k = `${key}_${color}_${o.rough ?? ''}_${o.metal ?? ''}_${o.side ?? ''}_${vc}_${o.snow ?? ''}`;
@@ -130,11 +137,12 @@ function fmat(key, color = 0xffffff, o = {}) {
   else if (key === 'metal') m = stdMat({ map: TEX.metal.map, normalMap: TEX.metal.normalMap, roughness: o.rough ?? 0.7, metalness: o.metal ?? 0.3, color, vertexColors: vc }, o.snow || 0);
   else if (key === 'planks') m = stdMat({ map: TEX.planks.map, normalMap: TEX.planks.normalMap, roughness: o.rough ?? 0.85, color, vertexColors: vc }, o.snow || 0);
   else if (key === 'plain') m = stdMat({ roughness: o.rough ?? 0.8, metalness: o.metal ?? 0, color, vertexColors: vc, map: TEX.grime.map }, o.snow || 0);
+  else if (OBJ_FAM[key]) { const T = TEX[OBJ_FAM[key][0]]; m = stdMat({ map: T.map, normalMap: T.normalMap, roughness: o.rough ?? 0.85, metalness: o.metal ?? 0, color, vertexColors: vc, side: o.side ?? THREE.FrontSide }, o.snow || 0); }
   else {
     const t = ftex(key);
     m = stdMat({ map: t.map, normalMap: t.normalMap, roughness: o.rough ?? 0.9, metalness: o.metal ?? 0, color, vertexColors: vc, alphaTest: FLAT_TEX[key].alpha ? 0.5 : 0, side: o.side ?? THREE.FrontSide }, o.snow || 0);
   }
-  m.userData.scale = FLAT_SCALE[key] || 2; m.userData.ftex = key; m.name = key + ':' + color.toString(16); // ftex : photo de la carte (05p_photo.js)
+  m.userData.scale = OBJ_FAM[key]?.[1] || FLAT_SCALE[key] || 2; m.userData.ftex = key; m.name = key + ':' + color.toString(16); // ftex : photo de la carte (05p_photo.js)
   return (FMATS[k] = m);
 }
 // Matière à couleurs par sommet pour les murs et sols construits ici (spec = 'clé' ou ['clé', teinte]).
@@ -272,7 +280,7 @@ function flatSolidWall(K, X0, Z0, X1, Z1, bit, ax, az, bx, bz, roofA, roofB) {
   const top = qb(roofA || roofB ? fv(M.roofTex || 'concrete') : matOut);
   if (bit === 0) top.flat(X0 - E, Z0 - E, X0 + E, Z1 + E, h, 1); else top.flat(X0 - E, Z0 - E, X1 + E, Z0 + E, h, 1);
   if (win) { // embrasure, encadrement en saillie, croisillons, appui, rideaux et vitre
-    const trim = qb(fv(K.trim || ['planks', 0xd8d0c0]));
+    const trim = qb(fv(K.trim || ['boisPeint', 0xd8d0c0])); // encadrement en bois peint
     const s0 = win.s0, s1 = win.s1, wy0 = win.y0, wy1 = win.y1;
     if (bit === 0) {
       trim.flat(X0 - E - 0.05, Z0 + s0, X0 + E + 0.05, Z0 + s1, wy0, 1); trim.flat(X0 - E, Z0 + s0, X0 + E, Z0 + s1, wy1, -1);
@@ -295,7 +303,7 @@ function flatSolidWall(K, X0, Z0, X1, Z1, bit, ax, az, bx, bz, roofA, roofB) {
     if (K.bars) { for (let k = 1; k < 9; k++) { const a = s0 + (s1 - s0) * k / 9; FLAT_BARS.push([bit === 0 ? [X0 + 0.04, (wy0 + wy1) / 2, Z0 + a] : [X0 + a, (wy0 + wy1) / 2, Z0 + 0.04], wy1 - wy0]); } box(s0, s1, wy0 + (wy1 - wy0) * 0.5 - 0.02, wy0 + (wy1 - wy0) * 0.5 + 0.02, 0.01, 0.07); }
     // Volets ouverts contre la façade, côté rue.
     if (K.shutter) for (const side of [-1, 1]) {
-      if (side < 0 ? roofA : roofB) continue; const sq = qb(fv(['planks', K.shutter])), n0 = Math.min(side * (E + 0.04), side * (E + 0.075)), n1 = Math.max(side * (E + 0.04), side * (E + 0.075)), sw = (s1 - s0) / 2;
+      if (side < 0 ? roofA : roofB) continue; const sq = qb(fv(['boisPeint', K.shutter])), /* volets en bois peint */ n0 = Math.min(side * (E + 0.04), side * (E + 0.075)), n1 = Math.max(side * (E + 0.04), side * (E + 0.075)), sw = (s1 - s0) / 2;
       for (const [a0, a1] of [[s0 - 0.1 - sw, s0 - 0.1], [s1 + 0.1, s1 + 0.1 + sw]]) { boxIn(sq, a0, a1, wy0 - 0.05, wy1 + 0.05, n0, n1); for (let k = 0; k < 6; k++) { const yy = wy0 + (wy1 - wy0) * (k + 0.5) / 6; if (bit === 0) qbBox(sq, X0 + (side < 0 ? n0 - 0.012 : n1), yy - 0.035, Z0 + a0 + 0.05, X0 + (side < 0 ? n0 : n1 + 0.012), yy + 0.035, Z0 + a1 - 0.05); else qbBox(sq, X0 + a0 + 0.05, yy - 0.035, Z0 + (side < 0 ? n0 - 0.012 : n1), X0 + a1 - 0.05, yy + 0.035, Z0 + (side < 0 ? n0 : n1 + 0.012)); } }
     }
     // Jardinière fleurie sous la fenêtre, côté rue.
@@ -492,7 +500,9 @@ function buildFlatTerrain() {
 
 // Barricades de plain-pied : fenêtre à l'appui (murs), passage dans une clôture ou brèche.
 function buildFlatRamps() {
-  const plank = boxG(1.8, 0.2, 0.05), uv = plank.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setY(k, uv.getY(k) / 6 + 0.02);
+  // Planche : photo en mètres (bois brut) ; sinon une seule lame de la texture dessinée (1/6 de sa hauteur).
+  let plank = boxG(1.8, 0.2, 0.05); const pm = meterInstGeo(plank, MATS.planks);
+  if (pm !== plank) plank = pm; else { const uv = plank.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setY(k, uv.getY(k) / 6 + 0.02); }
   WORLD.planks = new THREE.InstancedMesh(plank, MATS.planks, Math.max(1, MAP.barricades.length * 6)); WORLD.planks.castShadow = true; WORLD.planks.receiveShadow = true;
   const posts = new Batch(boxG(0.14, 1, 0.14), MATS.post), trimB = new Batch(boxG(1, 1, 1), MATS.post); let slopeGB = null;
   const E = EDGE_T, CH = ceilH();

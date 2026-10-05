@@ -13,12 +13,13 @@ function citeDecor() {
   kGable(X(17), X(23), X(22), X(29), 3.35, 1.7, shingleG, 0.45, fv(['siding', 0xa6dbb8]));
   kChimney(X(6) + 1, X(9), 3.35, 4.0, fmat('brick', 0xffffff)); kChimney(X(30) + 1, X(29), 3.35, 4.0, fmat('brick', 0xffffff));
   kAntenna(X(12), X(11), 5.2); kAntenna(X(25), X(27), 5.2);
-  const porch = (x0, z0, x1, z1, mat) => { const g = KIT.g(0, 0); KIT.b(g, (x0 + x1) / 2, 2.62, (z0 + z1) / 2, x1 - x0 + 0.6, 0.1, z1 - z0 + 0.5, mat); for (const [a, b] of [[x0 + 0.1, z1 - 0.1], [x1 - 0.1, z1 - 0.1], [x0 + 0.1, z0 + 0.1], [x1 - 0.1, z0 + 0.1]]) KIT.b(g, a, 1.3, b, 0.1, 2.6, 0.1, k.white); };
+  // Porches : auvent en bardeaux sur quatre poteaux en bois peint.
+  const porch = (x0, z0, x1, z1, mat) => { const g = KIT.g(0, 0); KIT.b(g, (x0 + x1) / 2, 2.62, (z0 + z1) / 2, x1 - x0 + 0.6, 0.1, z1 - z0 + 0.5, mat); for (const [a, b] of [[x0 + 0.1, z1 - 0.1], [x1 - 0.1, z1 - 0.1], [x0 + 0.1, z0 + 0.1], [x1 - 0.1, z0 + 0.1]]) KIT.b(g, a, 1.3, b, 0.1, 2.6, 0.1, fmat('boisPeint', 0xeeeae0, { rough: 0.8 })); };
   porch(X(8), X(15), X(9), X(16), fmat('shingle', 0xb07a62)); porch(X(9), X(6), X(10), X(7), fmat('shingle', 0xb07a62));
   porch(X(26), X(22), X(27), X(23), fmat('shingle', 0x7c8c9a)); porch(X(28), X(31), X(29), X(32), fmat('shingle', 0x7c8c9a));
-  // Portes de garage (façade côté rue).
+  // Portes de garage sectionnelles en bois peint (façade côté rue).
   for (const [x0, x1, z, col, s] of [[X(15), X(20), X(15), 0xf6f2e6, 1], [X(17), X(22), X(23), 0xf6f2e6, -1]]) {
-    const g = KIT.g((x0 + x1) / 2, z + s * 0.1); for (let i = 0; i < 4; i++) KIT.b(g, 0, 0.35 + i * 0.55, 0, x1 - x0 - 1.0, 0.5, 0.04, KIT.m(col, { rough: 0.5 }));
+    const g = KIT.g((x0 + x1) / 2, z + s * 0.1); for (let i = 0; i < 4; i++) KIT.b(g, 0, 0.35 + i * 0.55, 0, x1 - x0 - 1.0, 0.5, 0.04, fmat('boisPeint', col, { rough: 0.5 }));
     for (let i = 0; i < 4; i++) KIT.b(g, -3 + i * 2, 1.85, s * 0.03, 1.2, 0.3, 0.02, k.glass, 0, false);
   }
   // Boîtes aux lettres, massifs, allées.
@@ -30,7 +31,7 @@ function citeDecor() {
   const line = fmat('plain', 0xe0b83a, { rough: 0.8 }), white = fmat('plain', 0xe8e4da, { rough: 0.8 });
   for (let x = X(2) + 1; x < X(34); x += 3.2) KIT.b(R.scene, x, 0.012, X(19), 1.6, 0.01, 0.14, line, 0, false);
   for (let i = 0; i < 6; i++) KIT.b(R.scene, X(27) + 0.4 + i * 0.55, 0.012, X(17) + 0.9, 0.3, 0.01, 1.6, white, 0, false); // passage piéton vers l'abri
-  const curb = fmat('plain', 0xb8b2a6, { rough: 0.9 });
+  const curb = fmat('concrete', 0xb8b2a6, { rough: 0.9 }); // bordures en béton coulé (photo de béton de la carte)
   for (const z of [X(17), X(21)]) KIT.b(R.scene, (X(2) + X(34)) / 2, 0.05, z, X(34) - X(2), 0.1, 0.18, curb, 0, false);
   const lw = kLampPost(X(10), X(16) + 0.35, -Math.PI / 2, L.lampW), le = kLampPost(X(31) + 1, X(21) + 1.65, Math.PI / 2, L.lampE);
   kLampPost(X(37) + 1, X(13) + 0.6, -Math.PI / 2);
@@ -49,9 +50,9 @@ function citeDecor() {
   kCar(X(37), X(17) + 1.4, 1.25, 0xc9d9df, true); kCar(X(17) + 1, X(12) + 1, Math.PI / 2, 0xd9636a); kCar(X(19) + 0.4, X(25) + 1, -Math.PI / 2 + 0.03, 0x6fb7c8);
   // Panneau POPULATION (décompte des morts), à l'entrée ouest.
   { const c = makeCanvas(512, 320), tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-    const g = KIT.g(X(1) + 0.4, X(15) + 1, Math.PI / 2); for (const s of [-1, 1]) KIT.b(g, s * 1.5, 1.6, 0, 0.14, 3.2, 0.14, k.woodDark);
+    const g = KIT.g(X(1) + 0.4, X(15) + 1, Math.PI / 2), pw = fmat('boisPeint', 0x4e3526); /* poteaux et dos du panneau en bois peint */ for (const s of [-1, 1]) KIT.b(g, s * 1.5, 1.6, 0, 0.14, 3.2, 0.14, pw);
     mesh(new THREE.PlaneGeometry(3.6, 2.25), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 }), 0, 2.6, 0.08, 0, g, false);
-    const back = mesh(new THREE.PlaneGeometry(3.6, 2.25), k.woodDark, 0, 2.6, 0.06, Math.PI, g, false);
+    const back = mesh(new THREE.PlaneGeometry(3.6, 2.25), pw, 0, 2.6, 0.06, Math.PI, g, false);
     g.userData.dynamic = true; WORLD.popSign = { canvas: c, tex }; drawPopSign(1954); }
 
   /* ── Maison jaune : intérieur ── */
@@ -59,7 +60,7 @@ function citeDecor() {
   kTable(X(6) + 1, X(12) + 0.8, 0, 1.1, 0.55, 0.42, k.woodDark); kLamp(X(8) + 1.4, X(14) + 1.4, 0); kRug(X(6) + 1, X(12) + 0.6, 0, 3.2, 2.2, 0x8a3b32);
   kCounter(X(11) + 1, X(10) + 0.33, 0, 4.2); kFridge(X(14) + 1.4, X(10) + 0.4, 0); kStove(X(9) + 0.5, X(10) + 0.36, 0); kDining(X(11) + 1, X(13), 0);
   kBed(X(6), X(7) + 1.1, 0); kDresser(X(8) + 1.7, X(9) + 0.8, -Math.PI / 2);
-  { const g = KIT.g(X(13) + 0.4, X(7) + 0.5, 0); KIT.b(g, 0, 0.3, 0, 1.6, 0.6, 0.75, k.white); KIT.b(g, 0, 0.58, 0, 1.45, 0.05, 0.62, fmat('plain', 0x9ad0e0, { rough: 0.1 })); KIT.solid(g, 1.6, 0.75, 0.6); } // baignoire
+  { const g = KIT.g(X(13) + 0.4, X(7) + 0.5, 0); KIT.b(g, 0, 0.3, 0, 1.6, 0.6, 0.75, fmat('email', 0xeeeae0, { rough: 0.15 })); KIT.b(g, 0, 0.58, 0, 1.45, 0.05, 0.62, fmat('plain', 0x9ad0e0, { rough: 0.1 })); KIT.solid(g, 1.6, 0.75, 0.6); } // baignoire en fonte émaillée
   for (const p of [[X(15) + 1.2, X(9) + 0.3], [X(18) + 0.6, X(9) + 0.3]]) kShelf(p[0], p[1], 0, 1.4, 1.9);
   kTires(X(19) + 1.4, X(14) + 1.3, 3);
 
@@ -72,7 +73,7 @@ function citeDecor() {
   kLamp(X(22) + 0.5, X(23) + 0.5, 0);
   kCounter(X(32) + 1.62, X(24) + 1, -Math.PI / 2, 3.6, 0xe6efe6, 0x2f7a6a); kFridge(X(30) + 1, X(23) + 0.42, 0, 0xe8e2d0); kDining(X(30), X(25) + 0.2, Math.PI / 2);
   kBed(X(24), X(30) + 0.9, Math.PI, k.fabricTeal); kDresser(X(22) + 0.3, X(28), Math.PI / 2);
-  kShelf(X(31), X(30) + 1.7, Math.PI, 1.6, 1.9); { const g = KIT.g(X(28) + 1, X(30) + 1.4, Math.PI); KIT.b(g, 0, 0.45, 0, 0.8, 0.9, 0.7, k.white); KIT.c(g, 0, 0.6, 0.36, 0.22, 0.22, 0.02, k.glass, 16, false).rotation.x = Math.PI / 2; KIT.solid(g, 0.8, 0.7, 0.9, 'metal'); } // machine à laver
+  kShelf(X(31), X(30) + 1.7, Math.PI, 1.6, 1.9); { const g = KIT.g(X(28) + 1, X(30) + 1.4, Math.PI); KIT.b(g, 0, 0.45, 0, 0.8, 0.9, 0.7, fmat('email', 0xeeeae0, { rough: 0.3 })); KIT.c(g, 0, 0.6, 0.36, 0.22, 0.22, 0.02, k.glass, 16, false).rotation.x = Math.PI / 2; KIT.solid(g, 0.8, 0.7, 0.9, 'metal'); } // machine à laver
   kShelf(X(17) + 0.3, X(26) + 1, Math.PI / 2, 1.4, 1.9); kTires(X(20) + 1.4, X(27) + 1.4, 2);
 
   /* ── Finitions des intérieurs : placards hauts, salles de bains, plantes, bibliothèques ── */
@@ -85,7 +86,7 @@ function citeDecor() {
   kSwing(X(5) + 1, X(1) + 1, 0); kGrill(X(13), X(4) + 1, 0); kPicnic(X(16), X(2) + 1, 0.1); kDoghouse(X(19) + 1, X(0) + 1.2, -0.3);
   kClothesline(X(12), X(1) + 0.6, 0); kPool(X(4) + 1, X(5), 1.3);
   kSwing(X(33), X(35) + 1, 0.2); kPool(X(22), X(34) + 1, 1.5); kClothesline(X(26), X(36) + 0.6, 0); kGrill(X(31) + 1, X(32) + 1, 0); kPicnic(X(20) + 1, X(36), Math.PI / 2);
-  { const g = KIT.g(X(35), X(31) + 1.4, 0); KIT.b(g, 0, 1.1, 0, 2.2, 2.2, 1.8, fmat('planks', 0x9a6a4a)); KIT.b(g, 0, 2.3, 0, 2.5, 0.12, 2.1, fmat('shingle', 0x55606a)); KIT.solid(g, 2.2, 1.8, 2.3); } // cabanon
+  { const g = KIT.g(X(35), X(31) + 1.4, 0); KIT.b(g, 0, 1.1, 0, 2.2, 2.2, 1.8, fmat('boisPeint', 0x9a6a4a)); KIT.b(g, 0, 2.3, 0, 2.5, 0.12, 2.1, fmat('shingle', 0x55606a)); KIT.solid(g, 2.2, 1.8, 2.3); } // cabanon en planches peintes
   for (let i = 0; i < 10; i++) kShrub(X(2) + srand(0, 36), X(0) + srand(-0.2, 0.2), srand(0.6, 1), 0x4f7a3a);
 
   /* ── Abri antiatomique ── */
@@ -93,8 +94,10 @@ function citeDecor() {
     const trefoil = textTexture(256, 256, (c) => { c.fillStyle = '#e8c21a'; c.fillRect(0, 0, 256, 256); c.fillStyle = '#111'; c.beginPath(); c.arc(128, 128, 20, 0, TAU); c.fill(); for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + i * TAU / 3; c.beginPath(); c.moveTo(128, 128); c.arc(128, 128, 100, a - 0.52, a + 0.52); c.closePath(); c.fill(); } c.fillStyle = '#e8c21a'; c.beginPath(); c.arc(128, 128, 30, 0, TAU); c.fill(); c.fillStyle = '#111'; c.beginPath(); c.arc(128, 128, 20, 0, TAU); c.fill(); });
     for (const s of [-1.35, 1.35]) mesh(new THREE.PlaneGeometry(0.6, 0.6), new THREE.MeshStandardMaterial({ map: trefoil, roughness: 0.6 }), s, 1.9, 0.02, 0, g, false);
     const sign = mesh(new THREE.PlaneGeometry(2.6, 0.5), new THREE.MeshStandardMaterial({ map: woodSign(['ABRI ANTIATOMIQUE'], { w: 512, h: 100, bg: '#222', color: '#e8c21a' }), roughness: 0.6 }), 0, 3.0, 0.02, 0, g, false); }
-  for (const [x, z] of [[X(25), X(4)], [X(31), X(8)], [X(27), X(9)]]) { const g = KIT.g(x, z, 0, 3.35); KIT.c(g, 0, 0.6, 0, 0.16, 0.16, 1.2, k.steel, 10); KIT.c(g, 0, 1.25, 0, 0.3, 0.3, 0.1, k.steel, 10); }
-  { const bags = new Batch(sandbagGeo(), fmat('plain', 0xb8a47e, { rough: 1 })); for (let x = X(24); x < X(28); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); for (let x = X(29) + 0.3; x < X(33); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); bags.build(); }
+  // Aérations de l'abri sur le toit : conduits en tôle galvanisée.
+  for (const [x, z] of [[X(25), X(4)], [X(31), X(8)], [X(27), X(9)]]) { const g = KIT.g(x, z, 0, 3.35), v = fmat('galva', 0x8c9196, { rough: 0.45, metal: 0.8 }); KIT.c(g, 0, 0.6, 0, 0.16, 0.16, 1.2, v, 10); KIT.c(g, 0, 1.25, 0, 0.3, 0.3, 0.1, v, 10); }
+  // Sacs de sable de la Défense civile : toile de jute.
+  { const bags = new Batch(sandbagGeo(), fmat('toile', 0xb8a47e, { rough: 1 })); for (let x = X(24); x < X(28); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); for (let x = X(29) + 0.3; x < X(33); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); bags.build(); }
   // Dortoir, salle commune, générateur.
   for (const x of [X(29) + 0.9, X(31) + 0.9]) { const g = KIT.g(x, X(3) + 1.1, 0); for (const y of [0.45, 1.5]) { KIT.b(g, 0, y, 0, 1.0, 0.08, 2.0, k.steel); KIT.b(g, 0, y + 0.1, 0, 0.92, 0.12, 1.9, k.fabricTeal); } for (const [a, b] of [[-0.48, -0.95], [0.48, -0.95], [-0.48, 0.95], [0.48, 0.95]]) KIT.b(g, a, 1.0, b, 0.05, 2.0, 0.05, k.steel); KIT.solid(g, 1.0, 2.0, 2.0, 'metal'); }
   kShelf(X(24) + 0.3, X(8) + 1, Math.PI / 2, 1.8, 2.1); kShelf(X(24) + 0.3, X(10), Math.PI / 2, 1.8, 2.1); kTable(X(29), X(8) + 1.2, 0, 2.2, 1.0);

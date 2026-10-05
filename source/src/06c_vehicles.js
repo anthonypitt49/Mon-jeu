@@ -31,17 +31,19 @@ function burntMat(color) {
     return [r, g, b, 0.3 + rust * 0.35 + left * 0.25 - blister * 0.2 + pit * 0.1];
   }), 3);
   for (const m of [t.map, t.normalMap]) m.repeat.set(0.33, 0.33);
-  return (KM[key] = stdMat({ color: 0xffffff, roughness: 0.9, metalness: 0.3, map: t.map, normalMap: t.normalMap }));
+  const m = stdMat({ color: 0xffffff, roughness: 0.9, metalness: 0.3, map: t.map, normalMap: t.normalMap });
+  Object.assign(m.userData, { ftex: 'rouille', scale: 1 }); // photo : tôle rouillée, peinture partie au feu (05p_photo.js)
+  return (KM[key] = m);
 }
 function vMats(color, burnt) {
   const k = kitMats();
-  const paint = burnt ? burntMat(color) : (KM['car' + color] ||= stdMat({ color, roughness: 0.32, metalness: 0.45, map: TEX.grime.map }));
+  const paint = burnt ? burntMat(color) : (KM['car' + color] ||= fmat('tole', color, { rough: 0.32, metal: 0.45 })); // laque : grain et usure photographiés, brillant gardé
   return {
     paint, chrome: burnt ? (KM.burntTrim ||= KIT.m(0x2c2622, { rough: 0.8 })) : k.chrome, glass: burnt ? k.black : (KM.carGlass ||= new THREE.MeshStandardMaterial({ color: 0x182229, roughness: 0.04, metalness: 0.85, transparent: true, opacity: 0.72 })),
     tire: burnt ? (KM.burntTire ||= KIT.m(0x0e0d0c, { rough: 1 })) : k.rubber, white: burnt ? k.black : (KM.whitewall ||= KIT.m(0xece8de, { rough: 0.6 })),
     lamp: burnt ? k.black : (KM.headlamp ||= new THREE.MeshStandardMaterial({ color: 0xfff6e0, emissive: 0xffe8b0, emissiveIntensity: 0.25, roughness: 0.1 })),
     tail: burnt ? k.black : (KM.taillamp ||= new THREE.MeshStandardMaterial({ color: 0x8a0e0e, emissive: 0x5a0606, emissiveIntensity: 0.3, roughness: 0.2 })),
-    seat: burnt ? k.black : (KM.carSeat ||= stdMat({ color: 0x8a3a2e, roughness: 0.8, map: TEX.cloth.map })), dark: k.black,
+    seat: burnt ? k.black : (KM.carSeat ||= fmat('skai', 0x8a3a2e, { rough: 0.6 })), dark: k.black, // simili-cuir de sellerie
   };
 }
 function vWheel(g, x, y, z, r, w, V, side, hub = true) {
@@ -82,7 +84,7 @@ function kCar(x, z, ry, color = 0x6fb7c8, burnt = false) {
 /* ─── Car scolaire (11 m) ─── */
 function kBus(x, z, ry, burnt = false) {
   const k = kitMats(), g = KIT.g(x, z, ry), V = vMats(0xe8a81e, burnt);
-  const yellow = burnt ? V.paint : (KM.busYellow ||= stdMat({ color: 0xe8a81e, roughness: 0.45, metalness: 0.25, map: TEX.grime.map, normalMap: TEX.grime.normalMap }));
+  const yellow = burnt ? V.paint : (KM.busYellow ||= fmat('tole', 0xe8a81e, { rough: 0.45, metal: 0.25 }));
   // Caisse : arrière droit, toit bombé, capot moteur à l'avant (x > 0).
   const box = vBodyShape([[-4.8, 0.45], [-4.82, 2.5], [-4.6, 2.86], [4.1, 2.86], [4.32, 2.5], [4.36, 1.5], [5.6, 1.42], [5.95, 1.1], [5.98, 0.5]], [[3.8, 0.56], [-3.2, 0.56]], 0.45);
   mesh(vExtrude(box, 2.44, 0.1), yellow, 0, 0, 0, 0, g);
@@ -117,8 +119,8 @@ function kBus(x, z, ry, burnt = false) {
 /* ─── Camion de déménagement, hayon ouvert, chargement renversé (9,4 m) ─── */
 function kTruck(x, z, ry, label = 'DÉMÉNAGEMENTS') {
   const k = kitMats(), g = KIT.g(x, z, ry), V = vMats(0x3e6e8e, false);
-  const cab = KM.truckCab ||= stdMat({ color: 0x3e6e8e, roughness: 0.38, metalness: 0.4, map: TEX.grime.map });
-  const boxM = KM.truckBox ||= stdMat({ color: 0xe9e3d3, roughness: 0.65, metalness: 0.15, map: TEX.grime.map, normalMap: TEX.grime.normalMap });
+  const cab = KM.truckCab ||= fmat('tole', 0x3e6e8e, { rough: 0.38, metal: 0.4 });
+  const boxM = KM.truckBox ||= fmat('tole', 0xe9e3d3, { rough: 0.65, metal: 0.15 });
   // Cabine arrondie et capot.
   const cs = vBodyShape([[2.55, 0.5], [2.55, 2.55], [2.75, 2.75], [3.7, 2.75], [4.0, 2.4], [4.25, 1.7], [5.15, 1.6], [5.35, 1.3], [5.38, 0.5]], [[4.3, 0.52]], 0.5);
   mesh(vExtrude(cs, 2.3, 0.1), cab, 0, 0, 0, 0, g);

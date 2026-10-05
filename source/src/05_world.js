@@ -35,6 +35,7 @@ class Batch {
   add(x, y, z, ry = 0, rx = 0, rz = 0, sx = 1, sy = 1, sz = 1) { _e1.set(rx, ry, rz, 'YXZ'); _q1.setFromEuler(_e1); this.m.push(new THREE.Matrix4().compose(_v1.set(x, y, z), _q1, _v2.set(sx, sy, sz))); return this.m.length - 1; }
   build(parent = R.scene) {
     if (!this.m.length) return null;
+    this.geo = meterInstGeo(this.geo, this.mat); // UV en mètres à l'échelle de chaque exemplaire (photo)
     // Lots lourds (sacs de sable, barbelés…) : découpés en zones de 32 m, pour que la caméra et l'ombre ignorent ce qu'elles ne voient pas.
     const tris = (this.geo.index ? this.geo.index.count : this.geo.attributes.position.count) / 3;
     if (parent === R.scene && this.m.length * tris > 20000) {
@@ -54,6 +55,119 @@ function mesh(geo, mat, x = 0, y = 0, z = 0, ry = 0, parent = R.scene, shadow = 
   const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.y = ry; m.castShadow = shadow; m.receiveShadow = true; parent.add(m); return m;
 }
 const boxG = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+
+/* ─── UV en mètres pour les objets ───
+   Les boîtes, cylindres et sphères de three.js ont des UV de 0 à 1 par face, quelle que soit leur taille : une photo
+   y serait étirée sur un banc de 3 m et écrasée sur un pied de 6 cm. Pour les matières qui le demandent (celles de
+   fmat, qui ont une clé de texture, ou userData.mu), chaque face reçoit la taille réelle qu'elle couvre, divisée par
+   l'échelle de la matière (userData.scale, en mètres par unité d'UV) : la photo tombe à sa vraie taille, comme sur les
+   murs. Le fil d'un bois suit la plus grande dimension de la pièce (grain dans PHOTO_SETS : 'u' si les planches de la
+   photo sont couchées, 'v' si elles sont debout). Chaque pièce lit la photo à un endroit différent. */
+const meterMat = (m) => !!m && !Array.isArray(m) && (m.userData.mu ?? !!m.userData.ftex);
+const meterGrain = (m) => PHOTO_SETS[MAP_ID]?.[m.userData.ftex || m.userData.photo]?.grain || m.userData.grain || '';
+// Pour chaque sommet : axes du repère local qui portent u et v (0 = x, 1 = y, 2 = z), coordonnées en mètres sans échelle,
+// et taille de la face le long de u et de v (pour le sens du fil). Renvoie null si la géométrie n'est pas reconnue.
+function meterBase(geo) {
+  const t = geo.type, p = geo.parameters, pos = geo.attributes.position, nor = geo.attributes.normal, uv = geo.attributes.uv;
+  if (t === 'ExtrudeGeometry' && uv && nor) { // carrosseries : UV déjà en mètres (coordonnées du profil), sans sens de fil
+    const n = uv.count, z = new Uint8Array(n), o = new Uint8Array(n).fill(1), ex = new Float32Array(n * 2).fill(1);
+    return { au: z, av: o, mu: Float32Array.from(uv.array), ex };
+  }
+  if (!p || !uv || !nor || /Extrude|Tube|Shape|Text|Edges|Wireframe/.test(t)) return null;
+  const n = uv.count, au = new Uint8Array(n), av = new Uint8Array(n), mu = new Float32Array(n * 2), ex = new Float32Array(n * 2);
+  geo.computeBoundingBox(); const b = geo.boundingBox, size = [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z];
+  const P = [0, 0, 0];
+  const proj = (i) => { // face plane : projection selon l'axe dominant de la normale
+    const nx = Math.abs(nor.getX(i)), ny = Math.abs(nor.getY(i)), nz = Math.abs(nor.getZ(i));
+    const [U, V] = nx >= ny && nx >= nz ? [2, 1] : ny >= nz ? [0, 2] : [0, 1];
+    P[0] = pos.getX(i); P[1] = pos.getY(i); P[2] = pos.getZ(i);
+    au[i] = U; av[i] = V; mu[i * 2] = P[U]; mu[i * 2 + 1] = P[V]; ex[i * 2] = size[U]; ex[i * 2 + 1] = size[V];
+  };
+  const curved = (i, cu, cv, U = 0, V = 1) => { au[i] = U; av[i] = V; mu[i * 2] = uv.getX(i) * cu; mu[i * 2 + 1] = uv.getY(i) * cv; ex[i * 2] = cu; ex[i * 2 + 1] = cv; };
+  if (t === 'CylinderGeometry' || t === 'ConeGeometry') {
+    const r0 = p.radiusTop ?? 0, r1 = p.radiusBottom ?? p.radius, torso = (p.radialSegments + 1) * (p.heightSegments + 1);
+    const circ = Math.PI * (r0 + r1) * (p.thetaLength ?? TAU) / TAU, slant = Math.hypot(p.height, r1 - r0);
+    for (let i = 0; i < n; i++) if (i < torso) curved(i, circ, slant); else proj(i);
+  } else if (t === 'SphereGeometry') {
+    for (let i = 0; i < n; i++) curved(i, TAU * p.radius * (p.phiLength ?? TAU) / TAU, Math.PI * p.radius * (p.thetaLength ?? Math.PI) / Math.PI);
+  } else if (t === 'TorusGeometry') {
+    for (let i = 0; i < n; i++) curved(i, (p.arc ?? TAU) * p.radius, TAU * p.tube);
+  } else if (t === 'CapsuleGeometry') {
+    for (let i = 0; i < n; i++) curved(i, TAU * p.radius, (p.height ?? p.length) + Math.PI * p.radius);
+  } else if (t === 'LatheGeometry') {
+    let len = 0, rr = 0; for (let k = 1; k < p.points.length; k++) len += p.points[k].distanceTo(p.points[k - 1]);
+    for (const q of p.points) rr += q.x / p.points.length;
+    for (let i = 0; i < n; i++) curved(i, (p.phiLength ?? TAU) * rr, len);
+  } else if (/Box|Plane|Circle|Ring|Polyhedron|Icosahedron|Dodecahedron|Octahedron|Tetrahedron/.test(t)) {
+    for (let i = 0; i < n; i++) proj(i);
+  } else return null;
+  return { au, av, mu, ex };
+}
+// Copie de la géométrie avec des UV en mètres, à l'échelle (sx, sy, sz) de l'objet ; (ox, oz) choisit l'endroit lu.
+function meterUV(geo, mat, sx = 1, sy = 1, sz = 1, ox = 0, oz = 0) {
+  if (geo.userData.mu || !meterMat(mat)) return geo;
+  const B = meterBase(geo); if (!B) return geo;
+  const g = geo.clone(); g.userData.mu = 1;
+  const uv = g.attributes.uv, S = [sx, sy, sz], s = mat.userData.scale || 2, gr = meterGrain(mat);
+  const du = hash2(ox * 13.1 + 7, oz * 7.7) * 5.3, dv = hash2(oz * 11.3, ox * 5.9 + 3) * 5.3; // endroit de la photo, propre à la pièce
+  for (let i = 0; i < uv.count; i++) {
+    const ku = S[B.au[i]], kv = S[B.av[i]];
+    let u = B.mu[i * 2] * ku, v = B.mu[i * 2 + 1] * kv;
+    const eu = B.ex[i * 2] * ku, ev = B.ex[i * 2 + 1] * kv;
+    if ((gr === 'u' && ev > eu * 1.05) || (gr === 'v' && eu > ev * 1.05)) { const w = u; u = v; v = w; }
+    uv.setXY(i, u / s + du, v / s + dv);
+  }
+  uv.needsUpdate = true; return g;
+}
+// Mesh posé (fixe ou mobile, pas instancié) : UV en mètres à son échelle dans le monde, une seule fois.
+function meterMesh(o) {
+  if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || !o.geometry || o.geometry.userData.mu || !meterMat(o.material)) return;
+  o.updateWorldMatrix(true, false); o.matrixWorld.decompose(_v1, _q1, _v2);
+  const g = meterUV(o.geometry, o.material, Math.abs(_v2.x), Math.abs(_v2.y), Math.abs(_v2.z), _v1.x, _v1.z);
+  if (g !== o.geometry) o.geometry = g;
+}
+// Objets créés après la construction du monde (éboulis de mission, pièces du courant…).
+function meterize(root) { root.traverse(meterMesh); }
+// Lot instancié : la géométrie est partagée et l'échelle change d'un exemplaire à l'autre. La géométrie garde ses mesures
+// sans échelle et les axes de chaque face ; le nuanceur multiplie par l'échelle de l'exemplaire (meterInstHook).
+function meterInstGeo(geo, mat) {
+  if (geo.userData.mui || !meterMat(mat)) return geo;
+  const B = meterBase(geo); if (!B) return geo;
+  const g = geo.clone(), n = g.attributes.uv.count, a = new Float32Array(n * 2);
+  for (let i = 0; i < n; i++) { a[i * 2] = B.au[i]; a[i * 2 + 1] = B.av[i]; }
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(B.mu, 2)); g.setAttribute('aMuAx', new THREE.Float32BufferAttribute(a, 2)); g.setAttribute('aMuEx', new THREE.Float32BufferAttribute(B.ex, 2));
+  g.userData.mui = 1; g.userData.mu = 1; return g;
+}
+// Branché après la fusion (sinon la matière serait exclue de mergeStatic) et enchaîné avec la neige ; sans attribut
+// aMuAx (exemplaire d'une autre géométrie), le nuanceur ne change rien.
+function meterInstHook(m) {
+  if (m.userData.muHook) return; m.userData.muHook = 1;
+  const prev = m.onBeforeCompile, key = m.customProgramCacheKey?.() || '', s = (m.userData.scale || 2).toFixed(3), gr = meterGrain(m);
+  m.onBeforeCompile = (sh, r) => {
+    if (prev) prev.call(m, sh, r);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n#ifdef USE_INSTANCING\nattribute vec2 aMuAx; attribute vec2 aMuEx;\n#endif')
+      .replace('#include <uv_vertex>', `#include <uv_vertex>
+      #ifdef USE_INSTANCING
+      if (aMuAx.x + aMuAx.y > 0.5) {
+        vec3 isc = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
+        vec2 k = vec2(aMuAx.x < 0.5 ? isc.x : aMuAx.x < 1.5 ? isc.y : isc.z, aMuAx.y < 0.5 ? isc.x : aMuAx.y < 1.5 ? isc.y : isc.z);
+        vec2 mm = uv * k, ee = aMuEx * k;
+        ${gr === 'u' ? 'if (ee.y > ee.x * 1.05) mm = mm.yx;' : gr === 'v' ? 'if (ee.x > ee.y * 1.05) mm = mm.yx;' : ''}
+        mm = mm / ${s} + fract(vec2(instanceMatrix[3].x * 0.731 + instanceMatrix[3].y * 2.17, instanceMatrix[3].z * 0.613 + instanceMatrix[3].x * 0.291) * 1.37) * 5.3;
+        #ifdef USE_MAP
+          vMapUv = (mapTransform * vec3(mm, 1.0)).xy;
+        #endif
+        #ifdef USE_NORMALMAP
+          vNormalMapUv = (normalMapTransform * vec3(mm, 1.0)).xy;
+        #endif
+        #ifdef USE_ROUGHNESSMAP
+          vRoughnessMapUv = (roughnessMapTransform * vec3(mm, 1.0)).xy;
+        #endif
+      }
+      #endif`);
+  };
+  m.customProgramCacheKey = () => key + '|mu';
+}
 function collider(x0, z0, x1, z1, y1, mat = 'wood', y0 = 0) { MAP.props.push({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1), y0, y1, mat }); }
 // Collision d'une boîte tournée autour de Y (approximée par son enveloppe).
 function colliderBox(x, z, w, d, ry, h, mat) { const c = Math.abs(Math.cos(ry)), s = Math.abs(Math.sin(ry)); const hw = (w * c + d * s) / 2, hd = (w * s + d * c) / 2; collider(x - hw, z - hd, x + hw, z + hd, h, mat); }
@@ -91,6 +205,11 @@ function buildMaterials() {
   MATS.cloth = stdMat({ color: 0x5d5a44, roughness: 0.95, map: TEX.cloth.map, normalMap: TEX.cloth.normalMap }, 0.9);
   // Nom de la matière, recopié dans les clones des fusions : les textures photo (05p_photo.js) les retrouvent tous.
   for (const k of Object.keys(PHOTO_SETS[MAP_ID] || {})) if (MATS[k]) MATS[k].userData.photo = k;
+  // Matières communes des objets : famille photo (OBJ_FAM, 05b_flat.js), donc UV en mètres et photo de la famille.
+  for (const [k, f] of [['iron', 'fonte'], ['rust', 'rouille'], ['olive', 'olive'], ['crate', 'boisBrut'], ['cloth', 'toile'], ['bark', 'ecorce']]) Object.assign(MATS[k].userData, { ftex: f, scale: OBJ_FAM[f][1] });
+  MATS.olive.metalness = 0.1; // une peinture n'est pas un métal
+  // Barricades et poteaux des cartes de plain-pied : bois brut photographié (le Poste 7 garde ses planches de tranchée).
+  if (M.flat) for (const k of ['planks', 'post']) Object.assign(MATS[k].userData, { ftex: 'boisBrut', scale: OBJ_FAM.boisBrut[1] });
   MATS.wire = new THREE.LineBasicMaterial({ color: 0x191919 });
   MATS.wireMesh = stdMat({ color: 0x252525, roughness: 0.5, metalness: 0.8 });
   MATS.brass = stdMat({ color: 0xb58a3c, roughness: 0.35, metalness: 0.9 });
@@ -122,6 +241,7 @@ function buildWorld() {
 // Fusionne les accessoires fixes : même texture et même finition → un seul appel de dessin, la teinte passe dans les sommets.
 function mergeStatic() {
   R.scene.updateMatrixWorld(true);
+  R.scene.traverse(meterMesh); // UV en mètres (photo), avant la fusion qui perd la taille de chaque pièce
   // Les petits objets (moins de ~22 cm) ne projettent plus d'ombre : invisible à l'œil, mais autant d'appels de dessin en moins.
   const _s = new THREE.Vector3();
   R.scene.traverse((o) => {
@@ -134,7 +254,7 @@ function mergeStatic() {
   const isDynamic = (o) => { for (let p = o; p; p = p.parent) if (p.userData.dynamic) return true; return false; };
   const own = (m, k) => Object.prototype.hasOwnProperty.call(m, k);
   const sig = (m) => m.type !== 'MeshStandardMaterial' || m.vertexColors || m.emissiveMap || (own(m, 'onBeforeCompile') && !m.userData.snow) ? 'u' + m.uuid
-    : ['s', m.map?.uuid, m.normalMap?.uuid, m.roughness.toFixed(2), m.metalness.toFixed(2), m.emissive.getHexString(), m.emissiveIntensity.toFixed(2), m.transparent, m.opacity.toFixed(2), m.side, m.alphaTest, m.userData.snow || 0, m.depthWrite].join('|');
+    : ['s', m.map?.uuid, m.normalMap?.uuid, m.roughness.toFixed(2), m.metalness.toFixed(2), m.emissive.getHexString(), m.emissiveIntensity.toFixed(2), m.transparent, m.opacity.toFixed(2), m.side, m.alphaTest, m.userData.snow || 0, m.depthWrite, m.userData.ftex || ''].join('|');
   R.scene.traverse((o) => {
     if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || Array.isArray(o.material) || isDynamic(o)) return;
     const g = o.geometry; if (g.attributes.color || !g.attributes.normal || !g.attributes.uv || g.attributes.position.count > 20000) return;
@@ -158,6 +278,7 @@ function mergeStatic() {
     const m = new THREE.Mesh(merged, m2); m.castShadow = cast; m.receiveShadow = true; R.scene.add(m);
     for (const o of list) o.parent.remove(o);
   }
+  R.scene.traverse((o) => { if (o.isInstancedMesh && o.geometry.attributes.aMuAx) meterInstHook(o.material); });
   batchGlows();
 }
 
@@ -434,7 +555,7 @@ function buildDoors() {
       mesh(boxG(0.16, 0.26, 0.08), MATS.rust, 0.7, 1.05, 0.05, 0, leaf);
     } else if (d.kind === 'wood') {
       // Porte pleine à panneaux (pivote sur ses gonds à l'ouverture).
-      const wm = fmat('planks', d.color || 0x9a7a58);
+      const wm = fmat('boisPeint', d.color || 0x9a7a58); // porte peinte (photo : planches à la peinture usée)
       mesh(boxG(1.9, H, 0.07), wm, 0, H / 2, 0, 0, leaf);
       for (const [x, y, w, h] of [[-0.45, 0.62, 0.62, 0.8], [0.45, 0.62, 0.62, 0.8], [-0.45, 1.68, 0.62, 0.95], [0.45, 1.68, 0.62, 0.95]]) mesh(boxG(w, h, 0.1), wm, x, y, 0, 0, leaf);
       mesh(new THREE.SphereGeometry(0.045, 10, 8), MATS.brass, 0.78, 1.05, 0.07, 0, leaf, false); mesh(new THREE.SphereGeometry(0.045, 10, 8), MATS.brass, 0.78, 1.05, -0.07, 0, leaf, false);
@@ -446,10 +567,10 @@ function buildDoors() {
         for (let k = 0; k < 14; k++) { const s = 0.35 + r() * 0.5, m = mesh(new THREE.DodecahedronGeometry(s, 0), rock, (r() - 0.5) * 1.7, s * 0.6 + (k > 8 ? 0.6 + r() * 0.7 : 0), (r() - 0.5) * 0.9, r() * TAU, leaf); m.rotation.x = r() * TAU; }
         for (let k = 0; k < 3; k++) { const b = mesh(boxG(0.2, 0.2, 2.2), MATS.post, (r() - 0.5) * 1.2, 0.5 + r() * 1.3, 0, 0, leaf); b.rotation.set(r() * 0.4, Math.PI / 2 + (r() - 0.5) * 0.6, (r() - 0.5) * 0.8); }
       } else {
-        const wm = fmat('planks', 0xa08a70), cloth = MATS.cloth;
+        const wm = fmat('boisBrut', 0xa08a70), cloth = MATS.cloth;
         mesh(boxG(1.4, 0.08, 0.8), wm, -0.2, 0.9, 0.05, 0.1, leaf).rotation.z = 0.35; // table renversée
         for (const x of [-0.8, 0.4]) { const l = mesh(boxG(0.07, 0.8, 0.07), wm, x, 0.5, 0.3, 0, leaf); l.rotation.z = 0.35; }
-        mesh(boxG(0.7, 1.2, 0.5), fmat('planks', 0x6e5a44), 0.55, 0.6, -0.1, -0.2, leaf); // armoire
+        mesh(boxG(0.7, 1.2, 0.5), fmat('meuble', 0x6e5a44), 0.55, 0.6, -0.1, -0.2, leaf); // armoire
         for (let k = 0; k < 6; k++) { const b = mesh(boxG(1.8 + r() * 0.4, 0.16, 0.05), wm, (r() - 0.5) * 0.4, 0.3 + r() * 1.9, (r() - 0.5) * 0.3, (r() - 0.5) * 0.3, leaf); b.rotation.z = (r() - 0.5) * 1.1; }
         mesh(boxG(0.6, 0.5, 0.6), MATS.crate, -0.6, 0.25, -0.1, 0.4, leaf); mesh(boxG(0.8, 0.12, 0.7), cloth, 0.1, 1.55, 0.1, 0.3, leaf).rotation.z = -0.2;
         const ch = mesh(boxG(0.45, 0.06, 0.45), wm, -0.55, 1.35, 0.1, 0.5, leaf); ch.rotation.x = 1.1;
@@ -498,7 +619,7 @@ function mergeGroup(group) {
   for (const o of [...group.children]) { if (!o.isMesh || Array.isArray(o.material) || o.children.length) continue; const k = o.material.uuid + (o.castShadow ? 's' : 'n'); if (!by.has(k)) by.set(k, []); by.get(k).push(o); }
   for (const list of by.values()) {
     if (list.length < 2) continue;
-    const geos = list.map((o) => { o.updateMatrix(); const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); for (const n of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(n)) g.deleteAttribute(n); return g.applyMatrix4(o.matrix); });
+    const geos = list.map((o) => { o.updateMatrix(); o.geometry = meterUV(o.geometry, o.material, Math.abs(o.scale.x), Math.abs(o.scale.y), Math.abs(o.scale.z), group.position.x + o.position.x, group.position.z + o.position.z); const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); for (const n of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(n)) g.deleteAttribute(n); return g.applyMatrix4(o.matrix); });
     if (!geos.every((g) => g.attributes.uv && g.attributes.normal)) continue;
     const merged = mergeGeometries(geos); if (!merged) continue;
     const m = new THREE.Mesh(merged, list[0].material); m.castShadow = list[0].castShadow; m.receiveShadow = true; group.add(m);

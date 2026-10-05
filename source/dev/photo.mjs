@@ -19,13 +19,14 @@ await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '',
 await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
 await page.goto('http://127.0.0.1:8088/index.html?' + (process.env.Q || '') + '#carte=' + id);
 await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
-await page.waitForFunction(() => ['on', 'failed', 'off'].includes(SP.PHOTO.state) && (SP.PHOTO.state !== 'off' || /nophoto/.test(location.search) || SP.settings.quality < 1), null, { timeout: 120000 });
+await page.waitForFunction(() => ['on', 'failed', 'off'].includes(SP.PHOTO.state) && (SP.PHOTO.state !== 'off' || /nophoto/.test(location.search) || SP.settings.quality < 1), null, { timeout: 400000, polling: 1000 }); // rendu logiciel : jusqu'à 2 min et plus
 await page.waitForTimeout(1500);
 const ph = await page.evaluate(() => ({ ...SP.PHOTO, aoPass: !!SP.R.ao, want: Object.keys(SP.PHOTO_SETS[SP.MAP_ID()] || {}) }));
 console.log('PHOTO', JSON.stringify(ph));
 if (!/nophoto/.test(process.env.Q || '')) {
   if (ph.state !== 'on') errors.push(`[photo] état ${ph.state} ${ph.err || ''}`);
-  const missing = ph.want.filter((k) => !(ph.done || []).includes(k)); if (missing.length) errors.push('[photo] matières sans photo : ' + missing.join(', '));
+  // (familles d'objets absentes de la carte : rien à poser)
+  const missing = ph.want.filter((k) => !(ph.done || []).includes(k) && !(ph.absent || []).includes(k)); if (missing.length) errors.push('[photo] matières sans photo : ' + missing.join(', '));
   if (!!ph.lite !== (q === 0)) errors.push(`[photo] version allégée ${ph.lite} en qualité ${q}`);
 }
 if (process.env.CHECK) { console.log('ERRORS', errors.length); for (const e of errors.slice(0, 10)) console.log(e); await browser.close(); process.exit(0); }

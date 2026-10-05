@@ -3,15 +3,18 @@
 function penDecor() {
   const X = PEN.X, k = kitMats(), L = R.lights;
   rng = mulberry32(1934);
-  const steel = k.steel, dark = KIT.m(0x2a2c2e, { rough: 0.6, metal: 0.5 }), sheet = KIT.m(0xe6e2d8, { rough: 1 }), rust = MATS.rust;
+  // Familles photo (OBJ_FAM) : acier des lits et étagères, fer noir (coursives, bittes, ferrures), toile des matelas et draps,
+  // laine grise des couvertures, porcelaine des cellules, tôle peinte du bouclier, cuir des sangles.
+  const steel = k.steel, dark = fmat('fonte', 0x2a2c2e, { rough: 0.6, metal: 0.5 }), sheet = fmat('toile', 0xe6e2d8, { rough: 1 }), rust = MATS.rust;
+  const wool = fmat('tissu', 0x6a6a64, { rough: 1 }), china = fmat('email', 0xe8e8e2, { rough: 0.3 }), plate = fmat('tole', 0x6a6e70, { rough: 0.4, metal: 0.8 }), strap = fmat('cuir', 0x5a3a22, { rough: 0.8 });
 
   /* ── Bloc cellulaire : mobilier des cellules, coursives, lampes ── */
   const cellFurn = (x, z, face) => { // face : +1 = cellule au nord (on regarde vers le sud), -1 = au sud
     const g = KIT.g(x, z, face > 0 ? 0 : Math.PI);
-    KIT.b(g, -0.62, 0.42, 0, 0.7, 0.06, 1.8, steel); KIT.b(g, -0.62, 0.5, 0, 0.66, 0.1, 1.7, sheet); // couchette
+    KIT.b(g, -0.62, 0.42, 0, 0.7, 0.06, 1.8, steel); KIT.b(g, -0.62, 0.5, 0, 0.66, 0.1, 1.7, sheet); KIT.b(g, -0.62, 0.565, 0.2, 0.68, 0.03, 1.25, wool); // couchette de fer, matelas de toile, couverture de laine grise
     for (const [a, b] of [[-0.95, -0.85], [-0.3, -0.85], [-0.95, 0.85], [-0.3, 0.85]]) KIT.b(g, a, 0.21, b, 0.04, 0.42, 0.04, steel);
-    KIT.c(g, 0.62, 0.2, -0.72, 0.17, 0.14, 0.4, KIT.m(0xe8e8e2, { rough: 0.3 }), 10); // cuvette
-    KIT.b(g, 0.7, 0.85, -0.2, 0.34, 0.1, 0.3, KIT.m(0xe8e8e2, { rough: 0.3 })); // lavabo
+    KIT.c(g, 0.62, 0.2, -0.72, 0.17, 0.14, 0.4, china, 10); // cuvette
+    KIT.b(g, 0.7, 0.85, -0.2, 0.34, 0.1, 0.3, china); // lavabo
     KIT.b(g, 0.55, 1.6, -0.86, 0.8, 0.04, 0.2, k.wood); for (let i = 0; i < 4; i++) KIT.b(g, 0.3 + i * 0.12, 1.72, -0.86, 0.08, 0.22, 0.16, KIT.m([0x7a2a22, 0x2a4a6a, 0x5a5a3a, 0x3a2a4a][i]), 0, false);
   };
   const CZ = { n: 9, s: 13 };

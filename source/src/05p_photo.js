@@ -9,6 +9,26 @@ const PHOTO = { state: 'off', ms: 0, bytes: 0, files: 0, err: '' };
 // Cartes de plain-pied (ft) : la clé est la texture dessinée de la carte (FLAT_TEX), remplacée partout où elle sert,
 // à la même échelle (FLAT_SCALE) et avec la même teinte ; detail : on garde le motif dessiné (papier peint, peinture
 // des cellules) et on ne prend à la photo que son relief et sa rugosité.
+// Objets (familles OBJ_FAM de 05b_flat.js) : photos communes aux quatre cartes, dans assets/objets/ ; une famille absente
+// de la carte n'est pas téléchargée. neutral : la photo donne la couleur, l'objet garde sa clarté (bois, cuir) ;
+// nomap : en mode detail, la couleur unie du jeu sans la salissure dessinée (émail, porcelaine) ; gloss : brillant gardé.
+const OBJ_PHOTO = {
+  tissu: { ft: 1, set: 'objets/laine', tm: 0.4 }, // tweed d'ameublement (photo grise : la teinte du jeu reste)
+  velours: { ft: 1, set: 'objets/velours', detail: true, ns: 0.8 },
+  toile: { ft: 1, set: 'objets/lin', tm: 0.4 },
+  cuir: { ft: 1, set: 'objets/cuir', neutral: true, tint: [1.25, 1.2, 1.15] }, // cuir sombre : un peu relevé dans les cartes de nuit
+  skai: { ft: 1, set: 'objets/skai', detail: true, gloss: true, ns: 0.8 }, // sellerie auto des années 50 : le grain seul
+  boisPeint: { ft: 1, set: 'objets/boispeint', grain: 'v' },
+  boisBrut: { ft: 1, set: 'objets/caisse', grain: 'v', neutral: true },
+  email: { ft: 1, set: 'objets/emaille', detail: true, nomap: true, gloss: true, ns: 0.3 },
+  tole: { ft: 1, set: 'objets/peinture', gloss: true, ns: 0.5 },
+  acier: { ft: 1, set: 'objets/acier', neutral: true, tint: [0.62, 0.66, 0.86] }, // photo ocre ramenée au gris acier
+  galva: { ft: 1, set: 'objets/galva', neutral: true },
+  fonte: { ft: 1, set: 'objets/rouille', detail: true, ns: 0.6 }, // fonte presque noire : relief et rugosité seuls
+  rouille: { ft: 1, set: 'objets/rouille', tm: 2.5, neutral: true },
+  olive: { ft: 1, set: 'objets/olive' },
+  ecorce: { ft: 1, set: 'objets/ecorce', neutral: true },
+};
 const PHOTO_SETS = {
   poste7: {
     earth: { set: 'mudwall', uv: [2.2, 2.2] },
@@ -22,6 +42,8 @@ const PHOTO_SETS = {
     metal: { set: 'tin', uv: [2, 1.8] },
     floor: { blend: ['snow', 'mudfloor'], uv: [3, 3] },
     snow: { blend: ['snow', 'mudfloor'], uv: [4, 4] },
+    ...OBJ_PHOTO,
+    ecorce: { ft: 1, set: 'objets/ecorce', detail: true, ns: 1.2 }, // arbres calcinés : charbon du jeu gardé, crevasses de la photo
   },
   cite: {
     asphalt: { ft: 1, set: 'asphalt' }, sidewalk: { ft: 1, set: 'sidewalk' }, sand: { ft: 1, set: 'desert', tint: [0.98, 0.84, 0.68] }, // lac asséché ocre, pas une croûte de sel
@@ -30,16 +52,23 @@ const PHOTO_SETS = {
     shingle: { ft: 1, set: 'shingle' }, brick: { ft: 1, set: 'brick' }, plaster: { ft: 1, set: 'plaster' }, parquet: { ft: 1, set: 'parquet' },
     checker: { ft: 1, set: 'checker' }, slab: { ft: 1, set: 'garage' }, tileWall: { ft: 1, set: 'tiles' }, concrete: { ft: 1, set: 'concrete' },
     planks: { ft: 1, set: 'wood' }, rock: { ft: 1, set: 'rock' }, wallpaper: { ft: 1, set: 'paper', detail: true, ns: 0.6 },
+    ...OBJ_PHOTO,
+    meuble: { ft: 1, set: 'objets/teck', grain: 'u', neutral: true }, // teck du mobilier américain et scandinave des années 50
+    acier: { ft: 1, set: 'objets/acier', detail: true }, // étagères et coffres neufs : rugosité seule sur la couleur du jeu
   },
   penitencier: {
     stone: { ft: 1, set: 'stone' }, rock: { ft: 1, set: 'rock' }, slab: { ft: 1, set: 'floor' }, tileWall: { ft: 1, set: 'tiles' },
     planks: { ft: 1, set: 'pier' }, westPlank: { ft: 1, set: 'panel' }, parquet: { ft: 1, set: 'parquet' }, plaster: { ft: 1, set: 'plaster' },
     cellPaint: { ft: 1, set: 'paint', detail: true, ns: 1.2 }, concrete: { ft: 1, set: 'concrete' },
+    ...OBJ_PHOTO,
+    meuble: { ft: 1, set: 'objets/chene', grain: 'v', neutral: true, tint: [1.05, 0.95, 0.8] }, // chêne doré du mobilier d'institution
   },
   filon: {
     westPlank: { ft: 1, set: 'boards' }, dirt: { ft: 1, set: 'dirt' }, rock: { ft: 1, set: 'rock' }, planks: { ft: 1, set: 'walk' },
     parquet: { ft: 1, set: 'floor' }, brick: { ft: 1, set: 'brick' }, plaster: { ft: 1, set: 'plaster' }, checker: { ft: 1, set: 'checker' },
     shingle: { ft: 1, set: 'shingle' }, stone: { ft: 1, set: 'stone' }, victorian: { ft: 1, set: 'paper', detail: true, ns: 0.6 },
+    ...OBJ_PHOTO,
+    meuble: { ft: 1, set: 'objets/noyer', grain: 'u', neutral: true, tint: [1.05, 0.9, 0.8] }, // noyer du saloon et de la banque
   },
 };
 
@@ -70,6 +99,14 @@ async function photoStart() {
   PHOTO.state = 'loading'; const t0 = performance.now(), base = `assets/${MAP_ID}/`;
   try {
     const man = await (await fetch(base + 'manifest.json', { cache: 'force-cache' })).json();
+    // Objets : photos communes aux quatre cartes (assets/objets/), chargées seulement pour les familles présentes ici.
+    const present = new Set(); R.scene.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) if (m.userData.ftex) present.add(m.userData.ftex); });
+    const spec = PHOTO_SETS[MAP_ID]; PHOTO.absent = Object.keys(spec).filter((k) => spec[k].ft && !present.has(k));
+    const objSets = new Set(Object.entries(spec).filter(([k, s]) => s.ft && present.has(k) && s.set.startsWith('objets/')).map(([, s]) => s.set.slice(7)));
+    if (objSets.size) {
+      const mo = await (await fetch('assets/objets/manifest.json', { cache: 'force-cache' })).json();
+      for (const k of objSets) if (mo[k]) man['objets/' + k] = { ...mo[k], dir: 'assets/objets/', file: k };
+    }
     const aniso = Math.min(8, R.renderer.capabilities.getMaxAnisotropy());
     // Décodage des JPEG hors du fil principal (createImageBitmap) ; Safari, qui ignore le retournement demandé, garde le chargeur classique.
     const safari = /Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg/.test(navigator.userAgent);
@@ -79,7 +116,7 @@ async function photoStart() {
     const tex = {}, jobs = [], lite = Q.texSize < 512 || /photolite/.test(location.search); PHOTO.lite = lite;
     for (const [key, e] of Object.entries(man)) {
       if (key === 'env') continue;
-      for (const m of e.maps) jobs.push(load(`${base}${key}_${m}${lite && e.s ? '_s' : ''}.jpg`).then((t) => {
+      for (const m of e.maps) jobs.push(load(`${e.dir || base}${e.file || key}_${m}${lite && e.s ? '_s' : ''}.jpg`).then((t) => {
         t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = aniso; t.colorSpace = m === 'c' ? THREE.SRGBColorSpace : THREE.NoColorSpace;
         (tex[key] ||= {})[m] = t; PHOTO.files++;
       }));
@@ -163,14 +200,27 @@ async function photoFlat(key, s, man, tex) {
   R.scene.traverse((o) => { if (o.material) for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.userData.ftex === key) mats.add(m); });
   if (!mats.size) return false; // texture absente de la carte : erreur de PHOTO_SETS (signalée par dev/photo.mjs)
   await photoFrame();
-  const r = (FLAT_SCALE[key] || 2) / (s.tm || e.m);
+  const r = (OBJ_FAM[key]?.[1] || FLAT_SCALE[key] || 2) / (s.tm || e.m);
   const map = !s.detail && t.c ? photoTex(t.c, r, r, s.rot) : null, nrm = t.n ? photoTex(t.n, r, r, s.rot) : null, rgh = t.r ? photoTex(t.r, r, r, s.rot) : null;
   const first = [...mats].find((m) => m.map?.image), old = first ? texLum(first.map.image) : e.lum, k = clamp(old / Math.max(1e-4, e.lum), 0.45, 2.4);
+  const lum = (c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  if (s.neutral && map) { // la teinte du jeu perd sa couleur (la photo la donne) et garde sa clarté, sommets compris
+    R.scene.traverse((o) => {
+      const c = o.geometry?.attributes.color; if (!c || !o.material?.vertexColors || !mats.has(o.material) || o.geometry.userData.neutral) return;
+      o.geometry.userData.neutral = 1;
+      for (let i = 0; i < c.count; i++) { const l = 0.2126 * c.getX(i) + 0.7152 * c.getY(i) + 0.0722 * c.getZ(i); c.setXYZ(i, l, l, l); }
+      c.needsUpdate = true;
+    });
+  }
   for (const m of mats) {
     if (m.userData.photoDone) continue; m.userData.photoDone = 1;
-    if (map) { m.map = map; m.color.multiplyScalar(k); if (s.tint) { m.color.r *= s.tint[0]; m.color.g *= s.tint[1]; m.color.b *= s.tint[2]; } }
+    if (s.neutral && map) { const l = lum(m.color); m.color.setRGB(l, l, l); }
+    if (s.nomap && !map && m.map?.image) { m.color.multiplyScalar(texLum(m.map.image)); m.map = null; } // couleur unie, même clarté moyenne
+    if (map) { m.map = map; m.color.multiplyScalar(k); }
+    if (s.tint && (map || s.nomap)) { m.color.r *= s.tint[0]; m.color.g *= s.tint[1]; m.color.b *= s.tint[2]; }
     if (nrm) { m.normalMap = nrm; m.normalScale.set(s.ns || 1, s.ns || 1); }
-    if (rgh) { m.roughnessMap = rgh; m.roughness = 1; }
+    // gloss (émail, laque, cuir ciré) : la rugosité de la matière reste la même en moyenne, la photo y met ses variations.
+    if (rgh) { m.roughnessMap = rgh; m.roughness = s.gloss ? clamp(m.roughness / (e.rm || 0.6), 0.02, 1) : 1; }
     m.needsUpdate = true;
   }
   return true;
