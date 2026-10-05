@@ -17,6 +17,8 @@ await page.goto('http://127.0.0.1:8088/index.html?' + (process.env.Q || '') + '#
 await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
 await page.evaluate(() => document.querySelector('#soloButton').click());
 await page.waitForFunction(() => ['on', 'failed'].includes(SP.Sfx.bankInfo.state) || /nosamples/.test(location.search), null, { timeout: 60000 });
+// Les textures photo (chargées même en « bas » depuis la 5.0) occupent le fil principal en arrivant : on mesure après.
+await page.waitForFunction(() => SP.PHOTO.state !== 'loading', null, { timeout: 120000 });
 const ev = (f, a) => page.evaluate(f, a);
 const check = (ok, msg) => { if (!ok) errors.push('[volumes] ' + msg); };
 
