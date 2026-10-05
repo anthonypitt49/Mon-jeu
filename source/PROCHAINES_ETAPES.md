@@ -4,6 +4,8 @@ Note de passation entre sessions de travail : où en est le projet et ce qui vie
 
 ## Fait (version 5.0) : les trois autres cartes en textures photo
 
+Mise en ligne le 5 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu avec salon co-op, republié avec `assets/cite/`, `assets/penitencier/`, `assets/filon/` et les versions allégées du Poste 7 (311 fichiers ; une publication en accepte 255 au plus, une version 511).
+
 Demande du propriétaire : « fais les textures photo des trois autres cartes, assure-toi que tout fasse du sens et inspire-toi des meilleurs jeux ». Repères : Nuketown (Cité Atomique), Mob of the Dead (Pénitencier), Buried (Filon Maudit) ; dans ces cartes, la matière dit l'époque et le lieu avant les objets. Règle suivie : chaque photo doit être plausible pour l'année de la carte (Cité 1957, Pénitencier 1933, Filon 1880).
 
 - **Méthode des cartes de plain-pied** (`ft` dans `PHOTO_SETS`) : les trois cartes peignent leurs murs et leurs sols avec les textures dessinées de `05b_flat.js` (`fmat`, `FLAT_TEX`, `FLAT_SCALE`). La photo remplace une texture dessinée partout où elle sert (`userData.ftex`, posé par `fmat`), à la même échelle (mètres par unité de texture) et avec la même teinte ; la luminosité moyenne est gardée (l'éclairage des cartes a été réglé pour les textures dessinées), à un facteur 0,45–2,4 près. `tint` corrige une photo dont la couleur ne colle pas ; `detail` garde le motif dessiné et ne prend à la photo que son relief et sa rugosité.
