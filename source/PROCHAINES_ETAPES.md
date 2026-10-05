@@ -4,6 +4,8 @@ Note de passation entre sessions de travail : où en est le projet et ce qui vie
 
 ## Fait (version 4.9) : armes en main réalistes
 
+Mise en ligne le 4 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu avec salon co-op. Tests avant mise en ligne : `feat.mjs`, `mapplay` sur les quatre cartes, `touch.mjs`, `sounds.mjs`, `volumes.mjs`, `coop.mjs`, `coopmap.mjs` (erreurs MQTT du conteneur seulement), changement d'arme sans reconstruction. `volumes.mjs` a échoué une fois de justesse sur un son de fond du canal « reste » pendant la mesure du tir (0,0236 pour un fond à 0,0192, marge de 20 %) ; relancé, il passe.
+
 Demande du propriétaire : « prochaine étape réalisme ». Captures à l'appui, les armes en main (boîtes et cylindres sombres, mains en pavés) étaient l'écart le plus visible, à l'écran en permanence sur les quatre cartes ; le propriétaire a choisi de commencer par là.
 
 - **`src/08b_gunmodels.js`** (nouveau) : armes d'époque aux cotes réelles, dessinées en code. Atelier `gunKit` : pièces taillées dans un profil de côté extrudé aux arêtes arrondies (`pr`, `bx`, `curve` pour le chargeur cintré), pièces tournées autour de l'axe du canon (`lt`, `cy`), arcs (pontets), anneaux, cylindres verticaux. Les pièces fixes sont fusionnées par matière (`gunMerge`, y compris les mains) : 3 à 11 appels de dessin par arme, ≈ 8 000 triangles avec les mains.
