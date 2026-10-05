@@ -11,6 +11,16 @@ const PERKS = {
   cherry: { name: 'DÉCHARGE', short: 'DC', color: '#ff5a9a', cost: 2000, desc: 'Recharger libère une décharge électrique autour de vous', notes: [12, 7, 12, 7, 15, 12, 19, 24], base: 330 },
 };
 
+// Bois des objets (établi, tables, couchettes, râtelier, poteaux indicateurs, brancard, touret, téléphone, hélice) :
+// bois brut scié photographié (famille boisBrut, 05b_flat.js), UV en mètres. Planches : clarté de MATS.planks (blanc) ;
+// montants et poteaux : celle de MATS.post. Les charpentes (tours des projecteurs, poteaux télégraphiques, chevaux de
+// frise, poteau du mur de tranchée) gardent MATS.planks / MATS.post, les planches de tranchée photographiées de la carte.
+const rawWood = () => fmat('boisBrut', 0xffffff, { rough: 0.88, snow: 1 });
+const rawPost = () => fmat('boisBrut', 0x8a7a68, { rough: 0.9, snow: 1 });
+// Peinture des machines communes (moteur de l'établi, générateur) : vert olive militaire en 1917, 1933 et 1957.
+// Au Filon de 1880, la peinture militaire n'existe pas encore : fonte noire (même matière que la fonte de la trousse).
+const machinePaint = () => (MAP_ID === 'filon' ? fmat('fonte', 0x232325, { rough: 0.6, metal: 0.5 }) : MATS.olive);
+
 function buildInteractables() {
   // Machines d'atouts : armoires de campagne avec enseigne lumineuse.
   for (const s of SPOTS.perks) {
@@ -18,7 +28,8 @@ function buildInteractables() {
     g.position.set(w.x, 0, w.z); g.rotation.y = w.yaw; R.scene.add(g);
     if (M.perkDrop) g.userData.dynamic = true; // machines parachutées : elles bougent, on ne les fond pas dans le décor
     const col = new THREE.Color(P.color);
-    const body = stdMat({ color: col.clone().multiplyScalar(0.35), roughness: 0.5, metalness: 0.55, map: TEX.grime.map, normalMap: TEX.grime.normalMap }, 0.5);
+    // Caisson en tôle peinte de la couleur de l'atout (famille tole : la photo garde la teinte, code couleur intact).
+    const body = fmat('tole', col.clone().multiplyScalar(0.35).getHex(), { rough: 0.5, metal: 0.55, snow: 0.5 });
     mesh(boxG(0.92, 1.85, 0.66), body, 0, 0.925, 0, 0, g);
     mesh(boxG(0.98, 0.08, 0.72), MATS.iron, 0, 1.89, 0, 0, g);
     mesh(boxG(0.98, 0.12, 0.72), MATS.iron, 0, 0.06, 0, 0, g);
@@ -60,13 +71,13 @@ function buildInteractables() {
   });
   // Établi d'armurier.
   { const s = SPOTS.bench, w = wallSpot(s, 0.5), g = new THREE.Group(); g.userData.dynamic = true; g.position.set(w.x, 0, w.z); g.rotation.y = w.yaw; R.scene.add(g);
-    mesh(boxG(1.9, 0.1, 0.9), MATS.planks, 0, 0.9, 0, 0, g);
-    for (const [a, b] of [[-0.85, -0.38], [0.85, -0.38], [-0.85, 0.38], [0.85, 0.38]]) mesh(boxG(0.1, 0.9, 0.1), MATS.post, a, 0.45, b, 0, g);
-    mesh(boxG(1.8, 0.06, 0.8), MATS.planks, 0, 0.25, 0, 0, g);
+    mesh(boxG(1.9, 0.1, 0.9), rawWood(), 0, 0.9, 0, 0, g);
+    for (const [a, b] of [[-0.85, -0.38], [0.85, -0.38], [-0.85, 0.38], [0.85, 0.38]]) mesh(boxG(0.1, 0.9, 0.1), rawPost(), a, 0.45, b, 0, g);
+    mesh(boxG(1.8, 0.06, 0.8), rawWood(), 0, 0.25, 0, 0, g);
     mesh(boxG(0.3, 0.22, 0.2), MATS.iron, -0.6, 1.06, 0.2, 0, g); // étau
     const wheel = mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.06, 24), stdMat({ color: 0x6b6258, roughness: 0.95, map: TEX.concrete.map }), 0.55, 1.28, -0.1, 0, g); wheel.rotation.x = Math.PI / 2;
-    mesh(boxG(0.2, 0.3, 0.2), MATS.olive, 0.55, 1.03, -0.1, 0, g);
-    const tank = mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.3, 16), MATS.olive, -0.2, 1.6, -0.3, 0, g);
+    mesh(boxG(0.2, 0.3, 0.2), machinePaint(), 0.55, 1.03, -0.1, 0, g);
+    const tank = mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.3, 16), machinePaint(), -0.2, 1.6, -0.3, 0, g);
     const coilMat = new THREE.MeshStandardMaterial({ color: 0x3aa8ff, emissive: 0x3ab8ff, emissiveIntensity: 0.02, roughness: 0.3 });
     for (let k = 0; k < 5; k++) { const c = mesh(new THREE.TorusGeometry(0.24, 0.018, 6, 24), coilMat, -0.2, 1.1 + k * 0.22, -0.3, 0, g, false); c.rotation.x = Math.PI / 2; }
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.4), new THREE.MeshStandardMaterial({ map: woodSign(['ÉTABLI D\'ARMURIER', 'AMÉLIORATION · 5000'], { w: 512, h: 190 }), roughness: 0.9 }));
@@ -80,7 +91,8 @@ function buildInteractables() {
   }
   // Tableau électrique et générateur.
   { const s = SPOTS.power, w = wallSpot(s, 0.12), g = new THREE.Group(); g.userData.dynamic = true; g.position.set(w.x, 0, w.z); g.rotation.y = w.yaw; R.scene.add(g);
-    mesh(boxG(1.0, 1.3, 0.2), MATS.olive, 0, 1.35, 0, 0, g);
+    // Armoire en tôle vert olive ; au Filon de 1880, coffret de noyer verni (tableaux de l'époque : bois et ardoise).
+    mesh(boxG(1.0, 1.3, 0.2), MAP_ID === 'filon' ? fmat('meuble', 0x4e3526) : MATS.olive, 0, 1.35, 0, 0, g);
     const warn = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.3), new THREE.MeshStandardMaterial({ map: woodSign(['COURANT', 'GÉNÉRATEUR'], { w: 512, h: 170, bg: '#b8871c', color: '#1a1408' }), roughness: 0.7 }));
     warn.position.set(0, 2.15, 0.11); g.add(warn);
     for (let k = 0; k < 3; k++) { const gauge = mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.04, 20), stdMat({ color: 0xe8e2cf, roughness: 0.4 }), -0.3 + k * 0.3, 1.72, 0.11, 0, g, false); gauge.rotation.x = Math.PI / 2; }
@@ -94,8 +106,8 @@ function buildInteractables() {
   }
   if (SPOTS.generator) { const gx = SPOTS.generator.x, gz = SPOTS.generator.z, g = new THREE.Group(); g.userData.dynamic = true; g.position.set(gx, 0, gz); g.rotation.y = SPOTS.generator.ry || 0; R.scene.add(g);
     mesh(boxG(2.6, 0.25, 1.3), MATS.iron, 0, 0.13, 0, 0, g);
-    mesh(boxG(1.7, 1.0, 1.0), MATS.olive, -0.25, 0.75, 0, 0, g);
-    for (let k = 0; k < 4; k++) { mesh(boxG(0.3, 0.35, 0.34), MATS.olive, -0.85 + k * 0.4, 1.4, 0, 0, g); mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8), MATS.brass, -0.85 + k * 0.4, 1.72, 0.08, 0, g); }
+    mesh(boxG(1.7, 1.0, 1.0), machinePaint(), -0.25, 0.75, 0, 0, g);
+    for (let k = 0; k < 4; k++) { mesh(boxG(0.3, 0.35, 0.34), machinePaint(), -0.85 + k * 0.4, 1.4, 0, 0, g); mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8), MATS.brass, -0.85 + k * 0.4, 1.72, 0.08, 0, g); }
     const fly = mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.14, 28), MATS.iron, 0.95, 0.75, 0, 0, g); fly.rotation.z = Math.PI / 2;
     for (let k = 0; k < 4; k++) { const sp = mesh(boxG(0.03, 1.0, 0.06), MATS.rust, 0, 0, 0, 0, fly); sp.rotation.y = (k / 4) * Math.PI; }
     const pipe = mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.9, 10), MATS.rust, -1.0, 1.9, -0.35, 0, g);
@@ -116,7 +128,7 @@ function barrel(x, z, mat = MATS.olive, tipped = false) {
 }
 function poster(x, y, z, ry, title, sub, tone) { const p = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.7), new THREE.MeshStandardMaterial({ map: posterTexture(title, sub, tone), roughness: 0.95 })); p.position.set(x, y, z); p.rotation.y = ry; p.rotation.z = rand(-0.04, 0.04); R.scene.add(p); }
 function signPost(x, z, ry, lines) {
-  mesh(boxG(0.1, 2.0, 0.1), MATS.post, x, 1.0, z, ry);
+  mesh(boxG(0.1, 2.0, 0.1), rawPost(), x, 1.0, z, ry);
   const s = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.4), new THREE.MeshStandardMaterial({ map: woodSign(lines, { w: 512, h: 190 }), roughness: 0.9, side: THREE.DoubleSide }));
   s.position.set(x, 1.75, z); s.rotation.y = ry; s.rotation.z = rand(-0.06, 0.06); s.castShadow = true; R.scene.add(s);
 }
@@ -129,8 +141,9 @@ function hangingLamp(x, y, z, bulbMat, parent = R.scene) {
   glow.scale.set(0.9, 0.9, 1); glow.position.y = -0.06; g.add(glow);
   return { g, bulb: b, glow };
 }
+// Brasero : seau de tôle percé, rouillé et noirci par le feu (famille rouille ; ce n'est pas de la tôle ondulée).
 function brazier(x, z) {
-  const d = mesh(new THREE.CylinderGeometry(0.3, 0.27, 0.8, 16, 1, true), stdMat({ color: 0x3a2a20, roughness: 0.8, metalness: 0.4, side: THREE.DoubleSide, map: TEX.metal.map }), x, 0.4, z);
+  const d = mesh(new THREE.CylinderGeometry(0.3, 0.27, 0.8, 16, 1, true), fmat('rouille', 0x3a2a20, { rough: 0.8, metal: 0.4, side: THREE.DoubleSide }), x, 0.4, z);
   collider(x - 0.32, z - 0.32, x + 0.32, z + 0.32, 0.9, 'metal');
   const coals = mesh(new THREE.CircleGeometry(0.28, 16), new THREE.MeshBasicMaterial({ color: 0xff5a1a }), x, 0.72, z, 0, R.scene, false); coals.rotation.x = -Math.PI / 2;
   WORLD.fires.push({ x, y: 0.8, z, size: 0.55, rate: 0.05, t: 0, smoke: 0.25, light: R.lights.brazier });
@@ -144,9 +157,9 @@ function buildProps() {
   crate(60.6, 15.2, -0.15); barrel(62, 15.5, MATS.rust); barrel(62.3, 14.8, MATS.olive, true);
   // Banquette de tir et mitrailleuse en alvéole 2.
   // (banquette interrompue devant la barricade de l'alvéole : les infectés doivent pouvoir descendre)
-  mesh(boxG(3.5, 0.45, 0.7), MATS.planks, 50.05, 0.225, 8.35); collider(48.3, 8, 51.8, 8.7, 0.45, 'wood');
-  mesh(boxG(3.5, 0.45, 0.7), MATS.planks, 55.95, 0.225, 8.35); collider(54.2, 8, 57.7, 8.7, 0.45, 'wood');
-  mesh(boxG(3.6, 0.45, 0.7), MATS.planks, 29.8, 0.225, 8.35); collider(28.0, 8, 31.6, 8.7, 0.45, 'wood'); // dégagé de la sortie de la barricade voisine
+  mesh(boxG(3.5, 0.45, 0.7), rawWood(), 50.05, 0.225, 8.35); collider(48.3, 8, 51.8, 8.7, 0.45, 'wood');
+  mesh(boxG(3.5, 0.45, 0.7), rawWood(), 55.95, 0.225, 8.35); collider(54.2, 8, 57.7, 8.7, 0.45, 'wood');
+  mesh(boxG(3.6, 0.45, 0.7), rawWood(), 29.8, 0.225, 8.35); collider(28.0, 8, 31.6, 8.7, 0.45, 'wood'); // dégagé de la sortie de la barricade voisine
   { const g = new THREE.Group(); g.position.set(56.7, 0.45, 8.4); R.scene.add(g);
     for (const a of [0, 2.1, 4.2]) { const leg = mesh(boxG(0.04, 0.9, 0.04), MATS.iron, Math.sin(a) * 0.25, 0.4, Math.cos(a) * 0.25, 0, g); leg.rotation.x = Math.cos(a) * 0.4; leg.rotation.z = -Math.sin(a) * 0.4; }
     const gun = new THREE.Group(); gun.position.set(0, 0.95, 0); gun.rotation.set(0.08, 0.1, 0); g.add(gun);
@@ -157,8 +170,8 @@ function buildProps() {
   // Périscope, râtelier, casques et caisses de munitions.
   mesh(boxG(0.14, 1.2, 0.1), MATS.olive, 40, 2.1, 12.1);
   { const rack = new THREE.Group(); rack.position.set(35, 0, 15.75); R.scene.add(rack);
-    mesh(boxG(1.4, 0.08, 0.2), MATS.post, 0, 0.3, 0, 0, rack); mesh(boxG(1.4, 0.08, 0.2), MATS.post, 0, 1.2, 0, 0, rack);
-    for (let k = 0; k < 4; k++) { const r = mesh(boxG(0.05, 1.2, 0.07), MATS.post, -0.5 + k * 0.33, 0.75, -0.08, 0, rack); r.rotation.z = rand(-0.08, 0.08); } }
+    mesh(boxG(1.4, 0.08, 0.2), rawPost(), 0, 0.3, 0, 0, rack); mesh(boxG(1.4, 0.08, 0.2), rawPost(), 0, 1.2, 0, 0, rack);
+    for (let k = 0; k < 4; k++) { const r = mesh(boxG(0.05, 1.2, 0.07), rawPost(), -0.5 + k * 0.33, 0.75, -0.08, 0, rack); r.rotation.z = rand(-0.08, 0.08); } }
   for (const [x, z] of [[20, 12.4], [37, 15.6], [57, 13], [48, 15.6]]) { const h = mesh(new THREE.SphereGeometry(0.17, 12, 8, 0, TAU, 0, Math.PI / 2), MATS.olive, x, 0.03, z, rand(TAU)); h.rotation.x = rand(-0.4, 0.4); }
   for (const [x, z] of [[31, 15.6], [33, 15.5], [66, 12.6]]) mesh(boxG(0.4, 0.22, 0.2), MATS.olive, x, 0.11, z, rand(-0.3, 0.3));
   signPost(22.4, 15.3, 0, ['← POSTE DE CDT', 'NE PAS STATIONNER']);
@@ -171,8 +184,8 @@ function buildProps() {
 
   // ── Zone B : poste de commandement ──
   { const t = new THREE.Group(); t.position.set(19, 0, 31.2); R.scene.add(t);
-    mesh(boxG(2.4, 0.08, 1.3), MATS.planks, 0, 0.88, 0, 0, t);
-    for (const [a, b] of [[-1.1, -0.55], [1.1, -0.55], [-1.1, 0.55], [1.1, 0.55]]) mesh(boxG(0.08, 0.86, 0.08), MATS.post, a, 0.43, b, 0, t);
+    mesh(boxG(2.4, 0.08, 1.3), rawWood(), 0, 0.88, 0, 0, t);
+    for (const [a, b] of [[-1.1, -0.55], [1.1, -0.55], [-1.1, 0.55], [1.1, 0.55]]) mesh(boxG(0.08, 0.86, 0.08), rawPost(), a, 0.43, b, 0, t);
     const map = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.2), new THREE.MeshStandardMaterial({ map: tableMapTexture(), roughness: 0.95 })); map.rotation.x = -Math.PI / 2; map.position.y = 0.925; map.rotation.z = 0.04; t.add(map);
     mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.12, 10), MATS.brass, 0.7, 0.99, 0.3, 0, t);
     colliderBox(19, 31.2, 2.4, 1.3, 0, 0.95, 'wood'); }
@@ -180,14 +193,15 @@ function buildProps() {
   WORLD.bunkerLamp2 = hangingLamp(22.6, 2.2, 35.4, MATS.bulbRed);
   WORLD.powerLamps.push(WORLD.bunkerLamp, WORLD.bunkerLamp2);
   { const d = new THREE.Group(); d.position.set(11.1, 0, 28.6); d.rotation.y = Math.PI / 2; R.scene.add(d);
-    mesh(boxG(1.4, 0.06, 0.65), MATS.planks, 0, 0.78, 0, 0, d); mesh(boxG(1.3, 0.76, 0.6), MATS.post, 0, 0.38, 0, 0, d);
+    mesh(boxG(1.4, 0.06, 0.65), rawWood(), 0, 0.78, 0, 0, d); mesh(boxG(1.3, 0.76, 0.6), rawPost(), 0, 0.38, 0, 0, d);
     mesh(boxG(0.7, 0.42, 0.4), MATS.olive, -0.2, 1.02, 0, 0, d);
     for (let k = 0; k < 4; k++) { const b = mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.02, 8), new THREE.MeshBasicMaterial({ color: k % 2 ? 0x55ff66 : 0xffaa22 }), -0.45 + k * 0.1, 1.1, 0.21, 0, d, false); b.rotation.x = Math.PI / 2; b.userData.dynamic = true; WORLD.blink.push({ m: b, rate: 0.5 + k * 0.7 }); }
     colliderBox(11.1, 28.6, 0.65, 1.4, 0, 1.2, 'wood'); }
-  { // Couchettes
+  { // Couchettes : planches brutes et couvertures militaires en drap de laine (famille tissu, teinte de MATS.cloth)
     const b = new THREE.Group(); b.position.set(24.2, 0, 37.1); R.scene.add(b);
-    for (const y of [0.45, 1.35]) { mesh(boxG(2.0, 0.08, 0.85), MATS.planks, 0, y, 0, 0, b); mesh(boxG(1.9, 0.14, 0.78), MATS.cloth, 0, y + 0.1, 0, 0, b); }
-    for (const [a, c] of [[-0.98, -0.4], [0.98, -0.4], [-0.98, 0.4], [0.98, 0.4]]) mesh(boxG(0.08, 1.9, 0.08), MATS.post, a, 0.95, c, 0, b);
+    const blanket = fmat('tissu', 0x5d5a44, { rough: 0.95, snow: 0.9 });
+    for (const y of [0.45, 1.35]) { mesh(boxG(2.0, 0.08, 0.85), rawWood(), 0, y, 0, 0, b); mesh(boxG(1.9, 0.14, 0.78), blanket, 0, y + 0.1, 0, 0, b); }
+    for (const [a, c] of [[-0.98, -0.4], [0.98, -0.4], [-0.98, 0.4], [0.98, 0.4]]) mesh(boxG(0.08, 1.9, 0.08), rawPost(), a, 0.95, c, 0, b);
     collider(23.2, 36.65, 25.2, 38, 1.9, 'wood'); }
   { // Poêle et tuyau
     mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.7, 16), MATS.iron, 10.6, 0.35, 34.6); mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 10), MATS.iron, 10.6, 1.8, 34.6);
@@ -211,14 +225,14 @@ function buildProps() {
   WORLD.shedLamp = hangingLamp(13.5, 2.25, 52.5, MATS.bulbRed); WORLD.powerLamps.push(WORLD.shedLamp);
   barrel(17.2, 55.2, MATS.rust); barrel(17.8, 54.6, MATS.rust); barrel(11, 50.8); barrel(30.6, 44.8, MATS.olive, true);
   crate(28.2, 55.4, 0.1); crate(29, 55.3, -0.2, 0.9); crate(28.5, 55.4, 0.4, 0.8, 0.55);
-  { const reel = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.5, 18), MATS.planks, 28.5, 0.5, 49, 0); reel.rotation.x = Math.PI / 2; collider(28, 48.75, 29, 49.25, 1, 'wood'); }
+  { const reel = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.5, 18), rawWood(), 28.5, 0.5, 49, 0); reel.rotation.x = Math.PI / 2; collider(28, 48.75, 29, 49.25, 1, 'wood'); }
   signPost(28.8, 45, Math.PI, ['DÉPÔT', 'DANGER — HAUTE TENSION']);
 
   // ── Zone D : soutien est et sape ──
   WORLD.dugoutLamp = hangingLamp(68, 2.2, 38, MATS.bulbWarm);
   crate(60.6, 30, 0.2); crate(63.4, 44, -0.1); barrel(60.5, 36.5, MATS.olive);
   { const s = new THREE.Group(); s.position.set(63.3, 0, 31.9); R.scene.add(s);
-    for (const o of [-0.25, 0.25]) mesh(boxG(0.05, 0.05, 2.1), MATS.post, o, 0.3, 0, 0, s); mesh(boxG(0.5, 0.03, 1.8), MATS.cloth, 0, 0.33, 0, 0, s);
+    for (const o of [-0.25, 0.25]) mesh(boxG(0.05, 0.05, 2.1), rawPost(), o, 0.3, 0, 0, s); mesh(boxG(0.5, 0.03, 1.8), MATS.cloth, 0, 0.33, 0, 0, s);
     collider(63.0, 30.8, 63.6, 33.0, 0.4, 'wood'); }
   signPost(61, 26.6, 0, ['SOUTIEN EST', 'SAPE →']);
   poster(64.05, 1.5, 39, Math.PI / 2, 'VIGILANCE', 'LA NUIT\nNE DORT PAS', '#c2b089');
@@ -234,12 +248,14 @@ function buildOutside() {
     const y = surfH(x, z) - 0.2, h = srand(4, 11), r = srand(0.16, 0.34), lean = srand(-0.12, 0.12);
     const trunk = new THREE.CylinderGeometry(r * 0.35, r, h, 7, 4); trunk.translate(0, h / 2, 0);
     const pa = trunk.attributes.position; for (let i = 0; i < pa.count; i++) { const yy = pa.getY(i); pa.setX(i, pa.getX(i) + lean * yy + Math.sin(yy * 1.3 + k) * 0.08); }
-    const g = [trunk];
+    const g = [trunk]; let sy = 1;
     if (srng() > 0.25) for (let b = 0; b < 3 + (srng() * 4 | 0); b++) {
       const bl = srand(1, 3), br = r * 0.3, by = srand(h * 0.35, h * 0.9), ba = srand(TAU);
       const bg = new THREE.CylinderGeometry(br * 0.3, br, bl, 5); bg.translate(0, bl / 2, 0); bg.rotateZ(srand(0.6, 1.2)); bg.rotateY(ba); bg.translate(lean * by, by, 0); g.push(bg);
-    } else { trunk.scale(1, 0.4, 1); } // souche éclatée
-    const tree = mergeGeometries(g.map((q) => q.toNonIndexed()));
+    } else { trunk.scale(1, 0.4, 1); sy = 0.4; } // souche éclatée
+    // Écorce photographiée : UV en mètres posées pièce par pièce AVANT la fusion (qui perd les paramètres des cylindres) ;
+    // souche écrasée en hauteur (sy) ; chaque arbre et chaque branche lit la photo à un endroit différent.
+    const tree = mergeGeometries(g.map((q, i) => meterUV(q, MATS.bark, 1, i ? 1 : sy, 1, x + i * 3.1, z + i * 1.7).toNonIndexed()));
     tree.rotateY(srand(TAU)); tree.translate(x, y, z); parts.push(tree);
   }
   mesh(mergeGeometries(parts), MATS.bark, 0, 0, 0, 0, R.scene, true);

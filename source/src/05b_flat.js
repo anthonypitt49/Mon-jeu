@@ -124,7 +124,7 @@ const FLAT_SCALE = { brick: 1, siding: 2, plaster: 2, wallpaper: 1.2, victorian:
 // Familles d'objets : une clé par vraie matière (bois de meuble, tissu, émail, tôle peinte…), pour que chacune reçoive
 // sa propre photo (PHOTO_SETS) et ne soit pas fusionnée avec une autre. [texture dessinée de repli, mètres par unité d'UV]
 const OBJ_FAM = {
-  meuble: ['planks', 1], boisPeint: ['planks', 2], boisBrut: ['planks', 0.7], tissu: ['cloth', 0.6], velours: ['cloth', 0.6], cuir: ['cloth', 0.6],
+  meuble: ['planks', 1], boisPeint: ['grime', 2], /* peinture : repère de clarté clair, sinon la photo est assombrie */ boisBrut: ['planks', 0.7], tissu: ['cloth', 0.6], velours: ['cloth', 0.6], cuir: ['cloth', 0.6],
   skai: ['cloth', 0.6], toile: ['cloth', 1], email: ['grime', 2], tole: ['grime', 2], acier: ['grime', 2], galva: ['grime', 2], fonte: ['grime', 2],
   rouille: ['grime', 2], olive: ['grime', 2], ecorce: ['grime', 2],
 };
@@ -366,7 +366,7 @@ function flatDetails() {
   const tt = (x, z) => (inMap(x, z) ? MAP.type[ti(x, z)] : T_SOLID);
   const roofed = (x, z) => inMap(x, z) && MAP.roof[ti(x, z)] && tt(x, z) !== T_SOLID && tt(x, z) !== T_BLOCK;
   const solidK = (k) => k && !wallDef(k).see;
-  const fascia = fv(D.fascia || M.roofTex || 'concrete'), gutters = D.gutter ? new Batch(new THREE.CylinderGeometry(0.055, 0.055, 1, 8, 1, true), fmat('plain', D.gutter, { rough: 0.5, metal: 0.4 })) : null;
+  const fascia = fv(D.fascia || M.roofTex || 'concrete'), gutters = D.gutter ? new Batch(new THREE.CylinderGeometry(0.055, 0.055, 1, 8, 1, true), fmat('tole', D.gutter, { rough: 0.5, metal: 0.4 })) : null;
   const wallH = (K, ax, az, bx, bz) => Math.max(K.h || 3, roofed(ax, az) ? roomCeil(ax, az) + 0.35 : 0, roofed(bx, bz) ? roomCeil(bx, bz) + 0.35 : 0);
   // 1 et 2. Bords de toit : face de rive là où le toit s'arrête sans mur ; débord au-dessus des murs extérieurs.
   for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) {
@@ -459,7 +459,7 @@ function buildFences(bars, chains, pickets, rails, posts) {
     const m = q.build(false); if (m) m.renderOrder = 1; railB.build();
   }
   if (pickets.length) {
-    const bd = new Batch(boxG(0.09, 1, 0.025), fmat('plain', 0xf4f1e8)), rl = new Batch(boxG(1, 0.07, 0.03), fmat('plain', 0xeceae0));
+    const bd = new Batch(boxG(0.09, 1, 0.025), fmat('boisPeint', 0xf4f1e8)), rl = new Batch(boxG(1, 0.07, 0.03), fmat('boisPeint', 0xeceae0)); /* palissade peinte en blanc */
     for (const [X0, Z0, X1, Z1, K] of pickets) {
       const h = K.h || 1.1, alongX = Math.abs(X1 - X0) > 0.1;
       for (let k = 0; k < 13; k++) { const t = (k + 0.5) / 13; bd.add(lerp(X0, X1, t), h / 2, lerp(Z0, Z1, t), alongX ? 0 : Math.PI / 2, 0, 0, 1, h, 1); }

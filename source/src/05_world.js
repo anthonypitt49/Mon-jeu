@@ -74,7 +74,7 @@ function meterBase(geo) {
     return { au: z, av: o, mu: Float32Array.from(uv.array), ex };
   }
   if (!p || !uv || !nor || /Extrude|Tube|Shape|Text|Edges|Wireframe/.test(t)) return null;
-  const n = uv.count, au = new Uint8Array(n), av = new Uint8Array(n), mu = new Float32Array(n * 2), ex = new Float32Array(n * 2);
+  const n = uv.count, au = new Uint8Array(n), av = new Uint8Array(n), mu = new Float32Array(n * 2), ex = new Float32Array(n * 2), cv = new Uint8Array(n);
   geo.computeBoundingBox(); const b = geo.boundingBox, size = [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z];
   const P = [0, 0, 0];
   const proj = (i) => { // face plane : projection selon l'axe dominant de la normale
@@ -83,7 +83,7 @@ function meterBase(geo) {
     P[0] = pos.getX(i); P[1] = pos.getY(i); P[2] = pos.getZ(i);
     au[i] = U; av[i] = V; mu[i * 2] = P[U]; mu[i * 2 + 1] = P[V]; ex[i * 2] = size[U]; ex[i * 2 + 1] = size[V];
   };
-  const curved = (i, cu, cv, U = 0, V = 1) => { au[i] = U; av[i] = V; mu[i * 2] = uv.getX(i) * cu; mu[i * 2 + 1] = uv.getY(i) * cv; ex[i * 2] = cu; ex[i * 2 + 1] = cv; };
+  const curved = (i, cu, cl, U = 0, V = 1) => { au[i] = U; av[i] = V; cv[i] = 1; mu[i * 2] = uv.getX(i) * cu; mu[i * 2 + 1] = uv.getY(i) * cl; ex[i * 2] = cu; ex[i * 2 + 1] = cl; };
   if (t === 'CylinderGeometry' || t === 'ConeGeometry') {
     const r0 = p.radiusTop ?? 0, r1 = p.radiusBottom ?? p.radius, torso = (p.radialSegments + 1) * (p.heightSegments + 1);
     const circ = Math.PI * (r0 + r1) * (p.thetaLength ?? TAU) / TAU, slant = Math.hypot(p.height, r1 - r0);
@@ -101,20 +101,21 @@ function meterBase(geo) {
   } else if (/Box|Plane|Circle|Ring|Polyhedron|Icosahedron|Dodecahedron|Octahedron|Tetrahedron/.test(t)) {
     for (let i = 0; i < n; i++) proj(i);
   } else return null;
-  return { au, av, mu, ex };
+  return { au, av, mu, ex, cv };
 }
 // Copie de la géométrie avec des UV en mètres, à l'échelle (sx, sy, sz) de l'objet ; (ox, oz) choisit l'endroit lu.
 function meterUV(geo, mat, sx = 1, sy = 1, sz = 1, ox = 0, oz = 0) {
   if (geo.userData.mu || !meterMat(mat)) return geo;
   const B = meterBase(geo); if (!B) return geo;
-  const g = geo.clone(); g.userData.mu = 1;
+  const g = geo.clone(); g.userData = { ...geo.userData, mu: 1 }; // (clone partage userData avec l'original : copie)
   const uv = g.attributes.uv, S = [sx, sy, sz], s = mat.userData.scale || 2, gr = meterGrain(mat);
   const du = hash2(ox * 13.1 + 7, oz * 7.7) * 5.3, dv = hash2(oz * 11.3, ox * 5.9 + 3) * 5.3; // endroit de la photo, propre à la pièce
   for (let i = 0; i < uv.count; i++) {
     const ku = S[B.au[i]], kv = S[B.av[i]];
     let u = B.mu[i * 2] * ku, v = B.mu[i * 2 + 1] * kv;
     const eu = B.ex[i * 2] * ku, ev = B.ex[i * 2 + 1] * kv;
-    if ((gr === 'u' && ev > eu * 1.05) || (gr === 'v' && eu > ev * 1.05)) { const w = u; u = v; v = w; }
+    // Flanc d'un cylindre : le fil ne fait jamais le tour (douelles d'un tonneau, planches d'une citerne : debout).
+    if ((gr === 'u' && ev > eu * 1.05) || (gr === 'v' && eu > ev * 1.05 && !B.cv?.[i])) { const w = u; u = v; v = w; }
     uv.setXY(i, u / s + du, v / s + dv);
   }
   uv.needsUpdate = true; return g;
@@ -136,7 +137,7 @@ function meterInstGeo(geo, mat) {
   const g = geo.clone(), n = g.attributes.uv.count, a = new Float32Array(n * 2);
   for (let i = 0; i < n; i++) { a[i * 2] = B.au[i]; a[i * 2 + 1] = B.av[i]; }
   g.setAttribute('uv', new THREE.Float32BufferAttribute(B.mu, 2)); g.setAttribute('aMuAx', new THREE.Float32BufferAttribute(a, 2)); g.setAttribute('aMuEx', new THREE.Float32BufferAttribute(B.ex, 2));
-  g.userData.mui = 1; g.userData.mu = 1; return g;
+  g.userData = { ...geo.userData, mui: 1, mu: 1 }; return g;
 }
 // Branché après la fusion (sinon la matière serait exclue de mergeStatic) et enchaîné avec la neige ; sans attribut
 // aMuAx (exemplaire d'une autre géométrie), le nuanceur ne change rien.

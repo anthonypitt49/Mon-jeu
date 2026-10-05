@@ -42,7 +42,8 @@ MAPS.cite = {
     { floor: ['slab', 0xbdb8ae], ceil: ['planks', 0x9a8a70] }, { floor: ['slab', 0x8e8a80], ceil: ['concrete', 0x9a968c], roof: ['concrete', 0xa8a49a] },
     { floor: 'checker', ceil: ['plaster', 0xeae4d4] }, { floor: ['slab', 0xcfc8b8], ceil: ['plaster', 0xf6f3ea], roof: ['plaster', 0xf2eee4] }, { floor: ['lawn', 0x8cca5e] }, { floor: 'tileWall', ceil: ['plaster', 0xf3ecdc] },
   ],
-  roofTex: ['shingle', 0xb07a62], ceilTex: ['plaster', 0xf3ecdc], wallMat: 'wood', baseboard: ['planks', 0x5a3a28], curtain: ['plaster', 0xd8a86a],
+  // Plinthes en bois verni (famille meuble) ; rideaux en toile de coton.
+  roofTex: ['shingle', 0xb07a62], ceilTex: ['plaster', 0xf3ecdc], wallMat: 'wood', baseboard: ['meuble', 0x5a3a28], curtain: ['toile', 0xd8a86a],
   decals: { grime: 0.75, splash: 0.3, under: 0.5, crack: 0.1, stain: 0.03, scuff: 0.08, mold: 0.02, blood: 0.02,
     floor: { road: [['oil', 0.18, 1.6], ['crack', 0.15, 1.8]], sidewalk: [['crack', 0.15, 1.2], ['dirt', 0.1, 1.2]], kitchen: [['dirt', 0.1, 1]], parquet: [['scuff', 0.1, 1], ['blood', 0.04, 1.2]], garage: [['oil', 0.3, 1.4]], forecourt: [['oil', 0.35, 1.6]], shop: [['dirt', 0.15, 1]], bunker: [['leak', 0.15, 1.2], ['dirt', 0.2, 1.2]], carpet: [['stain', 0.08, 0.9]], bath: [['leak', 0.1, 0.8]] } },
   scatter: [{ kind: 'tuft', styles: ['lawn', 'yard'], n: 9, color: 0x6f9a4a, jitter: 0.25 }, { kind: 'leaf', styles: ['lawn', 'yard', 'sidewalk'], n: 1.5, color: 0x9a6a3a, hue: 0.03 }, { kind: 'paper', styles: ['road', 'sidewalk', 'forecourt'], n: 0.25, color: 0xd8d2c0 }, { kind: 'pebble', styles: ['road', 'forecourt'], n: 2, color: 0x7a746c },
@@ -50,14 +51,15 @@ MAPS.cite = {
   details: { eaves: 0.45, gutter: 0xe0dcd2, fascia: ['plaster', 0xf2eee4], plinth: ['concrete', 0x8e887c], crown: ['plaster', 0xfbf7ee] },
   walls: [
     { key: 'yellow', h: 3.2, out: ['siding', 0xf2d57a], in: ['wallpaper', 0xf7eedb], mat: 'wood' },
-    { key: 'yellowWin', look: 'window', h: 3.2, out: ['siding', 0xf2d57a], in: ['wallpaper', 0xf7eedb], trim: ['plaster', 0xf6f2e6], shutter: 0x2f5d7a, flowers: true, mat: 'wood' },
+    // Encadrements, croisillons, appuis et jardinières des fenêtres (trim) : menuiserie en bois peint.
+    { key: 'yellowWin', look: 'window', h: 3.2, out: ['siding', 0xf2d57a], in: ['wallpaper', 0xf7eedb], trim: ['boisPeint', 0xf6f2e6], shutter: 0x2f5d7a, flowers: true, mat: 'wood' },
     { key: 'green', h: 3.2, out: ['siding', 0xa6dbb8], in: ['wallpaper', 0xe8f0e0], mat: 'wood' },
-    { key: 'greenWin', look: 'window', h: 3.2, out: ['siding', 0xa6dbb8], in: ['wallpaper', 0xe8f0e0], trim: ['plaster', 0xf6f2e6], shutter: 0x9a3a2e, flowers: true, mat: 'wood' },
+    { key: 'greenWin', look: 'window', h: 3.2, out: ['siding', 0xa6dbb8], in: ['wallpaper', 0xe8f0e0], trim: ['boisPeint', 0xf6f2e6], shutter: 0x9a3a2e, flowers: true, mat: 'wood' },
     { key: 'inner', h: 3.0, out: ['wallpaper', 0xefe6d2], in: ['wallpaper', 0xefe6d2], mat: 'wood' },
     { key: 'bunker', h: 3.4, out: ['concrete', 0xb5b0a4], in: ['concrete', 0x96918a], mat: 'concrete' },
     { key: 'bunkerIn', h: 3.0, out: ['concrete', 0x96918a], in: ['concrete', 0x96918a], mat: 'concrete' },
     { key: 'stucco', h: 3.4, out: ['plaster', 0xeee4c8], in: ['plaster', 0xdcd4bf], mat: 'concrete' },
-    { key: 'stuccoWin', look: 'window', h: 3.4, out: ['plaster', 0xeee4c8], in: ['plaster', 0xdcd4bf], trim: ['plaster', 0xc23b3b], mat: 'concrete' },
+    { key: 'stuccoWin', look: 'window', h: 3.4, out: ['plaster', 0xeee4c8], in: ['plaster', 0xdcd4bf], trim: ['boisPeint', 0xc23b3b], mat: 'concrete' },
     { key: 'picket', look: 'picket', h: 1.1, see: true, mat: 'wood' },
     { key: 'chain', look: 'chain', h: 2.3, see: true, mat: 'metal' },
     { key: 'rail', look: 'rail', h: 1.2, see: true, mat: 'wood' },

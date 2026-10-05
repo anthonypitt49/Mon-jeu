@@ -22,8 +22,8 @@ const OBJ_PHOTO = {
   boisBrut: { ft: 1, set: 'objets/caisse', grain: 'v', neutral: true },
   email: { ft: 1, set: 'objets/emaille', detail: true, nomap: true, gloss: true, ns: 0.3 },
   tole: { ft: 1, set: 'objets/peinture', gloss: true, ns: 0.5 },
-  acier: { ft: 1, set: 'objets/acier', neutral: true, tint: [0.62, 0.66, 0.86] }, // photo ocre ramenée au gris acier
-  galva: { ft: 1, set: 'objets/galva', neutral: true },
+  acier: { ft: 1, set: 'objets/acier', neutral: true, gloss: true, tint: [0.62, 0.66, 0.86] }, // photo ocre ramenée au gris acier ; métal : reflet gardé
+  galva: { ft: 1, set: 'objets/galva', neutral: true, gloss: true },
   fonte: { ft: 1, set: 'objets/rouille', detail: true, ns: 0.6 }, // fonte presque noire : relief et rugosité seuls
   rouille: { ft: 1, set: 'objets/rouille', tm: 2.5, neutral: true },
   olive: { ft: 1, set: 'objets/olive' },
@@ -53,7 +53,7 @@ const PHOTO_SETS = {
     checker: { ft: 1, set: 'checker' }, slab: { ft: 1, set: 'garage' }, tileWall: { ft: 1, set: 'tiles' }, concrete: { ft: 1, set: 'concrete' },
     planks: { ft: 1, set: 'wood' }, rock: { ft: 1, set: 'rock' }, wallpaper: { ft: 1, set: 'paper', detail: true, ns: 0.6 },
     ...OBJ_PHOTO,
-    meuble: { ft: 1, set: 'objets/teck', grain: 'u', neutral: true }, // teck du mobilier américain et scandinave des années 50
+    meuble: { ft: 1, set: 'objets/teck', grain: 'u', neutral: true, tint: [1.6, 1.45, 1.3] }, // teck miel du mobilier des années 50 (les teintes du jeu sont sombres)
     acier: { ft: 1, set: 'objets/acier', detail: true }, // étagères et coffres neufs : rugosité seule sur la couleur du jeu
   },
   penitencier: {

@@ -98,15 +98,18 @@ function citeDecor() {
   for (const [x, z] of [[X(25), X(4)], [X(31), X(8)], [X(27), X(9)]]) { const g = KIT.g(x, z, 0, 3.35), v = fmat('galva', 0x8c9196, { rough: 0.45, metal: 0.8 }); KIT.c(g, 0, 0.6, 0, 0.16, 0.16, 1.2, v, 10); KIT.c(g, 0, 1.25, 0, 0.3, 0.3, 0.1, v, 10); }
   // Sacs de sable de la Défense civile : toile de jute.
   { const bags = new Batch(sandbagGeo(), fmat('toile', 0xb8a47e, { rough: 1 })); for (let x = X(24); x < X(28); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); for (let x = X(29) + 0.3; x < X(33); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); bags.build(); }
-  // Dortoir, salle commune, générateur.
-  for (const x of [X(29) + 0.9, X(31) + 0.9]) { const g = KIT.g(x, X(3) + 1.1, 0); for (const y of [0.45, 1.5]) { KIT.b(g, 0, y, 0, 1.0, 0.08, 2.0, k.steel); KIT.b(g, 0, y + 0.1, 0, 0.92, 0.12, 1.9, k.fabricTeal); } for (const [a, b] of [[-0.48, -0.95], [0.48, -0.95], [-0.48, 0.95], [0.48, 0.95]]) KIT.b(g, a, 1.0, b, 0.05, 2.0, 0.05, k.steel); KIT.solid(g, 1.0, 2.0, 2.0, 'metal'); }
+  // Dortoir, salle commune, générateur. Couchettes en acier peint, matelas en coutil de coton.
+  const ticking = fmat('toile', 0x3d8a86, { rough: 0.95 });
+  for (const x of [X(29) + 0.9, X(31) + 0.9]) { const g = KIT.g(x, X(3) + 1.1, 0); for (const y of [0.45, 1.5]) { KIT.b(g, 0, y, 0, 1.0, 0.08, 2.0, k.steel); KIT.b(g, 0, y + 0.1, 0, 0.92, 0.12, 1.9, ticking); } for (const [a, b] of [[-0.48, -0.95], [0.48, -0.95], [-0.48, 0.95], [0.48, 0.95]]) KIT.b(g, a, 1.0, b, 0.05, 2.0, 0.05, k.steel); KIT.solid(g, 1.0, 2.0, 2.0, 'metal'); }
   kShelf(X(24) + 0.3, X(8) + 1, Math.PI / 2, 1.8, 2.1); kShelf(X(24) + 0.3, X(10), Math.PI / 2, 1.8, 2.1); kTable(X(29), X(8) + 1.2, 0, 2.2, 1.0);
-  for (const [x, z] of [[X(32) + 1.4, X(10) + 1.4], [X(32) + 0.7, X(10) + 1.5]]) barrel(x, z, fmat('plain', 0x3a5a7a, { rough: 0.5, metal: 0.4 }));
-  { const g = KIT.g(X(29) - 0.4, X(8) + 1.2, 0); KIT.b(g, 0, 0.88, 0, 0.5, 0.28, 0.3, KIT.m(0x4a4a3a)); KIT.b(g, 0.15, 0.95, 0.16, 0.12, 0.1, 0.02, k.screen, 0, false); const lamp = new THREE.MeshBasicMaterial({ color: 0x401010 }); KIT.s(g, -0.15, 1.05, 0.16, 0.03, lamp); WORLD.citeRadio = { pos: new THREE.Vector3(X(29) - 0.4, 1, X(8) + 1.2), lamp }; } // poste radio d'urgence
+  // Fûts de 200 litres en tôle peinte ; poste radio de la Défense civile en tôle peinte vert olive.
+  for (const [x, z] of [[X(32) + 1.4, X(10) + 1.4], [X(32) + 0.7, X(10) + 1.5]]) barrel(x, z, fmat('tole', 0x3a5a7a, { rough: 0.5, metal: 0.4 }));
+  { const g = KIT.g(X(29) - 0.4, X(8) + 1.2, 0); KIT.b(g, 0, 0.88, 0, 0.5, 0.28, 0.3, fmat('olive', 0x4a4a3a, { rough: 0.8 })); KIT.b(g, 0.15, 0.95, 0.16, 0.12, 0.1, 0.02, k.screen, 0, false); const lamp = new THREE.MeshBasicMaterial({ color: 0x401010 }); KIT.s(g, -0.15, 1.05, 0.16, 0.03, lamp); WORLD.citeRadio = { pos: new THREE.Vector3(X(29) - 0.4, 1, X(8) + 1.2), lamp }; } // poste radio d'urgence
   WORLD.powerLamps.push(hangingLamp(X(28), 2.75, X(9), MATS.bulbRed), hangingLamp(X(25) + 1, 2.75, X(5), MATS.bulbRed));
 
   /* ── Station-service ── */
-  { const red = fmat('plain', 0xc23b3b, { rough: 0.5 }), pil = fmat('plain', 0xf2eee4, { rough: 0.6 });
+  // Bandeau de l'auvent et corps des pompes en tôle peinte rouge ; piliers et mât en béton peint blanc ; jante de l'enseigne en tôle.
+  { const red = fmat('tole', 0xc23b3b, { rough: 0.5 }), pil = fmat('tole', 0xf2eee4, { rough: 0.6 }), rim = fmat('tole', 0xf2eee4, { rough: 0.6 });
     const g = KIT.g(0, 0), cw = X(9) - X(3) + 0.5, cd = X(29) - X(25) + 0.5, ccx = (X(3) + X(9)) / 2, ccz = (X(25) + X(29)) / 2;
     for (const [dx, dz, w, d] of [[0, -cd / 2, cw, 0.08], [0, cd / 2, cw, 0.08], [-cw / 2, 0, 0.08, cd], [cw / 2, 0, 0.08, cd]]) KIT.b(g, ccx + dx, 3.25, ccz + dz, w, 0.55, d, red, 0, true); // bandeau rouge de l'auvent
     for (const [x, z] of [[X(3) + 0.4, X(25) + 0.4], [X(9) - 0.4, X(25) + 0.4], [X(3) + 0.4, X(29) - 0.4], [X(9) - 0.4, X(29) - 0.4]]) { KIT.b(g, x, 1.5, z, 0.3, 3.0, 0.3, pil); colliderBox(x, z, 0.3, 0.3, 0, 3, 'concrete'); }
@@ -119,12 +122,14 @@ function citeDecor() {
     const signTex = textTexture(512, 512, (c) => { c.fillStyle = '#f2eee4'; c.beginPath(); c.arc(256, 256, 250, 0, TAU); c.fill(); c.fillStyle = '#c23b3b'; c.beginPath(); c.arc(256, 256, 226, 0, TAU); c.fill(); c.strokeStyle = '#f2eee4'; c.lineWidth = 12; for (let i = 0; i < 3; i++) { c.save(); c.translate(256, 230); c.rotate(i * Math.PI / 3); c.beginPath(); c.ellipse(0, 0, 150, 52, 0, 0, TAU); c.stroke(); c.restore(); } c.fillStyle = '#f2eee4'; c.beginPath(); c.arc(256, 230, 22, 0, TAU); c.fill(); c.font = font(92); c.textAlign = 'center'; c.fillText('URANIA', 256, 420); });
     const sm = new THREE.MeshStandardMaterial({ map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.08, roughness: 0.4 });
     for (const s of [1, -1]) { const d = mesh(new THREE.CircleGeometry(1.6, 32), sm, 0, 6.6, s * 0.16, s > 0 ? 0 : Math.PI, sg, false); }
-    KIT.c(sg, 0, 6.6, 0, 1.62, 1.62, 0.3, pil, 32).rotation.x = Math.PI / 2;
+    KIT.c(sg, 0, 6.6, 0, 1.62, 1.62, 0.3, rim, 32).rotation.x = Math.PI / 2;
     WORLD.gasSign = { material: sm };
     colliderBox(X(2) + 1, X(23) + 0.6, 0.3, 0.3, 0, 6, 'concrete'); }
-  { const g = KIT.g(X(12) + 1, X(26) + 1.2, Math.PI / 2); KIT.b(g, 0, 0.5, 0, 2.6, 1.0, 0.6, fmat('plain', 0xc23b3b, { rough: 0.4 })); KIT.b(g, 0, 1.02, 0, 2.7, 0.05, 0.7, fmat('plain', 0xf2eee4, { rough: 0.3 })); KIT.b(g, 0.7, 1.2, 0, 0.4, 0.3, 0.35, k.steel); KIT.solid(g, 2.6, 0.6, 1.05); } // comptoir
+  // Comptoir de la boutique : caisson en bois peint, dessus en stratifié lisse (famille émail), caisse enregistreuse en acier.
+  { const g = KIT.g(X(12) + 1, X(26) + 1.2, Math.PI / 2); KIT.b(g, 0, 0.5, 0, 2.6, 1.0, 0.6, fmat('boisPeint', 0xc23b3b, { rough: 0.4 })); KIT.b(g, 0, 1.02, 0, 2.7, 0.05, 0.7, fmat('email', 0xf2eee4, { rough: 0.3 })); KIT.b(g, 0.7, 1.2, 0, 0.4, 0.3, 0.35, k.steel); KIT.solid(g, 2.6, 0.6, 1.05); }
   kShelf(X(15) + 1.6, X(24) + 1.2, -Math.PI / 2, 1.6, 1.8); kShelf(X(13), X(28) + 1.6, Math.PI, 1.6, 1.8);
-  for (let i = 0; i < 6; i++) barrel(X(10) + 0.5 + (i % 3) * 0.62, X(32) + 1.4 - Math.floor(i / 3) * 0.6, fmat('plain', [0xc23b3b, 0x2e6a8a, 0xe8c21a][i % 3], { rough: 0.5, metal: 0.4 }));
+  // Fûts d'huile et d'essence de l'atelier, en tôle peinte.
+  for (let i = 0; i < 6; i++) barrel(X(10) + 0.5 + (i % 3) * 0.62, X(32) + 1.4 - Math.floor(i / 3) * 0.6, fmat('tole', [0xc23b3b, 0x2e6a8a, 0xe8c21a][i % 3], { rough: 0.5, metal: 0.4 }));
   kTires(X(15) + 1.3, X(29) + 0.7, 4); kCar(X(12) + 1.4, X(30) + 1.4, Math.PI / 2 + 0.05, 0x3a4a6a);
 
   /* ── Mannequins : les six marqués d'un foulard rouge, et leurs voisins ── */
@@ -158,8 +163,8 @@ function citeFar() {
     for (let j = 0; j < p.count; j++) { const px = p.getX(j), py = p.getY(j), pz = p.getZ(j), an = Math.atan2(pz, px), n = 1 + (fbm(an * 3 + i, py * 0.1, 2) - 0.5) * 0.35; p.setX(j, px * n); p.setZ(j, pz * n); }
     geo.computeVertexNormals(); const m = mesh(geo, r() > 0.5 ? rock : rockDark, x, h / 2 - 1, z, r() * TAU, R.scene, false);
   }
-  // Château d'eau.
-  { const g = KIT.g(118, 8, 0), m = fmat('plain', 0xd8d2c4, { rough: 0.6, metal: 0.3 });
+  // Château d'eau : cuve en tôle d'acier peinte, pieds en acier.
+  { const g = KIT.g(118, 8, 0), m = fmat('tole', 0xd8d2c4, { rough: 0.6, metal: 0.3 });
     for (const [a, b] of [[-2.2, -2.2], [2.2, -2.2], [-2.2, 2.2], [2.2, 2.2]]) { const l = KIT.b(g, a, 9, b, 0.3, 18, 0.3, k.steel); l.rotation.x = -b * 0.03; l.rotation.z = a * 0.03; }
     KIT.c(g, 0, 21, 0, 4.2, 4.2, 6, m, 24); const cap = KIT.c(g, 0, 25, 0, 0.3, 4.4, 2.2, m, 24);
     const lab = mesh(new THREE.CylinderGeometry(4.22, 4.22, 1.6, 24, 1, true, -0.9, 1.8), new THREE.MeshStandardMaterial({ map: woodSign(['CITÉ ATOMIQUE'], { w: 1024, h: 120, bg: '#d8d2c4', color: '#7a2a22' }), roughness: 0.6 }), 0, 21.4, 0, 0, g, false); lab.rotation.y = -Math.PI / 2 - 0.2; }
@@ -167,9 +172,9 @@ function citeFar() {
   { const g = KIT.g(46, -150, 0);
     for (const [a, b] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) { const l = KIT.b(g, a * 0.6, 22, b * 0.6, 0.5, 44, 0.5, k.steel); l.rotation.x = -b * 0.05; l.rotation.z = a * 0.05; }
     for (let y = 4; y < 44; y += 6) for (const s of [-1, 1]) { KIT.b(g, 0, y, s * (4 - y * 0.03), 8 - y * 0.06, 0.25, 0.25, k.steel); KIT.b(g, s * (4 - y * 0.03), y, 0, 0.25, 0.25, 8 - y * 0.06, k.steel); }
-    KIT.b(g, 0, 45, 0, 5, 3, 5, fmat('plain', 0x8a8a84)); }
-  // Gradins des observateurs.
-  { const g = KIT.g(150, 70, -1.2); for (let i = 0; i < 6; i++) KIT.b(g, 0, 0.5 + i * 0.6, i * 0.9, 18, 0.25, 0.9, fmat('planks', 0x9a8a70)); for (let i = 0; i < 4; i++) KIT.b(g, -8 + i * 5.3, 2, 2.5, 0.25, 4, 0.25, k.steel); }
+    KIT.b(g, 0, 45, 0, 5, 3, 5, fmat('galva', 0x8a8a84)); } // cabine de tir en tôle galvanisée
+  // Gradins des observateurs : planches de sapin brut grisées, sur des poteaux d'acier.
+  { const g = KIT.g(150, 70, -1.2); for (let i = 0; i < 6; i++) KIT.b(g, 0, 0.5 + i * 0.6, i * 0.9, 18, 0.25, 0.9, fmat('boisBrut', 0x9a8a70)); for (let i = 0; i < 4; i++) KIT.b(g, -8 + i * 5.3, 2, 2.5, 0.25, 4, 0.25, k.steel); }
   // Maisons témoins lointaines, carbonisées.
   for (const [x, z, ry] of [[-60, 20, 0.3], [-70, 70, -0.2], [140, -20, 1.1], [120, 120, 0.6], [30, 150, 0.1]]) {
     const g = KIT.g(x, z, ry), ch = fmat('plain', 0x2a2420, { rough: 1 });
@@ -179,8 +184,8 @@ function citeFar() {
   { const lines = [], pole = new Batch(new THREE.CylinderGeometry(0.14, 0.2, 9, 7), MATS.post), bar = new Batch(boxG(2.4, 0.14, 0.14), MATS.post); let prev = null;
     for (let x = -120; x <= 10; x += 18) { const z = 38 + Math.sin(x * 0.03) * 2, y = surfH(x, z); pole.add(x, y + 4.4, z); bar.add(x, y + 8.4, z, Math.PI / 2); if (prev) for (const o of [-1, 1]) for (let s = 0; s < 6; s++) { const t0 = s / 6, t1 = (s + 1) / 6; lines.push(lerp(prev[0], x, t0), lerp(prev[1], y + 8.5, t0) - Math.sin(t0 * Math.PI) * 0.8, lerp(prev[2], z, t0) + o, lerp(prev[0], x, t1), lerp(prev[1], y + 8.5, t1) - Math.sin(t1 * Math.PI) * 0.8, lerp(prev[2], z, t1) + o); } prev = [x, y + 8.5, z]; }
     pole.build(); bar.build(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3)); R.scene.add(new THREE.LineSegments(g, MATS.wire)); }
-  // Clôture d'enceinte du site, avec panneaux.
-  { const posts = new Batch(boxG(0.1, 2.2, 0.1), k.steel), wire = []; const cx = 50, cz = 48, rr = 64;
+  // Clôture d'enceinte du site : poteaux en acier galvanisé, fils de fer.
+  { const posts = new Batch(boxG(0.1, 2.2, 0.1), fmat('galva', 0x8c9196, { rough: 0.45, metal: 0.8 })), wire = []; const cx = 50, cz = 48, rr = 64;
     for (let i = 0; i < 64; i++) { const a0 = (i / 64) * TAU, a1 = ((i + 1) / 64) * TAU, x0 = cx + Math.cos(a0) * rr * 1.1, z0 = cz + Math.sin(a0) * rr, x1 = cx + Math.cos(a1) * rr * 1.1, z1 = cz + Math.sin(a1) * rr; const y0 = surfH(x0, z0), y1 = surfH(x1, z1); posts.add(x0, y0 + 1.1, z0); for (const h of [0.5, 1.1, 1.7, 2.1]) wire.push(x0, y0 + h, z0, x1, y1 + h, z1); }
     posts.build(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(wire, 3)); R.scene.add(new THREE.LineSegments(g, MATS.wire)); }
   citeCloud();

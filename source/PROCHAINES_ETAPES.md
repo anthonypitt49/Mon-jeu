@@ -2,6 +2,38 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 5.1) : les objets en textures photo
+
+Demande du propriétaire : « fais les objets en textures photo maintenant ». Après la 5.0, les meubles, véhicules et machines restés dessinés trahissaient le dessin à côté des murs photographiés.
+
+- **Le vrai défaut d'abord : les UV des objets.** Les boîtes, cylindres et sphères de three.js ont des UV de 0 à 1 par face, quelle que soit leur taille. Beaucoup d'objets portaient déjà une photo de mur ou de plancher (tout `fmat('planks' | 'brick' | …)`), mais étirée : meubles en lames de parquet de 2 m par face, briques de 28 cm de haut sur les cheminées de la Cité, fronton du saloon étiré dix fois, rails du Filon étirés ×28. `05_world.js` donne maintenant à toute matière à clé (`userData.ftex`, donc toute `fmat`) des **UV en mètres** : chaque face reçoit la taille réelle qu'elle couvre, divisée par l'échelle de la matière.
+  - `meterBase` reconnaît les géométries par leurs paramètres (boîte, plan, cylindre et cône, sphère, tore, capsule, tour, polyèdres ; carrosseries extrudées déjà en mètres) ; `meterUV` en fait une copie à l'échelle de l'objet, avec un endroit de lecture propre à chaque pièce.
+  - Le fil d'un bois suit la plus grande dimension de la pièce (`grain` dans `PHOTO_SETS` : `'u'` si les planches de la photo sont couchées, `'v'` si elles sont debout) ; sur le flanc d'un cylindre, il ne fait jamais le tour (douelles des tonneaux et des citernes debout).
+  - Trois points d'entrée : `mergeStatic` (avant la fusion, qui perd la taille de chaque pièce), `mergeGroup` (objets mobiles : portes, machines parachutées) et les lots instanciés (`Batch` : la géométrie partagée garde ses mesures et les axes de chaque face, le nuanceur multiplie par l'échelle de chaque exemplaire, `meterInstHook`). Pour un objet créé après la construction du monde : `meterize(groupe)` ; pour des morceaux fusionnés à la main avec `mergeGeometries` : `meterUV` sur chaque morceau avant.
+  - Piège évité : `BufferGeometry.clone()` partage `userData` avec l'original (three r186) ; la copie reçoit son propre objet.
+- **Familles d'objets** (`OBJ_FAM`, `05b_flat.js`) : une clé de texture par vraie matière, pour que chacune reçoive sa propre photo et ne soit pas fusionnée avec une autre (la signature de `mergeStatic` inclut la clé). `fmat('famille', couleur, { rough, metal })`. Familles : meuble, boisPeint, boisBrut, tissu, velours, cuir, skai, toile, email, tole, acier, galva, fonte, rouille, olive, ecorce. Matières communes étiquetées : `MATS.iron` fonte, `MATS.rust` rouille, `MATS.olive` olive (métal ramené à 0,1 : une peinture), `MATS.crate` boisBrut, `MATS.cloth` toile, `MATS.bark` écorce ; sur les cartes de plain-pied, planches et poteaux des barricades en boisBrut (c'étaient les planches givrées de 1917 dessinées).
+- **Photos communes** (`fetch_assets.py objets` → `../assets/objets/`, 2,2 Mo en tout, 512 px et versions allégées 256 px) : une famille absente de la carte n'est pas téléchargée (`PHOTO.absent`). 17 photos choisies par 10 éclaireurs (catalogue, vignettes regardées, échelle réelle) puis contestées une à une par un contradicteur : laine à chevrons (tissu), velours, lin (toile), cuir marron, grain de skaï, teck (meubles de la Cité, 1957), chêne (Pénitencier, 1933), noyer (Filon, 1880), planches de caisse brutes, planches peintes écaillées, tôle peinte, émail (ondulation seule), tôle rouillée et calcinée, acier, tôle galvanisée ondulée, tôle peinte militaire, écorce de saule.
+  - Modes (`OBJ_PHOTO`, `05p_photo.js`) : photo grise qui garde la teinte du jeu (`gray` dans `fetch_assets.py` : tissu, toile, tôle peinte, bois peint, olive) ; `neutral` : la photo donne la couleur, l'objet garde sa clarté (bois, cuir, rouille, acier, galva) ; `detail` + `nomap` : couleur unie du jeu sans la salissure dessinée, avec l'ondulation de l'émail (frigo, cuisinière, placards, toilettes, lavabos : avant, la salissure dessinée sur du blanc faisait de la pierre sale) ; `gloss` : brillant gardé en moyenne (`rm`, rugosité moyenne de la photo, notée par `fetch_assets.py`).
+  - Refusé par le contradicteur : toute photo pour la porcelaine (aucune ne colle) ; la porcelaine est une matière lisse et brillante (`KM.porcelain`). Corrigé avant d'intégrer : relief de `rusty_metal_02` décentré chez Poly Haven (`renorm`), teinte d'acier recalculée (la photo est ocre), usure de la tôle peinte adoucie (`contrast` 0,4 : village neuf).
+- **Ce qui a changé, carte par carte** (4 agents, un par carte sur des fichiers distincts, chacun suivi d'un relecteur contradictoire ; aucune faute certaine trouvée, un bloc devenu inutile retiré) :
+  - trousse commune (`06b_kit.js`, `06c_vehicles.js`) : meubles en bois de meuble, canapés, fauteuils, tapis et vêtements des mannequins en laine, draps et linge en toile, cuisine et électroménager en émail, mobilier urbain en tôle peinte, poubelles en tôle galvanisée, bancs et tables de pique-nique en bois brut, pieds de banc et barbecue en fonte, carrosseries en tôle laquée, épaves calcinées en tôle rouillée, sellerie en skaï ;
+  - portes, volets, encadrements et palissades en bois peint ; gouttières en tôle peinte (`05_world.js`, `05b_flat.js`) ;
+  - Cité : station-service (pompes, auvent, comptoir), abri (couchettes en coutil, fûts, radio olive, aérations galvanisées), château d'eau, tour de tir, gradins en bois brut, rideaux en toile, plinthes vernies, enceinte galvanisée ;
+  - Pénitencier : couchettes de fer avec couverture de laine grise, cuvettes et lavabos émaillés, tablettes de cellule en acier (le chêne verni était un contresens), tables du réfectoire à plateau de zinc, fauteuil du directeur en cuir, coffre-fort en fonte, pilotis en bois brut, vedette en bois peint (bruit de bois aux impacts), grue en tôle peinte, phare ;
+  - Filon : étais, traverses, poteaux, chariot et tonneaux en bois brut, wagonnet rouillé, bar, tables, chaises, piano, bancs d'église et comptoir de la banque en noyer, rideaux et parement d'autel en velours, sacs et paillasses en toile ; anachronismes corrigés : étagères d'acier du magasin → noyer, lampadaire chromé → laiton et fonte, générateur et tableau électrique vert olive de 1917 → fonte et coffret de noyer ;
+  - Poste 7 et accessoires communs (`06_props.js`, `11c_crater.js`, `20b_poste7_robot.js`, `11d_power.js`) : machines à atouts en tôle peinte, établi et mobilier de tranchée en bois brut, arbres morts en écorce (UV en mètres posées avant la fusion des troncs), entoilage du biplan en toile (c'était un drap de laine), char Mark IV et canon en tôle militaire, affût en bois brut, bidon en tôle, fusible émaillé, courroie en cuir.
+- Réglés à l'œil sur les captures : le bois peint prenait la texture dessinée des planches brunes comme repère de clarté, et la palissade blanche et les portes de garage sortaient brun sombre (repère passé à la peinture salie, plus claire) ; le teck de la Cité était presque noir sur les meubles foncés (teinte relevée) ; la photo de caisse, un pin très orangé, faisait des barricades orange vif dans la prison (couleur ramenée à 55 % : `sat` dans `fetch_assets.py`).
+- Outil : `dev/objets.mjs <carte> [qualité] [préfixe] [sortes]` → vues rapprochées des objets posés (une par sorte, 6 par planche, `dev/shots/`), grâce à `KIT.spots` (`?spots`).
+- Mesures (Cité, `photoperf.mjs`) : mémoire vidéo des textures en « élevé » 228 → 258 Mo (+ 30 Mo pour les objets) ; en « bas », 84 Mo avec les photos allégées ; temps d'image sans écart mesurable.
+- TESTS51
+
+Reste à faire sur les objets :
+1. Sans famille, laissés tels quels : bois calciné (`MATS.char` : habitacle du biplan, maisons brûlées au loin), pierre (`MATS.stone`), caoutchouc (tuyaux, pneus), laiton, marbre, foin, verre, lampes, enseignes, petits objets colorés (conserves, livres, bonbons).
+2. Trousse : `kTable` et `kChair` imposent leurs pieds en bois, `kShelf`, `kSign` et `kLamp` leur matière (le Filon les remplace après coup) ; un paramètre de matière serait plus propre. `kStove` : cuisinière domestique émaillée aussi dans la cuisine de la prison de 1933 (il y faudrait un fourneau en fonte).
+3. Anachronismes de forme, pas de matière : bidon en forme de jerrican (inventé en 1937) et ampoules électriques au Filon de 1880.
+4. Bogue ancien, sans lien : l'aile basse du biplan du Poste 7 n'est jamais dans la scène (`R.scene.add(w)` avalé par un commentaire, `11c_crater.js`).
+5. [à vérifier] Sur iPhone, comme pour la 5.0.
+
 ## Fait (version 5.0) : les trois autres cartes en textures photo
 
 Mise en ligne le 5 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu avec salon co-op, republié avec `assets/cite/`, `assets/penitencier/`, `assets/filon/` et les versions allégées du Poste 7 (311 fichiers ; une publication en accepte 255 au plus, une version 511).
@@ -26,7 +58,7 @@ Demande du propriétaire : « fais les textures photo des trois autres cartes, a
 
 Reste à faire sur les photos :
 1. [à vérifier] Sur iPhone : temps de chargement des versions allégées et mémoire (aucune photo n'y était chargée avant).
-2. Objets (meubles, voitures, machines) : encore en textures dessinées ; ce sont eux qui trahissent maintenant le plus le dessin à côté des murs et des sols photographiés.
+2. ~~Objets (meubles, voitures, machines) encore en textures dessinées~~ : fait en 5.1 (voir plus haut).
 
 ## Fait (version 4.9) : armes en main réalistes
 

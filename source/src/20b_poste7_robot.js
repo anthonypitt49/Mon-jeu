@@ -82,7 +82,8 @@ function robotAnim(dt, time) {
 
 /* ─── No man's land : char losange abattu, canon de campagne à l'arrière ─── */
 function buildPoste7Extras() {
-  const steel = stdMat({ color: 0x4a4a3e, roughness: 0.8, metalness: 0.45, map: TEX.grime.map, normalMap: TEX.grime.normalMap }, 0.8), rust = MATS.rust, dark = MATS.char;
+  // Plaques d'acier rivetées peintes du char et du canon : peinture militaire écaillée (famille olive, teinte gardée).
+  const steel = fmat('olive', 0x4a4a3e, { rough: 0.8, metal: 0.15, snow: 0.8 }), rust = MATS.rust, dark = MATS.char;
   // Char : deux flancs losanges (chenilles), caisse centrale, tourelles latérales, canons.
   { const x = 62, z = -12, y = surfH(x, z) - 0.6, g = new THREE.Group(); g.position.set(x, y, z); g.rotation.set(0.06, -0.5, 0.1); R.scene.add(g);
     const side = new THREE.Shape(); side.moveTo(-4, 0.6); side.lineTo(-2.6, 0); side.lineTo(2.6, 0); side.lineTo(4.2, 1.6); side.lineTo(3.9, 2.5); side.lineTo(-2.2, 2.5); side.closePath();
@@ -93,7 +94,8 @@ function buildPoste7Extras() {
     WORLD.fires.push({ x: x + 0.5, y: y + 2.4, z, size: 0.6, rate: 0.06, t: 0, smoke: 0.12 }); }
   // Canon de campagne : roues à rayons, bouclier, fût, flèche.
   { const x = 34, z = 68, y = surfH(x, z), g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = 0.15; R.scene.add(g);
-    const wood = stdMat({ color: 0x5a4632, roughness: 0.9, map: TEX.planks.map }, 0.8);
+    // Roues à rayons et flèche de l'affût : bois brut grisé par les intempéries (famille boisBrut, clarté gardée).
+    const wood = fmat('boisBrut', 0x5a4632, { rough: 0.9, snow: 0.8 });
     for (const s of [-1, 1]) { const w = mesh(new THREE.TorusGeometry(0.62, 0.05, 6, 20), wood, 0, 0.67, s * 0.85, 0, g); for (let i = 0; i < 6; i++) { const sp = mesh(boxG(0.04, 1.2, 0.04), wood, 0, 0.67, s * 0.85, 0, g); sp.rotation.z = (i / 6) * Math.PI; } }
     mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.9, 8), steel, 0, 0.67, 0, 0, g).rotation.x = Math.PI / 2;
     const sh = mesh(boxG(0.06, 1.1, 1.6), steel, 0.25, 1.0, 0, 0, g); sh.rotation.z = -0.15;

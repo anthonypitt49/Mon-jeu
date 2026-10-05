@@ -6,8 +6,10 @@
 const SUPPORT = { owner: null, t: 0, cool: 0, cd: 0, cost: 2500, time: 20, coolTime: 75 };
 
 function buildCraterProps() {
-  const fabric = stdMat({ color: 0x6f6a4c, roughness: 0.92, map: TEX.cloth.map, normalMap: TEX.cloth.normalMap }, 0.7);
-  const burnt = stdMat({ color: 0x2a2520, roughness: 0.95, map: TEX.cloth.map }, 0.5);
+  // Entoilage d'avion de 1917 : toile de lin enduite kaki (famille toile, teinte gardée), pas un drap de laine.
+  const fabric = fmat('toile', 0x6f6a4c, { rough: 0.92, snow: 0.7 });
+  // Avant calciné autour du moteur rotatif : capot et toile brûlés (famille rouille, clarté presque noire gardée).
+  const burnt = fmat('rouille', 0x2a2520, { rough: 0.95, snow: 0.5 });
   const roundel = new THREE.MeshStandardMaterial({ roughness: 0.9, transparent: true, map: textTexture(128, 128, (x) => { [['#2a3f8f', 60], ['#e8e4d8', 42], ['#b0282a', 22]].forEach(([c, r]) => { x.fillStyle = c; x.beginPath(); x.arc(64, 64, r, 0, TAU); x.fill(); }); }) });
   const fy = (x, z) => (M.floorH ? M.floorH(x, z) : 0);
   const g = new THREE.Group(); g.position.set(45.4, fy(45.4, 31.6), 31.6); R.scene.add(g);
@@ -20,7 +22,7 @@ function buildCraterProps() {
   mesh(boxG(1.3, 1.02, 0.97), burnt, 1.7, 0, 0, 0, body); // avant calciné
   mesh(boxG(0.7, 0.3, 0.6), MATS.char, -0.1, 0.6, 0, 0, body); // habitacle
   const cowl = mesh(new THREE.CylinderGeometry(0.5, 0.56, 0.7, 14), MATS.iron, 2.55, 0, 0, 0, body); cowl.rotation.z = Math.PI / 2;
-  for (const [a, l] of [[0.3, 1.25], [0.3 + Math.PI, 0.55]]) { const b = mesh(boxG(0.06, l, 0.16), MATS.post, 2.95, Math.cos(a) * l * 0.5, Math.sin(a) * l * 0.5, 0, body); b.rotation.x = a; } // hélice (une pale cassée)
+  for (const [a, l] of [[0.3, 1.25], [0.3 + Math.PI, 0.55]]) { const b = mesh(boxG(0.06, l, 0.16), rawPost(), 2.95, Math.cos(a) * l * 0.5, Math.sin(a) * l * 0.5, 0, body); b.rotation.x = a; } // hélice (une pale cassée)
   // Ailes arrachées à l'impact : l'inférieure gît à plat dans la neige (on marche dessus),
   // la moitié de l'aile supérieure est restée appuyée contre la paroi est du cratère.
   { const w = new THREE.Group(); w.position.set(45.0, fy(45.0, 36.2) - 0.12, 36.2); w.rotation.order = "YXZ"; w.rotation.y = 0.35; w.rotation.x = -0.125; // couchée dans la pente R.scene.add(w);
@@ -29,7 +31,7 @@ function buildCraterProps() {
   { const w = new THREE.Group(); w.position.set(53.25, 0, 30.3); R.scene.add(w);
     const p = mesh(boxG(4.4, 0.1, 1.4), fabric, 0, 0, 0, 0, w); p.rotation.set(0, Math.PI / 2, 1.15); p.position.set(0.2, 0.95, 0);
     const r = mesh(new THREE.PlaneGeometry(0.9, 0.9), roundel, 0, 0, 0, 0, w); r.position.set(0.14, 1.2, 1.1); r.rotation.set(0, -Math.PI / 2 + 0.42, 0);
-    for (const z of [-1.4, 1.4]) mesh(boxG(0.06, 1.4, 0.06), MATS.post, 0.45, 0.7, z, 0, w);
+    for (const z of [-1.4, 1.4]) mesh(boxG(0.06, 1.4, 0.06), rawPost(), 0.45, 0.7, z, 0, w);
     collider(52.55, 28.1, 54, 32.5, 1.9, 'wood'); } // plaquée contre la paroi : aucun recoin où rester coincé
   mesh(boxG(0.95, 0.9, 0.06), fabric, -3.25, 0.5, 0, 0, body); // dérive
   mesh(boxG(0.8, 0.06, 2.4), fabric, -3.2, 0.12, 0, 0, body); // empennage
@@ -46,7 +48,7 @@ function buildCraterProps() {
   // Téléphone de campagne (soutien d'artillerie).
   const s = wallSpot(SPOTS.mortar, 0.42), t = new THREE.Group(); t.position.set(s.x, 0, s.z); t.rotation.y = s.yaw; R.scene.add(t);
   mesh(boxG(0.8, 0.55, 0.55), MATS.crate, 0, 0.275, 0.05, 0, t); colliderBox(s.x, s.z, 0.8, 0.6, s.yaw, 0.55, 'wood');
-  mesh(boxG(0.34, 0.24, 0.22), MATS.post, -0.12, 0.67, 0.05, 0, t);
+  mesh(boxG(0.34, 0.24, 0.22), rawPost(), -0.12, 0.67, 0.05, 0, t); // coffret de bois du téléphone
   const hs = mesh(boxG(0.26, 0.05, 0.06), MATS.iron, -0.12, 0.8, 0.05, 0, t); hs.rotation.z = 0.1;
   const reel = mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.18, 14), MATS.olive, 0.22, 0.66, 0.05, 0, t); reel.rotation.x = Math.PI / 2;
   const lampMat = new THREE.MeshBasicMaterial({ color: 0x44ff66 }); mesh(new THREE.SphereGeometry(0.025, 8, 6), lampMat, -0.02, 0.72, -0.07, 0, t, false);

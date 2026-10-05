@@ -14,7 +14,7 @@ const run = async (label, q, query) => {
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
   await page.goto('http://127.0.0.1:8088/index.html?' + query + '#carte=' + id); await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
   await page.evaluate(() => document.getElementById('soloButton').click());
-  await page.waitForFunction(() => SP.PHOTO.state !== 'loading', null, { timeout: 120000 }); await page.waitForTimeout(1500);
+  await page.waitForFunction(() => SP.PHOTO.state !== 'loading', null, { timeout: 400000, polling: 1000 }); await page.waitForTimeout(1500);
   const r = await page.evaluate((id) => {
     const { G, P, R } = SP; P.hp = P.maxHp = 1e9; G.toSpawn = 0; G.breakT = 1e9; for (const z of [...SP.ZOMBIES]) z.destroy();
     if (id === 'poste7') P.pos.set(63, 0, 55); P.yaw = id === 'poste7' ? 0 : P.yaw; P.pitch = 0; SP.updatePlayer(0.016); SP.renderFrame(1); SP.renderFrame(1);

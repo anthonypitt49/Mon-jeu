@@ -86,7 +86,7 @@ SETS['objets'] = {
     'teck':      {'id': 'teak_veneer',               'maps': 'cnr', 'px': 512},                 # mobilier 1957
     'chene':     {'id': 'oak_veneer_01',             'maps': 'cnr', 'px': 512},                 # mobilier d'institution 1933
     'noyer':     {'id': 'black_walnut_veneer_02',    'maps': 'cnr', 'px': 512},                 # mobilier 1880
-    'caisse':    {'id': 'wood_shutter',              'maps': 'cn',  'px': 512},                 # caisses, tonneaux : bois brut scié
+    'caisse':    {'id': 'wood_shutter',              'maps': 'cn',  'px': 512, 'sat': 0.55},    # caisses, tonneaux, barricades : bois brut usé
     'boispeint': {'id': 'distressed_painted_planks', 'maps': 'cnr', 'px': 512, 'gray': True},   # portes, volets, niche
     'peinture':  {'id': 'rusty_metal_02',            'maps': 'cnr', 'px': 512, 'gray': True, 'contrast': 0.4, 'renorm': True},  # tôle peinte, carrosseries
     'emaille':   {'id': 'beige_wall_001',            'maps': 'n',   'px': 512},                 # émail, porcelaine : ondulation seule
@@ -144,6 +144,11 @@ def gray(img, contrast=1.0):
     a = np.clip(a * (178.0 / max(1.0, a.mean())), 0, 255).astype(np.uint8)
     return Image.fromarray(a).convert('RGB')
 
+def desat(img, sat):
+    """Couleur ramenée vers le gris (sat = part de couleur gardée) : bois neuf trop orangé → bois usé, grisé."""
+    a = np.asarray(img.convert('RGB'), dtype=np.float32); g = a @ np.array([0.299, 0.587, 0.114], np.float32)
+    return Image.fromarray(np.clip(g[..., None] + (a - g[..., None]) * sat, 0, 255).astype(np.uint8))
+
 def renorm(img):
     """Carte de relief dont la moyenne n'est pas la normale droite (128, 128) : toute la surface penchait."""
     a = np.asarray(img, dtype=np.float32) / 127.5 - 1
@@ -178,6 +183,7 @@ def main(map_id, petit=False):
             px = s['px'] if m != 'r' else min(512, s['px'])
             if img.size[0] != px: img = img.resize((px, px), Image.LANCZOS)
             if m == 'c' and s.get('gray'): img = gray(img, s.get('contrast', 1.0))
+            if m == 'c' and 'sat' in s: img = desat(img, s['sat'])
             if m == 'n' and s.get('renorm'): img = renorm(img)
             img.save(os.path.join(out, f'{key}_{m}.jpg'), quality=QUAL[m], optimize=True, progressive=True)
             if m == 'c': entry['lum'] = round(luminance(img), 4)

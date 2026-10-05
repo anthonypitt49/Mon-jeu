@@ -176,13 +176,16 @@ function filRubbleSpots() {
 }
 function filBuildMission() {
   if (WORLD.filRubble) return;
-  const rock = fmat('rock', 0x8a7866), plank = fmat('planks', 0x5a3e28), gold = new THREE.MeshStandardMaterial({ color: 0xd8b040, emissive: 0xffb020, emissiveIntensity: 0.6, roughness: 0.3, metalness: 1 });
+  // Madriers d'étai brisés en bois brut (famille 'boisBrut' : ils ne partagent plus la matière de la charpente de l'église) ;
+  // pépites : lueur de jeu, sans photo.
+  const rock = fmat('rock', 0x8a7866), plank = fmat('boisBrut', 0x5a3e28), gold = new THREE.MeshStandardMaterial({ color: 0xd8b040, emissive: 0xffb020, emissiveIntensity: 0.6, roughness: 0.3, metalness: 1 });
   WORLD.filRubble = filRubbleSpots().map((p) => {
     const g = new THREE.Group(); g.userData.dynamic = true; g.position.copy(p); R.scene.add(g);
-    // Neuf cailloux fusionnés : un seul appel de dessin par éboulis.
-    const rocks = []; for (let i = 0; i < 9; i++) { const s = rand(0.25, 0.55), d = new THREE.DodecahedronGeometry(s, 0); d.rotateX(rand(TAU)); d.rotateY(rand(TAU)); d.translate(rand(-0.6, 0.6), s * 0.6 + (i > 5 ? 0.4 : 0), rand(-0.6, 0.6)); rocks.push(d.index ? d.toNonIndexed() : d); }
+    // Neuf cailloux fusionnés : un seul appel de dessin par éboulis. UV en mètres sur chaque caillou AVANT la fusion.
+    const rocks = []; for (let i = 0; i < 9; i++) { const s = rand(0.25, 0.55), d = new THREE.DodecahedronGeometry(s, 0); d.rotateX(rand(TAU)); d.rotateY(rand(TAU)); d.translate(rand(-0.6, 0.6), s * 0.6 + (i > 5 ? 0.4 : 0), rand(-0.6, 0.6)); const dm = meterUV(d, rock, 1, 1, 1, p.x + i * 3.7, p.z + i * 1.3); rocks.push(dm.index ? dm.toNonIndexed() : dm); }
     mesh(mergeGeometries(rocks), rock, 0, 0, 0, 0, g);
     for (let i = 0; i < 2; i++) { const b = mesh(boxG(1.6, 0.14, 0.2), plank, rand(-0.3, 0.3), 0.5 + i * 0.25, rand(-0.3, 0.3), rand(TAU), g); b.rotation.z = rand(-0.5, 0.5); }
+    meterize(g); // construit après le monde (remise à zéro de la partie) : UV en mètres des madriers
     const glint = KIT.glow(g, 0, 0.9, 0, 0xffc040, 0.6, 0.5);
     const col = { x0: p.x - 0.7, x1: p.x + 0.7, z0: p.z - 0.7, z1: p.z + 0.7, y0: 0, y1: 1.1, mat: 'concrete' }; MAP.props.push(col);
     const nug = new THREE.Group(); nug.userData.dynamic = true; nug.position.set(p.x, 0.25, p.z); nug.visible = false; R.scene.add(nug);

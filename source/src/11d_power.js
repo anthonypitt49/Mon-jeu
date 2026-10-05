@@ -14,10 +14,11 @@ const pwrParts = () => M.powerParts || PWR_DEFAULT;
 function buildPowerParts() {
   WORLD.pwrParts = pwrParts().map((p) => {
     const g = new THREE.Group(); g.userData.dynamic = true; g.visible = false; R.scene.add(g); const k = kitMats();
-    if (p.kind === 'fuel') { mesh(boxG(0.34, 0.44, 0.16), KIT.m(0xb82a1e, { rough: 0.45, metal: 0.4 }), 0, 0.22, 0, 0, g); mesh(boxG(0.18, 0.06, 0.06), MATS.iron, 0.04, 0.47, 0, 0, g); mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.08, 8), MATS.brass, -0.11, 0.48, 0, 0, g); }
-    else if (p.kind === 'fuse') { mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.26, 12), KIT.m(0xe8e2d4, { rough: 0.3 }), 0, 0.12, 0, 0, g).rotation.z = Math.PI / 2; for (const s of [-1, 1]) mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.05, 12), MATS.brass, s * 0.14, 0.12, 0, 0, g).rotation.z = Math.PI / 2; }
+    // Familles photo (05b_flat.js) : bidon en tôle peinte, fusible en porcelaine, courroie en cuir ; la bobine de cuivre reste unie.
+    if (p.kind === 'fuel') { mesh(boxG(0.34, 0.44, 0.16), fmat('tole', 0xb82a1e, { rough: 0.45, metal: 0.4 }), 0, 0.22, 0, 0, g); mesh(boxG(0.18, 0.06, 0.06), MATS.iron, 0.04, 0.47, 0, 0, g); mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.08, 8), MATS.brass, -0.11, 0.48, 0, 0, g); }
+    else if (p.kind === 'fuse') { mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.26, 12), fmat('email', 0xe8e2d4, { rough: 0.3 }), 0, 0.12, 0, 0, g).rotation.z = Math.PI / 2; for (const s of [-1, 1]) mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.05, 12), MATS.brass, s * 0.14, 0.12, 0, 0, g).rotation.z = Math.PI / 2; }
     else if (p.kind === 'coil') { mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.26, 16), KIT.m(0xb86a2e, { rough: 0.35, metal: 0.8 }), 0, 0.14, 0, 0, g); mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.34, 8), MATS.iron, 0, 0.14, 0, 0, g); }
-    else if (p.kind === 'belt') { mesh(new THREE.TorusGeometry(0.2, 0.03, 6, 20), KIT.m(0x3a2618, { rough: 0.8 }), 0, 0.05, 0, 0, g).rotation.x = Math.PI / 2; mesh(new THREE.TorusGeometry(0.16, 0.025, 6, 20), KIT.m(0x4a3220, { rough: 0.8 }), 0.06, 0.1, 0, 0, g).rotation.x = Math.PI / 2 - 0.3; }
+    else if (p.kind === 'belt') { mesh(new THREE.TorusGeometry(0.2, 0.03, 6, 20), fmat('cuir', 0x3a2618, { rough: 0.8 }), 0, 0.05, 0, 0, g).rotation.x = Math.PI / 2; mesh(new THREE.TorusGeometry(0.16, 0.025, 6, 20), fmat('cuir', 0x4a3220, { rough: 0.8 }), 0.06, 0.1, 0, 0, g).rotation.x = Math.PI / 2 - 0.3; }
     else { mesh(boxG(0.3, 0.2, 0.2), MATS.olive, 0, 0.1, 0, 0, g); mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 10), MATS.iron, 0.2, 0.12, 0, 0, g).rotation.z = Math.PI / 2; }
     const glow = KIT.glow(g, 0, 0.25, 0, 0xffd070, 1.1, 0.55);
     return { g, glow };
