@@ -1,7 +1,7 @@
 /* ═══════════════════ CONSTRUCTION DU MONDE ═══════════════════
    Tranchées étayées, bunker en béton, sape boisée, cour du générateur, no man's land. */
 
-const WORLD = { perks: [], wallBuys: [], doors: [], box: null, bench: null, power: null, spin: [], blink: [], fires: [], beams: [], powerLamps: [] };
+const WORLD = { perks: [], wallBuys: [], doors: [], box: null, bench: null, power: null, spin: [], blink: [], fires: [], beams: [], powerLamps: [], covers: [] };
 const MATS = {};
 
 // Constructeur de géométrie (quadrillages déformables, couleurs par sommet).
@@ -57,6 +57,9 @@ const boxG = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 function collider(x0, z0, x1, z1, y1, mat = 'wood', y0 = 0) { MAP.props.push({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1), y0, y1, mat }); }
 // Collision d'une boîte tournée autour de Y (approximée par son enveloppe).
 function colliderBox(x, z, w, d, ry, h, mat) { const c = Math.abs(Math.cos(ry)), s = Math.abs(Math.sin(ry)); const hw = (w * c + d * s) / 2, hd = (w * s + d * c) / 2; collider(x - hw, z - hd, x + hw, z + hd, h, mat); }
+// Objet couché à même le sol, sans collision (on marche dessus) : rien n'est semé ni caché dessous.
+function groundCover(x, z, w, d, ry) { WORLD.covers.push({ x, z, c: Math.cos(ry), s: Math.sin(ry), hw: w / 2, hd: d / 2 }); }
+const underCover = (x, z, m = 0) => WORLD.covers.some((k) => { const dx = x - k.x, dz = z - k.z; return Math.abs(dx * k.c - dz * k.s) <= k.hw + m && Math.abs(dx * k.s + dz * k.c) <= k.hd + m; });
 
 // Sac de sable : boîte bombée.
 function sandbagGeo() {

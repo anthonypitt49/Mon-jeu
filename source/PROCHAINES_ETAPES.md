@@ -2,6 +2,15 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Corrigé, pas encore publié : l'aile basse du biplan (Poste 7, le Cratère)
+
+`R.scene.add(w)` était tombé dans un commentaire (`11c_crater.js`, depuis 902561b) : l'aile basse et ses deux cocardes n'ont jamais été affichées. Ajoutée telle quelle, elle restait enterrée sur presque toute sa longueur (dessus jusqu'à 35 cm sous le sol rendu) : la cuvette se creuse en S et aucune aile droite ne la suit (±9 cm pour 8 cm d'épaisseur). Elle épouse maintenant la pente point par point. Mesuré par rayons sur 400 points : dessus 3 à 6 cm au-dessus du sol rendu, dessous 2 à 5 cm dessous.
+
+- Pas de boîte de collision (on marche dessus) : un infecté la traverse sans détour.
+- `groundCover` / `underCover` (`05_world.js`) : rien n'est semé dessous (18 mottes de terre la perçaient) et aucune pièce du générateur n'y est cachée (la courroie pouvait tomber sur 4 des 52 carreaux du Cratère, à moitié prise dans l'aile). Les disques du Poste 7 sont loin de l'aile ; leurs cachettes, fixes, n'ont pas bougé (`secretSpots` tourne avant le décor).
+- Elle paraît presque blanche : c'est la neige du matériau `fabric` (`stdMat(…, 0.7)`), la même que sur le dessus du fuselage ; les cocardes n'en ont pas.
+- Pour publier : augmenter `GAME_VERSION` et `dev/version.json`, `node build.mjs`, batterie de tests.
+
 ## Fait (version 5.0) : les trois autres cartes en textures photo
 
 Mise en ligne le 5 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu avec salon co-op, republié avec `assets/cite/`, `assets/penitencier/`, `assets/filon/` et les versions allégées du Poste 7 (311 fichiers ; une publication en accepte 255 au plus, une version 511).

@@ -26,7 +26,7 @@ function buildPowerParts() {
 // Choix des cachettes : un carreau praticable, dégagé, loin des barricades et des portes, dans les zones de la pièce.
 function pwrPickTiles() {
   const used = new Set(), out = [];
-  const clear = (x, z) => { const cx = tcx(x), cz = tcx(z); for (const b of MAP.props) if (!b.off && b.x0 < cx + 0.75 && b.x1 > cx - 0.75 && b.z0 < cz + 0.75 && b.z1 > cz - 0.75) return false; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const t = tType(x + dx, z + dz); if (t === T_RAMP || t === T_DOOR) return false; } return true; };
+  const clear = (x, z) => { const cx = tcx(x), cz = tcx(z); if (underCover(cx + 0.3, cz - 0.25, 0.3)) return false; /* pièce posée à côté du centre (pwrApply) */ for (const b of MAP.props) if (!b.off && b.x0 < cx + 0.75 && b.x1 > cx - 0.75 && b.z0 < cz + 0.75 && b.z1 > cz - 0.75) return false; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const t = tType(x + dx, z + dz); if (t === T_RAMP || t === T_DOOR) return false; } return true; };
   const ps = SPOTS.power, pd = (x, z) => Math.hypot(x - ps.x, z - ps.z);
   // Repli si les zones prévues n'offrent aucune cachette : toute zone à ouvrir, puis n'importe quel sol (une pièce introuvable bloquerait le courant).
   const scan = (ok) => { const c = []; for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) { const i = ti(x, z); if (MAP.type[i] === T_FLOOR && !used.has(i) && ok(MAP.zone[i], x, z)) c.push(i); } return c; };

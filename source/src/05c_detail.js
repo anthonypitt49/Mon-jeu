@@ -41,7 +41,7 @@ function scatterAll(list) {
   for (const sp of list) {
     const geo = scatterGeo(sp.kind), mat = KM['scat' + sp.kind + sp.color] ||= stdMat({ color: 0xffffff, roughness: sp.kind === 'paper' ? 0.8 : 0.95, vertexColors: true, side: sp.kind === 'tuft' || sp.kind === 'leaf' || sp.kind === 'paper' ? THREE.DoubleSide : THREE.FrontSide }, sp.snow || 0);
     const pts = [], base = new THREE.Color(sp.color), [s0, s1] = sp.scale || [0.8, 1.25], jit = sp.jitter ?? 0.18;
-    const add = (x, y, z) => pts.push([x, y, z]);
+    const add = (x, y, z) => { if (!underCover(x, z, 0.1)) pts.push([x, y, z]); }; // rien ne perce l'aile du Cratère
     if (sp.styles) for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) {
       const t = MAP.type[ti(x, z)]; if (t !== T_FLOOR) continue; if (!sp.styles.includes(styles[MAP.style[ti(x, z)]] ?? MAP.style[ti(x, z)])) continue;
       if (sp.open && MAP.roof[ti(x, z)]) continue;
