@@ -6344,6 +6344,7 @@ function rayZombies(o, d, maxDist) {
    Graphismes « bas » (téléphones), ?nozreal ou échec du chargement : les corps procéduraux restent. */
 
 const ZREAL = { state: 'off', err: '', ms: 0, tpl: {}, list: [], brute: null, boss: null, era: '' };
+const ZR_GLB = '.glb'; // (build.mjs --artifact : '.glb.txt', le même fichier en base64)
 // Os procédural → os du modèle (squelette « game_engine » de MakeHuman).
 const ZR_MAP = [[BN.hips, 'pelvis'], [BN.spine, 'spine_01'], [BN.chest, 'spine_03'], [BN.neck, 'neck_01'], [BN.head, 'head'],
   [BN.clavL, 'clavicle_l'], [BN.uArmL, 'upperarm_l'], [BN.fArmL, 'lowerarm_l'], [BN.handL, 'hand_l'],
@@ -6368,7 +6369,7 @@ async function zrealStart() {
     ZREAL.clone = SU.clone;
     const gl = new GLTFLoader(), hi = settings.quality >= 2;
     await Promise.all(ids.map(async (id) => {
-      const g = await gl.loadAsync(base + id + '.glb');
+      const g = ZR_GLB === '.glb' ? await gl.loadAsync(base + id + '.glb') : await gl.parseAsync(Uint8Array.from(atob(await (await fetch(base + id + ZR_GLB, { cache: 'force-cache' })).text()), (c) => c.charCodeAt(0)).buffer, base);
       let src = null; g.scene.traverse((o) => { if (o.isSkinnedMesh) src = o.material; });
       // Le GLB range la découpe (cheveux, cils) dans la case « occlusion » : elle redevient une découpe ici.
       const map = hi ? src.map : zrealHalf(src.map);

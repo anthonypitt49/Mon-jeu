@@ -24,6 +24,8 @@ if (artifact) {
     .replace(/<body>\s*/i, '')
     .replace(/\s*<\/body>\s*<\/html>\s*$/i, '\n');
 }
-const result = html.replace('/*__GAME_JS__*/', () => js);
+// Artifact : les modèles .glb n'y sont pas servis (types web seulement) ; ils y sont publiés en base64 (.glb.txt).
+const jsOut = artifact ? js.replace("const ZR_GLB = '.glb';", "const ZR_GLB = '.glb.txt';") : js;
+const result = html.replace('/*__GAME_JS__*/', () => jsOut);
 fs.writeFileSync(out, result);
 console.log('built', out, (result.length / 1024).toFixed(1) + ' KB', jsParts.length + ' js parts', artifact ? '(artifact)' : '');

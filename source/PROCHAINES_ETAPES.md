@@ -4,6 +4,8 @@ Note de passation entre sessions de travail : où en est le projet et ce qui vie
 
 ## Fait (version 6.0) : des infectés réalistes, un type par époque, et du gore
 
+Mise en ligne le 8 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu avec salon co-op (version 18, 20 fichiers de plus). L'Artifact ne sert pas les `.glb` (types web seulement) : `build.mjs --artifact` fait charger `<id>.glb.txt`, le même fichier en base64 (`base64 -w0 x.glb > x.glb.txt`, 33 % plus gros, non gardé dans le dépôt).
+
 Demande du propriétaire : « je veux aller chercher la qualité de visuel d'un zombie de Call of Duty Black Ops 2 mode Zombie ». Ses choix : voie gratuite faite ici, un type par époque, gore comme BO2, version simplifiée sur téléphone.
 
 - **Le constat d'abord** : les corps du jeu étaient faits de tubes et de sphères calculés par le code (`09_zombies.js`) ; aucun réglage ne les aurait menés au niveau de BO2, dont les personnages sont sculptés. Il fallait de vrais modèles 3D.
