@@ -25,7 +25,7 @@ Demande du propriétaire : « fais les objets en textures photo maintenant ». A
 - Réglés à l'œil sur les captures : le bois peint prenait la texture dessinée des planches brunes comme repère de clarté, et la palissade blanche et les portes de garage sortaient brun sombre (repère passé à la peinture salie, plus claire) ; le teck de la Cité était presque noir sur les meubles foncés (teinte relevée) ; la photo de caisse, un pin très orangé, faisait des barricades orange vif dans la prison (couleur ramenée à 55 % : `sat` dans `fetch_assets.py`).
 - Outil : `dev/objets.mjs <carte> [qualité] [préfixe] [sortes]` → vues rapprochées des objets posés (une par sorte, 6 par planche, `dev/shots/`), grâce à `KIT.spots` (`?spots`).
 - Mesures (Cité, `photoperf.mjs`) : mémoire vidéo des textures en « élevé » 228 → 258 Mo (+ 30 Mo pour les objets) ; en « bas », 84 Mo avec les photos allégées ; temps d'image sans écart mesurable.
-- TESTS51
+- Tests avant mise en ligne : vérification photo des quatre cartes en « bas » et en « élevé » (chaque famille présente reçoit sa photo, les absentes ne sont pas téléchargées), vues rapprochées des objets et tournées des quatre cartes regardées une à une, `feat.mjs`, `mapplay` sur les quatre cartes, `touch.mjs`, `sounds.mjs`, `volumes.mjs`, `fullscreen.mjs`, `coop.mjs` et `coopmap.mjs` (erreurs des relais MQTT publics, refusés par le conteneur, seulement) : bons.
 
 Reste à faire sur les objets :
 1. Sans famille, laissés tels quels : bois calciné (`MATS.char` : habitacle du biplan, maisons brûlées au loin), pierre (`MATS.stone`), caoutchouc (tuyaux, pneus), laiton, marbre, foin, verre, lampes, enseignes, petits objets colorés (conserves, livres, bonbons).

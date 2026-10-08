@@ -737,7 +737,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '5.0'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '5.1'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -2204,6 +2204,7 @@ class Batch {
   add(x, y, z, ry = 0, rx = 0, rz = 0, sx = 1, sy = 1, sz = 1) { _e1.set(rx, ry, rz, 'YXZ'); _q1.setFromEuler(_e1); this.m.push(new THREE.Matrix4().compose(_v1.set(x, y, z), _q1, _v2.set(sx, sy, sz))); return this.m.length - 1; }
   build(parent = R.scene) {
     if (!this.m.length) return null;
+    this.geo = meterInstGeo(this.geo, this.mat); // UV en mètres à l'échelle de chaque exemplaire (photo)
     // Lots lourds (sacs de sable, barbelés…) : découpés en zones de 32 m, pour que la caméra et l'ombre ignorent ce qu'elles ne voient pas.
     const tris = (this.geo.index ? this.geo.index.count : this.geo.attributes.position.count) / 3;
     if (parent === R.scene && this.m.length * tris > 20000) {
@@ -2223,6 +2224,120 @@ function mesh(geo, mat, x = 0, y = 0, z = 0, ry = 0, parent = R.scene, shadow = 
   const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.y = ry; m.castShadow = shadow; m.receiveShadow = true; parent.add(m); return m;
 }
 const boxG = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+
+/* ─── UV en mètres pour les objets ───
+   Les boîtes, cylindres et sphères de three.js ont des UV de 0 à 1 par face, quelle que soit leur taille : une photo
+   y serait étirée sur un banc de 3 m et écrasée sur un pied de 6 cm. Pour les matières qui le demandent (celles de
+   fmat, qui ont une clé de texture, ou userData.mu), chaque face reçoit la taille réelle qu'elle couvre, divisée par
+   l'échelle de la matière (userData.scale, en mètres par unité d'UV) : la photo tombe à sa vraie taille, comme sur les
+   murs. Le fil d'un bois suit la plus grande dimension de la pièce (grain dans PHOTO_SETS : 'u' si les planches de la
+   photo sont couchées, 'v' si elles sont debout). Chaque pièce lit la photo à un endroit différent. */
+const meterMat = (m) => !!m && !Array.isArray(m) && (m.userData.mu ?? !!m.userData.ftex);
+const meterGrain = (m) => PHOTO_SETS[MAP_ID]?.[m.userData.ftex || m.userData.photo]?.grain || m.userData.grain || '';
+// Pour chaque sommet : axes du repère local qui portent u et v (0 = x, 1 = y, 2 = z), coordonnées en mètres sans échelle,
+// et taille de la face le long de u et de v (pour le sens du fil). Renvoie null si la géométrie n'est pas reconnue.
+function meterBase(geo) {
+  const t = geo.type, p = geo.parameters, pos = geo.attributes.position, nor = geo.attributes.normal, uv = geo.attributes.uv;
+  if (t === 'ExtrudeGeometry' && uv && nor) { // carrosseries : UV déjà en mètres (coordonnées du profil), sans sens de fil
+    const n = uv.count, z = new Uint8Array(n), o = new Uint8Array(n).fill(1), ex = new Float32Array(n * 2).fill(1);
+    return { au: z, av: o, mu: Float32Array.from(uv.array), ex };
+  }
+  if (!p || !uv || !nor || /Extrude|Tube|Shape|Text|Edges|Wireframe/.test(t)) return null;
+  const n = uv.count, au = new Uint8Array(n), av = new Uint8Array(n), mu = new Float32Array(n * 2), ex = new Float32Array(n * 2), cv = new Uint8Array(n);
+  geo.computeBoundingBox(); const b = geo.boundingBox, size = [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z];
+  const P = [0, 0, 0];
+  const proj = (i) => { // face plane : projection selon l'axe dominant de la normale
+    const nx = Math.abs(nor.getX(i)), ny = Math.abs(nor.getY(i)), nz = Math.abs(nor.getZ(i));
+    const [U, V] = nx >= ny && nx >= nz ? [2, 1] : ny >= nz ? [0, 2] : [0, 1];
+    P[0] = pos.getX(i); P[1] = pos.getY(i); P[2] = pos.getZ(i);
+    au[i] = U; av[i] = V; mu[i * 2] = P[U]; mu[i * 2 + 1] = P[V]; ex[i * 2] = size[U]; ex[i * 2 + 1] = size[V];
+  };
+  const curved = (i, cu, cl, U = 0, V = 1) => { au[i] = U; av[i] = V; cv[i] = 1; mu[i * 2] = uv.getX(i) * cu; mu[i * 2 + 1] = uv.getY(i) * cl; ex[i * 2] = cu; ex[i * 2 + 1] = cl; };
+  if (t === 'CylinderGeometry' || t === 'ConeGeometry') {
+    const r0 = p.radiusTop ?? 0, r1 = p.radiusBottom ?? p.radius, torso = (p.radialSegments + 1) * (p.heightSegments + 1);
+    const circ = Math.PI * (r0 + r1) * (p.thetaLength ?? TAU) / TAU, slant = Math.hypot(p.height, r1 - r0);
+    for (let i = 0; i < n; i++) if (i < torso) curved(i, circ, slant); else proj(i);
+  } else if (t === 'SphereGeometry') {
+    for (let i = 0; i < n; i++) curved(i, TAU * p.radius * (p.phiLength ?? TAU) / TAU, Math.PI * p.radius * (p.thetaLength ?? Math.PI) / Math.PI);
+  } else if (t === 'TorusGeometry') {
+    for (let i = 0; i < n; i++) curved(i, (p.arc ?? TAU) * p.radius, TAU * p.tube);
+  } else if (t === 'CapsuleGeometry') {
+    for (let i = 0; i < n; i++) curved(i, TAU * p.radius, (p.height ?? p.length) + Math.PI * p.radius);
+  } else if (t === 'LatheGeometry') {
+    let len = 0, rr = 0; for (let k = 1; k < p.points.length; k++) len += p.points[k].distanceTo(p.points[k - 1]);
+    for (const q of p.points) rr += q.x / p.points.length;
+    for (let i = 0; i < n; i++) curved(i, (p.phiLength ?? TAU) * rr, len);
+  } else if (/Box|Plane|Circle|Ring|Polyhedron|Icosahedron|Dodecahedron|Octahedron|Tetrahedron/.test(t)) {
+    for (let i = 0; i < n; i++) proj(i);
+  } else return null;
+  return { au, av, mu, ex, cv };
+}
+// Copie de la géométrie avec des UV en mètres, à l'échelle (sx, sy, sz) de l'objet ; (ox, oz) choisit l'endroit lu.
+function meterUV(geo, mat, sx = 1, sy = 1, sz = 1, ox = 0, oz = 0) {
+  if (geo.userData.mu || !meterMat(mat)) return geo;
+  const B = meterBase(geo); if (!B) return geo;
+  const g = geo.clone(); g.userData = { ...geo.userData, mu: 1 }; // (clone partage userData avec l'original : copie)
+  const uv = g.attributes.uv, S = [sx, sy, sz], s = mat.userData.scale || 2, gr = meterGrain(mat);
+  const du = hash2(ox * 13.1 + 7, oz * 7.7) * 5.3, dv = hash2(oz * 11.3, ox * 5.9 + 3) * 5.3; // endroit de la photo, propre à la pièce
+  for (let i = 0; i < uv.count; i++) {
+    const ku = S[B.au[i]], kv = S[B.av[i]];
+    let u = B.mu[i * 2] * ku, v = B.mu[i * 2 + 1] * kv;
+    const eu = B.ex[i * 2] * ku, ev = B.ex[i * 2 + 1] * kv;
+    // Flanc d'un cylindre : le fil ne fait jamais le tour (douelles d'un tonneau, planches d'une citerne : debout).
+    if ((gr === 'u' && ev > eu * 1.05) || (gr === 'v' && eu > ev * 1.05 && !B.cv?.[i])) { const w = u; u = v; v = w; }
+    uv.setXY(i, u / s + du, v / s + dv);
+  }
+  uv.needsUpdate = true; return g;
+}
+// Mesh posé (fixe ou mobile, pas instancié) : UV en mètres à son échelle dans le monde, une seule fois.
+function meterMesh(o) {
+  if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || !o.geometry || o.geometry.userData.mu || !meterMat(o.material)) return;
+  o.updateWorldMatrix(true, false); o.matrixWorld.decompose(_v1, _q1, _v2);
+  const g = meterUV(o.geometry, o.material, Math.abs(_v2.x), Math.abs(_v2.y), Math.abs(_v2.z), _v1.x, _v1.z);
+  if (g !== o.geometry) o.geometry = g;
+}
+// Objets créés après la construction du monde (éboulis de mission, pièces du courant…).
+function meterize(root) { root.traverse(meterMesh); }
+// Lot instancié : la géométrie est partagée et l'échelle change d'un exemplaire à l'autre. La géométrie garde ses mesures
+// sans échelle et les axes de chaque face ; le nuanceur multiplie par l'échelle de l'exemplaire (meterInstHook).
+function meterInstGeo(geo, mat) {
+  if (geo.userData.mui || !meterMat(mat)) return geo;
+  const B = meterBase(geo); if (!B) return geo;
+  const g = geo.clone(), n = g.attributes.uv.count, a = new Float32Array(n * 2);
+  for (let i = 0; i < n; i++) { a[i * 2] = B.au[i]; a[i * 2 + 1] = B.av[i]; }
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(B.mu, 2)); g.setAttribute('aMuAx', new THREE.Float32BufferAttribute(a, 2)); g.setAttribute('aMuEx', new THREE.Float32BufferAttribute(B.ex, 2));
+  g.userData = { ...geo.userData, mui: 1, mu: 1 }; return g;
+}
+// Branché après la fusion (sinon la matière serait exclue de mergeStatic) et enchaîné avec la neige ; sans attribut
+// aMuAx (exemplaire d'une autre géométrie), le nuanceur ne change rien.
+function meterInstHook(m) {
+  if (m.userData.muHook) return; m.userData.muHook = 1;
+  const prev = m.onBeforeCompile, key = m.customProgramCacheKey?.() || '', s = (m.userData.scale || 2).toFixed(3), gr = meterGrain(m);
+  m.onBeforeCompile = (sh, r) => {
+    if (prev) prev.call(m, sh, r);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n#ifdef USE_INSTANCING\nattribute vec2 aMuAx; attribute vec2 aMuEx;\n#endif')
+      .replace('#include <uv_vertex>', `#include <uv_vertex>
+      #ifdef USE_INSTANCING
+      if (aMuAx.x + aMuAx.y > 0.5) {
+        vec3 isc = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
+        vec2 k = vec2(aMuAx.x < 0.5 ? isc.x : aMuAx.x < 1.5 ? isc.y : isc.z, aMuAx.y < 0.5 ? isc.x : aMuAx.y < 1.5 ? isc.y : isc.z);
+        vec2 mm = uv * k, ee = aMuEx * k;
+        ${gr === 'u' ? 'if (ee.y > ee.x * 1.05) mm = mm.yx;' : gr === 'v' ? 'if (ee.x > ee.y * 1.05) mm = mm.yx;' : ''}
+        mm = mm / ${s} + fract(vec2(instanceMatrix[3].x * 0.731 + instanceMatrix[3].y * 2.17, instanceMatrix[3].z * 0.613 + instanceMatrix[3].x * 0.291) * 1.37) * 5.3;
+        #ifdef USE_MAP
+          vMapUv = (mapTransform * vec3(mm, 1.0)).xy;
+        #endif
+        #ifdef USE_NORMALMAP
+          vNormalMapUv = (normalMapTransform * vec3(mm, 1.0)).xy;
+        #endif
+        #ifdef USE_ROUGHNESSMAP
+          vRoughnessMapUv = (roughnessMapTransform * vec3(mm, 1.0)).xy;
+        #endif
+      }
+      #endif`);
+  };
+  m.customProgramCacheKey = () => key + '|mu';
+}
 function collider(x0, z0, x1, z1, y1, mat = 'wood', y0 = 0) { MAP.props.push({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1), y0, y1, mat }); }
 // Collision d'une boîte tournée autour de Y (approximée par son enveloppe).
 function colliderBox(x, z, w, d, ry, h, mat) { const c = Math.abs(Math.cos(ry)), s = Math.abs(Math.sin(ry)); const hw = (w * c + d * s) / 2, hd = (w * s + d * c) / 2; collider(x - hw, z - hd, x + hw, z + hd, h, mat); }
@@ -2260,6 +2375,11 @@ function buildMaterials() {
   MATS.cloth = stdMat({ color: 0x5d5a44, roughness: 0.95, map: TEX.cloth.map, normalMap: TEX.cloth.normalMap }, 0.9);
   // Nom de la matière, recopié dans les clones des fusions : les textures photo (05p_photo.js) les retrouvent tous.
   for (const k of Object.keys(PHOTO_SETS[MAP_ID] || {})) if (MATS[k]) MATS[k].userData.photo = k;
+  // Matières communes des objets : famille photo (OBJ_FAM, 05b_flat.js), donc UV en mètres et photo de la famille.
+  for (const [k, f] of [['iron', 'fonte'], ['rust', 'rouille'], ['olive', 'olive'], ['crate', 'boisBrut'], ['cloth', 'toile'], ['bark', 'ecorce']]) Object.assign(MATS[k].userData, { ftex: f, scale: OBJ_FAM[f][1] });
+  MATS.olive.metalness = 0.1; // une peinture n'est pas un métal
+  // Barricades et poteaux des cartes de plain-pied : bois brut photographié (le Poste 7 garde ses planches de tranchée).
+  if (M.flat) for (const k of ['planks', 'post']) Object.assign(MATS[k].userData, { ftex: 'boisBrut', scale: OBJ_FAM.boisBrut[1] });
   MATS.wire = new THREE.LineBasicMaterial({ color: 0x191919 });
   MATS.wireMesh = stdMat({ color: 0x252525, roughness: 0.5, metalness: 0.8 });
   MATS.brass = stdMat({ color: 0xb58a3c, roughness: 0.35, metalness: 0.9 });
@@ -2291,6 +2411,7 @@ function buildWorld() {
 // Fusionne les accessoires fixes : même texture et même finition → un seul appel de dessin, la teinte passe dans les sommets.
 function mergeStatic() {
   R.scene.updateMatrixWorld(true);
+  R.scene.traverse(meterMesh); // UV en mètres (photo), avant la fusion qui perd la taille de chaque pièce
   // Les petits objets (moins de ~22 cm) ne projettent plus d'ombre : invisible à l'œil, mais autant d'appels de dessin en moins.
   const _s = new THREE.Vector3();
   R.scene.traverse((o) => {
@@ -2303,7 +2424,7 @@ function mergeStatic() {
   const isDynamic = (o) => { for (let p = o; p; p = p.parent) if (p.userData.dynamic) return true; return false; };
   const own = (m, k) => Object.prototype.hasOwnProperty.call(m, k);
   const sig = (m) => m.type !== 'MeshStandardMaterial' || m.vertexColors || m.emissiveMap || (own(m, 'onBeforeCompile') && !m.userData.snow) ? 'u' + m.uuid
-    : ['s', m.map?.uuid, m.normalMap?.uuid, m.roughness.toFixed(2), m.metalness.toFixed(2), m.emissive.getHexString(), m.emissiveIntensity.toFixed(2), m.transparent, m.opacity.toFixed(2), m.side, m.alphaTest, m.userData.snow || 0, m.depthWrite].join('|');
+    : ['s', m.map?.uuid, m.normalMap?.uuid, m.roughness.toFixed(2), m.metalness.toFixed(2), m.emissive.getHexString(), m.emissiveIntensity.toFixed(2), m.transparent, m.opacity.toFixed(2), m.side, m.alphaTest, m.userData.snow || 0, m.depthWrite, m.userData.ftex || ''].join('|');
   R.scene.traverse((o) => {
     if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || Array.isArray(o.material) || isDynamic(o)) return;
     const g = o.geometry; if (g.attributes.color || !g.attributes.normal || !g.attributes.uv || g.attributes.position.count > 20000) return;
@@ -2327,6 +2448,7 @@ function mergeStatic() {
     const m = new THREE.Mesh(merged, m2); m.castShadow = cast; m.receiveShadow = true; R.scene.add(m);
     for (const o of list) o.parent.remove(o);
   }
+  R.scene.traverse((o) => { if (o.isInstancedMesh && o.geometry.attributes.aMuAx) meterInstHook(o.material); });
   batchGlows();
 }
 
@@ -2603,7 +2725,7 @@ function buildDoors() {
       mesh(boxG(0.16, 0.26, 0.08), MATS.rust, 0.7, 1.05, 0.05, 0, leaf);
     } else if (d.kind === 'wood') {
       // Porte pleine à panneaux (pivote sur ses gonds à l'ouverture).
-      const wm = fmat('planks', d.color || 0x9a7a58);
+      const wm = fmat('boisPeint', d.color || 0x9a7a58); // porte peinte (photo : planches à la peinture usée)
       mesh(boxG(1.9, H, 0.07), wm, 0, H / 2, 0, 0, leaf);
       for (const [x, y, w, h] of [[-0.45, 0.62, 0.62, 0.8], [0.45, 0.62, 0.62, 0.8], [-0.45, 1.68, 0.62, 0.95], [0.45, 1.68, 0.62, 0.95]]) mesh(boxG(w, h, 0.1), wm, x, y, 0, 0, leaf);
       mesh(new THREE.SphereGeometry(0.045, 10, 8), MATS.brass, 0.78, 1.05, 0.07, 0, leaf, false); mesh(new THREE.SphereGeometry(0.045, 10, 8), MATS.brass, 0.78, 1.05, -0.07, 0, leaf, false);
@@ -2615,10 +2737,10 @@ function buildDoors() {
         for (let k = 0; k < 14; k++) { const s = 0.35 + r() * 0.5, m = mesh(new THREE.DodecahedronGeometry(s, 0), rock, (r() - 0.5) * 1.7, s * 0.6 + (k > 8 ? 0.6 + r() * 0.7 : 0), (r() - 0.5) * 0.9, r() * TAU, leaf); m.rotation.x = r() * TAU; }
         for (let k = 0; k < 3; k++) { const b = mesh(boxG(0.2, 0.2, 2.2), MATS.post, (r() - 0.5) * 1.2, 0.5 + r() * 1.3, 0, 0, leaf); b.rotation.set(r() * 0.4, Math.PI / 2 + (r() - 0.5) * 0.6, (r() - 0.5) * 0.8); }
       } else {
-        const wm = fmat('planks', 0xa08a70), cloth = MATS.cloth;
+        const wm = fmat('boisBrut', 0xa08a70), cloth = MATS.cloth;
         mesh(boxG(1.4, 0.08, 0.8), wm, -0.2, 0.9, 0.05, 0.1, leaf).rotation.z = 0.35; // table renversée
         for (const x of [-0.8, 0.4]) { const l = mesh(boxG(0.07, 0.8, 0.07), wm, x, 0.5, 0.3, 0, leaf); l.rotation.z = 0.35; }
-        mesh(boxG(0.7, 1.2, 0.5), fmat('planks', 0x6e5a44), 0.55, 0.6, -0.1, -0.2, leaf); // armoire
+        mesh(boxG(0.7, 1.2, 0.5), fmat('meuble', 0x6e5a44), 0.55, 0.6, -0.1, -0.2, leaf); // armoire
         for (let k = 0; k < 6; k++) { const b = mesh(boxG(1.8 + r() * 0.4, 0.16, 0.05), wm, (r() - 0.5) * 0.4, 0.3 + r() * 1.9, (r() - 0.5) * 0.3, (r() - 0.5) * 0.3, leaf); b.rotation.z = (r() - 0.5) * 1.1; }
         mesh(boxG(0.6, 0.5, 0.6), MATS.crate, -0.6, 0.25, -0.1, 0.4, leaf); mesh(boxG(0.8, 0.12, 0.7), cloth, 0.1, 1.55, 0.1, 0.3, leaf).rotation.z = -0.2;
         const ch = mesh(boxG(0.45, 0.06, 0.45), wm, -0.55, 1.35, 0.1, 0.5, leaf); ch.rotation.x = 1.1;
@@ -2667,7 +2789,7 @@ function mergeGroup(group) {
   for (const o of [...group.children]) { if (!o.isMesh || Array.isArray(o.material) || o.children.length) continue; const k = o.material.uuid + (o.castShadow ? 's' : 'n'); if (!by.has(k)) by.set(k, []); by.get(k).push(o); }
   for (const list of by.values()) {
     if (list.length < 2) continue;
-    const geos = list.map((o) => { o.updateMatrix(); const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); for (const n of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(n)) g.deleteAttribute(n); return g.applyMatrix4(o.matrix); });
+    const geos = list.map((o) => { o.updateMatrix(); o.geometry = meterUV(o.geometry, o.material, Math.abs(o.scale.x), Math.abs(o.scale.y), Math.abs(o.scale.z), group.position.x + o.position.x, group.position.z + o.position.z); const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); for (const n of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(n)) g.deleteAttribute(n); return g.applyMatrix4(o.matrix); });
     if (!geos.every((g) => g.attributes.uv && g.attributes.normal)) continue;
     const merged = mergeGeometries(geos); if (!merged) continue;
     const m = new THREE.Mesh(merged, list[0].material); m.castShadow = list[0].castShadow; m.receiveShadow = true; group.add(m);
@@ -2817,6 +2939,13 @@ const FLAT_TEX = {
 const FMATS = {};
 // Matière d'une carte de plain-pied : clé de texture + teinte ; échelle UV en mètres par répétition.
 const FLAT_SCALE = { brick: 1, siding: 2, plaster: 2, wallpaper: 1.2, victorian: 1.2, stone: 2.4, cellPaint: 3, rock: 4, westPlank: 2, tileWall: 1, checker: 1, asphalt: 4, sidewalk: 2, lawn: 2, sand: 6, parquet: 2, dirt: 4, slab: 3, shingle: 2, chain: 1 };
+// Familles d'objets : une clé par vraie matière (bois de meuble, tissu, émail, tôle peinte…), pour que chacune reçoive
+// sa propre photo (PHOTO_SETS) et ne soit pas fusionnée avec une autre. [texture dessinée de repli, mètres par unité d'UV]
+const OBJ_FAM = {
+  meuble: ['planks', 1], boisPeint: ['grime', 2], /* peinture : repère de clarté clair, sinon la photo est assombrie */ boisBrut: ['planks', 0.7], tissu: ['cloth', 0.6], velours: ['cloth', 0.6], cuir: ['cloth', 0.6],
+  skai: ['cloth', 0.6], toile: ['cloth', 1], email: ['grime', 2], tole: ['grime', 2], acier: ['grime', 2], galva: ['grime', 2], fonte: ['grime', 2],
+  rouille: ['grime', 2], olive: ['grime', 2], ecorce: ['grime', 2],
+};
 // o.vc : couleurs par sommet (géométries construites ici) ; sans, pour les objets et les lots instanciés.
 function fmat(key, color = 0xffffff, o = {}) {
   const vc = !!o.vc, k = `${key}_${color}_${o.rough ?? ''}_${o.metal ?? ''}_${o.side ?? ''}_${vc}_${o.snow ?? ''}`;
@@ -2826,11 +2955,12 @@ function fmat(key, color = 0xffffff, o = {}) {
   else if (key === 'metal') m = stdMat({ map: TEX.metal.map, normalMap: TEX.metal.normalMap, roughness: o.rough ?? 0.7, metalness: o.metal ?? 0.3, color, vertexColors: vc }, o.snow || 0);
   else if (key === 'planks') m = stdMat({ map: TEX.planks.map, normalMap: TEX.planks.normalMap, roughness: o.rough ?? 0.85, color, vertexColors: vc }, o.snow || 0);
   else if (key === 'plain') m = stdMat({ roughness: o.rough ?? 0.8, metalness: o.metal ?? 0, color, vertexColors: vc, map: TEX.grime.map }, o.snow || 0);
+  else if (OBJ_FAM[key]) { const T = TEX[OBJ_FAM[key][0]]; m = stdMat({ map: T.map, normalMap: T.normalMap, roughness: o.rough ?? 0.85, metalness: o.metal ?? 0, color, vertexColors: vc, side: o.side ?? THREE.FrontSide }, o.snow || 0); }
   else {
     const t = ftex(key);
     m = stdMat({ map: t.map, normalMap: t.normalMap, roughness: o.rough ?? 0.9, metalness: o.metal ?? 0, color, vertexColors: vc, alphaTest: FLAT_TEX[key].alpha ? 0.5 : 0, side: o.side ?? THREE.FrontSide }, o.snow || 0);
   }
-  m.userData.scale = FLAT_SCALE[key] || 2; m.userData.ftex = key; m.name = key + ':' + color.toString(16); // ftex : photo de la carte (05p_photo.js)
+  m.userData.scale = OBJ_FAM[key]?.[1] || FLAT_SCALE[key] || 2; m.userData.ftex = key; m.name = key + ':' + color.toString(16); // ftex : photo de la carte (05p_photo.js)
   return (FMATS[k] = m);
 }
 // Matière à couleurs par sommet pour les murs et sols construits ici (spec = 'clé' ou ['clé', teinte]).
@@ -2968,7 +3098,7 @@ function flatSolidWall(K, X0, Z0, X1, Z1, bit, ax, az, bx, bz, roofA, roofB) {
   const top = qb(roofA || roofB ? fv(M.roofTex || 'concrete') : matOut);
   if (bit === 0) top.flat(X0 - E, Z0 - E, X0 + E, Z1 + E, h, 1); else top.flat(X0 - E, Z0 - E, X1 + E, Z0 + E, h, 1);
   if (win) { // embrasure, encadrement en saillie, croisillons, appui, rideaux et vitre
-    const trim = qb(fv(K.trim || ['planks', 0xd8d0c0]));
+    const trim = qb(fv(K.trim || ['boisPeint', 0xd8d0c0])); // encadrement en bois peint
     const s0 = win.s0, s1 = win.s1, wy0 = win.y0, wy1 = win.y1;
     if (bit === 0) {
       trim.flat(X0 - E - 0.05, Z0 + s0, X0 + E + 0.05, Z0 + s1, wy0, 1); trim.flat(X0 - E, Z0 + s0, X0 + E, Z0 + s1, wy1, -1);
@@ -2991,7 +3121,7 @@ function flatSolidWall(K, X0, Z0, X1, Z1, bit, ax, az, bx, bz, roofA, roofB) {
     if (K.bars) { for (let k = 1; k < 9; k++) { const a = s0 + (s1 - s0) * k / 9; FLAT_BARS.push([bit === 0 ? [X0 + 0.04, (wy0 + wy1) / 2, Z0 + a] : [X0 + a, (wy0 + wy1) / 2, Z0 + 0.04], wy1 - wy0]); } box(s0, s1, wy0 + (wy1 - wy0) * 0.5 - 0.02, wy0 + (wy1 - wy0) * 0.5 + 0.02, 0.01, 0.07); }
     // Volets ouverts contre la façade, côté rue.
     if (K.shutter) for (const side of [-1, 1]) {
-      if (side < 0 ? roofA : roofB) continue; const sq = qb(fv(['planks', K.shutter])), n0 = Math.min(side * (E + 0.04), side * (E + 0.075)), n1 = Math.max(side * (E + 0.04), side * (E + 0.075)), sw = (s1 - s0) / 2;
+      if (side < 0 ? roofA : roofB) continue; const sq = qb(fv(['boisPeint', K.shutter])), /* volets en bois peint */ n0 = Math.min(side * (E + 0.04), side * (E + 0.075)), n1 = Math.max(side * (E + 0.04), side * (E + 0.075)), sw = (s1 - s0) / 2;
       for (const [a0, a1] of [[s0 - 0.1 - sw, s0 - 0.1], [s1 + 0.1, s1 + 0.1 + sw]]) { boxIn(sq, a0, a1, wy0 - 0.05, wy1 + 0.05, n0, n1); for (let k = 0; k < 6; k++) { const yy = wy0 + (wy1 - wy0) * (k + 0.5) / 6; if (bit === 0) qbBox(sq, X0 + (side < 0 ? n0 - 0.012 : n1), yy - 0.035, Z0 + a0 + 0.05, X0 + (side < 0 ? n0 : n1 + 0.012), yy + 0.035, Z0 + a1 - 0.05); else qbBox(sq, X0 + a0 + 0.05, yy - 0.035, Z0 + (side < 0 ? n0 - 0.012 : n1), X0 + a1 - 0.05, yy + 0.035, Z0 + (side < 0 ? n0 : n1 + 0.012)); } }
     }
     // Jardinière fleurie sous la fenêtre, côté rue.
@@ -3054,7 +3184,7 @@ function flatDetails() {
   const tt = (x, z) => (inMap(x, z) ? MAP.type[ti(x, z)] : T_SOLID);
   const roofed = (x, z) => inMap(x, z) && MAP.roof[ti(x, z)] && tt(x, z) !== T_SOLID && tt(x, z) !== T_BLOCK;
   const solidK = (k) => k && !wallDef(k).see;
-  const fascia = fv(D.fascia || M.roofTex || 'concrete'), gutters = D.gutter ? new Batch(new THREE.CylinderGeometry(0.055, 0.055, 1, 8, 1, true), fmat('plain', D.gutter, { rough: 0.5, metal: 0.4 })) : null;
+  const fascia = fv(D.fascia || M.roofTex || 'concrete'), gutters = D.gutter ? new Batch(new THREE.CylinderGeometry(0.055, 0.055, 1, 8, 1, true), fmat('tole', D.gutter, { rough: 0.5, metal: 0.4 })) : null;
   const wallH = (K, ax, az, bx, bz) => Math.max(K.h || 3, roofed(ax, az) ? roomCeil(ax, az) + 0.35 : 0, roofed(bx, bz) ? roomCeil(bx, bz) + 0.35 : 0);
   // 1 et 2. Bords de toit : face de rive là où le toit s'arrête sans mur ; débord au-dessus des murs extérieurs.
   for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) {
@@ -3147,7 +3277,7 @@ function buildFences(bars, chains, pickets, rails, posts) {
     const m = q.build(false); if (m) m.renderOrder = 1; railB.build();
   }
   if (pickets.length) {
-    const bd = new Batch(boxG(0.09, 1, 0.025), fmat('plain', 0xf4f1e8)), rl = new Batch(boxG(1, 0.07, 0.03), fmat('plain', 0xeceae0));
+    const bd = new Batch(boxG(0.09, 1, 0.025), fmat('boisPeint', 0xf4f1e8)), rl = new Batch(boxG(1, 0.07, 0.03), fmat('boisPeint', 0xeceae0)); /* palissade peinte en blanc */
     for (const [X0, Z0, X1, Z1, K] of pickets) {
       const h = K.h || 1.1, alongX = Math.abs(X1 - X0) > 0.1;
       for (let k = 0; k < 13; k++) { const t = (k + 0.5) / 13; bd.add(lerp(X0, X1, t), h / 2, lerp(Z0, Z1, t), alongX ? 0 : Math.PI / 2, 0, 0, 1, h, 1); }
@@ -3188,7 +3318,9 @@ function buildFlatTerrain() {
 
 // Barricades de plain-pied : fenêtre à l'appui (murs), passage dans une clôture ou brèche.
 function buildFlatRamps() {
-  const plank = boxG(1.8, 0.2, 0.05), uv = plank.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setY(k, uv.getY(k) / 6 + 0.02);
+  // Planche : photo en mètres (bois brut) ; sinon une seule lame de la texture dessinée (1/6 de sa hauteur).
+  let plank = boxG(1.8, 0.2, 0.05); const pm = meterInstGeo(plank, MATS.planks);
+  if (pm !== plank) plank = pm; else { const uv = plank.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setY(k, uv.getY(k) / 6 + 0.02); }
   WORLD.planks = new THREE.InstancedMesh(plank, MATS.planks, Math.max(1, MAP.barricades.length * 6)); WORLD.planks.castShadow = true; WORLD.planks.receiveShadow = true;
   const posts = new Batch(boxG(0.14, 1, 0.14), MATS.post), trimB = new Batch(boxG(1, 1, 1), MATS.post); let slopeGB = null;
   const E = EDGE_T, CH = ceilH();
@@ -3473,6 +3605,26 @@ const PHOTO = { state: 'off', ms: 0, bytes: 0, files: 0, err: '' };
 // Cartes de plain-pied (ft) : la clé est la texture dessinée de la carte (FLAT_TEX), remplacée partout où elle sert,
 // à la même échelle (FLAT_SCALE) et avec la même teinte ; detail : on garde le motif dessiné (papier peint, peinture
 // des cellules) et on ne prend à la photo que son relief et sa rugosité.
+// Objets (familles OBJ_FAM de 05b_flat.js) : photos communes aux quatre cartes, dans assets/objets/ ; une famille absente
+// de la carte n'est pas téléchargée. neutral : la photo donne la couleur, l'objet garde sa clarté (bois, cuir) ;
+// nomap : en mode detail, la couleur unie du jeu sans la salissure dessinée (émail, porcelaine) ; gloss : brillant gardé.
+const OBJ_PHOTO = {
+  tissu: { ft: 1, set: 'objets/laine', tm: 0.4 }, // tweed d'ameublement (photo grise : la teinte du jeu reste)
+  velours: { ft: 1, set: 'objets/velours', detail: true, ns: 0.8 },
+  toile: { ft: 1, set: 'objets/lin', tm: 0.4 },
+  cuir: { ft: 1, set: 'objets/cuir', neutral: true, tint: [1.25, 1.2, 1.15] }, // cuir sombre : un peu relevé dans les cartes de nuit
+  skai: { ft: 1, set: 'objets/skai', detail: true, gloss: true, ns: 0.8 }, // sellerie auto des années 50 : le grain seul
+  boisPeint: { ft: 1, set: 'objets/boispeint', grain: 'v' },
+  boisBrut: { ft: 1, set: 'objets/caisse', grain: 'v', neutral: true },
+  email: { ft: 1, set: 'objets/emaille', detail: true, nomap: true, gloss: true, ns: 0.3 },
+  tole: { ft: 1, set: 'objets/peinture', gloss: true, ns: 0.5 },
+  acier: { ft: 1, set: 'objets/acier', neutral: true, gloss: true, tint: [0.62, 0.66, 0.86] }, // photo ocre ramenée au gris acier ; métal : reflet gardé
+  galva: { ft: 1, set: 'objets/galva', neutral: true, gloss: true },
+  fonte: { ft: 1, set: 'objets/rouille', detail: true, ns: 0.6 }, // fonte presque noire : relief et rugosité seuls
+  rouille: { ft: 1, set: 'objets/rouille', tm: 2.5, neutral: true },
+  olive: { ft: 1, set: 'objets/olive' },
+  ecorce: { ft: 1, set: 'objets/ecorce', neutral: true },
+};
 const PHOTO_SETS = {
   poste7: {
     earth: { set: 'mudwall', uv: [2.2, 2.2] },
@@ -3486,6 +3638,8 @@ const PHOTO_SETS = {
     metal: { set: 'tin', uv: [2, 1.8] },
     floor: { blend: ['snow', 'mudfloor'], uv: [3, 3] },
     snow: { blend: ['snow', 'mudfloor'], uv: [4, 4] },
+    ...OBJ_PHOTO,
+    ecorce: { ft: 1, set: 'objets/ecorce', detail: true, ns: 1.2 }, // arbres calcinés : charbon du jeu gardé, crevasses de la photo
   },
   cite: {
     asphalt: { ft: 1, set: 'asphalt' }, sidewalk: { ft: 1, set: 'sidewalk' }, sand: { ft: 1, set: 'desert', tint: [0.98, 0.84, 0.68] }, // lac asséché ocre, pas une croûte de sel
@@ -3494,16 +3648,23 @@ const PHOTO_SETS = {
     shingle: { ft: 1, set: 'shingle' }, brick: { ft: 1, set: 'brick' }, plaster: { ft: 1, set: 'plaster' }, parquet: { ft: 1, set: 'parquet' },
     checker: { ft: 1, set: 'checker' }, slab: { ft: 1, set: 'garage' }, tileWall: { ft: 1, set: 'tiles' }, concrete: { ft: 1, set: 'concrete' },
     planks: { ft: 1, set: 'wood' }, rock: { ft: 1, set: 'rock' }, wallpaper: { ft: 1, set: 'paper', detail: true, ns: 0.6 },
+    ...OBJ_PHOTO,
+    meuble: { ft: 1, set: 'objets/teck', grain: 'u', neutral: true, tint: [1.6, 1.45, 1.3] }, // teck miel du mobilier des années 50 (les teintes du jeu sont sombres)
+    acier: { ft: 1, set: 'objets/acier', detail: true }, // étagères et coffres neufs : rugosité seule sur la couleur du jeu
   },
   penitencier: {
     stone: { ft: 1, set: 'stone' }, rock: { ft: 1, set: 'rock' }, slab: { ft: 1, set: 'floor' }, tileWall: { ft: 1, set: 'tiles' },
     planks: { ft: 1, set: 'pier' }, westPlank: { ft: 1, set: 'panel' }, parquet: { ft: 1, set: 'parquet' }, plaster: { ft: 1, set: 'plaster' },
     cellPaint: { ft: 1, set: 'paint', detail: true, ns: 1.2 }, concrete: { ft: 1, set: 'concrete' },
+    ...OBJ_PHOTO,
+    meuble: { ft: 1, set: 'objets/chene', grain: 'v', neutral: true, tint: [1.05, 0.95, 0.8] }, // chêne doré du mobilier d'institution
   },
   filon: {
     westPlank: { ft: 1, set: 'boards' }, dirt: { ft: 1, set: 'dirt' }, rock: { ft: 1, set: 'rock' }, planks: { ft: 1, set: 'walk' },
     parquet: { ft: 1, set: 'floor' }, brick: { ft: 1, set: 'brick' }, plaster: { ft: 1, set: 'plaster' }, checker: { ft: 1, set: 'checker' },
     shingle: { ft: 1, set: 'shingle' }, stone: { ft: 1, set: 'stone' }, victorian: { ft: 1, set: 'paper', detail: true, ns: 0.6 },
+    ...OBJ_PHOTO,
+    meuble: { ft: 1, set: 'objets/noyer', grain: 'u', neutral: true, tint: [1.05, 0.9, 0.8] }, // noyer du saloon et de la banque
   },
 };
 
@@ -3534,6 +3695,14 @@ async function photoStart() {
   PHOTO.state = 'loading'; const t0 = performance.now(), base = `assets/${MAP_ID}/`;
   try {
     const man = await (await fetch(base + 'manifest.json', { cache: 'force-cache' })).json();
+    // Objets : photos communes aux quatre cartes (assets/objets/), chargées seulement pour les familles présentes ici.
+    const present = new Set(); R.scene.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) if (m.userData.ftex) present.add(m.userData.ftex); });
+    const spec = PHOTO_SETS[MAP_ID]; PHOTO.absent = Object.keys(spec).filter((k) => spec[k].ft && !present.has(k));
+    const objSets = new Set(Object.entries(spec).filter(([k, s]) => s.ft && present.has(k) && s.set.startsWith('objets/')).map(([, s]) => s.set.slice(7)));
+    if (objSets.size) {
+      const mo = await (await fetch('assets/objets/manifest.json', { cache: 'force-cache' })).json();
+      for (const k of objSets) if (mo[k]) man['objets/' + k] = { ...mo[k], dir: 'assets/objets/', file: k };
+    }
     const aniso = Math.min(8, R.renderer.capabilities.getMaxAnisotropy());
     // Décodage des JPEG hors du fil principal (createImageBitmap) ; Safari, qui ignore le retournement demandé, garde le chargeur classique.
     const safari = /Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg/.test(navigator.userAgent);
@@ -3543,7 +3712,7 @@ async function photoStart() {
     const tex = {}, jobs = [], lite = Q.texSize < 512 || /photolite/.test(location.search); PHOTO.lite = lite;
     for (const [key, e] of Object.entries(man)) {
       if (key === 'env') continue;
-      for (const m of e.maps) jobs.push(load(`${base}${key}_${m}${lite && e.s ? '_s' : ''}.jpg`).then((t) => {
+      for (const m of e.maps) jobs.push(load(`${e.dir || base}${e.file || key}_${m}${lite && e.s ? '_s' : ''}.jpg`).then((t) => {
         t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = aniso; t.colorSpace = m === 'c' ? THREE.SRGBColorSpace : THREE.NoColorSpace;
         (tex[key] ||= {})[m] = t; PHOTO.files++;
       }));
@@ -3627,14 +3796,27 @@ async function photoFlat(key, s, man, tex) {
   R.scene.traverse((o) => { if (o.material) for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.userData.ftex === key) mats.add(m); });
   if (!mats.size) return false; // texture absente de la carte : erreur de PHOTO_SETS (signalée par dev/photo.mjs)
   await photoFrame();
-  const r = (FLAT_SCALE[key] || 2) / (s.tm || e.m);
+  const r = (OBJ_FAM[key]?.[1] || FLAT_SCALE[key] || 2) / (s.tm || e.m);
   const map = !s.detail && t.c ? photoTex(t.c, r, r, s.rot) : null, nrm = t.n ? photoTex(t.n, r, r, s.rot) : null, rgh = t.r ? photoTex(t.r, r, r, s.rot) : null;
   const first = [...mats].find((m) => m.map?.image), old = first ? texLum(first.map.image) : e.lum, k = clamp(old / Math.max(1e-4, e.lum), 0.45, 2.4);
+  const lum = (c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  if (s.neutral && map) { // la teinte du jeu perd sa couleur (la photo la donne) et garde sa clarté, sommets compris
+    R.scene.traverse((o) => {
+      const c = o.geometry?.attributes.color; if (!c || !o.material?.vertexColors || !mats.has(o.material) || o.geometry.userData.neutral) return;
+      o.geometry.userData.neutral = 1;
+      for (let i = 0; i < c.count; i++) { const l = 0.2126 * c.getX(i) + 0.7152 * c.getY(i) + 0.0722 * c.getZ(i); c.setXYZ(i, l, l, l); }
+      c.needsUpdate = true;
+    });
+  }
   for (const m of mats) {
     if (m.userData.photoDone) continue; m.userData.photoDone = 1;
-    if (map) { m.map = map; m.color.multiplyScalar(k); if (s.tint) { m.color.r *= s.tint[0]; m.color.g *= s.tint[1]; m.color.b *= s.tint[2]; } }
+    if (s.neutral && map) { const l = lum(m.color); m.color.setRGB(l, l, l); }
+    if (s.nomap && !map && m.map?.image) { m.color.multiplyScalar(texLum(m.map.image)); m.map = null; } // couleur unie, même clarté moyenne
+    if (map) { m.map = map; m.color.multiplyScalar(k); }
+    if (s.tint && (map || s.nomap)) { m.color.r *= s.tint[0]; m.color.g *= s.tint[1]; m.color.b *= s.tint[2]; }
     if (nrm) { m.normalMap = nrm; m.normalScale.set(s.ns || 1, s.ns || 1); }
-    if (rgh) { m.roughnessMap = rgh; m.roughness = 1; }
+    // gloss (émail, laque, cuir ciré) : la rugosité de la matière reste la même en moyenne, la photo y met ses variations.
+    if (rgh) { m.roughnessMap = rgh; m.roughness = s.gloss ? clamp(m.roughness / (e.rm || 0.6), 0.02, 1) : 1; }
     m.needsUpdate = true;
   }
   return true;
@@ -3721,6 +3903,16 @@ const PERKS = {
   cherry: { name: 'DÉCHARGE', short: 'DC', color: '#ff5a9a', cost: 2000, desc: 'Recharger libère une décharge électrique autour de vous', notes: [12, 7, 12, 7, 15, 12, 19, 24], base: 330 },
 };
 
+// Bois des objets (établi, tables, couchettes, râtelier, poteaux indicateurs, brancard, touret, téléphone, hélice) :
+// bois brut scié photographié (famille boisBrut, 05b_flat.js), UV en mètres. Planches : clarté de MATS.planks (blanc) ;
+// montants et poteaux : celle de MATS.post. Les charpentes (tours des projecteurs, poteaux télégraphiques, chevaux de
+// frise, poteau du mur de tranchée) gardent MATS.planks / MATS.post, les planches de tranchée photographiées de la carte.
+const rawWood = () => fmat('boisBrut', 0xffffff, { rough: 0.88, snow: 1 });
+const rawPost = () => fmat('boisBrut', 0x8a7a68, { rough: 0.9, snow: 1 });
+// Peinture des machines communes (moteur de l'établi, générateur) : vert olive militaire en 1917, 1933 et 1957.
+// Au Filon de 1880, la peinture militaire n'existe pas encore : fonte noire (même matière que la fonte de la trousse).
+const machinePaint = () => (MAP_ID === 'filon' ? fmat('fonte', 0x232325, { rough: 0.6, metal: 0.5 }) : MATS.olive);
+
 function buildInteractables() {
   // Machines d'atouts : armoires de campagne avec enseigne lumineuse.
   for (const s of SPOTS.perks) {
@@ -3728,7 +3920,8 @@ function buildInteractables() {
     g.position.set(w.x, 0, w.z); g.rotation.y = w.yaw; R.scene.add(g);
     if (M.perkDrop) g.userData.dynamic = true; // machines parachutées : elles bougent, on ne les fond pas dans le décor
     const col = new THREE.Color(P.color);
-    const body = stdMat({ color: col.clone().multiplyScalar(0.35), roughness: 0.5, metalness: 0.55, map: TEX.grime.map, normalMap: TEX.grime.normalMap }, 0.5);
+    // Caisson en tôle peinte de la couleur de l'atout (famille tole : la photo garde la teinte, code couleur intact).
+    const body = fmat('tole', col.clone().multiplyScalar(0.35).getHex(), { rough: 0.5, metal: 0.55, snow: 0.5 });
     mesh(boxG(0.92, 1.85, 0.66), body, 0, 0.925, 0, 0, g);
     mesh(boxG(0.98, 0.08, 0.72), MATS.iron, 0, 1.89, 0, 0, g);
     mesh(boxG(0.98, 0.12, 0.72), MATS.iron, 0, 0.06, 0, 0, g);
@@ -3770,13 +3963,13 @@ function buildInteractables() {
   });
   // Établi d'armurier.
   { const s = SPOTS.bench, w = wallSpot(s, 0.5), g = new THREE.Group(); g.userData.dynamic = true; g.position.set(w.x, 0, w.z); g.rotation.y = w.yaw; R.scene.add(g);
-    mesh(boxG(1.9, 0.1, 0.9), MATS.planks, 0, 0.9, 0, 0, g);
-    for (const [a, b] of [[-0.85, -0.38], [0.85, -0.38], [-0.85, 0.38], [0.85, 0.38]]) mesh(boxG(0.1, 0.9, 0.1), MATS.post, a, 0.45, b, 0, g);
-    mesh(boxG(1.8, 0.06, 0.8), MATS.planks, 0, 0.25, 0, 0, g);
+    mesh(boxG(1.9, 0.1, 0.9), rawWood(), 0, 0.9, 0, 0, g);
+    for (const [a, b] of [[-0.85, -0.38], [0.85, -0.38], [-0.85, 0.38], [0.85, 0.38]]) mesh(boxG(0.1, 0.9, 0.1), rawPost(), a, 0.45, b, 0, g);
+    mesh(boxG(1.8, 0.06, 0.8), rawWood(), 0, 0.25, 0, 0, g);
     mesh(boxG(0.3, 0.22, 0.2), MATS.iron, -0.6, 1.06, 0.2, 0, g); // étau
     const wheel = mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.06, 24), stdMat({ color: 0x6b6258, roughness: 0.95, map: TEX.concrete.map }), 0.55, 1.28, -0.1, 0, g); wheel.rotation.x = Math.PI / 2;
-    mesh(boxG(0.2, 0.3, 0.2), MATS.olive, 0.55, 1.03, -0.1, 0, g);
-    const tank = mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.3, 16), MATS.olive, -0.2, 1.6, -0.3, 0, g);
+    mesh(boxG(0.2, 0.3, 0.2), machinePaint(), 0.55, 1.03, -0.1, 0, g);
+    const tank = mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.3, 16), machinePaint(), -0.2, 1.6, -0.3, 0, g);
     const coilMat = new THREE.MeshStandardMaterial({ color: 0x3aa8ff, emissive: 0x3ab8ff, emissiveIntensity: 0.02, roughness: 0.3 });
     for (let k = 0; k < 5; k++) { const c = mesh(new THREE.TorusGeometry(0.24, 0.018, 6, 24), coilMat, -0.2, 1.1 + k * 0.22, -0.3, 0, g, false); c.rotation.x = Math.PI / 2; }
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.4), new THREE.MeshStandardMaterial({ map: woodSign(['ÉTABLI D\'ARMURIER', 'AMÉLIORATION · 5000'], { w: 512, h: 190 }), roughness: 0.9 }));
@@ -3790,7 +3983,8 @@ function buildInteractables() {
   }
   // Tableau électrique et générateur.
   { const s = SPOTS.power, w = wallSpot(s, 0.12), g = new THREE.Group(); g.userData.dynamic = true; g.position.set(w.x, 0, w.z); g.rotation.y = w.yaw; R.scene.add(g);
-    mesh(boxG(1.0, 1.3, 0.2), MATS.olive, 0, 1.35, 0, 0, g);
+    // Armoire en tôle vert olive ; au Filon de 1880, coffret de noyer verni (tableaux de l'époque : bois et ardoise).
+    mesh(boxG(1.0, 1.3, 0.2), MAP_ID === 'filon' ? fmat('meuble', 0x4e3526) : MATS.olive, 0, 1.35, 0, 0, g);
     const warn = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.3), new THREE.MeshStandardMaterial({ map: woodSign(['COURANT', 'GÉNÉRATEUR'], { w: 512, h: 170, bg: '#b8871c', color: '#1a1408' }), roughness: 0.7 }));
     warn.position.set(0, 2.15, 0.11); g.add(warn);
     for (let k = 0; k < 3; k++) { const gauge = mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.04, 20), stdMat({ color: 0xe8e2cf, roughness: 0.4 }), -0.3 + k * 0.3, 1.72, 0.11, 0, g, false); gauge.rotation.x = Math.PI / 2; }
@@ -3804,8 +3998,8 @@ function buildInteractables() {
   }
   if (SPOTS.generator) { const gx = SPOTS.generator.x, gz = SPOTS.generator.z, g = new THREE.Group(); g.userData.dynamic = true; g.position.set(gx, 0, gz); g.rotation.y = SPOTS.generator.ry || 0; R.scene.add(g);
     mesh(boxG(2.6, 0.25, 1.3), MATS.iron, 0, 0.13, 0, 0, g);
-    mesh(boxG(1.7, 1.0, 1.0), MATS.olive, -0.25, 0.75, 0, 0, g);
-    for (let k = 0; k < 4; k++) { mesh(boxG(0.3, 0.35, 0.34), MATS.olive, -0.85 + k * 0.4, 1.4, 0, 0, g); mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8), MATS.brass, -0.85 + k * 0.4, 1.72, 0.08, 0, g); }
+    mesh(boxG(1.7, 1.0, 1.0), machinePaint(), -0.25, 0.75, 0, 0, g);
+    for (let k = 0; k < 4; k++) { mesh(boxG(0.3, 0.35, 0.34), machinePaint(), -0.85 + k * 0.4, 1.4, 0, 0, g); mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8), MATS.brass, -0.85 + k * 0.4, 1.72, 0.08, 0, g); }
     const fly = mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.14, 28), MATS.iron, 0.95, 0.75, 0, 0, g); fly.rotation.z = Math.PI / 2;
     for (let k = 0; k < 4; k++) { const sp = mesh(boxG(0.03, 1.0, 0.06), MATS.rust, 0, 0, 0, 0, fly); sp.rotation.y = (k / 4) * Math.PI; }
     const pipe = mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.9, 10), MATS.rust, -1.0, 1.9, -0.35, 0, g);
@@ -3826,7 +4020,7 @@ function barrel(x, z, mat = MATS.olive, tipped = false) {
 }
 function poster(x, y, z, ry, title, sub, tone) { const p = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.7), new THREE.MeshStandardMaterial({ map: posterTexture(title, sub, tone), roughness: 0.95 })); p.position.set(x, y, z); p.rotation.y = ry; p.rotation.z = rand(-0.04, 0.04); R.scene.add(p); }
 function signPost(x, z, ry, lines) {
-  mesh(boxG(0.1, 2.0, 0.1), MATS.post, x, 1.0, z, ry);
+  mesh(boxG(0.1, 2.0, 0.1), rawPost(), x, 1.0, z, ry);
   const s = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.4), new THREE.MeshStandardMaterial({ map: woodSign(lines, { w: 512, h: 190 }), roughness: 0.9, side: THREE.DoubleSide }));
   s.position.set(x, 1.75, z); s.rotation.y = ry; s.rotation.z = rand(-0.06, 0.06); s.castShadow = true; R.scene.add(s);
 }
@@ -3839,8 +4033,9 @@ function hangingLamp(x, y, z, bulbMat, parent = R.scene) {
   glow.scale.set(0.9, 0.9, 1); glow.position.y = -0.06; g.add(glow);
   return { g, bulb: b, glow };
 }
+// Brasero : seau de tôle percé, rouillé et noirci par le feu (famille rouille ; ce n'est pas de la tôle ondulée).
 function brazier(x, z) {
-  const d = mesh(new THREE.CylinderGeometry(0.3, 0.27, 0.8, 16, 1, true), stdMat({ color: 0x3a2a20, roughness: 0.8, metalness: 0.4, side: THREE.DoubleSide, map: TEX.metal.map }), x, 0.4, z);
+  const d = mesh(new THREE.CylinderGeometry(0.3, 0.27, 0.8, 16, 1, true), fmat('rouille', 0x3a2a20, { rough: 0.8, metal: 0.4, side: THREE.DoubleSide }), x, 0.4, z);
   collider(x - 0.32, z - 0.32, x + 0.32, z + 0.32, 0.9, 'metal');
   const coals = mesh(new THREE.CircleGeometry(0.28, 16), new THREE.MeshBasicMaterial({ color: 0xff5a1a }), x, 0.72, z, 0, R.scene, false); coals.rotation.x = -Math.PI / 2;
   WORLD.fires.push({ x, y: 0.8, z, size: 0.55, rate: 0.05, t: 0, smoke: 0.25, light: R.lights.brazier });
@@ -3854,9 +4049,9 @@ function buildProps() {
   crate(60.6, 15.2, -0.15); barrel(62, 15.5, MATS.rust); barrel(62.3, 14.8, MATS.olive, true);
   // Banquette de tir et mitrailleuse en alvéole 2.
   // (banquette interrompue devant la barricade de l'alvéole : les infectés doivent pouvoir descendre)
-  mesh(boxG(3.5, 0.45, 0.7), MATS.planks, 50.05, 0.225, 8.35); collider(48.3, 8, 51.8, 8.7, 0.45, 'wood');
-  mesh(boxG(3.5, 0.45, 0.7), MATS.planks, 55.95, 0.225, 8.35); collider(54.2, 8, 57.7, 8.7, 0.45, 'wood');
-  mesh(boxG(3.6, 0.45, 0.7), MATS.planks, 29.8, 0.225, 8.35); collider(28.0, 8, 31.6, 8.7, 0.45, 'wood'); // dégagé de la sortie de la barricade voisine
+  mesh(boxG(3.5, 0.45, 0.7), rawWood(), 50.05, 0.225, 8.35); collider(48.3, 8, 51.8, 8.7, 0.45, 'wood');
+  mesh(boxG(3.5, 0.45, 0.7), rawWood(), 55.95, 0.225, 8.35); collider(54.2, 8, 57.7, 8.7, 0.45, 'wood');
+  mesh(boxG(3.6, 0.45, 0.7), rawWood(), 29.8, 0.225, 8.35); collider(28.0, 8, 31.6, 8.7, 0.45, 'wood'); // dégagé de la sortie de la barricade voisine
   { const g = new THREE.Group(); g.position.set(56.7, 0.45, 8.4); R.scene.add(g);
     for (const a of [0, 2.1, 4.2]) { const leg = mesh(boxG(0.04, 0.9, 0.04), MATS.iron, Math.sin(a) * 0.25, 0.4, Math.cos(a) * 0.25, 0, g); leg.rotation.x = Math.cos(a) * 0.4; leg.rotation.z = -Math.sin(a) * 0.4; }
     const gun = new THREE.Group(); gun.position.set(0, 0.95, 0); gun.rotation.set(0.08, 0.1, 0); g.add(gun);
@@ -3867,8 +4062,8 @@ function buildProps() {
   // Périscope, râtelier, casques et caisses de munitions.
   mesh(boxG(0.14, 1.2, 0.1), MATS.olive, 40, 2.1, 12.1);
   { const rack = new THREE.Group(); rack.position.set(35, 0, 15.75); R.scene.add(rack);
-    mesh(boxG(1.4, 0.08, 0.2), MATS.post, 0, 0.3, 0, 0, rack); mesh(boxG(1.4, 0.08, 0.2), MATS.post, 0, 1.2, 0, 0, rack);
-    for (let k = 0; k < 4; k++) { const r = mesh(boxG(0.05, 1.2, 0.07), MATS.post, -0.5 + k * 0.33, 0.75, -0.08, 0, rack); r.rotation.z = rand(-0.08, 0.08); } }
+    mesh(boxG(1.4, 0.08, 0.2), rawPost(), 0, 0.3, 0, 0, rack); mesh(boxG(1.4, 0.08, 0.2), rawPost(), 0, 1.2, 0, 0, rack);
+    for (let k = 0; k < 4; k++) { const r = mesh(boxG(0.05, 1.2, 0.07), rawPost(), -0.5 + k * 0.33, 0.75, -0.08, 0, rack); r.rotation.z = rand(-0.08, 0.08); } }
   for (const [x, z] of [[20, 12.4], [37, 15.6], [57, 13], [48, 15.6]]) { const h = mesh(new THREE.SphereGeometry(0.17, 12, 8, 0, TAU, 0, Math.PI / 2), MATS.olive, x, 0.03, z, rand(TAU)); h.rotation.x = rand(-0.4, 0.4); }
   for (const [x, z] of [[31, 15.6], [33, 15.5], [66, 12.6]]) mesh(boxG(0.4, 0.22, 0.2), MATS.olive, x, 0.11, z, rand(-0.3, 0.3));
   signPost(22.4, 15.3, 0, ['← POSTE DE CDT', 'NE PAS STATIONNER']);
@@ -3881,8 +4076,8 @@ function buildProps() {
 
   // ── Zone B : poste de commandement ──
   { const t = new THREE.Group(); t.position.set(19, 0, 31.2); R.scene.add(t);
-    mesh(boxG(2.4, 0.08, 1.3), MATS.planks, 0, 0.88, 0, 0, t);
-    for (const [a, b] of [[-1.1, -0.55], [1.1, -0.55], [-1.1, 0.55], [1.1, 0.55]]) mesh(boxG(0.08, 0.86, 0.08), MATS.post, a, 0.43, b, 0, t);
+    mesh(boxG(2.4, 0.08, 1.3), rawWood(), 0, 0.88, 0, 0, t);
+    for (const [a, b] of [[-1.1, -0.55], [1.1, -0.55], [-1.1, 0.55], [1.1, 0.55]]) mesh(boxG(0.08, 0.86, 0.08), rawPost(), a, 0.43, b, 0, t);
     const map = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.2), new THREE.MeshStandardMaterial({ map: tableMapTexture(), roughness: 0.95 })); map.rotation.x = -Math.PI / 2; map.position.y = 0.925; map.rotation.z = 0.04; t.add(map);
     mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.12, 10), MATS.brass, 0.7, 0.99, 0.3, 0, t);
     colliderBox(19, 31.2, 2.4, 1.3, 0, 0.95, 'wood'); }
@@ -3890,14 +4085,15 @@ function buildProps() {
   WORLD.bunkerLamp2 = hangingLamp(22.6, 2.2, 35.4, MATS.bulbRed);
   WORLD.powerLamps.push(WORLD.bunkerLamp, WORLD.bunkerLamp2);
   { const d = new THREE.Group(); d.position.set(11.1, 0, 28.6); d.rotation.y = Math.PI / 2; R.scene.add(d);
-    mesh(boxG(1.4, 0.06, 0.65), MATS.planks, 0, 0.78, 0, 0, d); mesh(boxG(1.3, 0.76, 0.6), MATS.post, 0, 0.38, 0, 0, d);
+    mesh(boxG(1.4, 0.06, 0.65), rawWood(), 0, 0.78, 0, 0, d); mesh(boxG(1.3, 0.76, 0.6), rawPost(), 0, 0.38, 0, 0, d);
     mesh(boxG(0.7, 0.42, 0.4), MATS.olive, -0.2, 1.02, 0, 0, d);
     for (let k = 0; k < 4; k++) { const b = mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.02, 8), new THREE.MeshBasicMaterial({ color: k % 2 ? 0x55ff66 : 0xffaa22 }), -0.45 + k * 0.1, 1.1, 0.21, 0, d, false); b.rotation.x = Math.PI / 2; b.userData.dynamic = true; WORLD.blink.push({ m: b, rate: 0.5 + k * 0.7 }); }
     colliderBox(11.1, 28.6, 0.65, 1.4, 0, 1.2, 'wood'); }
-  { // Couchettes
+  { // Couchettes : planches brutes et couvertures militaires en drap de laine (famille tissu, teinte de MATS.cloth)
     const b = new THREE.Group(); b.position.set(24.2, 0, 37.1); R.scene.add(b);
-    for (const y of [0.45, 1.35]) { mesh(boxG(2.0, 0.08, 0.85), MATS.planks, 0, y, 0, 0, b); mesh(boxG(1.9, 0.14, 0.78), MATS.cloth, 0, y + 0.1, 0, 0, b); }
-    for (const [a, c] of [[-0.98, -0.4], [0.98, -0.4], [-0.98, 0.4], [0.98, 0.4]]) mesh(boxG(0.08, 1.9, 0.08), MATS.post, a, 0.95, c, 0, b);
+    const blanket = fmat('tissu', 0x5d5a44, { rough: 0.95, snow: 0.9 });
+    for (const y of [0.45, 1.35]) { mesh(boxG(2.0, 0.08, 0.85), rawWood(), 0, y, 0, 0, b); mesh(boxG(1.9, 0.14, 0.78), blanket, 0, y + 0.1, 0, 0, b); }
+    for (const [a, c] of [[-0.98, -0.4], [0.98, -0.4], [-0.98, 0.4], [0.98, 0.4]]) mesh(boxG(0.08, 1.9, 0.08), rawPost(), a, 0.95, c, 0, b);
     collider(23.2, 36.65, 25.2, 38, 1.9, 'wood'); }
   { // Poêle et tuyau
     mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.7, 16), MATS.iron, 10.6, 0.35, 34.6); mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 10), MATS.iron, 10.6, 1.8, 34.6);
@@ -3921,14 +4117,14 @@ function buildProps() {
   WORLD.shedLamp = hangingLamp(13.5, 2.25, 52.5, MATS.bulbRed); WORLD.powerLamps.push(WORLD.shedLamp);
   barrel(17.2, 55.2, MATS.rust); barrel(17.8, 54.6, MATS.rust); barrel(11, 50.8); barrel(30.6, 44.8, MATS.olive, true);
   crate(28.2, 55.4, 0.1); crate(29, 55.3, -0.2, 0.9); crate(28.5, 55.4, 0.4, 0.8, 0.55);
-  { const reel = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.5, 18), MATS.planks, 28.5, 0.5, 49, 0); reel.rotation.x = Math.PI / 2; collider(28, 48.75, 29, 49.25, 1, 'wood'); }
+  { const reel = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.5, 18), rawWood(), 28.5, 0.5, 49, 0); reel.rotation.x = Math.PI / 2; collider(28, 48.75, 29, 49.25, 1, 'wood'); }
   signPost(28.8, 45, Math.PI, ['DÉPÔT', 'DANGER — HAUTE TENSION']);
 
   // ── Zone D : soutien est et sape ──
   WORLD.dugoutLamp = hangingLamp(68, 2.2, 38, MATS.bulbWarm);
   crate(60.6, 30, 0.2); crate(63.4, 44, -0.1); barrel(60.5, 36.5, MATS.olive);
   { const s = new THREE.Group(); s.position.set(63.3, 0, 31.9); R.scene.add(s);
-    for (const o of [-0.25, 0.25]) mesh(boxG(0.05, 0.05, 2.1), MATS.post, o, 0.3, 0, 0, s); mesh(boxG(0.5, 0.03, 1.8), MATS.cloth, 0, 0.33, 0, 0, s);
+    for (const o of [-0.25, 0.25]) mesh(boxG(0.05, 0.05, 2.1), rawPost(), o, 0.3, 0, 0, s); mesh(boxG(0.5, 0.03, 1.8), MATS.cloth, 0, 0.33, 0, 0, s);
     collider(63.0, 30.8, 63.6, 33.0, 0.4, 'wood'); }
   signPost(61, 26.6, 0, ['SOUTIEN EST', 'SAPE →']);
   poster(64.05, 1.5, 39, Math.PI / 2, 'VIGILANCE', 'LA NUIT\nNE DORT PAS', '#c2b089');
@@ -3944,12 +4140,14 @@ function buildOutside() {
     const y = surfH(x, z) - 0.2, h = srand(4, 11), r = srand(0.16, 0.34), lean = srand(-0.12, 0.12);
     const trunk = new THREE.CylinderGeometry(r * 0.35, r, h, 7, 4); trunk.translate(0, h / 2, 0);
     const pa = trunk.attributes.position; for (let i = 0; i < pa.count; i++) { const yy = pa.getY(i); pa.setX(i, pa.getX(i) + lean * yy + Math.sin(yy * 1.3 + k) * 0.08); }
-    const g = [trunk];
+    const g = [trunk]; let sy = 1;
     if (srng() > 0.25) for (let b = 0; b < 3 + (srng() * 4 | 0); b++) {
       const bl = srand(1, 3), br = r * 0.3, by = srand(h * 0.35, h * 0.9), ba = srand(TAU);
       const bg = new THREE.CylinderGeometry(br * 0.3, br, bl, 5); bg.translate(0, bl / 2, 0); bg.rotateZ(srand(0.6, 1.2)); bg.rotateY(ba); bg.translate(lean * by, by, 0); g.push(bg);
-    } else { trunk.scale(1, 0.4, 1); } // souche éclatée
-    const tree = mergeGeometries(g.map((q) => q.toNonIndexed()));
+    } else { trunk.scale(1, 0.4, 1); sy = 0.4; } // souche éclatée
+    // Écorce photographiée : UV en mètres posées pièce par pièce AVANT la fusion (qui perd les paramètres des cylindres) ;
+    // souche écrasée en hauteur (sy) ; chaque arbre et chaque branche lit la photo à un endroit différent.
+    const tree = mergeGeometries(g.map((q, i) => meterUV(q, MATS.bark, 1, i ? 1 : sy, 1, x + i * 3.1, z + i * 1.7).toNonIndexed()));
     tree.rotateY(srand(TAU)); tree.translate(x, y, z); parts.push(tree);
   }
   mesh(mergeGeometries(parts), MATS.bark, 0, 0, 0, 0, R.scene, true);
@@ -4027,7 +4225,13 @@ const srng = () => rng();
 
 const KIT = {
   m: (c, o) => fmat('plain', c, o || {}),
-  g(x, z, ry = 0, y = 0, parent = R.scene) { const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; parent.add(g); return g; },
+  // ?spots (tests) : chaque objet posé est noté avec la fonction qui l'a construit (dev/objets.mjs, vues rapprochées).
+  spots: /spots/.test(location.search) ? [] : null,
+  g(x, z, ry = 0, y = 0, parent = R.scene) {
+    const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; parent.add(g);
+    if (KIT.spots && parent === R.scene) KIT.spots.push({ x, z, ry, y, fn: (new Error().stack.split('\n')[2] || '').trim().split(' ')[1] });
+    return g;
+  },
   b(g, x, y, z, w, h, d, mat, ry = 0, shadow = true) { return mesh(boxG(w, h, d), mat, x, y, z, ry, g, shadow); },
   c(g, x, y, z, r0, r1, h, mat, seg = 12, shadow = true) { return mesh(new THREE.CylinderGeometry(r0, r1, h, seg), mat, x, y, z, 0, g, shadow); },
   s(g, x, y, z, r, mat, sx = 1, sy = 1, sz = 1) { const m = mesh(new THREE.SphereGeometry(r, 14, 10), mat, x, y, z, 0, g); m.scale.set(sx, sy, sz); return m; },
@@ -4041,12 +4245,14 @@ function kitMats() {
     chrome: stdMat({ color: 0xd9dde2, roughness: 0.18, metalness: 1 }),
     rubber: stdMat({ color: 0x151515, roughness: 0.85 }),
     glass: new THREE.MeshStandardMaterial({ color: 0x1b252c, roughness: 0.05, metalness: 0.7, transparent: true, opacity: 0.55 }),
-    wood: fmat('planks', 0x8a6446), woodDark: fmat('planks', 0x4e3526), woodLight: fmat('planks', 0xc49a6c),
+    // Familles photo (OBJ_FAM, 05b_flat.js) : bois de meuble, tissu d'ameublement, acier, fonte, toile.
+    wood: fmat('meuble', 0x8a6446), woodDark: fmat('meuble', 0x4e3526), woodLight: fmat('meuble', 0xc49a6c),
     plastic: stdMat({ color: 0xe8d7c2, roughness: 0.35, metalness: 0.05 }),
-    fabricRed: stdMat({ color: 0x9b2e2a, roughness: 0.95, map: TEX.cloth.map, normalMap: TEX.cloth.normalMap }),
-    fabricTeal: stdMat({ color: 0x3d8a86, roughness: 0.95, map: TEX.cloth.map, normalMap: TEX.cloth.normalMap }),
-    fabricMustard: stdMat({ color: 0xc79a2e, roughness: 0.95, map: TEX.cloth.map, normalMap: TEX.cloth.normalMap }),
-    white: KIT.m(0xeeeae0), black: KIT.m(0x1b1b1d), grey: KIT.m(0x7a7a78), steel: stdMat({ color: 0x8c9196, roughness: 0.45, metalness: 0.8, map: TEX.grime.map }),
+    fabricRed: fmat('tissu', 0x9b2e2a, { rough: 0.95 }), fabricTeal: fmat('tissu', 0x3d8a86, { rough: 0.95 }), fabricMustard: fmat('tissu', 0xc79a2e, { rough: 0.95 }),
+    linen: fmat('toile', 0xeeeae0, { rough: 0.9 }), // draps, taies, linge
+    white: KIT.m(0xeeeae0), black: KIT.m(0x1b1b1d), grey: KIT.m(0x7a7a78), steel: fmat('acier', 0x8c9196, { rough: 0.45, metal: 0.8 }),
+    iron: fmat('fonte', 0x232325, { rough: 0.6, metal: 0.5 }), // fonte : pieds de banc, barbecue, plaque de cuisson
+    porcelain: fmat('email', 0xf2f0ea, { rough: 0.15 }), // porcelaine et émail : lisse et brillant, sans salissure dessinée
     screen: new THREE.MeshStandardMaterial({ color: 0x223028, emissive: 0x7fb8a8, emissiveIntensity: 0.25, roughness: 0.3 }),
     bulb: new THREE.MeshBasicMaterial({ color: 0xffe2b0 }),
   });
@@ -4082,21 +4288,21 @@ function kChair(x, z, ry, mat) {
 }
 function kDining(x, z, ry) { const g = kTable(x, z, ry, 1.5, 0.9); const k = kitMats(); for (const [a, b, r] of [[-0.45, -0.7, 0], [0.45, -0.7, 0], [-0.45, 0.7, Math.PI], [0.45, 0.7, Math.PI]]) { const p = new THREE.Vector3(a, 0, b).applyAxisAngle(_v1.set(0, 1, 0), ry); kChair(x + p.x, z + p.z, ry + r + rand(-0.2, 0.2), k.fabricRed); } return g; }
 function kCounter(x, z, ry, len = 3, color = 0xe9e4d6, top = 0xc23b3b) {
-  const k = kitMats(), g = KIT.g(x, z, ry), body = KIT.m(color), tp = KIT.m(top, { rough: 0.35 });
+  const k = kitMats(), g = KIT.g(x, z, ry), body = fmat('email', color, { rough: 0.4 }), tp = fmat('email', top, { rough: 0.35 });
   KIT.b(g, 0, 0.44, 0, len, 0.88, 0.62, body); KIT.b(g, 0, 0.91, 0.02, len + 0.04, 0.05, 0.68, tp);
-  for (let i = 0; i < Math.floor(len / 0.6); i++) { KIT.b(g, -len / 2 + 0.3 + i * 0.6, 0.5, 0.315, 0.52, 0.7, 0.02, KIT.m(color * 0 + 0xdcd6c6)); KIT.b(g, -len / 2 + 0.3 + i * 0.6, 0.78, 0.33, 0.14, 0.02, 0.02, KM.chrome); }
+  for (let i = 0; i < Math.floor(len / 0.6); i++) { KIT.b(g, -len / 2 + 0.3 + i * 0.6, 0.5, 0.315, 0.52, 0.7, 0.02, fmat('email', 0xdcd6c6, { rough: 0.4 })); KIT.b(g, -len / 2 + 0.3 + i * 0.6, 0.78, 0.33, 0.14, 0.02, 0.02, KM.chrome); }
   KIT.b(g, 0, 1.55, -0.2, len, 0.6, 0.34, body); // placards hauts
   KIT.solid(g, len, 0.66, 0.95, 'wood'); return g;
 }
 function kFridge(x, z, ry, color = 0xe8e2d0) {
-  const k = kitMats(), g = KIT.g(x, z, ry), m = KIT.m(color, { rough: 0.3 });
+  const k = kitMats(), g = KIT.g(x, z, ry), m = fmat('email', color, { rough: 0.3 });
   KIT.b(g, 0, 0.85, 0, 0.8, 1.7, 0.72, m); const top = KIT.c(g, 0, 1.7, 0, 0.4, 0.4, 0.72, m, 16); top.rotation.x = Math.PI / 2; top.scale.set(1, 1, 0.35);
   KIT.b(g, 0.3, 1.1, 0.37, 0.05, 0.4, 0.05, k.chrome); KIT.b(g, -0.1, 0.5, 0.37, 0.5, 0.03, 0.02, k.chrome);
   KIT.solid(g, 0.8, 0.72, 1.8, 'metal'); return g;
 }
 function kStove(x, z, ry) {
-  const k = kitMats(), g = KIT.g(x, z, ry), m = KIT.m(0xf0ece2, { rough: 0.3 });
-  KIT.b(g, 0, 0.45, 0, 0.9, 0.9, 0.65, m); KIT.b(g, 0, 0.93, 0.02, 0.92, 0.04, 0.68, k.black);
+  const k = kitMats(), g = KIT.g(x, z, ry), m = fmat('email', 0xf0ece2, { rough: 0.3 });
+  KIT.b(g, 0, 0.45, 0, 0.9, 0.9, 0.65, m); KIT.b(g, 0, 0.93, 0.02, 0.92, 0.04, 0.68, k.iron);
   for (const [a, b] of [[-0.22, -0.15], [0.22, -0.15], [-0.22, 0.15], [0.22, 0.15]]) KIT.c(g, a, 0.96, b, 0.1, 0.1, 0.02, k.steel, 12);
   KIT.b(g, 0, 1.2, -0.3, 0.9, 0.5, 0.06, m); KIT.b(g, 0, 0.45, 0.33, 0.7, 0.45, 0.02, k.black);
   KIT.solid(g, 0.9, 0.65, 0.95, 'metal'); return g;
@@ -4117,8 +4323,8 @@ function kLamp(x, z, ry, lit = true) {
 }
 function kBed(x, z, ry, fab) {
   const k = kitMats(), g = KIT.g(x, z, ry), f = fab || k.fabricRed;
-  KIT.b(g, 0, 0.25, 0, 1.5, 0.3, 2.1, k.woodDark); KIT.b(g, 0, 0.48, 0.05, 1.45, 0.18, 1.95, k.white); KIT.b(g, 0, 0.56, 0.3, 1.47, 0.08, 1.4, f);
-  KIT.b(g, 0, 0.62, -0.75, 1.2, 0.14, 0.35, k.white); KIT.b(g, 0, 0.75, -1.03, 1.55, 1.0, 0.07, k.woodDark);
+  KIT.b(g, 0, 0.25, 0, 1.5, 0.3, 2.1, k.woodDark); KIT.b(g, 0, 0.48, 0.05, 1.45, 0.18, 1.95, k.linen); KIT.b(g, 0, 0.56, 0.3, 1.47, 0.08, 1.4, f);
+  KIT.b(g, 0, 0.62, -0.75, 1.2, 0.14, 0.35, k.linen); KIT.b(g, 0, 0.75, -1.03, 1.55, 1.0, 0.07, k.woodDark);
   KIT.solid(g, 1.5, 2.1, 0.6, 'wood'); return g;
 }
 function kDresser(x, z, ry, w = 1.2) {
@@ -4136,22 +4342,22 @@ function kShelf(x, z, ry, w = 1.6, h = 2, items = true) {
   }
   KIT.solid(g, w, 0.45, h, 'metal'); return g;
 }
-function kRug(x, z, ry, w, d, color) { const g = KIT.g(x, z, ry); const m = mesh(new THREE.PlaneGeometry(w, d), stdMat({ color, roughness: 1, map: TEX.cloth.map }), 0, 0.012, 0, 0, g, false); m.rotation.x = -Math.PI / 2; m.receiveShadow = true; return g; }
+function kRug(x, z, ry, w, d, color) { const g = KIT.g(x, z, ry); const m = mesh(new THREE.PlaneGeometry(w, d), fmat('tissu', color, { rough: 1 }), 0, 0.012, 0, 0, g, false); m.rotation.x = -Math.PI / 2; m.receiveShadow = true; return g; }
 
 /* ─── Véhicules ─── */
 // Berline des années 50 : caisse galbée, ailerons, chromes, pneus à flancs blancs.
 // Véhicules : voir 06c_vehicles.js.
 
 /* ─── Salle de bains, cuisine, plantes ─── */
-function kToilet(x, z, ry) { const g = KIT.g(x, z, ry), w = KIT.m(0xf0eee8, { rough: 0.25 }); KIT.c(g, 0, 0.2, 0.05, 0.16, 0.13, 0.4, w, 12); KIT.c(g, 0, 0.42, 0.08, 0.2, 0.2, 0.05, w, 14).scale.set(1, 1, 1.25); KIT.b(g, 0, 0.6, -0.2, 0.42, 0.36, 0.17, w); KIT.b(g, 0, 0.8, -0.2, 0.44, 0.04, 0.19, w); KIT.solid(g, 0.45, 0.65, 0.8, 'concrete'); return g; }
-function kSink(x, z, ry, mirror = true) { const g = KIT.g(x, z, ry), w = KIT.m(0xf0eee8, { rough: 0.25 }), k = kitMats(); KIT.c(g, 0, 0.42, -0.05, 0.06, 0.09, 0.84, w, 10); KIT.b(g, 0, 0.86, 0, 0.55, 0.12, 0.42, w); KIT.b(g, 0, 0.93, -0.15, 0.04, 0.12, 0.04, k.chrome); if (mirror) { KIT.b(g, 0, 1.55, -0.2, 0.55, 0.7, 0.02, KIT.m(0xd8dde2, { rough: 0.02, metal: 1 }), 0, false); KIT.b(g, 0, 1.55, -0.205, 0.61, 0.76, 0.015, k.white, 0, false); } return g; }
-function kUpperCab(x, z, ry, len = 3, color = 0xe9e4d6) { const g = KIT.g(x, z, ry, 1.6), m = KIT.m(color, { rough: 0.5 }), k = kitMats(); KIT.b(g, 0, 0.38, 0, len, 0.75, 0.35, m); for (let i = 0; i < Math.round(len / 0.6); i++) { const px = -len / 2 + 0.3 + i * 0.6; KIT.b(g, px, 0.38, 0.178, 0.56, 0.7, 0.01, KIT.m(color, { rough: 0.35 }), 0, false); KIT.b(g, px + 0.2, 0.2, 0.19, 0.02, 0.1, 0.02, k.chrome, 0, false); } return g; }
+function kToilet(x, z, ry) { const g = KIT.g(x, z, ry), w = kitMats().porcelain; KIT.c(g, 0, 0.2, 0.05, 0.16, 0.13, 0.4, w, 12); KIT.c(g, 0, 0.42, 0.08, 0.2, 0.2, 0.05, w, 14).scale.set(1, 1, 1.25); KIT.b(g, 0, 0.6, -0.2, 0.42, 0.36, 0.17, w); KIT.b(g, 0, 0.8, -0.2, 0.44, 0.04, 0.19, w); KIT.solid(g, 0.45, 0.65, 0.8, 'concrete'); return g; }
+function kSink(x, z, ry, mirror = true) { const g = KIT.g(x, z, ry), k = kitMats(), w = k.porcelain; KIT.c(g, 0, 0.42, -0.05, 0.06, 0.09, 0.84, w, 10); KIT.b(g, 0, 0.86, 0, 0.55, 0.12, 0.42, w); KIT.b(g, 0, 0.93, -0.15, 0.04, 0.12, 0.04, k.chrome); if (mirror) { KIT.b(g, 0, 1.55, -0.2, 0.55, 0.7, 0.02, KIT.m(0xd8dde2, { rough: 0.02, metal: 1 }), 0, false); KIT.b(g, 0, 1.55, -0.205, 0.61, 0.76, 0.015, k.white, 0, false); } return g; }
+function kUpperCab(x, z, ry, len = 3, color = 0xe9e4d6) { const g = KIT.g(x, z, ry, 1.6), m = fmat('email', color, { rough: 0.5 }), k = kitMats(); KIT.b(g, 0, 0.38, 0, len, 0.75, 0.35, m); for (let i = 0; i < Math.round(len / 0.6); i++) { const px = -len / 2 + 0.3 + i * 0.6; KIT.b(g, px, 0.38, 0.178, 0.56, 0.7, 0.01, fmat('email', color, { rough: 0.35 }), 0, false); KIT.b(g, px + 0.2, 0.2, 0.19, 0.02, 0.1, 0.02, k.chrome, 0, false); } return g; }
 function kPlant(x, z, s = 1, pot = 0xb8643a) { const g = KIT.g(x, z, rand(TAU)); KIT.c(g, 0, 0.18 * s, 0, 0.17 * s, 0.13 * s, 0.36 * s, KIT.m(pot, { rough: 0.8 }), 10); const leaf = KIT.m(0x3f7a3a, { rough: 0.8 }); for (let i = 0; i < 7; i++) { const a = (i / 7) * TAU, l = KIT.b(g, Math.cos(a) * 0.12 * s, (0.55 + rand(0, 0.25)) * s, Math.sin(a) * 0.12 * s, 0.08 * s, 0.5 * s, 0.02 * s, leaf, -a, false); l.rotation.z = Math.cos(a) * 0.5; l.rotation.x = Math.sin(a) * 0.5; } return g; }
 function kBookcase(x, z, ry, w = 1.2, h = 2) { const g = KIT.g(x, z, ry), wood = kitMats().woodDark; KIT.b(g, 0, h / 2, 0, w, h, 0.32, wood); const cols = [0x7a2a22, 0x2a4a6a, 0x5a5a3a, 0x3a2a4a, 0x8a6a3a, 0x2a5a3a]; for (let r = 0; r < 4; r++) for (let i = 0; i < Math.floor(w / 0.07) - 2; i++) { if (Math.random() < 0.12) continue; const bh = 0.22 + Math.random() * 0.1; KIT.b(g, -w / 2 + 0.1 + i * 0.07, 0.15 + r * (h / 4.2) + bh / 2, 0.05, 0.06, bh, 0.22, KIT.m(cols[(i * 7 + r * 3) % cols.length], { rough: 0.9 }), 0, false); } KIT.solid(g, w, 0.35, h); return g; }
 
 /* ─── Mobilier urbain ─── */
 function kLampPost(x, z, ry, light = null) {
-  const k = kitMats(), g = KIT.g(x, z, ry), m = KIT.m(0x3c4148, { rough: 0.5, metal: 0.6 });
+  const k = kitMats(), g = KIT.g(x, z, ry), m = fmat('tole', 0x3c4148, { rough: 0.5, metal: 0.6 });
   KIT.c(g, 0, 2.7, 0, 0.07, 0.1, 5.4, m, 8); const arm = KIT.b(g, 0.5, 5.3, 0, 1.1, 0.06, 0.06, m);
   KIT.b(g, 1.0, 5.2, 0, 0.5, 0.12, 0.3, m); KIT.b(g, 1.0, 5.12, 0, 0.42, 0.04, 0.24, k.bulb, 0, false);
   const glow = KIT.glow(g, 1.0, 5.0, 0, 0xffc070, 2.2, 0.7);
@@ -4159,24 +4365,24 @@ function kLampPost(x, z, ry, light = null) {
   if (light) { g.updateMatrixWorld(true); const p = new THREE.Vector3(1.0, 4.9, 0).applyMatrix4(g.matrixWorld); light.position.copy(p); }
   return { g, glow };
 }
-function kHydrant(x, z) { const g = KIT.g(x, z, rand(TAU)), m = KIT.m(0xc23a2a, { rough: 0.5 }); KIT.c(g, 0, 0.3, 0, 0.12, 0.14, 0.6, m, 10); KIT.s(g, 0, 0.6, 0, 0.13, m, 1, 0.7, 1); const n = KIT.c(g, 0, 0.42, 0, 0.05, 0.05, 0.4, m, 8); n.rotation.z = Math.PI / 2; colliderBox(x, z, 0.3, 0.3, 0, 0.7, 'metal'); return g; }
-function kMailbox(x, z, ry, color = 0x2e5a8a) { const g = KIT.g(x, z, ry), m = KIT.m(color, { rough: 0.4 }); KIT.b(g, 0, 0.55, 0, 0.08, 1.1, 0.08, kitMats().woodDark); KIT.b(g, 0, 1.18, 0, 0.26, 0.24, 0.5, m); const f = KIT.b(g, 0.15, 1.3, 0.1, 0.02, 0.2, 0.06, KIT.m(0xc23a2a)); return g; }
-function kTrash(x, z) { const g = KIT.g(x, z, rand(TAU)), m = kitMats().steel; KIT.c(g, 0, 0.45, 0, 0.28, 0.25, 0.9, m, 12); KIT.c(g, 0, 0.93, 0, 0.3, 0.3, 0.06, m, 12); colliderBox(x, z, 0.6, 0.6, 0, 0.95, 'metal'); return g; }
+function kHydrant(x, z) { const g = KIT.g(x, z, rand(TAU)), m = fmat('tole', 0xc23a2a, { rough: 0.5 }); KIT.c(g, 0, 0.3, 0, 0.12, 0.14, 0.6, m, 10); KIT.s(g, 0, 0.6, 0, 0.13, m, 1, 0.7, 1); const n = KIT.c(g, 0, 0.42, 0, 0.05, 0.05, 0.4, m, 8); n.rotation.z = Math.PI / 2; colliderBox(x, z, 0.3, 0.3, 0, 0.7, 'metal'); return g; }
+function kMailbox(x, z, ry, color = 0x2e5a8a) { const g = KIT.g(x, z, ry), m = fmat('tole', color, { rough: 0.4 }); KIT.b(g, 0, 0.55, 0, 0.08, 1.1, 0.08, fmat('boisPeint', 0x4e3526)); KIT.b(g, 0, 1.18, 0, 0.26, 0.24, 0.5, m); const f = KIT.b(g, 0.15, 1.3, 0.1, 0.02, 0.2, 0.06, fmat('tole', 0xc23a2a, { rough: 0.4 })); return g; }
+function kTrash(x, z) { const g = KIT.g(x, z, rand(TAU)), m = fmat('galva', 0xb8bcbe, { rough: 0.55, metal: 0.6 }); /* poubelle en tôle galvanisée ondulée */ KIT.c(g, 0, 0.45, 0, 0.28, 0.25, 0.9, m, 12); KIT.c(g, 0, 0.93, 0, 0.3, 0.3, 0.06, m, 12); colliderBox(x, z, 0.6, 0.6, 0, 0.95, 'metal'); return g; }
 function kCone(x, z) { const g = KIT.g(x, z, rand(TAU)); KIT.b(g, 0, 0.02, 0, 0.36, 0.04, 0.36, KIT.m(0x1b1b1b)); KIT.c(g, 0, 0.3, 0, 0.03, 0.15, 0.56, KIT.m(0xff6a1a, { rough: 0.5 }), 10); return g; }
 function kSign(x, z, ry, lines, bg = '#e8e2d0', color = '#1a1a1a', h = 2.2) { const g = KIT.g(x, z, ry); KIT.c(g, 0, h / 2, 0, 0.035, 0.035, h, kitMats().steel, 6); const s = mesh(new THREE.PlaneGeometry(0.9, 0.5), new THREE.MeshStandardMaterial({ map: woodSign(lines, { w: 256, h: 140, bg, color }), roughness: 0.6, side: THREE.DoubleSide }), 0, h, 0.04, 0, g, false); return g; }
 function kStopSign(x, z, ry) { const g = KIT.g(x, z, ry); KIT.c(g, 0, 1.1, 0, 0.035, 0.035, 2.2, kitMats().steel, 6); const t = textTexture(128, 128, (c) => { c.fillStyle = '#b8261e'; c.beginPath(); for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU + TAU / 16; c.lineTo(64 + Math.cos(a) * 62, 64 + Math.sin(a) * 62); } c.fill(); c.fillStyle = '#fff'; c.font = font(38); c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('STOP', 64, 66); }); const s = mesh(new THREE.CircleGeometry(0.34, 8), new THREE.MeshStandardMaterial({ map: t, roughness: 0.5, side: THREE.DoubleSide }), 0, 2.2, 0.04, 0, g, false); s.rotation.z = TAU / 16; return g; }
-function kBench(x, z, ry) { const k = kitMats(), g = KIT.g(x, z, ry); for (let i = 0; i < 3; i++) KIT.b(g, 0, 0.45, -0.15 + i * 0.15, 1.6, 0.05, 0.12, k.wood); for (let i = 0; i < 2; i++) KIT.b(g, 0, 0.7 + i * 0.16, -0.26, 1.6, 0.1, 0.04, k.wood); for (const s of [-1, 1]) KIT.b(g, s * 0.7, 0.35, 0, 0.06, 0.7, 0.5, k.black); KIT.solid(g, 1.6, 0.55, 0.6, 'wood'); return g; }
+function kBench(x, z, ry) { const k = kitMats(), g = KIT.g(x, z, ry); for (let i = 0; i < 3; i++) KIT.b(g, 0, 0.45, -0.15 + i * 0.15, 1.6, 0.05, 0.12, fmat('boisBrut', 0x8a6446)); for (let i = 0; i < 2; i++) KIT.b(g, 0, 0.7 + i * 0.16, -0.26, 1.6, 0.1, 0.04, fmat('boisBrut', 0x8a6446)); for (const s of [-1, 1]) KIT.b(g, s * 0.7, 0.35, 0, 0.06, 0.7, 0.5, k.iron); KIT.solid(g, 1.6, 0.55, 0.6, 'wood'); return g; }
 
 /* ─── Jardins ─── */
-function kSwing(x, z, ry) { const k = kitMats(), g = KIT.g(x, z, ry), m = KIT.m(0xb8372c, { rough: 0.5, metal: 0.4 });
+function kSwing(x, z, ry) { const k = kitMats(), g = KIT.g(x, z, ry), m = fmat('tole', 0xb8372c, { rough: 0.5, metal: 0.4 });
   for (const s of [-1, 1]) for (const t of [-1, 1]) { const l = KIT.c(g, s * 1.3 + t * 0.35, 1.1, 0, 0.04, 0.04, 2.35, m, 6); l.rotation.z = -t * 0.3; }
   const bar = KIT.c(g, 0, 2.2, 0, 0.05, 0.05, 2.7, m, 8); bar.rotation.z = Math.PI / 2;
   for (const o of [-0.6, 0.5]) { for (const s of [-0.22, 0.22]) KIT.c(g, o + s, 1.45, 0, 0.008, 0.008, 1.5, k.steel, 4); KIT.b(g, o, 0.7, 0, 0.5, 0.04, 0.2, k.black); }
   colliderBox(x, z, 3.2, 0.5, ry, 2.2, 'metal'); return g; }
-function kGrill(x, z, ry) { const k = kitMats(), g = KIT.g(x, z, ry); const b = KIT.s(g, 0, 0.8, 0, 0.3, k.black, 1, 0.6, 1); for (let i = 0; i < 3; i++) { const l = KIT.c(g, Math.cos(i * 2.1) * 0.18, 0.38, Math.sin(i * 2.1) * 0.18, 0.02, 0.02, 0.8, k.black, 6); l.rotation.z = Math.cos(i * 2.1) * 0.2; l.rotation.x = -Math.sin(i * 2.1) * 0.2; } KIT.c(g, 0, 1.0, 0, 0.3, 0.3, 0.02, k.steel, 14); colliderBox(x, z, 0.6, 0.6, 0, 1, 'metal'); return g; }
-function kPicnic(x, z, ry) { const k = kitMats(), g = KIT.g(x, z, ry); KIT.b(g, 0, 0.75, 0, 1.8, 0.05, 0.8, k.woodLight); for (const s of [-1, 1]) { KIT.b(g, 0, 0.45, s * 0.65, 1.8, 0.05, 0.3, k.woodLight); for (const t of [-1, 1]) { const l = KIT.b(g, t * 0.7, 0.38, s * 0.3, 0.06, 0.8, 0.06, k.wood); l.rotation.x = s * 0.5; } } KIT.solid(g, 1.8, 1.6, 0.8, 'wood'); return g; }
-function kDoghouse(x, z, ry, color = 0xb8372c) { const k = kitMats(), g = KIT.g(x, z, ry), m = fmat('siding', color); KIT.b(g, 0, 0.45, 0, 1.0, 0.9, 1.2, m); for (const s of [-1, 1]) { const r = KIT.b(g, s * 0.3, 1.12, 0, 0.72, 0.05, 1.3, KIT.m(0x4a3a30)); r.rotation.z = -s * 0.7; } KIT.b(g, 0, 0.35, 0.61, 0.45, 0.55, 0.02, k.black, 0, false); KIT.solid(g, 1.0, 1.2, 1.3, 'wood'); return g; }
-function kClothesline(x, z, ry) { const k = kitMats(), g = KIT.g(x, z, ry); for (const s of [-1, 1]) { KIT.c(g, s * 2, 1.0, 0, 0.04, 0.04, 2.0, k.steel, 6); KIT.b(g, s * 2, 1.95, 0, 0.05, 0.05, 0.9, k.steel); } for (const o of [-0.3, 0.3]) KIT.b(g, 0, 1.93, o, 4, 0.01, 0.01, k.white, 0, false); const cols = [0xe8e2d0, 0x6fa8c8, 0xd77a8a, 0xe8d28a]; for (let i = 0; i < 5; i++) { const c = mesh(new THREE.PlaneGeometry(0.55, 0.7), stdMat({ color: cols[i % 4], roughness: 1, side: THREE.DoubleSide, map: TEX.cloth.map }), -1.5 + i * 0.75, 1.55, i % 2 ? 0.3 : -0.3, 0, g, true); c.rotation.z = rand(-0.05, 0.05); } return g; }
+function kGrill(x, z, ry) { const k = kitMats(), g = KIT.g(x, z, ry); const b = KIT.s(g, 0, 0.8, 0, 0.3, k.iron, 1, 0.6, 1); for (let i = 0; i < 3; i++) { const l = KIT.c(g, Math.cos(i * 2.1) * 0.18, 0.38, Math.sin(i * 2.1) * 0.18, 0.02, 0.02, 0.8, k.black, 6); l.rotation.z = Math.cos(i * 2.1) * 0.2; l.rotation.x = -Math.sin(i * 2.1) * 0.2; } KIT.c(g, 0, 1.0, 0, 0.3, 0.3, 0.02, k.steel, 14); colliderBox(x, z, 0.6, 0.6, 0, 1, 'metal'); return g; }
+function kPicnic(x, z, ry) { const g = KIT.g(x, z, ry), pl = fmat('boisBrut', 0xc49a6c), ft = fmat('boisBrut', 0x8a6446); KIT.b(g, 0, 0.75, 0, 1.8, 0.05, 0.8, pl); for (const s of [-1, 1]) { KIT.b(g, 0, 0.45, s * 0.65, 1.8, 0.05, 0.3, pl); for (const t of [-1, 1]) { const l = KIT.b(g, t * 0.7, 0.38, s * 0.3, 0.06, 0.8, 0.06, ft); l.rotation.x = s * 0.5; } } KIT.solid(g, 1.8, 1.6, 0.8, 'wood'); return g; }
+function kDoghouse(x, z, ry, color = 0xb8372c) { const k = kitMats(), g = KIT.g(x, z, ry), m = fmat('siding', color); KIT.b(g, 0, 0.45, 0, 1.0, 0.9, 1.2, m); for (const s of [-1, 1]) { const r = KIT.b(g, s * 0.3, 1.12, 0, 0.72, 0.05, 1.3, fmat('shingle', 0x4a3a30)); r.rotation.z = -s * 0.7; } KIT.b(g, 0, 0.35, 0.61, 0.45, 0.55, 0.02, k.black, 0, false); KIT.solid(g, 1.0, 1.2, 1.3, 'wood'); return g; }
+function kClothesline(x, z, ry) { const k = kitMats(), g = KIT.g(x, z, ry); for (const s of [-1, 1]) { KIT.c(g, s * 2, 1.0, 0, 0.04, 0.04, 2.0, k.steel, 6); KIT.b(g, s * 2, 1.95, 0, 0.05, 0.05, 0.9, k.steel); } for (const o of [-0.3, 0.3]) KIT.b(g, 0, 1.93, o, 4, 0.01, 0.01, k.white, 0, false); const cols = [0xe8e2d0, 0x6fa8c8, 0xd77a8a, 0xe8d28a]; for (let i = 0; i < 5; i++) { const c = mesh(new THREE.PlaneGeometry(0.55, 0.7), fmat('toile', cols[i % 4], { rough: 1, side: THREE.DoubleSide }), -1.5 + i * 0.75, 1.55, i % 2 ? 0.3 : -0.3, 0, g, true); c.rotation.z = rand(-0.05, 0.05); } return g; }
 function kPool(x, z, r = 1.4) { const g = KIT.g(x, z, 0); const t = mesh(new THREE.TorusGeometry(r, 0.18, 10, 32), stdMat({ color: 0x5fb3d9, roughness: 0.4 }), 0, 0.18, 0, 0, g); t.rotation.x = Math.PI / 2; const w = mesh(new THREE.CircleGeometry(r, 32), new THREE.MeshStandardMaterial({ color: 0x3f8fae, roughness: 0.05, metalness: 0.3 }), 0, 0.2, 0, 0, g, false); w.rotation.x = -Math.PI / 2; colliderBox(x, z, r * 2, r * 2, 0, 0.36, 'wood'); return g; }
 function kShrub(x, z, s = 1, color = 0x4f7a3a) { const g = KIT.g(x, z, rand(TAU)), m = fmat('plain', color, { rough: 1 }); for (let i = 0; i < 4; i++) KIT.s(g, rand(-0.3, 0.3) * s, (0.35 + rand(0, 0.25)) * s, rand(-0.3, 0.3) * s, 0.42 * s, m, 1, 0.8, 1); return g; }
 function kTires(x, z, n = 3) { const g = KIT.g(x, z, rand(TAU)), k = kitMats(); for (let i = 0; i < n; i++) { const t = mesh(new THREE.TorusGeometry(0.34, 0.13, 8, 18), k.rubber, rand(-0.03, 0.03), 0.13 + i * 0.26, rand(-0.03, 0.03), 0, g); t.rotation.x = Math.PI / 2; } colliderBox(x, z, 0.95, 0.95, 0, n * 0.26, 'wood'); return g; }
@@ -4185,7 +4391,7 @@ function kTires(x, z, n = 3) { const g = KIT.g(x, z, rand(TAU)), k = kitMats(); 
 let MANNE_MAT = null;
 function kMannequin(x, z, ry, { pose = 'stand', cloth = null, y = 0, head = true } = {}) {
   MANNE_MAT ||= stdMat({ color: 0xe6d6c4, roughness: 0.32, metalness: 0.02 });
-  const g = KIT.g(x, z, ry, y), M0 = MANNE_MAT, top = cloth ? (KM['cloth' + cloth] ||= stdMat({ color: cloth, roughness: 0.9, map: TEX.cloth.map })) : M0;
+  const g = KIT.g(x, z, ry, y), M0 = MANNE_MAT, top = cloth ? (KM['cloth' + cloth] ||= fmat('tissu', cloth, { rough: 0.9 })) : M0;
   const cap = (r, l) => new THREE.CapsuleGeometry(r, l, 4, 10);
   const part = (geo, mat, px, py, pz, rx = 0, rz = 0) => { const m = mesh(geo, mat, px, py, pz, 0, g); m.rotation.set(rx, 0, rz); return m; };
   const sit = pose === 'sit';
@@ -4239,7 +4445,7 @@ function kGable(x0, z0, x1, z1, y0, rise, mat, over = 0.5, gableMat = null) {
     gq.build(true);
   }
 }
-function kChimney(x, z, y0, h, mat) { const g = KIT.g(x, z, 0, y0); KIT.b(g, 0, h / 2, 0, 0.7, h, 0.7, mat); KIT.b(g, 0, h + 0.05, 0, 0.8, 0.1, 0.8, KIT.m(0x5a5048)); return g; }
+function kChimney(x, z, y0, h, mat) { const g = KIT.g(x, z, 0, y0); KIT.b(g, 0, h / 2, 0, 0.7, h, 0.7, mat); KIT.b(g, 0, h + 0.05, 0, 0.8, 0.1, 0.8, fmat('concrete', 0x5a5048)); return g; }
 function kAntenna(x, z, y0) { const g = KIT.g(x, z, rand(TAU), y0), m = kitMats().steel; KIT.c(g, 0, 1.2, 0, 0.025, 0.025, 2.4, m, 5); for (let i = 0; i < 5; i++) { const r = KIT.c(g, 0, 1.6 + i * 0.16, 0, 0.012, 0.012, 1.4 - i * 0.2, m, 4, false); r.rotation.z = Math.PI / 2; } return g; }
 
 /* ─── Décoration intérieure : tableaux (une seule texture pour tous), plafonniers ─── */
@@ -4304,17 +4510,19 @@ function burntMat(color) {
     return [r, g, b, 0.3 + rust * 0.35 + left * 0.25 - blister * 0.2 + pit * 0.1];
   }), 3);
   for (const m of [t.map, t.normalMap]) m.repeat.set(0.33, 0.33);
-  return (KM[key] = stdMat({ color: 0xffffff, roughness: 0.9, metalness: 0.3, map: t.map, normalMap: t.normalMap }));
+  const m = stdMat({ color: 0xffffff, roughness: 0.9, metalness: 0.3, map: t.map, normalMap: t.normalMap });
+  Object.assign(m.userData, { ftex: 'rouille', scale: 1 }); // photo : tôle rouillée, peinture partie au feu (05p_photo.js)
+  return (KM[key] = m);
 }
 function vMats(color, burnt) {
   const k = kitMats();
-  const paint = burnt ? burntMat(color) : (KM['car' + color] ||= stdMat({ color, roughness: 0.32, metalness: 0.45, map: TEX.grime.map }));
+  const paint = burnt ? burntMat(color) : (KM['car' + color] ||= fmat('tole', color, { rough: 0.32, metal: 0.45 })); // laque : grain et usure photographiés, brillant gardé
   return {
     paint, chrome: burnt ? (KM.burntTrim ||= KIT.m(0x2c2622, { rough: 0.8 })) : k.chrome, glass: burnt ? k.black : (KM.carGlass ||= new THREE.MeshStandardMaterial({ color: 0x182229, roughness: 0.04, metalness: 0.85, transparent: true, opacity: 0.72 })),
     tire: burnt ? (KM.burntTire ||= KIT.m(0x0e0d0c, { rough: 1 })) : k.rubber, white: burnt ? k.black : (KM.whitewall ||= KIT.m(0xece8de, { rough: 0.6 })),
     lamp: burnt ? k.black : (KM.headlamp ||= new THREE.MeshStandardMaterial({ color: 0xfff6e0, emissive: 0xffe8b0, emissiveIntensity: 0.25, roughness: 0.1 })),
     tail: burnt ? k.black : (KM.taillamp ||= new THREE.MeshStandardMaterial({ color: 0x8a0e0e, emissive: 0x5a0606, emissiveIntensity: 0.3, roughness: 0.2 })),
-    seat: burnt ? k.black : (KM.carSeat ||= stdMat({ color: 0x8a3a2e, roughness: 0.8, map: TEX.cloth.map })), dark: k.black,
+    seat: burnt ? k.black : (KM.carSeat ||= fmat('skai', 0x8a3a2e, { rough: 0.6 })), dark: k.black, // simili-cuir de sellerie
   };
 }
 function vWheel(g, x, y, z, r, w, V, side, hub = true) {
@@ -4355,7 +4563,7 @@ function kCar(x, z, ry, color = 0x6fb7c8, burnt = false) {
 /* ─── Car scolaire (11 m) ─── */
 function kBus(x, z, ry, burnt = false) {
   const k = kitMats(), g = KIT.g(x, z, ry), V = vMats(0xe8a81e, burnt);
-  const yellow = burnt ? V.paint : (KM.busYellow ||= stdMat({ color: 0xe8a81e, roughness: 0.45, metalness: 0.25, map: TEX.grime.map, normalMap: TEX.grime.normalMap }));
+  const yellow = burnt ? V.paint : (KM.busYellow ||= fmat('tole', 0xe8a81e, { rough: 0.45, metal: 0.25 }));
   // Caisse : arrière droit, toit bombé, capot moteur à l'avant (x > 0).
   const box = vBodyShape([[-4.8, 0.45], [-4.82, 2.5], [-4.6, 2.86], [4.1, 2.86], [4.32, 2.5], [4.36, 1.5], [5.6, 1.42], [5.95, 1.1], [5.98, 0.5]], [[3.8, 0.56], [-3.2, 0.56]], 0.45);
   mesh(vExtrude(box, 2.44, 0.1), yellow, 0, 0, 0, 0, g);
@@ -4390,8 +4598,8 @@ function kBus(x, z, ry, burnt = false) {
 /* ─── Camion de déménagement, hayon ouvert, chargement renversé (9,4 m) ─── */
 function kTruck(x, z, ry, label = 'DÉMÉNAGEMENTS') {
   const k = kitMats(), g = KIT.g(x, z, ry), V = vMats(0x3e6e8e, false);
-  const cab = KM.truckCab ||= stdMat({ color: 0x3e6e8e, roughness: 0.38, metalness: 0.4, map: TEX.grime.map });
-  const boxM = KM.truckBox ||= stdMat({ color: 0xe9e3d3, roughness: 0.65, metalness: 0.15, map: TEX.grime.map, normalMap: TEX.grime.normalMap });
+  const cab = KM.truckCab ||= fmat('tole', 0x3e6e8e, { rough: 0.38, metal: 0.4 });
+  const boxM = KM.truckBox ||= fmat('tole', 0xe9e3d3, { rough: 0.65, metal: 0.15 });
   // Cabine arrondie et capot.
   const cs = vBodyShape([[2.55, 0.5], [2.55, 2.55], [2.75, 2.75], [3.7, 2.75], [4.0, 2.4], [4.25, 1.7], [5.15, 1.6], [5.35, 1.3], [5.38, 0.5]], [[4.3, 0.52]], 0.5);
   mesh(vExtrude(cs, 2.3, 0.1), cab, 0, 0, 0, 0, g);
@@ -7514,8 +7722,10 @@ function questObjective() {
 const SUPPORT = { owner: null, t: 0, cool: 0, cd: 0, cost: 2500, time: 20, coolTime: 75 };
 
 function buildCraterProps() {
-  const fabric = stdMat({ color: 0x6f6a4c, roughness: 0.92, map: TEX.cloth.map, normalMap: TEX.cloth.normalMap }, 0.7);
-  const burnt = stdMat({ color: 0x2a2520, roughness: 0.95, map: TEX.cloth.map }, 0.5);
+  // Entoilage d'avion de 1917 : toile de lin enduite kaki (famille toile, teinte gardée), pas un drap de laine.
+  const fabric = fmat('toile', 0x6f6a4c, { rough: 0.92, snow: 0.7 });
+  // Avant calciné autour du moteur rotatif : capot et toile brûlés (famille rouille, clarté presque noire gardée).
+  const burnt = fmat('rouille', 0x2a2520, { rough: 0.95, snow: 0.5 });
   const roundel = new THREE.MeshStandardMaterial({ roughness: 0.9, transparent: true, map: textTexture(128, 128, (x) => { [['#2a3f8f', 60], ['#e8e4d8', 42], ['#b0282a', 22]].forEach(([c, r]) => { x.fillStyle = c; x.beginPath(); x.arc(64, 64, r, 0, TAU); x.fill(); }); }) });
   const fy = (x, z) => (M.floorH ? M.floorH(x, z) : 0);
   const g = new THREE.Group(); g.position.set(45.4, fy(45.4, 31.6), 31.6); R.scene.add(g);
@@ -7528,7 +7738,7 @@ function buildCraterProps() {
   mesh(boxG(1.3, 1.02, 0.97), burnt, 1.7, 0, 0, 0, body); // avant calciné
   mesh(boxG(0.7, 0.3, 0.6), MATS.char, -0.1, 0.6, 0, 0, body); // habitacle
   const cowl = mesh(new THREE.CylinderGeometry(0.5, 0.56, 0.7, 14), MATS.iron, 2.55, 0, 0, 0, body); cowl.rotation.z = Math.PI / 2;
-  for (const [a, l] of [[0.3, 1.25], [0.3 + Math.PI, 0.55]]) { const b = mesh(boxG(0.06, l, 0.16), MATS.post, 2.95, Math.cos(a) * l * 0.5, Math.sin(a) * l * 0.5, 0, body); b.rotation.x = a; } // hélice (une pale cassée)
+  for (const [a, l] of [[0.3, 1.25], [0.3 + Math.PI, 0.55]]) { const b = mesh(boxG(0.06, l, 0.16), rawPost(), 2.95, Math.cos(a) * l * 0.5, Math.sin(a) * l * 0.5, 0, body); b.rotation.x = a; } // hélice (une pale cassée)
   // Ailes arrachées à l'impact : l'inférieure gît à plat dans la neige (on marche dessus),
   // la moitié de l'aile supérieure est restée appuyée contre la paroi est du cratère.
   { const w = new THREE.Group(); w.position.set(45.0, fy(45.0, 36.2) - 0.12, 36.2); w.rotation.order = "YXZ"; w.rotation.y = 0.35; w.rotation.x = -0.125; // couchée dans la pente R.scene.add(w);
@@ -7537,7 +7747,7 @@ function buildCraterProps() {
   { const w = new THREE.Group(); w.position.set(53.25, 0, 30.3); R.scene.add(w);
     const p = mesh(boxG(4.4, 0.1, 1.4), fabric, 0, 0, 0, 0, w); p.rotation.set(0, Math.PI / 2, 1.15); p.position.set(0.2, 0.95, 0);
     const r = mesh(new THREE.PlaneGeometry(0.9, 0.9), roundel, 0, 0, 0, 0, w); r.position.set(0.14, 1.2, 1.1); r.rotation.set(0, -Math.PI / 2 + 0.42, 0);
-    for (const z of [-1.4, 1.4]) mesh(boxG(0.06, 1.4, 0.06), MATS.post, 0.45, 0.7, z, 0, w);
+    for (const z of [-1.4, 1.4]) mesh(boxG(0.06, 1.4, 0.06), rawPost(), 0.45, 0.7, z, 0, w);
     collider(52.55, 28.1, 54, 32.5, 1.9, 'wood'); } // plaquée contre la paroi : aucun recoin où rester coincé
   mesh(boxG(0.95, 0.9, 0.06), fabric, -3.25, 0.5, 0, 0, body); // dérive
   mesh(boxG(0.8, 0.06, 2.4), fabric, -3.2, 0.12, 0, 0, body); // empennage
@@ -7554,7 +7764,7 @@ function buildCraterProps() {
   // Téléphone de campagne (soutien d'artillerie).
   const s = wallSpot(SPOTS.mortar, 0.42), t = new THREE.Group(); t.position.set(s.x, 0, s.z); t.rotation.y = s.yaw; R.scene.add(t);
   mesh(boxG(0.8, 0.55, 0.55), MATS.crate, 0, 0.275, 0.05, 0, t); colliderBox(s.x, s.z, 0.8, 0.6, s.yaw, 0.55, 'wood');
-  mesh(boxG(0.34, 0.24, 0.22), MATS.post, -0.12, 0.67, 0.05, 0, t);
+  mesh(boxG(0.34, 0.24, 0.22), rawPost(), -0.12, 0.67, 0.05, 0, t); // coffret de bois du téléphone
   const hs = mesh(boxG(0.26, 0.05, 0.06), MATS.iron, -0.12, 0.8, 0.05, 0, t); hs.rotation.z = 0.1;
   const reel = mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.18, 14), MATS.olive, 0.22, 0.66, 0.05, 0, t); reel.rotation.x = Math.PI / 2;
   const lampMat = new THREE.MeshBasicMaterial({ color: 0x44ff66 }); mesh(new THREE.SphereGeometry(0.025, 8, 6), lampMat, -0.02, 0.72, -0.07, 0, t, false);
@@ -7643,10 +7853,11 @@ const pwrParts = () => M.powerParts || PWR_DEFAULT;
 function buildPowerParts() {
   WORLD.pwrParts = pwrParts().map((p) => {
     const g = new THREE.Group(); g.userData.dynamic = true; g.visible = false; R.scene.add(g); const k = kitMats();
-    if (p.kind === 'fuel') { mesh(boxG(0.34, 0.44, 0.16), KIT.m(0xb82a1e, { rough: 0.45, metal: 0.4 }), 0, 0.22, 0, 0, g); mesh(boxG(0.18, 0.06, 0.06), MATS.iron, 0.04, 0.47, 0, 0, g); mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.08, 8), MATS.brass, -0.11, 0.48, 0, 0, g); }
-    else if (p.kind === 'fuse') { mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.26, 12), KIT.m(0xe8e2d4, { rough: 0.3 }), 0, 0.12, 0, 0, g).rotation.z = Math.PI / 2; for (const s of [-1, 1]) mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.05, 12), MATS.brass, s * 0.14, 0.12, 0, 0, g).rotation.z = Math.PI / 2; }
+    // Familles photo (05b_flat.js) : bidon en tôle peinte, fusible en porcelaine, courroie en cuir ; la bobine de cuivre reste unie.
+    if (p.kind === 'fuel') { mesh(boxG(0.34, 0.44, 0.16), fmat('tole', 0xb82a1e, { rough: 0.45, metal: 0.4 }), 0, 0.22, 0, 0, g); mesh(boxG(0.18, 0.06, 0.06), MATS.iron, 0.04, 0.47, 0, 0, g); mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.08, 8), MATS.brass, -0.11, 0.48, 0, 0, g); }
+    else if (p.kind === 'fuse') { mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.26, 12), fmat('email', 0xe8e2d4, { rough: 0.3 }), 0, 0.12, 0, 0, g).rotation.z = Math.PI / 2; for (const s of [-1, 1]) mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.05, 12), MATS.brass, s * 0.14, 0.12, 0, 0, g).rotation.z = Math.PI / 2; }
     else if (p.kind === 'coil') { mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.26, 16), KIT.m(0xb86a2e, { rough: 0.35, metal: 0.8 }), 0, 0.14, 0, 0, g); mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.34, 8), MATS.iron, 0, 0.14, 0, 0, g); }
-    else if (p.kind === 'belt') { mesh(new THREE.TorusGeometry(0.2, 0.03, 6, 20), KIT.m(0x3a2618, { rough: 0.8 }), 0, 0.05, 0, 0, g).rotation.x = Math.PI / 2; mesh(new THREE.TorusGeometry(0.16, 0.025, 6, 20), KIT.m(0x4a3220, { rough: 0.8 }), 0.06, 0.1, 0, 0, g).rotation.x = Math.PI / 2 - 0.3; }
+    else if (p.kind === 'belt') { mesh(new THREE.TorusGeometry(0.2, 0.03, 6, 20), fmat('cuir', 0x3a2618, { rough: 0.8 }), 0, 0.05, 0, 0, g).rotation.x = Math.PI / 2; mesh(new THREE.TorusGeometry(0.16, 0.025, 6, 20), fmat('cuir', 0x4a3220, { rough: 0.8 }), 0.06, 0.1, 0, 0, g).rotation.x = Math.PI / 2 - 0.3; }
     else { mesh(boxG(0.3, 0.2, 0.2), MATS.olive, 0, 0.1, 0, 0, g); mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 10), MATS.iron, 0.2, 0.12, 0, 0, g).rotation.z = Math.PI / 2; }
     const glow = KIT.glow(g, 0, 0.25, 0, 0xffd070, 1.1, 0.55);
     return { g, glow };
@@ -9396,7 +9607,7 @@ setInterval(() => {
   while (el > 1e-3) { const dt = Math.min(0.05, el); G.update(dt); el -= dt; }
 }, 250);
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'playing' && !NET.active) pauseGame(); });
-window.SP = { PHOTO_SETS, buildGunModel, buildKnife, buildGrenadeModel, clipViewmodel, GM, PHOTO, MATS, GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
+window.SP = { PHOTO_SETS, KIT, buildGunModel, buildKnife, buildGrenadeModel, clipViewmodel, GM, PHOTO, MATS, GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
   sim(sec, dt = 0.05) { for (let t = 0; t < sec; t += dt) { if (G.mode === 'playing' || (G.mode === 'paused' && NET.active)) { G.update(dt); if (G.mode === 'playing') updatePlayer(dt); NET.clientTick(dt); } updateFX(dt, performance.now() / 1000 + t); } } };
 
 
@@ -9627,7 +9838,8 @@ function robotAnim(dt, time) {
 
 /* ─── No man's land : char losange abattu, canon de campagne à l'arrière ─── */
 function buildPoste7Extras() {
-  const steel = stdMat({ color: 0x4a4a3e, roughness: 0.8, metalness: 0.45, map: TEX.grime.map, normalMap: TEX.grime.normalMap }, 0.8), rust = MATS.rust, dark = MATS.char;
+  // Plaques d'acier rivetées peintes du char et du canon : peinture militaire écaillée (famille olive, teinte gardée).
+  const steel = fmat('olive', 0x4a4a3e, { rough: 0.8, metal: 0.15, snow: 0.8 }), rust = MATS.rust, dark = MATS.char;
   // Char : deux flancs losanges (chenilles), caisse centrale, tourelles latérales, canons.
   { const x = 62, z = -12, y = surfH(x, z) - 0.6, g = new THREE.Group(); g.position.set(x, y, z); g.rotation.set(0.06, -0.5, 0.1); R.scene.add(g);
     const side = new THREE.Shape(); side.moveTo(-4, 0.6); side.lineTo(-2.6, 0); side.lineTo(2.6, 0); side.lineTo(4.2, 1.6); side.lineTo(3.9, 2.5); side.lineTo(-2.2, 2.5); side.closePath();
@@ -9638,7 +9850,8 @@ function buildPoste7Extras() {
     WORLD.fires.push({ x: x + 0.5, y: y + 2.4, z, size: 0.6, rate: 0.06, t: 0, smoke: 0.12 }); }
   // Canon de campagne : roues à rayons, bouclier, fût, flèche.
   { const x = 34, z = 68, y = surfH(x, z), g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = 0.15; R.scene.add(g);
-    const wood = stdMat({ color: 0x5a4632, roughness: 0.9, map: TEX.planks.map }, 0.8);
+    // Roues à rayons et flèche de l'affût : bois brut grisé par les intempéries (famille boisBrut, clarté gardée).
+    const wood = fmat('boisBrut', 0x5a4632, { rough: 0.9, snow: 0.8 });
     for (const s of [-1, 1]) { const w = mesh(new THREE.TorusGeometry(0.62, 0.05, 6, 20), wood, 0, 0.67, s * 0.85, 0, g); for (let i = 0; i < 6; i++) { const sp = mesh(boxG(0.04, 1.2, 0.04), wood, 0, 0.67, s * 0.85, 0, g); sp.rotation.z = (i / 6) * Math.PI; } }
     mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.9, 8), steel, 0, 0.67, 0, 0, g).rotation.x = Math.PI / 2;
     const sh = mesh(boxG(0.06, 1.1, 1.6), steel, 0.25, 1.0, 0, 0, g); sh.rotation.z = -0.15;
@@ -9694,7 +9907,8 @@ MAPS.cite = {
     { floor: ['slab', 0xbdb8ae], ceil: ['planks', 0x9a8a70] }, { floor: ['slab', 0x8e8a80], ceil: ['concrete', 0x9a968c], roof: ['concrete', 0xa8a49a] },
     { floor: 'checker', ceil: ['plaster', 0xeae4d4] }, { floor: ['slab', 0xcfc8b8], ceil: ['plaster', 0xf6f3ea], roof: ['plaster', 0xf2eee4] }, { floor: ['lawn', 0x8cca5e] }, { floor: 'tileWall', ceil: ['plaster', 0xf3ecdc] },
   ],
-  roofTex: ['shingle', 0xb07a62], ceilTex: ['plaster', 0xf3ecdc], wallMat: 'wood', baseboard: ['planks', 0x5a3a28], curtain: ['plaster', 0xd8a86a],
+  // Plinthes en bois verni (famille meuble) ; rideaux en toile de coton.
+  roofTex: ['shingle', 0xb07a62], ceilTex: ['plaster', 0xf3ecdc], wallMat: 'wood', baseboard: ['meuble', 0x5a3a28], curtain: ['toile', 0xd8a86a],
   decals: { grime: 0.75, splash: 0.3, under: 0.5, crack: 0.1, stain: 0.03, scuff: 0.08, mold: 0.02, blood: 0.02,
     floor: { road: [['oil', 0.18, 1.6], ['crack', 0.15, 1.8]], sidewalk: [['crack', 0.15, 1.2], ['dirt', 0.1, 1.2]], kitchen: [['dirt', 0.1, 1]], parquet: [['scuff', 0.1, 1], ['blood', 0.04, 1.2]], garage: [['oil', 0.3, 1.4]], forecourt: [['oil', 0.35, 1.6]], shop: [['dirt', 0.15, 1]], bunker: [['leak', 0.15, 1.2], ['dirt', 0.2, 1.2]], carpet: [['stain', 0.08, 0.9]], bath: [['leak', 0.1, 0.8]] } },
   scatter: [{ kind: 'tuft', styles: ['lawn', 'yard'], n: 9, color: 0x6f9a4a, jitter: 0.25 }, { kind: 'leaf', styles: ['lawn', 'yard', 'sidewalk'], n: 1.5, color: 0x9a6a3a, hue: 0.03 }, { kind: 'paper', styles: ['road', 'sidewalk', 'forecourt'], n: 0.25, color: 0xd8d2c0 }, { kind: 'pebble', styles: ['road', 'forecourt'], n: 2, color: 0x7a746c },
@@ -9702,14 +9916,15 @@ MAPS.cite = {
   details: { eaves: 0.45, gutter: 0xe0dcd2, fascia: ['plaster', 0xf2eee4], plinth: ['concrete', 0x8e887c], crown: ['plaster', 0xfbf7ee] },
   walls: [
     { key: 'yellow', h: 3.2, out: ['siding', 0xf2d57a], in: ['wallpaper', 0xf7eedb], mat: 'wood' },
-    { key: 'yellowWin', look: 'window', h: 3.2, out: ['siding', 0xf2d57a], in: ['wallpaper', 0xf7eedb], trim: ['plaster', 0xf6f2e6], shutter: 0x2f5d7a, flowers: true, mat: 'wood' },
+    // Encadrements, croisillons, appuis et jardinières des fenêtres (trim) : menuiserie en bois peint.
+    { key: 'yellowWin', look: 'window', h: 3.2, out: ['siding', 0xf2d57a], in: ['wallpaper', 0xf7eedb], trim: ['boisPeint', 0xf6f2e6], shutter: 0x2f5d7a, flowers: true, mat: 'wood' },
     { key: 'green', h: 3.2, out: ['siding', 0xa6dbb8], in: ['wallpaper', 0xe8f0e0], mat: 'wood' },
-    { key: 'greenWin', look: 'window', h: 3.2, out: ['siding', 0xa6dbb8], in: ['wallpaper', 0xe8f0e0], trim: ['plaster', 0xf6f2e6], shutter: 0x9a3a2e, flowers: true, mat: 'wood' },
+    { key: 'greenWin', look: 'window', h: 3.2, out: ['siding', 0xa6dbb8], in: ['wallpaper', 0xe8f0e0], trim: ['boisPeint', 0xf6f2e6], shutter: 0x9a3a2e, flowers: true, mat: 'wood' },
     { key: 'inner', h: 3.0, out: ['wallpaper', 0xefe6d2], in: ['wallpaper', 0xefe6d2], mat: 'wood' },
     { key: 'bunker', h: 3.4, out: ['concrete', 0xb5b0a4], in: ['concrete', 0x96918a], mat: 'concrete' },
     { key: 'bunkerIn', h: 3.0, out: ['concrete', 0x96918a], in: ['concrete', 0x96918a], mat: 'concrete' },
     { key: 'stucco', h: 3.4, out: ['plaster', 0xeee4c8], in: ['plaster', 0xdcd4bf], mat: 'concrete' },
-    { key: 'stuccoWin', look: 'window', h: 3.4, out: ['plaster', 0xeee4c8], in: ['plaster', 0xdcd4bf], trim: ['plaster', 0xc23b3b], mat: 'concrete' },
+    { key: 'stuccoWin', look: 'window', h: 3.4, out: ['plaster', 0xeee4c8], in: ['plaster', 0xdcd4bf], trim: ['boisPeint', 0xc23b3b], mat: 'concrete' },
     { key: 'picket', look: 'picket', h: 1.1, see: true, mat: 'wood' },
     { key: 'chain', look: 'chain', h: 2.3, see: true, mat: 'metal' },
     { key: 'rail', look: 'rail', h: 1.2, see: true, mat: 'wood' },
@@ -10009,12 +10224,13 @@ function citeDecor() {
   kGable(X(17), X(23), X(22), X(29), 3.35, 1.7, shingleG, 0.45, fv(['siding', 0xa6dbb8]));
   kChimney(X(6) + 1, X(9), 3.35, 4.0, fmat('brick', 0xffffff)); kChimney(X(30) + 1, X(29), 3.35, 4.0, fmat('brick', 0xffffff));
   kAntenna(X(12), X(11), 5.2); kAntenna(X(25), X(27), 5.2);
-  const porch = (x0, z0, x1, z1, mat) => { const g = KIT.g(0, 0); KIT.b(g, (x0 + x1) / 2, 2.62, (z0 + z1) / 2, x1 - x0 + 0.6, 0.1, z1 - z0 + 0.5, mat); for (const [a, b] of [[x0 + 0.1, z1 - 0.1], [x1 - 0.1, z1 - 0.1], [x0 + 0.1, z0 + 0.1], [x1 - 0.1, z0 + 0.1]]) KIT.b(g, a, 1.3, b, 0.1, 2.6, 0.1, k.white); };
+  // Porches : auvent en bardeaux sur quatre poteaux en bois peint.
+  const porch = (x0, z0, x1, z1, mat) => { const g = KIT.g(0, 0); KIT.b(g, (x0 + x1) / 2, 2.62, (z0 + z1) / 2, x1 - x0 + 0.6, 0.1, z1 - z0 + 0.5, mat); for (const [a, b] of [[x0 + 0.1, z1 - 0.1], [x1 - 0.1, z1 - 0.1], [x0 + 0.1, z0 + 0.1], [x1 - 0.1, z0 + 0.1]]) KIT.b(g, a, 1.3, b, 0.1, 2.6, 0.1, fmat('boisPeint', 0xeeeae0, { rough: 0.8 })); };
   porch(X(8), X(15), X(9), X(16), fmat('shingle', 0xb07a62)); porch(X(9), X(6), X(10), X(7), fmat('shingle', 0xb07a62));
   porch(X(26), X(22), X(27), X(23), fmat('shingle', 0x7c8c9a)); porch(X(28), X(31), X(29), X(32), fmat('shingle', 0x7c8c9a));
-  // Portes de garage (façade côté rue).
+  // Portes de garage sectionnelles en bois peint (façade côté rue).
   for (const [x0, x1, z, col, s] of [[X(15), X(20), X(15), 0xf6f2e6, 1], [X(17), X(22), X(23), 0xf6f2e6, -1]]) {
-    const g = KIT.g((x0 + x1) / 2, z + s * 0.1); for (let i = 0; i < 4; i++) KIT.b(g, 0, 0.35 + i * 0.55, 0, x1 - x0 - 1.0, 0.5, 0.04, KIT.m(col, { rough: 0.5 }));
+    const g = KIT.g((x0 + x1) / 2, z + s * 0.1); for (let i = 0; i < 4; i++) KIT.b(g, 0, 0.35 + i * 0.55, 0, x1 - x0 - 1.0, 0.5, 0.04, fmat('boisPeint', col, { rough: 0.5 }));
     for (let i = 0; i < 4; i++) KIT.b(g, -3 + i * 2, 1.85, s * 0.03, 1.2, 0.3, 0.02, k.glass, 0, false);
   }
   // Boîtes aux lettres, massifs, allées.
@@ -10026,7 +10242,7 @@ function citeDecor() {
   const line = fmat('plain', 0xe0b83a, { rough: 0.8 }), white = fmat('plain', 0xe8e4da, { rough: 0.8 });
   for (let x = X(2) + 1; x < X(34); x += 3.2) KIT.b(R.scene, x, 0.012, X(19), 1.6, 0.01, 0.14, line, 0, false);
   for (let i = 0; i < 6; i++) KIT.b(R.scene, X(27) + 0.4 + i * 0.55, 0.012, X(17) + 0.9, 0.3, 0.01, 1.6, white, 0, false); // passage piéton vers l'abri
-  const curb = fmat('plain', 0xb8b2a6, { rough: 0.9 });
+  const curb = fmat('concrete', 0xb8b2a6, { rough: 0.9 }); // bordures en béton coulé (photo de béton de la carte)
   for (const z of [X(17), X(21)]) KIT.b(R.scene, (X(2) + X(34)) / 2, 0.05, z, X(34) - X(2), 0.1, 0.18, curb, 0, false);
   const lw = kLampPost(X(10), X(16) + 0.35, -Math.PI / 2, L.lampW), le = kLampPost(X(31) + 1, X(21) + 1.65, Math.PI / 2, L.lampE);
   kLampPost(X(37) + 1, X(13) + 0.6, -Math.PI / 2);
@@ -10045,9 +10261,9 @@ function citeDecor() {
   kCar(X(37), X(17) + 1.4, 1.25, 0xc9d9df, true); kCar(X(17) + 1, X(12) + 1, Math.PI / 2, 0xd9636a); kCar(X(19) + 0.4, X(25) + 1, -Math.PI / 2 + 0.03, 0x6fb7c8);
   // Panneau POPULATION (décompte des morts), à l'entrée ouest.
   { const c = makeCanvas(512, 320), tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-    const g = KIT.g(X(1) + 0.4, X(15) + 1, Math.PI / 2); for (const s of [-1, 1]) KIT.b(g, s * 1.5, 1.6, 0, 0.14, 3.2, 0.14, k.woodDark);
+    const g = KIT.g(X(1) + 0.4, X(15) + 1, Math.PI / 2), pw = fmat('boisPeint', 0x4e3526); /* poteaux et dos du panneau en bois peint */ for (const s of [-1, 1]) KIT.b(g, s * 1.5, 1.6, 0, 0.14, 3.2, 0.14, pw);
     mesh(new THREE.PlaneGeometry(3.6, 2.25), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 }), 0, 2.6, 0.08, 0, g, false);
-    const back = mesh(new THREE.PlaneGeometry(3.6, 2.25), k.woodDark, 0, 2.6, 0.06, Math.PI, g, false);
+    const back = mesh(new THREE.PlaneGeometry(3.6, 2.25), pw, 0, 2.6, 0.06, Math.PI, g, false);
     g.userData.dynamic = true; WORLD.popSign = { canvas: c, tex }; drawPopSign(1954); }
 
   /* ── Maison jaune : intérieur ── */
@@ -10055,7 +10271,7 @@ function citeDecor() {
   kTable(X(6) + 1, X(12) + 0.8, 0, 1.1, 0.55, 0.42, k.woodDark); kLamp(X(8) + 1.4, X(14) + 1.4, 0); kRug(X(6) + 1, X(12) + 0.6, 0, 3.2, 2.2, 0x8a3b32);
   kCounter(X(11) + 1, X(10) + 0.33, 0, 4.2); kFridge(X(14) + 1.4, X(10) + 0.4, 0); kStove(X(9) + 0.5, X(10) + 0.36, 0); kDining(X(11) + 1, X(13), 0);
   kBed(X(6), X(7) + 1.1, 0); kDresser(X(8) + 1.7, X(9) + 0.8, -Math.PI / 2);
-  { const g = KIT.g(X(13) + 0.4, X(7) + 0.5, 0); KIT.b(g, 0, 0.3, 0, 1.6, 0.6, 0.75, k.white); KIT.b(g, 0, 0.58, 0, 1.45, 0.05, 0.62, fmat('plain', 0x9ad0e0, { rough: 0.1 })); KIT.solid(g, 1.6, 0.75, 0.6); } // baignoire
+  { const g = KIT.g(X(13) + 0.4, X(7) + 0.5, 0); KIT.b(g, 0, 0.3, 0, 1.6, 0.6, 0.75, fmat('email', 0xeeeae0, { rough: 0.15 })); KIT.b(g, 0, 0.58, 0, 1.45, 0.05, 0.62, fmat('plain', 0x9ad0e0, { rough: 0.1 })); KIT.solid(g, 1.6, 0.75, 0.6); } // baignoire en fonte émaillée
   for (const p of [[X(15) + 1.2, X(9) + 0.3], [X(18) + 0.6, X(9) + 0.3]]) kShelf(p[0], p[1], 0, 1.4, 1.9);
   kTires(X(19) + 1.4, X(14) + 1.3, 3);
 
@@ -10068,7 +10284,7 @@ function citeDecor() {
   kLamp(X(22) + 0.5, X(23) + 0.5, 0);
   kCounter(X(32) + 1.62, X(24) + 1, -Math.PI / 2, 3.6, 0xe6efe6, 0x2f7a6a); kFridge(X(30) + 1, X(23) + 0.42, 0, 0xe8e2d0); kDining(X(30), X(25) + 0.2, Math.PI / 2);
   kBed(X(24), X(30) + 0.9, Math.PI, k.fabricTeal); kDresser(X(22) + 0.3, X(28), Math.PI / 2);
-  kShelf(X(31), X(30) + 1.7, Math.PI, 1.6, 1.9); { const g = KIT.g(X(28) + 1, X(30) + 1.4, Math.PI); KIT.b(g, 0, 0.45, 0, 0.8, 0.9, 0.7, k.white); KIT.c(g, 0, 0.6, 0.36, 0.22, 0.22, 0.02, k.glass, 16, false).rotation.x = Math.PI / 2; KIT.solid(g, 0.8, 0.7, 0.9, 'metal'); } // machine à laver
+  kShelf(X(31), X(30) + 1.7, Math.PI, 1.6, 1.9); { const g = KIT.g(X(28) + 1, X(30) + 1.4, Math.PI); KIT.b(g, 0, 0.45, 0, 0.8, 0.9, 0.7, fmat('email', 0xeeeae0, { rough: 0.3 })); KIT.c(g, 0, 0.6, 0.36, 0.22, 0.22, 0.02, k.glass, 16, false).rotation.x = Math.PI / 2; KIT.solid(g, 0.8, 0.7, 0.9, 'metal'); } // machine à laver
   kShelf(X(17) + 0.3, X(26) + 1, Math.PI / 2, 1.4, 1.9); kTires(X(20) + 1.4, X(27) + 1.4, 2);
 
   /* ── Finitions des intérieurs : placards hauts, salles de bains, plantes, bibliothèques ── */
@@ -10081,7 +10297,7 @@ function citeDecor() {
   kSwing(X(5) + 1, X(1) + 1, 0); kGrill(X(13), X(4) + 1, 0); kPicnic(X(16), X(2) + 1, 0.1); kDoghouse(X(19) + 1, X(0) + 1.2, -0.3);
   kClothesline(X(12), X(1) + 0.6, 0); kPool(X(4) + 1, X(5), 1.3);
   kSwing(X(33), X(35) + 1, 0.2); kPool(X(22), X(34) + 1, 1.5); kClothesline(X(26), X(36) + 0.6, 0); kGrill(X(31) + 1, X(32) + 1, 0); kPicnic(X(20) + 1, X(36), Math.PI / 2);
-  { const g = KIT.g(X(35), X(31) + 1.4, 0); KIT.b(g, 0, 1.1, 0, 2.2, 2.2, 1.8, fmat('planks', 0x9a6a4a)); KIT.b(g, 0, 2.3, 0, 2.5, 0.12, 2.1, fmat('shingle', 0x55606a)); KIT.solid(g, 2.2, 1.8, 2.3); } // cabanon
+  { const g = KIT.g(X(35), X(31) + 1.4, 0); KIT.b(g, 0, 1.1, 0, 2.2, 2.2, 1.8, fmat('boisPeint', 0x9a6a4a)); KIT.b(g, 0, 2.3, 0, 2.5, 0.12, 2.1, fmat('shingle', 0x55606a)); KIT.solid(g, 2.2, 1.8, 2.3); } // cabanon en planches peintes
   for (let i = 0; i < 10; i++) kShrub(X(2) + srand(0, 36), X(0) + srand(-0.2, 0.2), srand(0.6, 1), 0x4f7a3a);
 
   /* ── Abri antiatomique ── */
@@ -10089,17 +10305,22 @@ function citeDecor() {
     const trefoil = textTexture(256, 256, (c) => { c.fillStyle = '#e8c21a'; c.fillRect(0, 0, 256, 256); c.fillStyle = '#111'; c.beginPath(); c.arc(128, 128, 20, 0, TAU); c.fill(); for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + i * TAU / 3; c.beginPath(); c.moveTo(128, 128); c.arc(128, 128, 100, a - 0.52, a + 0.52); c.closePath(); c.fill(); } c.fillStyle = '#e8c21a'; c.beginPath(); c.arc(128, 128, 30, 0, TAU); c.fill(); c.fillStyle = '#111'; c.beginPath(); c.arc(128, 128, 20, 0, TAU); c.fill(); });
     for (const s of [-1.35, 1.35]) mesh(new THREE.PlaneGeometry(0.6, 0.6), new THREE.MeshStandardMaterial({ map: trefoil, roughness: 0.6 }), s, 1.9, 0.02, 0, g, false);
     const sign = mesh(new THREE.PlaneGeometry(2.6, 0.5), new THREE.MeshStandardMaterial({ map: woodSign(['ABRI ANTIATOMIQUE'], { w: 512, h: 100, bg: '#222', color: '#e8c21a' }), roughness: 0.6 }), 0, 3.0, 0.02, 0, g, false); }
-  for (const [x, z] of [[X(25), X(4)], [X(31), X(8)], [X(27), X(9)]]) { const g = KIT.g(x, z, 0, 3.35); KIT.c(g, 0, 0.6, 0, 0.16, 0.16, 1.2, k.steel, 10); KIT.c(g, 0, 1.25, 0, 0.3, 0.3, 0.1, k.steel, 10); }
-  { const bags = new Batch(sandbagGeo(), fmat('plain', 0xb8a47e, { rough: 1 })); for (let x = X(24); x < X(28); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); for (let x = X(29) + 0.3; x < X(33); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); bags.build(); }
-  // Dortoir, salle commune, générateur.
-  for (const x of [X(29) + 0.9, X(31) + 0.9]) { const g = KIT.g(x, X(3) + 1.1, 0); for (const y of [0.45, 1.5]) { KIT.b(g, 0, y, 0, 1.0, 0.08, 2.0, k.steel); KIT.b(g, 0, y + 0.1, 0, 0.92, 0.12, 1.9, k.fabricTeal); } for (const [a, b] of [[-0.48, -0.95], [0.48, -0.95], [-0.48, 0.95], [0.48, 0.95]]) KIT.b(g, a, 1.0, b, 0.05, 2.0, 0.05, k.steel); KIT.solid(g, 1.0, 2.0, 2.0, 'metal'); }
+  // Aérations de l'abri sur le toit : conduits en tôle galvanisée.
+  for (const [x, z] of [[X(25), X(4)], [X(31), X(8)], [X(27), X(9)]]) { const g = KIT.g(x, z, 0, 3.35), v = fmat('galva', 0x8c9196, { rough: 0.45, metal: 0.8 }); KIT.c(g, 0, 0.6, 0, 0.16, 0.16, 1.2, v, 10); KIT.c(g, 0, 1.25, 0, 0.3, 0.3, 0.1, v, 10); }
+  // Sacs de sable de la Défense civile : toile de jute.
+  { const bags = new Batch(sandbagGeo(), fmat('toile', 0xb8a47e, { rough: 1 })); for (let x = X(24); x < X(28); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); for (let x = X(29) + 0.3; x < X(33); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); bags.build(); }
+  // Dortoir, salle commune, générateur. Couchettes en acier peint, matelas en coutil de coton.
+  const ticking = fmat('toile', 0x3d8a86, { rough: 0.95 });
+  for (const x of [X(29) + 0.9, X(31) + 0.9]) { const g = KIT.g(x, X(3) + 1.1, 0); for (const y of [0.45, 1.5]) { KIT.b(g, 0, y, 0, 1.0, 0.08, 2.0, k.steel); KIT.b(g, 0, y + 0.1, 0, 0.92, 0.12, 1.9, ticking); } for (const [a, b] of [[-0.48, -0.95], [0.48, -0.95], [-0.48, 0.95], [0.48, 0.95]]) KIT.b(g, a, 1.0, b, 0.05, 2.0, 0.05, k.steel); KIT.solid(g, 1.0, 2.0, 2.0, 'metal'); }
   kShelf(X(24) + 0.3, X(8) + 1, Math.PI / 2, 1.8, 2.1); kShelf(X(24) + 0.3, X(10), Math.PI / 2, 1.8, 2.1); kTable(X(29), X(8) + 1.2, 0, 2.2, 1.0);
-  for (const [x, z] of [[X(32) + 1.4, X(10) + 1.4], [X(32) + 0.7, X(10) + 1.5]]) barrel(x, z, fmat('plain', 0x3a5a7a, { rough: 0.5, metal: 0.4 }));
-  { const g = KIT.g(X(29) - 0.4, X(8) + 1.2, 0); KIT.b(g, 0, 0.88, 0, 0.5, 0.28, 0.3, KIT.m(0x4a4a3a)); KIT.b(g, 0.15, 0.95, 0.16, 0.12, 0.1, 0.02, k.screen, 0, false); const lamp = new THREE.MeshBasicMaterial({ color: 0x401010 }); KIT.s(g, -0.15, 1.05, 0.16, 0.03, lamp); WORLD.citeRadio = { pos: new THREE.Vector3(X(29) - 0.4, 1, X(8) + 1.2), lamp }; } // poste radio d'urgence
+  // Fûts de 200 litres en tôle peinte ; poste radio de la Défense civile en tôle peinte vert olive.
+  for (const [x, z] of [[X(32) + 1.4, X(10) + 1.4], [X(32) + 0.7, X(10) + 1.5]]) barrel(x, z, fmat('tole', 0x3a5a7a, { rough: 0.5, metal: 0.4 }));
+  { const g = KIT.g(X(29) - 0.4, X(8) + 1.2, 0); KIT.b(g, 0, 0.88, 0, 0.5, 0.28, 0.3, fmat('olive', 0x4a4a3a, { rough: 0.8 })); KIT.b(g, 0.15, 0.95, 0.16, 0.12, 0.1, 0.02, k.screen, 0, false); const lamp = new THREE.MeshBasicMaterial({ color: 0x401010 }); KIT.s(g, -0.15, 1.05, 0.16, 0.03, lamp); WORLD.citeRadio = { pos: new THREE.Vector3(X(29) - 0.4, 1, X(8) + 1.2), lamp }; } // poste radio d'urgence
   WORLD.powerLamps.push(hangingLamp(X(28), 2.75, X(9), MATS.bulbRed), hangingLamp(X(25) + 1, 2.75, X(5), MATS.bulbRed));
 
   /* ── Station-service ── */
-  { const red = fmat('plain', 0xc23b3b, { rough: 0.5 }), pil = fmat('plain', 0xf2eee4, { rough: 0.6 });
+  // Bandeau de l'auvent et corps des pompes en tôle peinte rouge ; piliers et mât en béton peint blanc ; jante de l'enseigne en tôle.
+  { const red = fmat('tole', 0xc23b3b, { rough: 0.5 }), pil = fmat('tole', 0xf2eee4, { rough: 0.6 }), rim = fmat('tole', 0xf2eee4, { rough: 0.6 });
     const g = KIT.g(0, 0), cw = X(9) - X(3) + 0.5, cd = X(29) - X(25) + 0.5, ccx = (X(3) + X(9)) / 2, ccz = (X(25) + X(29)) / 2;
     for (const [dx, dz, w, d] of [[0, -cd / 2, cw, 0.08], [0, cd / 2, cw, 0.08], [-cw / 2, 0, 0.08, cd], [cw / 2, 0, 0.08, cd]]) KIT.b(g, ccx + dx, 3.25, ccz + dz, w, 0.55, d, red, 0, true); // bandeau rouge de l'auvent
     for (const [x, z] of [[X(3) + 0.4, X(25) + 0.4], [X(9) - 0.4, X(25) + 0.4], [X(3) + 0.4, X(29) - 0.4], [X(9) - 0.4, X(29) - 0.4]]) { KIT.b(g, x, 1.5, z, 0.3, 3.0, 0.3, pil); colliderBox(x, z, 0.3, 0.3, 0, 3, 'concrete'); }
@@ -10112,12 +10333,14 @@ function citeDecor() {
     const signTex = textTexture(512, 512, (c) => { c.fillStyle = '#f2eee4'; c.beginPath(); c.arc(256, 256, 250, 0, TAU); c.fill(); c.fillStyle = '#c23b3b'; c.beginPath(); c.arc(256, 256, 226, 0, TAU); c.fill(); c.strokeStyle = '#f2eee4'; c.lineWidth = 12; for (let i = 0; i < 3; i++) { c.save(); c.translate(256, 230); c.rotate(i * Math.PI / 3); c.beginPath(); c.ellipse(0, 0, 150, 52, 0, 0, TAU); c.stroke(); c.restore(); } c.fillStyle = '#f2eee4'; c.beginPath(); c.arc(256, 230, 22, 0, TAU); c.fill(); c.font = font(92); c.textAlign = 'center'; c.fillText('URANIA', 256, 420); });
     const sm = new THREE.MeshStandardMaterial({ map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.08, roughness: 0.4 });
     for (const s of [1, -1]) { const d = mesh(new THREE.CircleGeometry(1.6, 32), sm, 0, 6.6, s * 0.16, s > 0 ? 0 : Math.PI, sg, false); }
-    KIT.c(sg, 0, 6.6, 0, 1.62, 1.62, 0.3, pil, 32).rotation.x = Math.PI / 2;
+    KIT.c(sg, 0, 6.6, 0, 1.62, 1.62, 0.3, rim, 32).rotation.x = Math.PI / 2;
     WORLD.gasSign = { material: sm };
     colliderBox(X(2) + 1, X(23) + 0.6, 0.3, 0.3, 0, 6, 'concrete'); }
-  { const g = KIT.g(X(12) + 1, X(26) + 1.2, Math.PI / 2); KIT.b(g, 0, 0.5, 0, 2.6, 1.0, 0.6, fmat('plain', 0xc23b3b, { rough: 0.4 })); KIT.b(g, 0, 1.02, 0, 2.7, 0.05, 0.7, fmat('plain', 0xf2eee4, { rough: 0.3 })); KIT.b(g, 0.7, 1.2, 0, 0.4, 0.3, 0.35, k.steel); KIT.solid(g, 2.6, 0.6, 1.05); } // comptoir
+  // Comptoir de la boutique : caisson en bois peint, dessus en stratifié lisse (famille émail), caisse enregistreuse en acier.
+  { const g = KIT.g(X(12) + 1, X(26) + 1.2, Math.PI / 2); KIT.b(g, 0, 0.5, 0, 2.6, 1.0, 0.6, fmat('boisPeint', 0xc23b3b, { rough: 0.4 })); KIT.b(g, 0, 1.02, 0, 2.7, 0.05, 0.7, fmat('email', 0xf2eee4, { rough: 0.3 })); KIT.b(g, 0.7, 1.2, 0, 0.4, 0.3, 0.35, k.steel); KIT.solid(g, 2.6, 0.6, 1.05); }
   kShelf(X(15) + 1.6, X(24) + 1.2, -Math.PI / 2, 1.6, 1.8); kShelf(X(13), X(28) + 1.6, Math.PI, 1.6, 1.8);
-  for (let i = 0; i < 6; i++) barrel(X(10) + 0.5 + (i % 3) * 0.62, X(32) + 1.4 - Math.floor(i / 3) * 0.6, fmat('plain', [0xc23b3b, 0x2e6a8a, 0xe8c21a][i % 3], { rough: 0.5, metal: 0.4 }));
+  // Fûts d'huile et d'essence de l'atelier, en tôle peinte.
+  for (let i = 0; i < 6; i++) barrel(X(10) + 0.5 + (i % 3) * 0.62, X(32) + 1.4 - Math.floor(i / 3) * 0.6, fmat('tole', [0xc23b3b, 0x2e6a8a, 0xe8c21a][i % 3], { rough: 0.5, metal: 0.4 }));
   kTires(X(15) + 1.3, X(29) + 0.7, 4); kCar(X(12) + 1.4, X(30) + 1.4, Math.PI / 2 + 0.05, 0x3a4a6a);
 
   /* ── Mannequins : les six marqués d'un foulard rouge, et leurs voisins ── */
@@ -10151,8 +10374,8 @@ function citeFar() {
     for (let j = 0; j < p.count; j++) { const px = p.getX(j), py = p.getY(j), pz = p.getZ(j), an = Math.atan2(pz, px), n = 1 + (fbm(an * 3 + i, py * 0.1, 2) - 0.5) * 0.35; p.setX(j, px * n); p.setZ(j, pz * n); }
     geo.computeVertexNormals(); const m = mesh(geo, r() > 0.5 ? rock : rockDark, x, h / 2 - 1, z, r() * TAU, R.scene, false);
   }
-  // Château d'eau.
-  { const g = KIT.g(118, 8, 0), m = fmat('plain', 0xd8d2c4, { rough: 0.6, metal: 0.3 });
+  // Château d'eau : cuve en tôle d'acier peinte, pieds en acier.
+  { const g = KIT.g(118, 8, 0), m = fmat('tole', 0xd8d2c4, { rough: 0.6, metal: 0.3 });
     for (const [a, b] of [[-2.2, -2.2], [2.2, -2.2], [-2.2, 2.2], [2.2, 2.2]]) { const l = KIT.b(g, a, 9, b, 0.3, 18, 0.3, k.steel); l.rotation.x = -b * 0.03; l.rotation.z = a * 0.03; }
     KIT.c(g, 0, 21, 0, 4.2, 4.2, 6, m, 24); const cap = KIT.c(g, 0, 25, 0, 0.3, 4.4, 2.2, m, 24);
     const lab = mesh(new THREE.CylinderGeometry(4.22, 4.22, 1.6, 24, 1, true, -0.9, 1.8), new THREE.MeshStandardMaterial({ map: woodSign(['CITÉ ATOMIQUE'], { w: 1024, h: 120, bg: '#d8d2c4', color: '#7a2a22' }), roughness: 0.6 }), 0, 21.4, 0, 0, g, false); lab.rotation.y = -Math.PI / 2 - 0.2; }
@@ -10160,9 +10383,9 @@ function citeFar() {
   { const g = KIT.g(46, -150, 0);
     for (const [a, b] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) { const l = KIT.b(g, a * 0.6, 22, b * 0.6, 0.5, 44, 0.5, k.steel); l.rotation.x = -b * 0.05; l.rotation.z = a * 0.05; }
     for (let y = 4; y < 44; y += 6) for (const s of [-1, 1]) { KIT.b(g, 0, y, s * (4 - y * 0.03), 8 - y * 0.06, 0.25, 0.25, k.steel); KIT.b(g, s * (4 - y * 0.03), y, 0, 0.25, 0.25, 8 - y * 0.06, k.steel); }
-    KIT.b(g, 0, 45, 0, 5, 3, 5, fmat('plain', 0x8a8a84)); }
-  // Gradins des observateurs.
-  { const g = KIT.g(150, 70, -1.2); for (let i = 0; i < 6; i++) KIT.b(g, 0, 0.5 + i * 0.6, i * 0.9, 18, 0.25, 0.9, fmat('planks', 0x9a8a70)); for (let i = 0; i < 4; i++) KIT.b(g, -8 + i * 5.3, 2, 2.5, 0.25, 4, 0.25, k.steel); }
+    KIT.b(g, 0, 45, 0, 5, 3, 5, fmat('galva', 0x8a8a84)); } // cabine de tir en tôle galvanisée
+  // Gradins des observateurs : planches de sapin brut grisées, sur des poteaux d'acier.
+  { const g = KIT.g(150, 70, -1.2); for (let i = 0; i < 6; i++) KIT.b(g, 0, 0.5 + i * 0.6, i * 0.9, 18, 0.25, 0.9, fmat('boisBrut', 0x9a8a70)); for (let i = 0; i < 4; i++) KIT.b(g, -8 + i * 5.3, 2, 2.5, 0.25, 4, 0.25, k.steel); }
   // Maisons témoins lointaines, carbonisées.
   for (const [x, z, ry] of [[-60, 20, 0.3], [-70, 70, -0.2], [140, -20, 1.1], [120, 120, 0.6], [30, 150, 0.1]]) {
     const g = KIT.g(x, z, ry), ch = fmat('plain', 0x2a2420, { rough: 1 });
@@ -10172,8 +10395,8 @@ function citeFar() {
   { const lines = [], pole = new Batch(new THREE.CylinderGeometry(0.14, 0.2, 9, 7), MATS.post), bar = new Batch(boxG(2.4, 0.14, 0.14), MATS.post); let prev = null;
     for (let x = -120; x <= 10; x += 18) { const z = 38 + Math.sin(x * 0.03) * 2, y = surfH(x, z); pole.add(x, y + 4.4, z); bar.add(x, y + 8.4, z, Math.PI / 2); if (prev) for (const o of [-1, 1]) for (let s = 0; s < 6; s++) { const t0 = s / 6, t1 = (s + 1) / 6; lines.push(lerp(prev[0], x, t0), lerp(prev[1], y + 8.5, t0) - Math.sin(t0 * Math.PI) * 0.8, lerp(prev[2], z, t0) + o, lerp(prev[0], x, t1), lerp(prev[1], y + 8.5, t1) - Math.sin(t1 * Math.PI) * 0.8, lerp(prev[2], z, t1) + o); } prev = [x, y + 8.5, z]; }
     pole.build(); bar.build(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3)); R.scene.add(new THREE.LineSegments(g, MATS.wire)); }
-  // Clôture d'enceinte du site, avec panneaux.
-  { const posts = new Batch(boxG(0.1, 2.2, 0.1), k.steel), wire = []; const cx = 50, cz = 48, rr = 64;
+  // Clôture d'enceinte du site : poteaux en acier galvanisé, fils de fer.
+  { const posts = new Batch(boxG(0.1, 2.2, 0.1), fmat('galva', 0x8c9196, { rough: 0.45, metal: 0.8 })), wire = []; const cx = 50, cz = 48, rr = 64;
     for (let i = 0; i < 64; i++) { const a0 = (i / 64) * TAU, a1 = ((i + 1) / 64) * TAU, x0 = cx + Math.cos(a0) * rr * 1.1, z0 = cz + Math.sin(a0) * rr, x1 = cx + Math.cos(a1) * rr * 1.1, z1 = cz + Math.sin(a1) * rr; const y0 = surfH(x0, z0), y1 = surfH(x1, z1); posts.add(x0, y0 + 1.1, z0); for (const h of [0.5, 1.1, 1.7, 2.1]) wire.push(x0, y0 + h, z0, x1, y1 + h, z1); }
     posts.build(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(wire, 3)); R.scene.add(new THREE.LineSegments(g, MATS.wire)); }
   citeCloud();
@@ -10567,16 +10790,20 @@ function penMission() {
 function penDecor() {
   const X = PEN.X, k = kitMats(), L = R.lights;
   rng = mulberry32(1934);
-  const steel = k.steel, dark = KIT.m(0x2a2c2e, { rough: 0.6, metal: 0.5 }), sheet = KIT.m(0xe6e2d8, { rough: 1 }), rust = MATS.rust;
+  // Familles photo (OBJ_FAM) : acier des lits, étagères et dessus de tables, fer noir (coursives, bittes, ferrures, coffre-fort),
+  // toile des matelas et draps, laine grise des couvertures, porcelaine des cellules, tôle peinte (bouclier, grue), cuir (sangles,
+  // fauteuil du directeur), bois brut (établi, pilotis, citernes), bois peint (vedette, guérites des miradors).
+  const steel = k.steel, dark = fmat('fonte', 0x2a2c2e, { rough: 0.6, metal: 0.5 }), sheet = fmat('toile', 0xe6e2d8, { rough: 1 }), rust = MATS.rust;
+  const wool = fmat('tissu', 0x6a6a64, { rough: 1 }), china = fmat('email', 0xe8e8e2, { rough: 0.3 }), plate = fmat('tole', 0x6a6e70, { rough: 0.4, metal: 0.8 }), strap = fmat('cuir', 0x5a3a22, { rough: 0.8 });
 
   /* ── Bloc cellulaire : mobilier des cellules, coursives, lampes ── */
   const cellFurn = (x, z, face) => { // face : +1 = cellule au nord (on regarde vers le sud), -1 = au sud
     const g = KIT.g(x, z, face > 0 ? 0 : Math.PI);
-    KIT.b(g, -0.62, 0.42, 0, 0.7, 0.06, 1.8, steel); KIT.b(g, -0.62, 0.5, 0, 0.66, 0.1, 1.7, sheet); // couchette
+    KIT.b(g, -0.62, 0.42, 0, 0.7, 0.06, 1.8, steel); KIT.b(g, -0.62, 0.5, 0, 0.66, 0.1, 1.7, sheet); KIT.b(g, -0.62, 0.565, 0.2, 0.68, 0.03, 1.25, wool); // couchette de fer, matelas de toile, couverture de laine grise
     for (const [a, b] of [[-0.95, -0.85], [-0.3, -0.85], [-0.95, 0.85], [-0.3, 0.85]]) KIT.b(g, a, 0.21, b, 0.04, 0.42, 0.04, steel);
-    KIT.c(g, 0.62, 0.2, -0.72, 0.17, 0.14, 0.4, KIT.m(0xe8e8e2, { rough: 0.3 }), 10); // cuvette
-    KIT.b(g, 0.7, 0.85, -0.2, 0.34, 0.1, 0.3, KIT.m(0xe8e8e2, { rough: 0.3 })); // lavabo
-    KIT.b(g, 0.55, 1.6, -0.86, 0.8, 0.04, 0.2, k.wood); for (let i = 0; i < 4; i++) KIT.b(g, 0.3 + i * 0.12, 1.72, -0.86, 0.08, 0.22, 0.16, KIT.m([0x7a2a22, 0x2a4a6a, 0x5a5a3a, 0x3a2a4a][i]), 0, false);
+    KIT.c(g, 0.62, 0.2, -0.72, 0.17, 0.14, 0.4, china, 10); // cuvette
+    KIT.b(g, 0.7, 0.85, -0.2, 0.34, 0.1, 0.3, china); // lavabo
+    KIT.b(g, 0.55, 1.6, -0.86, 0.8, 0.04, 0.2, steel); /* tablette d'acier peint, comme à Alcatraz */ for (let i = 0; i < 4; i++) KIT.b(g, 0.3 + i * 0.12, 1.72, -0.86, 0.08, 0.22, 0.16, KIT.m([0x7a2a22, 0x2a4a6a, 0x5a5a3a, 0x3a2a4a][i]), 0, false);
   };
   const CZ = { n: 9, s: 13 };
   for (let x = 11; x <= 32; x++) {
@@ -10601,10 +10828,10 @@ function penDecor() {
     kBench(X(6), X(12) + 0.5, 0); kBench(X(6), X(10) + 0.5, Math.PI); }
   // Établi de fortune (bouclier).
   { const s = wallSpot(SPOTS.shieldTable, 0.5), g = KIT.g(s.x, s.z, s.yaw); g.userData.dynamic = true;
-    KIT.b(g, 0, 0.9, 0, 1.9, 0.1, 0.9, k.woodDark); for (const [a, b] of [[-0.85, -0.38], [0.85, -0.38], [-0.85, 0.38], [0.85, 0.38]]) KIT.b(g, a, 0.45, b, 0.08, 0.9, 0.08, dark);
+    KIT.b(g, 0, 0.9, 0, 1.9, 0.1, 0.9, fmat('boisBrut', 0x4e3526)); /* planche brute tachée d'huile */ for (const [a, b] of [[-0.85, -0.38], [0.85, -0.38], [-0.85, 0.38], [0.85, 0.38]]) KIT.b(g, a, 0.45, b, 0.08, 0.9, 0.08, dark);
     KIT.b(g, -0.6, 1.05, 0.2, 0.3, 0.22, 0.2, MATS.iron); KIT.b(g, 0.5, 1.0, -0.2, 0.5, 0.1, 0.3, rust);
     const sh = new THREE.Group(); sh.position.set(0.1, 1.02, 0); sh.rotation.x = -Math.PI / 2 + 0.25; g.add(sh);
-    KIT.b(sh, 0, 0, 0, 0.8, 1.1, 0.05, KIT.m(0x6a6e70, { rough: 0.4, metal: 0.8 })); KIT.b(sh, 0, 0.25, 0.03, 0.5, 0.08, 0.02, k.black);
+    KIT.b(sh, 0, 0, 0, 0.8, 1.1, 0.05, plate); KIT.b(sh, 0, 0.25, 0.03, 0.5, 0.08, 0.02, strap); /* la sangle est la pièce SANGLES ramassée */
     for (let i = 0; i < 6; i++) KIT.c(sh, -0.3 + (i % 3) * 0.3, i < 3 ? 0.45 : -0.45, 0.06, 0.02, 0.03, 0.08, rust, 6).rotation.x = Math.PI / 2;
     sh.visible = false; colliderBox(s.x, s.z, 1.9, 0.9, s.yaw, 1.0, 'wood');
     const sign = mesh(new THREE.PlaneGeometry(1.2, 0.4), new THREE.MeshStandardMaterial({ map: woodSign(['ÉTABLI DE FORTUNE', 'BOUCLIER · 3 PIÈCES'], { w: 512, h: 170 }), roughness: 0.9 }), 0, 1.75, -0.42, 0, g, false);
@@ -10612,9 +10839,9 @@ function penDecor() {
   // Pièces du bouclier (lueur dorée pour qu'on les repère).
   WORLD.penParts = PEN_PARTS.map((p, i) => {
     const g = new THREE.Group(); g.userData.dynamic = true; g.userData.y = 0.9; R.scene.add(g);
-    if (i === 0) KIT.b(g, 0, 0, 0, 0.6, 0.8, 0.04, KIT.m(0x6a6e70, { rough: 0.4, metal: 0.8 }));
+    if (i === 0) KIT.b(g, 0, 0, 0, 0.6, 0.8, 0.04, plate);
     else if (i === 1) { KIT.b(g, 0, 0, 0, 0.3, 0.06, 0.06, k.chrome); KIT.b(g, -0.13, -0.08, 0, 0.05, 0.16, 0.05, k.chrome); KIT.b(g, 0.13, -0.08, 0, 0.05, 0.16, 0.05, k.chrome); }
-    else for (let j = 0; j < 3; j++) { const b = KIT.b(g, 0, j * 0.06, 0, 0.7, 0.03, 0.08, KIT.m(0x5a3a22)); b.rotation.y = j * 0.5; }
+    else for (let j = 0; j < 3; j++) { const b = KIT.b(g, 0, j * 0.06, 0, 0.7, 0.03, 0.08, strap); b.rotation.y = j * 0.5; }
     KIT.glow(g, 0, 0, 0, 0xffd070, 0.9, 0.5);
     return g;
   });
@@ -10622,13 +10849,13 @@ function penDecor() {
 
   /* ── Réfectoire ── */
   for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) {
-    const x = X(37) + 1 + c * 9, z = X(11) + 0.5 + r * 3.4, g = kTable(x, z, 0, 5, 0.9, 0.76, KIT.m(0x8a8a82, { rough: 0.5, metal: 0.4 }));
+    const x = X(37) + 1 + c * 9, z = X(11) + 0.5 + r * 3.4, g = kTable(x, z, 0, 5, 0.9, 0.76, fmat('acier', 0x8a8a82, { rough: 0.5, metal: 0.4 })); /* plateau de zinc terni */
     for (const s of [-1, 1]) { const b = KIT.g(x, z + s * 0.75, 0); KIT.b(b, 0, 0.44, 0, 5, 0.06, 0.32, k.wood); KIT.b(b, -2.2, 0.22, 0, 0.06, 0.44, 0.3, steel); KIT.b(b, 2.2, 0.22, 0, 0.06, 0.44, 0.3, steel); }
     for (let t = 0; t < 4; t++) KIT.b(R.scene, x - 1.8 + t * 1.2, 0.8, z + (t % 2 ? 0.2 : -0.2), 0.36, 0.02, 0.26, steel, rand(-0.2, 0.2), false);
   }
-  { const g = KIT.g(X(41), X(9) + 1.3, 0); KIT.b(g, 0, 0.5, 0, 6, 1.0, 0.7, steel); KIT.b(g, 0, 1.02, 0, 6.1, 0.05, 0.8, KIT.m(0xb8bcc0, { rough: 0.3, metal: 0.8 })); for (let i = 0; i < 5; i++) KIT.c(g, -2.4 + i * 1.2, 1.15, 0, 0.18, 0.16, 0.22, steel, 12); KIT.solid(g, 6, 0.7, 1.05, 'metal'); }
+  { const g = KIT.g(X(41), X(9) + 1.3, 0); KIT.b(g, 0, 0.5, 0, 6, 1.0, 0.7, steel); KIT.b(g, 0, 1.02, 0, 6.1, 0.05, 0.8, fmat('acier', 0xb8bcc0, { rough: 0.3, metal: 0.8 })); /* dessus de Monel ou de zinc */ for (let i = 0; i < 5; i++) KIT.c(g, -2.4 + i * 1.2, 1.15, 0, 0.18, 0.16, 0.22, steel, 12); KIT.solid(g, 6, 0.7, 1.05, 'metal'); }
   kStove(X(36) + 0.6, X(8) + 0.4, 0); kStove(X(38) + 0.4, X(8) + 0.4, 0); kShelf(X(44), X(8) + 0.3, 0, 1.8, 2);
-  for (const [x, z] of [[X(38), X(12)], [X(43), X(12)], [X(38), X(15)], [X(43), X(15)]]) { const g = KIT.g(x, z, 0, 3.4); KIT.c(g, 0, 0.3, 0, 0.012, 0.012, 0.6, dark, 4); KIT.s(g, 0, 0, 0, 0.14, KIT.m(0x7a8a6a, { rough: 0.5, metal: 0.5 }), 1, 1.3, 1); } // grenades lacrymogènes
+  for (const [x, z] of [[X(38), X(12)], [X(43), X(12)], [X(38), X(15)], [X(43), X(15)]]) { const g = KIT.g(x, z, 0, 3.4); KIT.c(g, 0, 0.3, 0, 0.012, 0.012, 0.6, dark, 4); KIT.s(g, 0, 0, 0, 0.14, fmat('olive', 0x7a8a6a, { rough: 0.5, metal: 0.5 }), 1, 1.3, 1); } // grenades lacrymogènes (tôle peinte olive)
   { const clock = textTexture(128, 128, (c) => { c.fillStyle = '#e8e4d8'; c.beginPath(); c.arc(64, 64, 60, 0, TAU); c.fill(); c.strokeStyle = '#222'; c.lineWidth = 5; c.stroke(); for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU; c.fillStyle = '#222'; c.fillRect(64 + Math.cos(a) * 48 - 2, 64 + Math.sin(a) * 48 - 2, 4, 4); } c.lineWidth = 4; c.beginPath(); c.moveTo(64, 64); c.lineTo(64, 24); c.moveTo(64, 64); c.lineTo(92, 70); c.stroke(); });
     mesh(new THREE.CircleGeometry(0.4, 24), new THREE.MeshStandardMaterial({ map: clock, roughness: 0.5 }), X(47) - 0.1, 2.8, X(12), -Math.PI / 2, R.scene, false); }
 
@@ -10640,17 +10867,20 @@ function penDecor() {
 
   /* ── Direction : bureau du directeur et archives ── */
   kRug(X(27) + 1, X(18), 0, 5, 3.4, 0x5a1e1e);
-  kTable(X(27) + 1, X(17) + 1, 0, 2.2, 1.0, 0.78, k.woodDark); kChair(X(27) + 1, X(16) + 1.4, 0, KM.fabricRed);
+  kTable(X(27) + 1, X(17) + 1, 0, 2.2, 1.0, 0.78, k.woodDark);
+  // Fauteuil du directeur : assise et dossier de cuir, pieds de chêne (kChair met une seule matière partout, pieds compris).
+  { const g = KIT.g(X(27) + 1, X(16) + 1.4, 0), cuir = fmat('cuir', 0x9b2e2a, { rough: 0.95 }); KIT.b(g, 0, 0.45, 0, 0.44, 0.05, 0.44, cuir); KIT.b(g, 0, 0.72, -0.2, 0.44, 0.5, 0.04, cuir);
+    for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) KIT.b(g, a * 0.19, 0.22, b * 0.19, 0.04, 0.44, 0.04, k.woodDark); }
   { const g = KIT.g(X(28), X(17) + 1.1, 0); KIT.b(g, 0, 0.84, 0, 0.4, 0.14, 0.3, dark); } // machine à écrire
   for (let i = 0; i < 3; i++) kShelf(X(25) + 0.3, X(19) + i * 1.8, Math.PI / 2, 1.6, 2.2, true);
-  { const g = KIT.g(X(29) + 1.4, X(15) + 0.5, 0); KIT.b(g, 0, 0.6, 0, 0.9, 1.2, 0.7, KIT.m(0x2a2e30, { rough: 0.4, metal: 0.7 })); KIT.c(g, 0.1, 0.75, 0.36, 0.12, 0.12, 0.03, k.chrome, 16).rotation.x = Math.PI / 2; KIT.solid(g, 0.9, 0.7, 1.2, 'metal'); } // coffre-fort
+  { const g = KIT.g(X(29) + 1.4, X(15) + 0.5, 0); KIT.b(g, 0, 0.6, 0, 0.9, 1.2, 0.7, fmat('fonte', 0x2a2e30, { rough: 0.4, metal: 0.7 })); KIT.c(g, 0.1, 0.75, 0.36, 0.12, 0.12, 0.03, k.chrome, 16).rotation.x = Math.PI / 2; KIT.solid(g, 0.9, 0.7, 1.2, 'metal'); } // coffre-fort
   kFrame(X(25) + 0.1, 2.2, X(16) + 1, Math.PI / 2, 0.8, 1.0, 1); kFrame(X(27) + 1, 2.3, X(15) + 0.1, 0, 1.0, 0.8, 3);
   { const mapTex = textTexture(512, 320, (c) => { c.fillStyle = '#d8ceb0'; c.fillRect(0, 0, 512, 320); c.fillStyle = '#6a8aa0'; c.fillRect(0, 0, 512, 320); c.fillStyle = '#c8bc98'; c.beginPath(); c.ellipse(256, 160, 180, 100, 0.1, 0, TAU); c.fill(); c.fillStyle = '#6a5a4a'; for (let i = 0; i < 7; i++) c.fillRect(150 + i * 34, 120 + (i % 3) * 30, 26, 18); c.fillStyle = '#2a2a2a'; c.font = font(30); c.fillText('LE ROCHER — PLAN DU PÉNITENCIER', 60, 40); });
     mesh(new THREE.PlaneGeometry(2.2, 1.4), new THREE.MeshStandardMaterial({ map: mapTex, roughness: 0.9 }), X(30) - 0.1, 2.1, X(20) + 1, -Math.PI / 2, R.scene, false); }
   for (let i = 0; i < 4; i++) kShelf(X(32) + i * 1.7, X(21) + 1.7, Math.PI, 1.5, 2.2, false);
 
   /* ── Quais : pilotis, bittes d'amarrage, bateau, grue, lampadaires ── */
-  { const pil = new Batch(new THREE.CylinderGeometry(0.18, 0.2, 1, 8), fmat('planks', 0x4a3a2a));
+  { const pil = new Batch(new THREE.CylinderGeometry(0.18, 0.2, 1, 8), fmat('boisBrut', 0x4a3a2a)); /* pieux ronds créosotés : bois brut, pas les planches du quai */
     for (let x = X(18); x <= X(45); x += 2) for (const z of [X(23), X(30)]) pil.add(x, -1.6, z, 0, 0, 0, 1, 3.8, 1);
     for (let z = X(23); z <= X(30); z += 2) { pil.add(X(18), -1.6, z, 0, 0, 0, 1, 3.8, 1); pil.add(X(45), -1.6, z, 0, 0, 0, 1, 3.8, 1); }
     for (let z = X(18); z <= X(23); z += 2) { pil.add(X(45), -1.6, z, 0, 0, 0, 1, 3.8, 1); pil.add(X(46), -1.6, z, 0, 0, 0, 1, 3.8, 1); }
@@ -10658,15 +10888,15 @@ function penDecor() {
   for (const x of [X(24), X(32), X(40)]) { const g = KIT.g(x, X(30) - 0.35, 0); KIT.c(g, 0, 0.3, 0, 0.16, 0.2, 0.6, dark, 10); KIT.c(g, 0, 0.62, 0, 0.22, 0.2, 0.08, dark, 10); colliderBox(x, X(30) - 0.35, 0.45, 0.45, 0, 0.7, 'metal'); }
   for (const [x, z] of [[X(20), X(24) + 0.8], [X(20) + 0.9, X(24) + 0.7], [X(34), X(28) + 1.2], [X(42), X(24) + 1]]) crate(x, z, rand(-0.3, 0.3));
   barrel(X(28), X(24) + 0.6, MATS.rust); barrel(X(28) + 0.7, X(24) + 0.5, MATS.olive); barrel(X(36), X(29) + 1.3, MATS.rust, true);
-  for (const [x, z, ry] of [[X(19) + 0.2, X(28), Math.PI / 2], [X(44) + 1.8, X(26), -Math.PI / 2]]) { const b = mesh(new THREE.TorusGeometry(0.32, 0.08, 8, 20), KIT.m(0xe8601a, { rough: 0.6 }), x, 1.2, z, ry, R.scene, false); }
+  for (const [x, z, ry] of [[X(19) + 0.2, X(28), Math.PI / 2], [X(44) + 1.8, X(26), -Math.PI / 2]]) { const b = mesh(new THREE.TorusGeometry(0.32, 0.08, 8, 20), fmat('toile', 0xe8601a, { rough: 0.6 }), x, 1.2, z, ry, R.scene, false); } /* bouées : liège gainé de toile peinte */
   // Vedette amarrée au sud.
-  { const g = KIT.g(X(33), X(32) + 0.6, 0.06, -0.55), hullM = KIT.m(0x2e3a44, { rough: 0.5, metal: 0.3 }), deck = fmat('planks', 0x9a8466); g.userData.dynamic = true; WORLD.penBoat = { g, home: g.position.clone(), dock: new THREE.Vector3(X(33), 1, X(30) - 0.6) };
+  { const g = KIT.g(X(33), X(32) + 0.6, 0.06, -0.55), hullM = fmat('boisPeint', 0x2e3a44, { rough: 0.5 }), deck = fmat('planks', 0x9a8466); /* coque bordée en bois peint gris marine ; pont : planches du quai */ g.userData.dynamic = true; WORLD.penBoat = { g, home: g.position.clone(), dock: new THREE.Vector3(X(33), 1, X(30) - 0.6) };
     const hull = new THREE.CylinderGeometry(1.4, 1.1, 10, 16, 1, false, 0, Math.PI); hull.rotateZ(Math.PI / 2); hull.rotateX(Math.PI / 2); hull.scale(1, 0.7, 1);
-    const hm = mesh(hull, hullM, 0, 0.6, 0, 0, g); KIT.b(g, 0, 0.62, 0, 9.4, 0.08, 2.4, deck); KIT.b(g, -1.2, 1.5, 0, 3, 1.7, 2.0, KIT.m(0xd8d4c8, { rough: 0.6 })); KIT.b(g, -1.2, 2.4, 0, 3.3, 0.1, 2.2, hullM);
+    const hm = mesh(hull, hullM, 0, 0.6, 0, 0, g); KIT.b(g, 0, 0.62, 0, 9.4, 0.08, 2.4, deck); KIT.b(g, -1.2, 1.5, 0, 3, 1.7, 2.0, fmat('boisPeint', 0xd8d4c8, { rough: 0.6 })); KIT.b(g, -1.2, 2.4, 0, 3.3, 0.1, 2.2, hullM);
     KIT.b(g, 0.35, 1.7, 0, 0.02, 0.6, 1.6, k.glass, 0, false); const m = KIT.c(g, -2.4, 3.2, 0, 0.05, 0.05, 1.6, steel, 6);
-    colliderBox(X(33), X(32) + 0.6, 10, 2.8, 0.06, 2.5, 'metal'); }
+    colliderBox(X(33), X(32) + 0.6, 10, 2.8, 0.06, 2.5, 'wood'); } /* coque en bois : son et éclats de bois */
   // Grue de quai.
-  { const g = KIT.g(X(43), X(29) + 1.2, -0.7), ym = KIT.m(0xb8912a, { rough: 0.5, metal: 0.5 }); KIT.b(g, 0, 3, 0, 0.5, 6, 0.5, ym); const jib = KIT.b(g, 2.8, 5.8, 0, 6, 0.35, 0.35, ym); jib.rotation.z = 0.25; KIT.c(g, 5.3, 4.2, 0, 0.01, 0.01, 2.8, dark, 4); KIT.b(g, 5.3, 2.8, 0, 0.4, 0.3, 0.4, dark); colliderBox(X(43), X(29) + 1.2, 0.6, 0.6, 0, 6, 'metal'); }
+  { const g = KIT.g(X(43), X(29) + 1.2, -0.7), ym = fmat('tole', 0xb8912a, { rough: 0.5, metal: 0.5 }); /* acier riveté peint ocre */ KIT.b(g, 0, 3, 0, 0.5, 6, 0.5, ym); const jib = KIT.b(g, 2.8, 5.8, 0, 6, 0.35, 0.35, ym); jib.rotation.z = 0.25; KIT.c(g, 5.3, 4.2, 0, 0.01, 0.01, 2.8, dark, 4); KIT.b(g, 5.3, 2.8, 0, 0.4, 0.3, 0.4, dark); colliderBox(X(43), X(29) + 1.2, 0.6, 0.6, 0, 6, 'metal'); }
   { const lp = kLampPost(X(31), X(23) + 0.3, Math.PI / 2, L.docks); }
   kSign(X(18) + 0.4, X(23) + 0.4, Math.PI / 2, ['ACCOSTAGE', 'INTERDIT'], '#b83a2a', '#f2eee4');
 
@@ -10681,7 +10911,7 @@ function penDecor() {
 
   /* ── Toits : citernes, conduits, cheminée ── */
   const roofY = ceilH() + 0.35;
-  for (const [x, z] of [[X(20), X(11)], [X(40), X(12)], [X(30), X(18)]]) { const g = KIT.g(x, z, 0, roofY); for (const [a, b] of [[-0.8, -0.8], [0.8, -0.8], [-0.8, 0.8], [0.8, 0.8]]) KIT.b(g, a, 0.8, b, 0.12, 1.6, 0.12, dark); KIT.c(g, 0, 2.4, 0, 1.2, 1.2, 1.8, fmat('planks', 0x6a5a48), 16); KIT.c(g, 0, 3.4, 0, 0.1, 1.3, 0.4, dark, 16); }
+  for (const [x, z] of [[X(20), X(11)], [X(40), X(12)], [X(30), X(18)]]) { const g = KIT.g(x, z, 0, roofY); for (const [a, b] of [[-0.8, -0.8], [0.8, -0.8], [-0.8, 0.8], [0.8, 0.8]]) KIT.b(g, a, 0.8, b, 0.12, 1.6, 0.12, dark); KIT.c(g, 0, 2.4, 0, 1.2, 1.2, 1.8, fmat('boisBrut', 0x6a5a48), 16); /* citerne en douelles de bois brut */ KIT.c(g, 0, 3.4, 0, 0.1, 1.3, 0.4, dark, 16); }
   for (let i = 0; i < 6; i++) { const g = KIT.g(X(12) + i * 3.6, X(12), 0, roofY); KIT.b(g, 0, 0.35, 0, 0.8, 0.7, 0.8, dark); }
   { const g = KIT.g(X(45), X(9), 0, roofY); KIT.b(g, 0, 3, 0, 1.2, 6, 1.2, fmat('brick', 0x9a8a80)); }
 
@@ -10692,7 +10922,7 @@ function penDecor() {
     fragmentShader: 'uniform float uInt; varying float vT; varying vec3 vN; varying vec3 vV; void main(){ float f = pow(abs(dot(vN, vV)), 1.6); gl_FragColor = vec4(vec3(0.85, 0.92, 1.0), pow(vT, 1.8) * f * uInt); }' });
   for (const [x, z, ph] of [[X(43) + 1, X(-1), 0], [X(16), X(31), 2]]) {
     const g = KIT.g(x, z, 0, surfH(x, z)); for (const [a, b] of [[-1.3, -1.3], [1.3, -1.3], [-1.3, 1.3], [1.3, 1.3]]) KIT.b(g, a, 4.5, b, 0.3, 9, 0.3, fmat('concrete', 0x9a968e));
-    KIT.b(g, 0, 9.3, 0, 3.6, 0.3, 3.6, fmat('concrete', 0x9a968e)); KIT.b(g, 0, 10.4, 0, 3.2, 1.9, 3.2, KIT.m(0x3a3e40, { rough: 0.7 })); KIT.b(g, 0, 11.45, 0, 3.8, 0.2, 3.8, dark);
+    KIT.b(g, 0, 9.3, 0, 3.6, 0.3, 3.6, fmat('concrete', 0x9a968e)); KIT.b(g, 0, 10.4, 0, 3.2, 1.9, 3.2, fmat('boisPeint', 0x3a3e40, { rough: 0.7 })); /* guérite en planches peintes */ KIT.b(g, 0, 11.45, 0, 3.8, 0.2, 3.8, dark);
     const head = new THREE.Group(); head.userData.dynamic = true; head.position.set(0, 11.9, 0); g.add(head);
     const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 6, 60, 20, 1, true), beamMat); cone.geometry.translate(0, -30, 0); cone.geometry.rotateX(-Math.PI / 2); head.add(cone);
     mesh(new THREE.CylinderGeometry(0.45, 0.35, 0.7, 14), dark, 0, 0, 0, 0, head).rotation.x = Math.PI / 2;
@@ -10710,7 +10940,7 @@ function penFar(beamMat) {
     mesh(mergeGeometries(parts), rock, 0, 0, 0, 0, R.scene, true); }
   // Phare sur son îlot.
   { const g = KIT.g(190, 140, 0, -1), white = fmat('plaster', 0xe8e4da); const isl = mesh(new THREE.CylinderGeometry(14, 22, 5, 14), rock, 0, 0, 0, 0, g);
-    KIT.c(g, 0, 12, 0, 2.4, 3.2, 20, white, 16); KIT.c(g, 0, 22.4, 0, 3.6, 3.6, 0.4, KIT.m(0x2a2a2a)); KIT.c(g, 0, 23.6, 0, 2.2, 2.2, 2.4, new THREE.MeshStandardMaterial({ color: 0xfff4d0, emissive: 0xffe6a0, emissiveIntensity: 1.5 }), 16); KIT.c(g, 0, 25.4, 0, 0.3, 2.6, 1.4, KIT.m(0x7a2a22), 16);
+    KIT.c(g, 0, 12, 0, 2.4, 3.2, 20, white, 16); KIT.c(g, 0, 22.4, 0, 3.6, 3.6, 0.4, fmat('fonte', 0x2a2a2a, { rough: 0.8 })); /* galerie en fonte noire */ KIT.c(g, 0, 23.6, 0, 2.2, 2.2, 2.4, new THREE.MeshStandardMaterial({ color: 0xfff4d0, emissive: 0xffe6a0, emissiveIntensity: 1.5 }), 16); KIT.c(g, 0, 25.4, 0, 0.3, 2.6, 1.4, fmat('tole', 0x7a2a22, { rough: 0.8 }), 16); /* coupole de fer peint en rouge */
     const rot = new THREE.Group(); rot.userData.dynamic = true; rot.position.set(0, 23.6, 0); g.add(rot);
     for (const s of [1, -1]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 14, 220, 20, 1, true), beamMat.clone()); c.material.uniforms.uInt.value = 0.16; c.geometry.translate(0, -110, 0); c.geometry.rotateX(-Math.PI / 2 * s); rot.add(c); }
     WORLD.lighthouse = rot; }
@@ -10733,7 +10963,8 @@ function penFar(beamMat) {
 
 /* ─── Finitions du Pénitencier : conduites, lampes grillagées, numéros de cellule, panneaux ─── */
 function penDetails() {
-  const X = PEN.X, k = kitMats(), dark = KIT.m(0x2a2c2e, { rough: 0.6, metal: 0.5 }), pipeM = KIT.m(0x5a5e5a, { rough: 0.5, metal: 0.6 });
+  // Fer noir des colliers et des cages (même matière que les coursives) ; conduites en fonte peinte (la fonte garde la teinte du jeu).
+  const X = PEN.X, k = kitMats(), dark = fmat('fonte', 0x2a2c2e, { rough: 0.6, metal: 0.5 }), pipeM = fmat('fonte', 0x5a5e5a, { rough: 0.5, metal: 0.6 });
   // Conduites au plafond du couloir des cellules, avec colliers.
   { const p = new Batch(new THREE.CylinderGeometry(1, 1, 1, 8), pipeM), cl = new Batch(boxG(0.06, 0.16, 0.3), dark);
     for (const [z, r] of [[X(11) + 0.4, 0.09], [X(11) + 0.7, 0.06], [X(12) + 1.4, 0.07]]) p.add((X(10) + X(34)) / 2, 3.78, z, 0, 0, Math.PI / 2, r, X(34) - X(10), r);
@@ -11101,13 +11332,16 @@ function filRubbleSpots() {
 }
 function filBuildMission() {
   if (WORLD.filRubble) return;
-  const rock = fmat('rock', 0x8a7866), plank = fmat('planks', 0x5a3e28), gold = new THREE.MeshStandardMaterial({ color: 0xd8b040, emissive: 0xffb020, emissiveIntensity: 0.6, roughness: 0.3, metalness: 1 });
+  // Madriers d'étai brisés en bois brut (famille 'boisBrut' : ils ne partagent plus la matière de la charpente de l'église) ;
+  // pépites : lueur de jeu, sans photo.
+  const rock = fmat('rock', 0x8a7866), plank = fmat('boisBrut', 0x5a3e28), gold = new THREE.MeshStandardMaterial({ color: 0xd8b040, emissive: 0xffb020, emissiveIntensity: 0.6, roughness: 0.3, metalness: 1 });
   WORLD.filRubble = filRubbleSpots().map((p) => {
     const g = new THREE.Group(); g.userData.dynamic = true; g.position.copy(p); R.scene.add(g);
-    // Neuf cailloux fusionnés : un seul appel de dessin par éboulis.
-    const rocks = []; for (let i = 0; i < 9; i++) { const s = rand(0.25, 0.55), d = new THREE.DodecahedronGeometry(s, 0); d.rotateX(rand(TAU)); d.rotateY(rand(TAU)); d.translate(rand(-0.6, 0.6), s * 0.6 + (i > 5 ? 0.4 : 0), rand(-0.6, 0.6)); rocks.push(d.index ? d.toNonIndexed() : d); }
+    // Neuf cailloux fusionnés : un seul appel de dessin par éboulis. UV en mètres sur chaque caillou AVANT la fusion.
+    const rocks = []; for (let i = 0; i < 9; i++) { const s = rand(0.25, 0.55), d = new THREE.DodecahedronGeometry(s, 0); d.rotateX(rand(TAU)); d.rotateY(rand(TAU)); d.translate(rand(-0.6, 0.6), s * 0.6 + (i > 5 ? 0.4 : 0), rand(-0.6, 0.6)); const dm = meterUV(d, rock, 1, 1, 1, p.x + i * 3.7, p.z + i * 1.3); rocks.push(dm.index ? dm.toNonIndexed() : dm); }
     mesh(mergeGeometries(rocks), rock, 0, 0, 0, 0, g);
     for (let i = 0; i < 2; i++) { const b = mesh(boxG(1.6, 0.14, 0.2), plank, rand(-0.3, 0.3), 0.5 + i * 0.25, rand(-0.3, 0.3), rand(TAU), g); b.rotation.z = rand(-0.5, 0.5); }
+    meterize(g); // construit après le monde (remise à zéro de la partie) : UV en mètres des madriers
     const glint = KIT.glow(g, 0, 0.9, 0, 0xffc040, 0.6, 0.5);
     const col = { x0: p.x - 0.7, x1: p.x + 0.7, z0: p.z - 0.7, z1: p.z + 0.7, y0: 0, y1: 1.1, mat: 'concrete' }; MAP.props.push(col);
     const nug = new THREE.Group(); nug.userData.dynamic = true; nug.position.set(p.x, 0.25, p.z); nug.visible = false; R.scene.add(nug);
@@ -11169,32 +11403,42 @@ function filMission() {
 function filDecor() {
   const X = FIL.X, k = kitMats(), L = R.lights;
   rng = mulberry32(1880);
-  const wood = fmat('planks', 0x8a6446), woodDark = fmat('planks', 0x4e3526), iron = MATS.iron, glassJar = new THREE.MeshStandardMaterial({ color: 0xd8e8f0, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.35, depthWrite: false });
+  // Familles photo (OBJ_FAM) : bois brut (étais, traverses, poteaux, barres d'attache, chariot, abreuvoir, tonneaux, couchettes),
+  // noyer verni de meuble (bar, tabourets, tables, chaises, piano, râtelier, comptoir de la banque, étagères, chaire, bancs de l'église),
+  // velours (rideaux de scène, parement d'autel), toile (bâche, sacs, paillasses), rouille (wagonnet), fonte (rails, ferrures).
+  // Les planches de la carte ('planks', photo du trottoir) restent aux corniches des bâtiments, à la scène et à la charpente de l'église.
+  // walnut et walnutLight sont les mêmes matières que KM.woodDark et KM.wood (même clé de cache) : pieds des tables compris.
+  const timber = fmat('boisBrut', 0x4e3526), boards = fmat('boisBrut', 0x8a6446), walnut = fmat('meuble', 0x4e3526), walnutLight = fmat('meuble', 0x8a6446), trim = fmat('planks', 0x4e3526);
+  const iron = MATS.iron, glassJar = new THREE.MeshStandardMaterial({ color: 0xd8e8f0, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.35, depthWrite: false });
+  // kShelf, kSign et kLamp (06b_kit.js) codent leur matière en dur (acier, chrome des années 1950) : on la remplace après coup.
+  const swap = (g, from, to) => { if (g) g.traverse((o) => { if (o.material === from) o.material = to; }); return g; };
+  // Générateur et tableau électrique : leur matière du Filon (fonte noire, coffret de noyer) est choisie dans 06_props.js
+  // (machinePaint et MAP_ID), plus rien à remplacer ici.
 
   /* ── Galerie de mine : rails, étais, wagonnet, lanternes, dynamite ── */
-  { const rail = new Batch(boxG(1, 0.08, 0.07), iron), sleeper = new Batch(boxG(1.6, 0.1, 0.22), woodDark);
+  { const rail = new Batch(boxG(1, 0.08, 0.07), iron), sleeper = new Batch(boxG(1.6, 0.1, 0.22), timber);
     for (let x = X(33); x < X(47); x += 0.8) sleeper.add(x, 0.05, X(19) + 1, Math.PI / 2 + rand(-0.05, 0.05));
     for (const o of [-0.5, 0.5]) rail.add((X(33) + X(47)) / 2, 0.13, X(19) + 1 + o, 0, 0, 0, X(47) - X(33), 1, 1);
     rail.build(); sleeper.build();
-    const post = new Batch(boxG(0.28, 1, 0.28), woodDark), beam = new Batch(boxG(0.3, 0.3, 1), woodDark);
+    const post = new Batch(boxG(0.28, 1, 0.28), timber), beam = new Batch(boxG(0.3, 0.3, 1), timber);
     for (let x = X(37) + 1.5; x < X(47); x += 3.5) { for (const z of [X(18) + 0.25, X(22) - 0.25]) post.add(x, 1.6, z, 0, 0, rand(-0.04, 0.04), 1, 3.2, 1); beam.add(x, 3.25, X(20), 0, 0, 0, 1, 1, X(22) - X(18)); }
     post.build(); beam.build();
     for (let x = X(38); x < X(47); x += 5) hangingLamp(x, 2.7, X(20), MATS.bulbWarm);
-    const cart = KIT.g(X(44), X(19) + 1, Math.PI / 2); KIT.b(cart, 0, 0.75, 0, 1.1, 0.7, 1.7, iron); KIT.b(cart, 0, 1.12, 0, 1.0, 0.15, 1.6, fmat('rock', 0x6a5a48));
+    const cart = KIT.g(X(44), X(19) + 1, Math.PI / 2); KIT.b(cart, 0, 0.75, 0, 1.1, 0.7, 1.7, MATS.rust); /* caisse de tôle rivetée rouillée ; roues en fonte */ KIT.b(cart, 0, 1.12, 0, 1.0, 0.15, 1.6, fmat('rock', 0x6a5a48));
     for (const [a, b] of [[-0.45, -0.6], [0.45, -0.6], [-0.45, 0.6], [0.45, 0.6]]) KIT.c(cart, a, 0.25, b, 0.2, 0.2, 0.08, iron, 12).rotation.z = Math.PI / 2;
     KIT.solid(cart, 1.2, 1.8, 1.3, 'metal');
     for (let i = 0; i < 3; i++) crate(X(38) + 0.6 + i * 0.9, X(21) + 1.4, rand(-0.2, 0.2));
     const tnt = KIT.g(X(38) + 1.5, X(21) + 1.4, 0, 0.55); for (let i = 0; i < 6; i++) KIT.c(tnt, -0.2 + (i % 3) * 0.2, 0.08, -0.08 + Math.floor(i / 3) * 0.16, 0.05, 0.05, 0.3, KIT.m(0xb8301e), 8, false).rotation.z = Math.PI / 2;
-    kSign(X(37) + 0.6, X(18) + 0.5, Math.PI / 2, ['MINE DU FILON', 'DANGER — ÉBOULEMENTS'], '#3a2a1a', '#e8c890', 2.4); }
+    swap(kSign(X(37) + 0.6, X(18) + 0.5, Math.PI / 2, ['MINE DU FILON', 'DANGER — ÉBOULEMENTS'], '#3a2a1a', '#e8c890', 2.4), k.steel, timber); /* piquet de bois brut, pas un poteau d'acier */ }
 
   /* ── Grand-rue : poteaux des trottoirs couverts, frontons, abreuvoir, chariot, lanternes ── */
-  { const post = new Batch(boxG(0.18, 1, 0.18), woodDark);
+  { const post = new Batch(boxG(0.18, 1, 0.18), timber); /* poteaux équarris : le fil suit le poteau (la photo du trottoir le mettrait en travers) */
     for (let x = X(6) + 0.4; x < X(36); x += 3.6) { post.add(x, 1.7, X(18) - 0.12, 0, 0, 0, 1, 3.4, 1); post.add(x, 1.7, X(22) + 0.12, 0, 0, 0, 1, 3.4, 1); colliderBox(x, X(18) - 0.12, 0.2, 0.2, 0, 3.4, 'wood'); colliderBox(x, X(22) + 0.12, 0.2, 0.2, 0, 3.4, 'wood'); }
     post.build(); }
   // Frontons à l'ancienne, avec enseigne peinte.
   const front = (x0, x1, z, dir, h, color, lines, signBg, signFg) => {
     const g = KIT.g((x0 + x1) / 2, z, dir > 0 ? 0 : Math.PI), w = x1 - x0, m = fmat('westPlank', color);
-    KIT.b(g, 0, 4.2 + h / 2, 0, w, h, 0.2, m); KIT.b(g, 0, 4.2 + h + 0.1, 0, w + 0.3, 0.2, 0.4, woodDark);
+    KIT.b(g, 0, 4.2 + h / 2, 0, w, h, 0.2, m); KIT.b(g, 0, 4.2 + h + 0.1, 0, w + 0.3, 0.2, 0.4, trim);
     const sg = mesh(new THREE.PlaneGeometry(w * 0.8, h * 0.6), new THREE.MeshStandardMaterial({ map: woodSign(lines, { w: 512, h: 160, bg: signBg, color: signFg }), roughness: 0.8 }), 0, 4.2 + h * 0.5, 0.12, 0, g, false);
   };
   front(X(7), X(17), X(17) - 0.1, 1, 2.8, 0xb85a42, ['SALOON', 'LA PÉPITE D\'OR'], '#6a1e14', '#f2d68a');
@@ -11202,37 +11446,42 @@ function filDecor() {
   front(X(26), X(34), X(17) - 0.1, 1, 2.0, 0xd8b8a0, ['BANQUE DU FILON'], '#1e2a1e', '#e8d890');
   front(X(7), X(14), X(23) + 0.1, -1, 1.8, 0xb08a60, ['SHÉRIF', 'PRISON'], '#3a2a1a', '#e8e2c8');
   { const g = KIT.g(X(5) + 3, X(19) + 1, 0); } // (le bout ouest est un éboulis)
-  for (const [x, z] of [[X(12), X(19) + 1], [X(28), X(20) + 1]]) { const g = KIT.g(x, z, 0); KIT.b(g, 0, 1.7, 0, 0.16, 3.4, 0.16, woodDark); KIT.b(g, 0.35, 3.3, 0, 0.8, 0.1, 0.1, woodDark); const lamp = KIT.g(0.7, 0, 0, 2.95, g); KIT.b(lamp, 0, 0, 0, 0.26, 0.36, 0.26, iron); KIT.glow(lamp, 0, 0, 0, 0xffa040, 1.8, 0.8); colliderBox(x, z, 0.3, 0.3, 0, 3.4, 'wood'); }
+  for (const [x, z] of [[X(12), X(19) + 1], [X(28), X(20) + 1]]) { const g = KIT.g(x, z, 0); KIT.b(g, 0, 1.7, 0, 0.16, 3.4, 0.16, timber); KIT.b(g, 0.35, 3.3, 0, 0.8, 0.1, 0.1, timber); const lamp = KIT.g(0.7, 0, 0, 2.95, g); KIT.b(lamp, 0, 0, 0, 0.26, 0.36, 0.26, iron); KIT.glow(lamp, 0, 0, 0, 0xffa040, 1.8, 0.8); colliderBox(x, z, 0.3, 0.3, 0, 3.4, 'wood'); }
   if (L.lanternW) L.lanternW.position.set(X(12) + 0.7, 2.9, X(19) + 1); if (L.lanternE) L.lanternE.position.set(X(28) + 0.7, 2.9, X(20) + 1);
-  { const g = KIT.g(X(15), X(21) + 1, 0); KIT.b(g, 0, 0.35, 0, 2.2, 0.7, 0.7, wood); KIT.b(g, 0, 0.66, 0, 2.0, 0.02, 0.5, fmat('plain', 0x3a5a6a, { rough: 0.1, metal: 0.3 })); KIT.solid(g, 2.2, 0.7, 0.7); } // abreuvoir
-  for (const x of [X(9), X(24), X(31)]) { const g = KIT.g(x, X(21) + 1.5, 0); for (const s of [-0.9, 0.9]) KIT.b(g, s, 0.55, 0, 0.14, 1.1, 0.14, woodDark); KIT.b(g, 0, 1.0, 0, 2.0, 0.12, 0.12, woodDark); KIT.solid(g, 2.0, 0.2, 1.1); } // barres d'attache
+  { const g = KIT.g(X(15), X(21) + 1, 0); KIT.b(g, 0, 0.35, 0, 2.2, 0.7, 0.7, boards); KIT.b(g, 0, 0.66, 0, 2.0, 0.02, 0.5, fmat('plain', 0x3a5a6a, { rough: 0.1, metal: 0.3 })); KIT.solid(g, 2.2, 0.7, 0.7); } // abreuvoir (planches brutes ; l'eau garde sa teinte unie)
+  for (const x of [X(9), X(24), X(31)]) { const g = KIT.g(x, X(21) + 1.5, 0); for (const s of [-0.9, 0.9]) KIT.b(g, s, 0.55, 0, 0.14, 1.1, 0.14, timber); KIT.b(g, 0, 1.0, 0, 2.0, 0.12, 0.12, timber); KIT.solid(g, 2.0, 0.2, 1.1); } // barres d'attache
   // Chariot bâché renversé en travers de la rue.
-  { const g = KIT.g(X(20) + 1, X(18) + 1.4, 0.2), canvas = stdMat({ color: 0xe0d6bc, roughness: 1, map: TEX.cloth.map, side: THREE.DoubleSide });
-    KIT.b(g, 0, 0.9, 0, 3.6, 0.2, 1.6, wood); for (const s of [-1, 1]) KIT.b(g, 0, 1.2, s * 0.78, 3.6, 0.5, 0.06, wood);
+  { const g = KIT.g(X(20) + 1, X(18) + 1.4, 0.2), canvas = fmat('toile', 0xe0d6bc, { rough: 1, side: THREE.DoubleSide }); /* bâche de grosse toile écrue */
+    KIT.b(g, 0, 0.9, 0, 3.6, 0.2, 1.6, boards); for (const s of [-1, 1]) KIT.b(g, 0, 1.2, s * 0.78, 3.6, 0.5, 0.06, boards);
     const hood = mesh(new THREE.CylinderGeometry(0.95, 0.95, 3.4, 16, 1, true, -Math.PI / 2, Math.PI), canvas, 0, 1.4, 0, 0, g); hood.rotation.z = Math.PI / 2;
-    for (const [a, b] of [[-1.3, -0.9], [1.3, -0.9], [-1.3, 0.9]]) { const w = KIT.c(g, a, 0.55, b, 0.55, 0.55, 0.1, woodDark, 14); w.rotation.x = Math.PI / 2; }
-    const wb = KIT.c(g, 1.6, 0.2, 1.4, 0.55, 0.55, 0.1, woodDark, 14); wb.rotation.z = 1.2; KIT.solid(g, 3.8, 1.8, 2.2, 'wood'); }
-  for (const [x, z] of [[X(8), X(21) + 1.5], [X(26), X(18) + 0.5], [X(33), X(21) + 1.4], [X(33) + 0.8, X(21) + 1.5]]) barrel(x, z, fmat('planks', 0x7a5236));
+    for (const [a, b] of [[-1.3, -0.9], [1.3, -0.9], [-1.3, 0.9]]) { const w = KIT.c(g, a, 0.55, b, 0.55, 0.55, 0.1, timber, 14); w.rotation.x = Math.PI / 2; }
+    const wb = KIT.c(g, 1.6, 0.2, 1.4, 0.55, 0.55, 0.1, timber, 14); wb.rotation.z = 1.2; KIT.solid(g, 3.8, 1.8, 2.2, 'wood'); }
+  // Tonneaux de chêne brut cerclés de fer. meterUV couche le fil le long du plus grand côté de la pièce, ici le tour (1,8 m
+  // contre 0,88 m de haut) : les douelles seraient horizontales. On pose donc les UV en mètres ici, sans échange, douelles debout.
+  { const oak = fmat('boisBrut', 0x7a5236), staves = { userData: { mu: true, scale: oak.userData.scale } };
+    for (const [x, z] of [[X(8), X(21) + 1.5], [X(26), X(18) + 0.5], [X(33), X(21) + 1.4], [X(33) + 0.8, X(21) + 1.5]]) { const b = barrel(x, z, oak); b.geometry = meterUV(b.geometry, staves, 1, 1, 1, x, z); } }
   for (const [x, z] of [[X(32) + 0.4, X(18) + 0.6], [X(32) + 1.2, X(18) + 0.4]]) { const g = KIT.g(x, z, rand(TAU)); KIT.b(g, 0, 0.35, 0, 1.0, 0.7, 0.6, fmat('plain', 0xc8a84a, { rough: 1 })); KIT.solid(g, 1.0, 0.6, 0.7); } // bottes de foin
   { const posters = textTexture(512, 256, (c) => { for (let i = 0; i < 2; i++) { const x0 = i * 256; c.fillStyle = '#e8d8b0'; c.fillRect(x0, 0, 256, 256); c.fillStyle = '#2a1a0a'; c.textAlign = 'center'; c.font = font(44); c.fillText('RECHERCHÉ', x0 + 128, 50); c.fillStyle = '#6a5a4a'; c.fillRect(x0 + 68, 70, 120, 110); c.fillStyle = '#2a1a0a'; c.font = font(30, 700); c.fillText(i ? '500 $' : 'MORT OU VIF', x0 + 128, 222); } });
     for (const [x, z, ry, cell] of [[X(18) + 0.9, X(17) - 0.02, Math.PI, 0], [X(8) + 0.6, X(23) + 0.02, 0, 1], [X(33) + 1.2, X(17) - 0.02, Math.PI, 1]]) { const geo = new THREE.PlaneGeometry(0.6, 0.6), uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, (cell + uv.getX(i)) / 2); mesh(geo, new THREE.MeshStandardMaterial({ map: posters, roughness: 0.95 }), x, 1.6, z, ry, R.scene, false); } }
   // Éboulis du bout ouest (rochers).
-  { const parts = []; for (let i = 0; i < 26; i++) { const s = srand(0.4, 1.3), g = new THREE.DodecahedronGeometry(s, 0); g.translate(X(5) + srand(-1.5, 1.8), s * 0.5 + srand(0, 1.8), X(16) + srand(0, 16)); parts.push(g); } mesh(mergeGeometries(parts), fmat('rock', 0x8a7866), 0, 0, 0, 0, R.scene, true); }
+  // UV en mètres sur chaque bloc AVANT la fusion (la géométrie fusionnée perd ses paramètres).
+  { const parts = [], rubble = fmat('rock', 0x8a7866); for (let i = 0; i < 26; i++) { const s = srand(0.4, 1.3), g = new THREE.DodecahedronGeometry(s, 0); g.translate(X(5) + srand(-1.5, 1.8), s * 0.5 + srand(0, 1.8), X(16) + srand(0, 16)); parts.push(meterUV(g, rubble, 1, 1, 1, i * 3.7, i * 1.3)); } mesh(mergeGeometries(parts), rubble, 0, 0, 0, 0, R.scene, true); }
 
   /* ── Saloon ── */
-  { const g = KIT.g(X(15) + 1.2, X(13) + 1, Math.PI / 2); KIT.b(g, 0, 0.55, 0, 4.2, 1.1, 0.7, woodDark); KIT.b(g, 0, 1.12, 0, 4.4, 0.06, 0.8, fmat('planks', 0x6a3e22)); KIT.solid(g, 4.2, 0.7, 1.15); }
-  { const g = KIT.g(X(16) + 1.7, X(13) + 1, -Math.PI / 2); KIT.b(g, 0, 1.6, 0, 4.2, 2.4, 0.35, woodDark); for (let s = 0; s < 3; s++) for (let i = 0; i < 12; i++) KIT.c(g, -1.9 + i * 0.34, 1.0 + s * 0.6, 0.12, 0.05, 0.05, 0.28, KIT.m([0x3a6a2a, 0x7a3a1a, 0xc8a84a, 0x2a2a4a][(i + s) % 4], { rough: 0.15 }), 8, false); }
-  for (let i = 0; i < 4; i++) { const g = KIT.g(X(14) + 0.3, X(12) + 0.8 + i * 1.1, 0); KIT.c(g, 0, 0.35, 0, 0.18, 0.18, 0.05, woodDark, 10); KIT.c(g, 0, 0.18, 0, 0.03, 0.03, 0.36, iron, 6); }
-  for (const [x, z] of [[X(8) + 1, X(13) + 1], [X(10) + 1, X(15)], [X(12) + 0.5, X(13)]]) { kTable(x, z, 0, 1.1, 1.1, 0.78, wood); for (let a = 0; a < 3; a++) { const r = a * 2.1 + 0.4; kChair(x + Math.cos(r) * 0.85, z + Math.sin(r) * 0.85, -r - Math.PI / 2, woodDark); } }
-  { const g = KIT.g(X(7) + 0.5, X(15) + 0.8, Math.PI / 2); KIT.b(g, 0, 0.65, 0, 1.6, 1.3, 0.6, KIT.m(0x2a1a12, { rough: 0.4 })); KIT.b(g, 0, 0.92, 0.32, 1.4, 0.08, 0.1, fmat('plain', 0xeae4d4)); KIT.solid(g, 1.6, 0.6, 1.3); } // piano
-  { const stage = KIT.g(X(12), X(10), 0); KIT.b(stage, 0, 0.08, 0, 8, 0.16, 5.6, fmat('planks', 0x6a4028)); const red = stdMat({ color: 0x8a1a1a, roughness: 1, map: TEX.cloth.map, side: THREE.DoubleSide }); for (const s of [-1, 1]) KIT.b(stage, s * 3.3, 1.8, 2.7, 1.6, 3.4, 0.05, red); KIT.b(stage, 0, 3.2, 2.7, 8, 0.5, 0.05, red); }
+  { const g = KIT.g(X(15) + 1.2, X(13) + 1, Math.PI / 2); KIT.b(g, 0, 0.55, 0, 4.2, 1.1, 0.7, walnut); KIT.b(g, 0, 1.12, 0, 4.4, 0.06, 0.8, fmat('meuble', 0x6a3e22)); /* comptoir et dessus de noyer verni (les portes peintes ont leur propre matière) */ KIT.solid(g, 4.2, 0.7, 1.15); }
+  { const g = KIT.g(X(16) + 1.7, X(13) + 1, -Math.PI / 2); KIT.b(g, 0, 1.6, 0, 4.2, 2.4, 0.35, walnut); for (let s = 0; s < 3; s++) for (let i = 0; i < 12; i++) KIT.c(g, -1.9 + i * 0.34, 1.0 + s * 0.6, 0.12, 0.05, 0.05, 0.28, KIT.m([0x3a6a2a, 0x7a3a1a, 0xc8a84a, 0x2a2a4a][(i + s) % 4], { rough: 0.15 }), 8, false); }
+  for (let i = 0; i < 4; i++) { const g = KIT.g(X(14) + 0.3, X(12) + 0.8 + i * 1.1, 0); KIT.c(g, 0, 0.35, 0, 0.18, 0.18, 0.05, walnut, 10); KIT.c(g, 0, 0.18, 0, 0.03, 0.03, 0.36, iron, 6); }
+  for (const [x, z] of [[X(8) + 1, X(13) + 1], [X(10) + 1, X(15)], [X(12) + 0.5, X(13)]]) { kTable(x, z, 0, 1.1, 1.1, 0.78, walnutLight); for (let a = 0; a < 3; a++) { const r = a * 2.1 + 0.4; kChair(x + Math.cos(r) * 0.85, z + Math.sin(r) * 0.85, -r - Math.PI / 2, walnut); } }
+  { const g = KIT.g(X(7) + 0.5, X(15) + 0.8, Math.PI / 2); KIT.b(g, 0, 0.65, 0, 1.6, 1.3, 0.6, fmat('meuble', 0x2a1a12, { rough: 0.4 })); /* caisse de piano droit en noyer verni ; touches d'ivoire en teinte unie */ KIT.b(g, 0, 0.92, 0.32, 1.4, 0.08, 0.1, fmat('plain', 0xeae4d4)); KIT.solid(g, 1.6, 0.6, 1.3); } // piano
+  { const stage = KIT.g(X(12), X(10), 0); KIT.b(stage, 0, 0.08, 0, 8, 0.16, 5.6, fmat('planks', 0x6a4028)); /* plancher de scène : planches de la carte */ const red = fmat('velours', 0x8a1a1a, { rough: 1, side: THREE.DoubleSide }); /* rideaux de velours bordeaux */ for (const s of [-1, 1]) KIT.b(stage, s * 3.3, 1.8, 2.7, 1.6, 3.4, 0.05, red); KIT.b(stage, 0, 3.2, 2.7, 8, 0.5, 0.05, red); }
   { const ch = KIT.g(X(11) + 1, X(13) + 1, 0, 3.0); KIT.c(ch, 0, 0, 0, 0.9, 0.9, 0.06, iron, 20); for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU; KIT.c(ch, Math.cos(a) * 0.8, 0.12, Math.sin(a) * 0.8, 0.03, 0.03, 0.2, fmat('plain', 0xf2eee0), 6, false); KIT.glow(ch, Math.cos(a) * 0.8, 0.3, Math.sin(a) * 0.8, 0xffb060, 0.5, 0.7); } }
 
   /* ── Magasin général et comptoir de friandises ── */
-  kShelf(X(24) + 1.7, X(11), -Math.PI / 2, 1.8, 2.2); kShelf(X(24) + 1.7, X(13) + 0.5, -Math.PI / 2, 1.8, 2.2); kShelf(X(20), X(10) + 0.3, 0, 1.8, 2.2);
-  for (let i = 0; i < 5; i++) { const g = KIT.g(X(21) + i * 0.7, X(15) + 0.5, rand(-0.3, 0.3)); KIT.b(g, 0, 0.4, 0, 0.55, 0.8, 0.4, fmat('plain', 0xd8ccb0, { rough: 1 })); }
+  // Rayonnages en bois (pas d'étagères d'acier en 1880) ; boîtes de conserve en fer-blanc inchangées.
+  swap(kShelf(X(24) + 1.7, X(11), -Math.PI / 2, 1.8, 2.2), k.steel, walnutLight); swap(kShelf(X(24) + 1.7, X(13) + 0.5, -Math.PI / 2, 1.8, 2.2), k.steel, walnutLight); swap(kShelf(X(20), X(10) + 0.3, 0, 1.8, 2.2), k.steel, walnutLight);
+  for (let i = 0; i < 5; i++) { const g = KIT.g(X(21) + i * 0.7, X(15) + 0.5, rand(-0.3, 0.3)); KIT.b(g, 0, 0.4, 0, 0.55, 0.8, 0.4, fmat('toile', 0xd8ccb0, { rough: 1 })); } /* sacs de farine et de grain en toile */
   { const s = wallSpot(SPOTS.candy, 0.55), g = KIT.g(s.x, s.z, s.yaw);
-    KIT.b(g, 0, 0.5, 0, 2.2, 1.0, 0.7, fmat('plain', 0xd84a6a, { rough: 0.5 })); KIT.b(g, 0, 1.02, 0, 2.3, 0.05, 0.8, fmat('plain', 0xf2eee4, { rough: 0.3 }));
+    KIT.b(g, 0, 0.5, 0, 2.2, 1.0, 0.7, fmat('boisPeint', 0xd84a6a, { rough: 0.5 })); /* comptoir de bois peint en rose (couleur gardée : c'est l'objectif) */ KIT.b(g, 0, 1.02, 0, 2.3, 0.05, 0.8, fmat('plain', 0xf2eee4, { rough: 0.3 })); /* dessus de marbre blanc : aucune famille, teinte unie */
     const cols = [0xff4a6a, 0x4ad8ff, 0xffd84a, 0x7aff6a, 0xc84aff, 0xff9a3a];
     for (let i = 0; i < 6; i++) { const x = -0.9 + i * 0.36; KIT.c(g, x, 1.3, 0, 0.13, 0.13, 0.46, glassJar, 14, false); for (let j = 0; j < 5; j++) KIT.s(g, x + rand(-0.06, 0.06), 1.12 + j * 0.07, rand(-0.06, 0.06), 0.045, KIT.m(cols[(i + j) % 6], { rough: 0.25 })); }
     const sign = mesh(new THREE.PlaneGeometry(1.6, 0.45), new THREE.MeshStandardMaterial({ map: woodSign(['BONBONS · 1000', 'LE COLOSSE EN RAFFOLE'], { w: 512, h: 150, bg: '#d84a6a', color: '#fff4e0' }), roughness: 0.7 }), 0, 2.0, -0.3, 0, g, false);
@@ -11240,28 +11489,29 @@ function filDecor() {
 
   /* ── Banque : guichets à barreaux, chambre forte ── */
   { const s = wallSpot(SPOTS.bank, 0.8), g = KIT.g(s.x, s.z, s.yaw);
-    KIT.b(g, 0, 0.55, 0, 5.2, 1.1, 0.6, woodDark); KIT.b(g, 0, 1.12, 0, 5.3, 0.06, 0.7, fmat('parquet', 0xa07050));
+    KIT.b(g, 0, 0.55, 0, 5.2, 1.1, 0.6, walnut); KIT.b(g, 0, 1.12, 0, 5.3, 0.06, 0.7, fmat('meuble', 0xa07050)); /* plateau de noyer verni, pas un parquet */
     for (let i = 0; i < 34; i++) { const x = -2.5 + i * 0.15; if (Math.abs(x + 1.2) < 0.3 || Math.abs(x - 1.2) < 0.3) continue; KIT.c(g, x, 1.65, 0, 0.012, 0.012, 1.0, MATS.brass, 6, false); }
     KIT.b(g, 0, 2.17, 0, 5.2, 0.06, 0.08, MATS.brass);
     for (const x of [-1.2, 1.2]) { const lab = mesh(new THREE.PlaneGeometry(0.9, 0.3), new THREE.MeshStandardMaterial({ map: woodSign([x < 0 ? 'DÉPÔTS' : 'RETRAITS'], { w: 256, h: 80, bg: '#1e2a1e', color: '#e8d890' }), roughness: 0.7 }), x, 2.3, 0.02, 0, g, false); }
     KIT.solid(g, 5.2, 0.6, 2.2);
     g.updateMatrixWorld(true);
     WORLD.bankDesk = { pos: new THREE.Vector3(s.x, 1, s.z), dep: new THREE.Vector3(-1.2, 0, 0.9).applyMatrix4(g.matrixWorld), wd: new THREE.Vector3(1.2, 0, 0.9).applyMatrix4(g.matrixWorld) }; }
-  { const d = MAP.doors.find((q) => q.label === 'La chambre forte'); if (d) { const g = KIT.g(tcx(d.x) - 1.1, tcx(d.z) - 0.2, 0); const disc = KIT.c(g, 0, 1.3, 0, 1.2, 1.2, 0.3, fmat('metal', 0x8a8e90, { metal: 0.8 }), 28); disc.rotation.x = Math.PI / 2; disc.rotation.z = 0.4; for (let i = 0; i < 6; i++) { const sp = KIT.b(g, 0, 1.3, 0.2, 0.08, 1.8, 0.06, MATS.brass); sp.rotation.z = (i / 6) * Math.PI; } } }
-  kTable(X(27), X(11) + 0.5, 0, 1.6, 0.8, 0.78, woodDark); kLamp(X(26) + 0.4, X(10) + 0.4, 0);
+  { const d = MAP.doors.find((q) => q.label === 'La chambre forte'); if (d) { const g = KIT.g(tcx(d.x) - 1.1, tcx(d.z) - 0.2, 0); const disc = KIT.c(g, 0, 1.3, 0, 1.2, 1.2, 0.3, fmat('acier', 0x5a5e60, { rough: 0.7, metal: 0.8 }), 28); /* acier sombre de coffre-fort, et non plus la tôle ondulée dessinée */ disc.rotation.x = Math.PI / 2; disc.rotation.z = 0.4; for (let i = 0; i < 6; i++) { const sp = KIT.b(g, 0, 1.3, 0.2, 0.08, 1.8, 0.06, MATS.brass); sp.rotation.z = (i / 6) * Math.PI; } } }
+  kTable(X(27), X(11) + 0.5, 0, 1.6, 0.8, 0.78, walnut);
+  swap(swap(kLamp(X(26) + 0.4, X(10) + 0.4, 0), k.chrome, MATS.brass), k.black, iron); /* lampe à pied en laiton sur socle de fonte, pas le lampadaire chromé des années 1950 */
   WORLD.bulbs = []; for (const x of [X(27), X(29), X(32)]) { const b = hangingLamp(x, 3.0, X(14), MATS.bulbWarm); WORLD.bulbs.push(b.glow); }
 
   /* ── Prison du shérif ── */
-  kTable(X(9), X(24) + 1, 0, 1.8, 0.9, 0.78, woodDark); kChair(X(9), X(24) + 0.2, 0, woodDark);
-  { const g = KIT.g(X(13) + 1.7, X(24) + 0.5, -Math.PI / 2); KIT.b(g, 0, 1.2, 0, 1.4, 1.6, 0.12, woodDark); for (let i = 0; i < 4; i++) { const r = KIT.b(g, -0.45 + i * 0.3, 1.2, 0.1, 0.05, 1.2, 0.06, iron); r.rotation.z = 0.05; } }
-  for (const x of [X(11) + 0.5, X(12) + 1.2]) { const g = KIT.g(x, X(29) + 1.4, 0); KIT.b(g, 0, 0.4, 0, 0.8, 0.08, 1.9, woodDark); KIT.b(g, 0, 0.48, 0, 0.76, 0.1, 1.8, fmat('plain', 0x8a7a5a, { rough: 1 })); KIT.solid(g, 0.8, 1.9, 0.5); }
+  kTable(X(9), X(24) + 1, 0, 1.8, 0.9, 0.78, walnut); kChair(X(9), X(24) + 0.2, 0, walnut);
+  { const g = KIT.g(X(13) + 1.7, X(24) + 0.5, -Math.PI / 2); KIT.b(g, 0, 1.2, 0, 1.4, 1.6, 0.12, walnut); /* râtelier */ for (let i = 0; i < 4; i++) { const r = KIT.b(g, -0.45 + i * 0.3, 1.2, 0.1, 0.05, 1.2, 0.06, iron); r.rotation.z = 0.05; } }
+  for (const x of [X(11) + 0.5, X(12) + 1.2]) { const g = KIT.g(x, X(29) + 1.4, 0); KIT.b(g, 0, 0.4, 0, 0.8, 0.08, 1.9, timber); KIT.b(g, 0, 0.48, 0, 0.76, 0.1, 1.8, fmat('toile', 0x8a7a5a, { rough: 1 })); /* couchette de planches brutes, paillasse de toile */ KIT.solid(g, 0.8, 1.9, 0.5); }
 
   /* ── Église ── */
-  for (let r = 0; r < 6; r++) for (const s of [-1, 1]) { const g = KIT.g(X(27) + 1 + s * 2.6, X(25) + r * 1.4, 0); KIT.b(g, 0, 0.45, 0, 3.6, 0.08, 0.45, wood); KIT.b(g, 0, 0.8, -0.2, 3.6, 0.6, 0.06, wood); for (const e of [-1.7, 1.7]) KIT.b(g, e, 0.4, 0, 0.08, 0.8, 0.45, woodDark); KIT.solid(g, 3.6, 0.5, 0.9); }
-  { const g = KIT.g(X(27) + 1, X(32) + 1, 0); KIT.b(g, 0, 0.5, 0, 2.4, 1.0, 1.0, fmat('plaster', 0xe8e0cc)); KIT.b(g, 0, 1.02, 0, 2.6, 0.05, 1.1, fmat('plain', 0x7a1a1a, { rough: 1 })); KIT.b(g, 0, 2.6, 0.45, 0.12, 1.8, 0.1, fmat('plain', 0xc8a84a, { rough: 0.3, metal: 0.8 })); KIT.b(g, 0, 3.0, 0.45, 0.8, 0.12, 0.1, fmat('plain', 0xc8a84a, { rough: 0.3, metal: 0.8 })); for (let i = 0; i < 6; i++) { KIT.c(g, -1 + i * 0.4, 1.2, 0, 0.03, 0.03, 0.3, fmat('plain', 0xf2eee0), 6, false); KIT.glow(g, -1 + i * 0.4, 1.42, 0, 0xffb060, 0.35, 0.8); } KIT.solid(g, 2.4, 1.0, 1.05); }
+  for (let r = 0; r < 6; r++) for (const s of [-1, 1]) { const g = KIT.g(X(27) + 1 + s * 2.6, X(25) + r * 1.4, 0); KIT.b(g, 0, 0.45, 0, 3.6, 0.08, 0.45, walnutLight); KIT.b(g, 0, 0.8, -0.2, 3.6, 0.6, 0.06, walnutLight); for (const e of [-1.7, 1.7]) KIT.b(g, e, 0.4, 0, 0.08, 0.8, 0.45, walnut); KIT.solid(g, 3.6, 0.5, 0.9); }
+  { const g = KIT.g(X(27) + 1, X(32) + 1, 0); KIT.b(g, 0, 0.5, 0, 2.4, 1.0, 1.0, fmat('boisPeint', 0xe8e0cc)); /* autel de planches peintes en crème */ KIT.b(g, 0, 1.02, 0, 2.6, 0.05, 1.1, fmat('velours', 0x7a1a1a, { rough: 1 })); /* parement de velours rouge */ KIT.b(g, 0, 2.6, 0.45, 0.12, 1.8, 0.1, fmat('plain', 0xc8a84a, { rough: 0.3, metal: 0.8 })); KIT.b(g, 0, 3.0, 0.45, 0.8, 0.12, 0.1, fmat('plain', 0xc8a84a, { rough: 0.3, metal: 0.8 })); for (let i = 0; i < 6; i++) { KIT.c(g, -1 + i * 0.4, 1.2, 0, 0.03, 0.03, 0.3, fmat('plain', 0xf2eee0), 6, false); KIT.glow(g, -1 + i * 0.4, 1.42, 0, 0xffb060, 0.35, 0.8); } KIT.solid(g, 2.4, 1.0, 1.05); }
   // Toitures : église (clocher), magasin, prison ; les autres ont un toit plat derrière leur fronton.
   kGable(X(22), X(23), X(33), X(34), 5.35, 3.4, fv(['shingle', 0x5a4a3e]), 0.5, fv(['westPlank', 0xe8e0cc]));
-  { const g = KIT.g(X(27) + 1, X(23) + 1.6, 0, 5.35), w = fmat('westPlank', 0xe8e0cc); KIT.b(g, 0, 2.2, 0, 2.6, 4.4, 2.6, w); KIT.b(g, 0, 4.5, 0, 2.9, 0.2, 2.9, woodDark); const sp = mesh(new THREE.ConeGeometry(2.1, 4.5, 4), fmat('shingle', 0x5a4a3e), 0, 6.8, 0, Math.PI / 4, g); const bell = KIT.c(g, 0, 3.3, 0, 0.3, 0.6, 0.7, MATS.brass, 14); KIT.b(g, 0, 9.2, 0, 0.1, 1.2, 0.1, fmat('plain', 0xc8a84a, { metal: 0.8 })); KIT.b(g, 0, 9.4, 0, 0.6, 0.1, 0.1, fmat('plain', 0xc8a84a, { metal: 0.8 })); }
+  { const g = KIT.g(X(27) + 1, X(23) + 1.6, 0, 5.35), w = fmat('westPlank', 0xe8e0cc); KIT.b(g, 0, 2.2, 0, 2.6, 4.4, 2.6, w); KIT.b(g, 0, 4.5, 0, 2.9, 0.2, 2.9, trim); const sp = mesh(new THREE.ConeGeometry(2.1, 4.5, 4), fmat('shingle', 0x5a4a3e), 0, 6.8, 0, Math.PI / 4, g); const bell = KIT.c(g, 0, 3.3, 0, 0.3, 0.6, 0.7, MATS.brass, 14); KIT.b(g, 0, 9.2, 0, 0.1, 1.2, 0.1, fmat('plain', 0xc8a84a, { metal: 0.8 })); KIT.b(g, 0, 9.4, 0, 0.6, 0.1, 0.1, fmat('plain', 0xc8a84a, { metal: 0.8 })); }
   kGable(X(18), X(10), X(25), X(17), 4.55, 1.6, fv(['westPlank', 0x6a5a48]), 0.3, fv(['westPlank', 0xb08a60]));
   kGable(X(7), X(23), X(14), X(30), 4.55, 1.6, fv(['westPlank', 0x6a5a48]), 0.3, fv(['westPlank', 0xb08a60]));
 
@@ -11281,7 +11531,7 @@ function filCave() {
     const m = mesh(gb.geo(), rock, 0, 0, 0, 0, R.scene, true); m.material.side = THREE.DoubleSide;
     // Stalactites.
     const parts = [], r = mulberry32(9);
-    for (let i = 0; i < 140; i++) { const x = x0 + r() * (x1 - x0), z = z0 + r() * (z1 - z0); if (Math.hypot(x - hx, z - hz) < hr + 2) continue; const h = 1.2 + r() * 4, g = new THREE.ConeGeometry(0.25 + r() * 0.6, h, 6); g.rotateX(Math.PI); g.translate(x, H(x, z) - h / 2 + 0.3, z); parts.push(g.toNonIndexed()); }
+    for (let i = 0; i < 140; i++) { const x = x0 + r() * (x1 - x0), z = z0 + r() * (z1 - z0); if (Math.hypot(x - hx, z - hz) < hr + 2) continue; const h = 1.2 + r() * 4, g = new THREE.ConeGeometry(0.25 + r() * 0.6, h, 6); g.rotateX(Math.PI); g.translate(x, H(x, z) - h / 2 + 0.3, z); parts.push(meterUV(g, rockV, 1, 1, 1, x, z).toNonIndexed()); } /* UV en mètres avant la fusion */
     mesh(mergeGeometries(parts), rockV, 0, 0, 0, 0, R.scene, true); }
   // Parois de la caverne tout autour.
   { const gb = new GB(), pts = [], S = 4, pad = 14;
@@ -11292,7 +11542,7 @@ function filCave() {
     const m = mesh(gb.geo(), rock, 0, 0, 0, 0, R.scene, true); m.material.side = THREE.DoubleSide; }
   // Stalagmites et blocs sur le sol extérieur, loin des barricades.
   { const parts = [], r = mulberry32(31);
-    for (let i = 0; i < 90; i++) { const x = r() * W, z = r() * D; if (edgeAt(x, z) < 4.5) continue; const h = 1 + r() * 4.5, g = r() < 0.6 ? new THREE.ConeGeometry(0.4 + r() * 0.8, h, 7) : new THREE.DodecahedronGeometry(0.6 + r() * 1.2, 0); if (g.type === 'ConeGeometry') g.translate(0, h / 2, 0); g.translate(x, surfH(x, z) - 0.1, z); parts.push(g.index ? g.toNonIndexed() : g); }
+    for (let i = 0; i < 90; i++) { const x = r() * W, z = r() * D; if (edgeAt(x, z) < 4.5) continue; const h = 1 + r() * 4.5, g = r() < 0.6 ? new THREE.ConeGeometry(0.4 + r() * 0.8, h, 7) : new THREE.DodecahedronGeometry(0.6 + r() * 1.2, 0); if (g.type === 'ConeGeometry') g.translate(0, h / 2, 0); g.translate(x, surfH(x, z) - 0.1, z); const gm = meterUV(g, rockV, 1, 1, 1, x, z); parts.push(gm.index ? gm.toNonIndexed() : gm); } /* UV en mètres avant la fusion */
     if (parts.length) mesh(mergeGeometries(parts), rockV, 0, 0, 0, 0, R.scene, true); }
   // Puits de lumière lunaire (cône additif, poussière en suspension).
   { const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false, uniforms: { uTime: { value: 0 } },
@@ -11303,14 +11553,15 @@ function filCave() {
 
 /* ─── Finitions du Filon : église habitée, filons d'or, cristaux, lanternes ─── */
 function filDetails() {
-  const X = FIL.X, woodDark = fmat('planks', 0x4e3526), beam = fmat('planks', 0x5a3e28), gold = fmat('plain', 0xc8a84a, { rough: 0.3, metal: 0.8 }), wax = fmat('plain', 0xf2eee0);
+  // Chaire en noyer verni (famille 'meuble') ; la charpente de l'église garde les planches de la carte ; or et cire en teinte unie.
+  const X = FIL.X, walnut = fmat('meuble', 0x4e3526), beam = fmat('planks', 0x5a3e28), gold = fmat('plain', 0xc8a84a, { rough: 0.3, metal: 0.8 }), wax = fmat('plain', 0xf2eee0);
   // Église : charpente apparente, deux lustres à bougies, tapis d'allée, chaire, croix, bénitier, chandeliers.
   { const cx = X(27) + 1, z0 = X(23), z1 = X(34), y = 4.95, tr = new Batch(boxG(0.22, 0.3, 1), beam);
     for (let z = z0 + 1.6; z < z1; z += 2.4) { tr.add(cx, y - 0.15, z, Math.PI / 2, 0, 0, 1, 1, X(33) - X(22) - 0.2); for (const s of [-1, 1]) { const b = tr.add(cx + s * 5.2, y - 0.75, z, Math.PI / 2, 0, s * 0.85, 1, 1, 1.6); } }
     tr.add(cx, y - 0.15, (z0 + z1) / 2, 0, 0, 0, 1, 1, z1 - z0 - 0.2); tr.build();
     for (const z of [X(26), X(30)]) { const ch = KIT.g(cx, z, 0, 3.7); KIT.c(ch, 0, 1.0, 0, 0.015, 0.015, 2.0, MATS.iron, 4, false); KIT.c(ch, 0, 0, 0, 0.75, 0.75, 0.05, MATS.iron, 18); for (let i = 0; i < 10; i++) { const a = (i / 10) * TAU; KIT.c(ch, Math.cos(a) * 0.72, 0.1, Math.sin(a) * 0.72, 0.025, 0.025, 0.16, wax, 6, false); KIT.glow(ch, Math.cos(a) * 0.72, 0.26, Math.sin(a) * 0.72, 0xffb050, 0.42, 0.85); } }
     kRug(cx, (X(24) + X(32)) / 2, 0, 1.3, X(32) - X(24), 0x7a1a1a);
-    { const p = KIT.g(X(25) + 0.6, X(31) + 0.6, 0.6); KIT.c(p, 0, 0.55, 0, 0.35, 0.42, 1.1, woodDark, 8); KIT.b(p, 0, 1.15, 0.1, 0.6, 0.06, 0.45, woodDark); KIT.solid(p, 0.8, 0.8, 1.1); }
+    { const p = KIT.g(X(25) + 0.6, X(31) + 0.6, 0.6); KIT.c(p, 0, 0.55, 0, 0.35, 0.42, 1.1, walnut, 8); KIT.b(p, 0, 1.15, 0.1, 0.6, 0.06, 0.45, walnut); KIT.solid(p, 0.8, 0.8, 1.1); }
     { const c = KIT.g(cx, X(33) + 1.8, 0); KIT.b(c, 0, 3.3, 0, 0.16, 1.6, 0.08, gold); KIT.b(c, 0, 3.6, 0, 0.9, 0.14, 0.08, gold); KIT.glow(c, 0, 3.4, 0.1, 0xffd080, 1.6, 0.35); }
     for (const s of [-1, 1]) { const st = KIT.g(cx + s * 1.6, X(32) + 1.2, 0); KIT.c(st, 0, 0.6, 0, 0.03, 0.08, 1.2, gold, 8); KIT.c(st, 0, 1.25, 0, 0.035, 0.035, 0.22, wax, 6, false); KIT.glow(st, 0, 1.42, 0, 0xffb050, 0.55, 0.9); }
     { const f = KIT.g(cx + 2.4, X(23) + 1.4, 0); KIT.c(f, 0, 0.45, 0, 0.12, 0.18, 0.9, fmat('stone', 0xb8b0a4), 10); KIT.c(f, 0, 0.95, 0, 0.32, 0.18, 0.16, fmat('stone', 0xb8b0a4), 12); KIT.solid(f, 0.6, 0.6, 1.0, 'concrete'); }
@@ -11320,7 +11571,7 @@ function filDetails() {
     for (let i = 0; i < 22; i++) { const x = X(37) + rand(0.4, X(47) - X(37) - 0.4), side = Math.random() < 0.5 ? X(18) - 0.02 : X(22) + 0.02, y = rand(0.8, 2.6), n = 3 + (Math.random() * 3) | 0, a = rand(-0.6, 0.6); for (let j = 0; j < n; j++) vein.add(x + Math.cos(a) * j * 0.07, y + Math.sin(a) * j * 0.07, side, rand(TAU), rand(TAU), 0, rand(0.5, 1), rand(0.5, 1), 0.6); }
     vein.build();
     const cartOre = new Batch(new THREE.DodecahedronGeometry(0.13, 0), goldGlow); for (let i = 0; i < 9; i++) cartOre.add(X(44) + rand(-0.4, 0.4), 1.24, X(19) + 1 + rand(-0.6, 0.6), rand(TAU), rand(TAU)); cartOre.build();
-    for (const [x, ry] of [[X(40) + 0.4, 0.3], [X(45) + 1, -0.4]]) { const t = KIT.g(x, X(22) - 0.35, ry); const h = KIT.b(t, 0, 0.75, 0, 0.05, 1.5, 0.05, fmat('planks', 0x9a7a5a)); h.rotation.z = 0.2; const hd = KIT.b(t, 0.15, 1.45, 0, 0.6, 0.06, 0.06, MATS.iron); hd.rotation.z = 0.2; }
+    for (const [x, ry] of [[X(40) + 0.4, 0.3], [X(45) + 1, -0.4]]) { const t = KIT.g(x, X(22) - 0.35, ry); const h = KIT.b(t, 0, 0.75, 0, 0.05, 1.5, 0.05, fmat('meuble', 0x9a7a5a)); /* manche de frêne poli par les mains */ h.rotation.z = 0.2; const hd = KIT.b(t, 0.15, 1.45, 0, 0.6, 0.06, 0.06, MATS.iron); hd.rotation.z = 0.2; }
   }
   // Cristaux de la caverne : touches de couleur froide le long des parois, hors du jeu.
   { const cm = new THREE.MeshStandardMaterial({ color: 0x6a8aff, emissive: 0x3a5aff, emissiveIntensity: 0.9, roughness: 0.15, metalness: 0.2, transparent: true, opacity: 0.85 }), cr = new Batch(new THREE.OctahedronGeometry(0.3, 0), cm, false), W = MAP_W * TILE, D = MAP_D * TILE, glows = KIT.g(0, 0);
