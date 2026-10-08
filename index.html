@@ -737,7 +737,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '5.2'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '6.0'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -4835,7 +4835,7 @@ function fxRay(from, to, up) {
 function shakeAt(p, amt, radius) { const d = R.camera.position.distanceTo(p); FX.shake = Math.max(FX.shake, amt * clamp(1 - d / radius, 0, 1)); }
 
 function updateFX(dt, time) {
-  FX.soft.update(dt); FX.glow.update(dt);
+  FX.soft.update(dt); FX.glow.update(dt); goreUpdate(dt);
   const fogD = R.scene.fog.density; FX.soft.mat.uniforms.uFogD.value = fogD; FX.glow.mat.uniforms.uFogD.value = fogD;
   for (const d of FX.decals) if (d.life > 0) {
     d.life -= dt; if (d.life <= 0) { d.m.visible = false; continue; }
@@ -6101,6 +6101,7 @@ class Zombie {
       const keys = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 14), MATS.brass); keys.position.set(0.18 - BONE_DEF[BN.hips][0], 0.98 - BONE_DEF[BN.hips][1], 0.05 - BONE_DEF[BN.hips][2]); keys.rotation.y = 1.2; this.bones[BN.hips].add(keys);
     }
     R.scene.add(this.holder);
+    if (ZREAL.state === 'on') this.useReal();
     this.pos = new THREE.Vector3(o.x, o.y ?? 0, o.z); this.yaw = o.yaw ?? 0;
     this.maxHp = this.hp = o.hp ?? 150; this.speed = (ZSPEED[this.kind] || 1) * rand(0.9, 1.1);
     this.state = o.state || 'rise'; this.t = 0; this.phase = rand(TAU); this.time = rand(10);
@@ -6250,9 +6251,10 @@ class Zombie {
     if (this.state === 'frozen') return;
     // Recul : ressort amorti.
     const kd = Math.exp(-9 * dt); this.fl.x *= kd; this.fl.y *= kd; this.fl.h *= kd;
+    goreTick(this, dt);
     // Détail selon la distance : pose moins souvent au loin, ombre seulement de près.
     const cam = R.camera.position, dx = this.pos.x - cam.x, dz = this.pos.z - cam.z, d2 = dx * dx + dz * dz;
-    this.shadowT -= dt; if (this.shadowT <= 0) { this.shadowT = 0.4 + Math.random() * 0.2; this.mesh.castShadow = d2 < 26 * 26; }
+    this.shadowT -= dt; if (this.shadowT <= 0) { this.shadowT = 0.4 + Math.random() * 0.2; (this.real?.mesh || this.mesh).castShadow = d2 < 26 * 26; }
     this.lodAcc += dt; const every = d2 > 70 * 70 ? 0.25 : d2 > 38 * 38 ? 0.066 : 0;
     if (this.lodAcc < every) return; this.lodAcc = 0;
     this.jawT += dt;
@@ -6261,6 +6263,15 @@ class Zombie {
     const scream = this.screaming > 0 ? Math.sin(Math.min(1, this.screaming / 1.2) * Math.PI) : 0;
     poseBody(this.bones, { phase: this.phase, run: this.brute ? 0 : run, lean: this.lean + (this.brute ? 0.1 : 0) - scream * 0.25, reach: this.speed > 3 || scream ? 0 : 1, attack: this.state === 'attack' ? this.attackT : 0, tear: this.state === 'tear' ? 1 : 0, crawl: this.crawl, rise: this.rise, headTilt: this.headTilt - scream * 0.5, t: this.time, limp: this.limp, moving: clamp(spd / Math.max(0.5, this.speed * 0.6), 0, 1), jaw: scream ? 0.2 + scream * 0.5 : 0.1 + Math.max(0, Math.sin(this.jawT * 2.3 + this.id)) * 0.18, fl: this.fl });
     if (this.headless) this.bones[BN.head].scale.setScalar(0.001);
+    if (this.real) zrealPose(this);
+  }
+  // Corps réaliste (09b_zreal.js) à la place du corps procédural, qui reste invisible et continue de bouger.
+  useReal() {
+    const t = this.boss ? ZREAL.boss : this.brute ? ZREAL.brute : ZREAL.list[this.variant % ZREAL.list.length]; if (!t) return;
+    this.real = zrealInstance(t); this.holder.add(this.real.root); this.mesh.visible = false;
+    this.real.bones.head.add(this.eyes); this.eyes.geometry = t.eyeGeo; this.eyes.position.set(0, 0, 0);
+    if (this.state === 'frozen') this.real.mesh.material = ZMAT_FROZEN;
+    zrealPose(this);
   }
   updateHitboxes() {
     this.holder.updateMatrixWorld(true);
@@ -6272,7 +6283,7 @@ class Zombie {
     const dir = (o.dir ? new THREE.Vector3(o.dir.x, 0, o.dir.z) : new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw))).normalize();
     if (o.head) { this.headless = true; this.headPos(_v2); fxBlood(_v2, _v3.set(0, 1, 0), 2.2); }
     this.eyes.visible = false;
-    this.mesh.castShadow = true;
+    (this.real?.mesh || this.mesh).castShadow = true;
     // Impulsion : balle (dans l'axe du tir), explosion (projection), corps-à-corps.
     const strength = o.explosive ? rand(2.2, 3.4) : o.melee ? rand(0.8, 1.2) : o.head ? rand(0.5, 0.9) : rand(0.35, 0.75);
     const impulse = dir.clone().multiplyScalar(strength); if (o.explosive) impulse.y += rand(1.6, 2.8);
@@ -6280,7 +6291,7 @@ class Zombie {
     this.bones[BN.head].scale.setScalar(1);
     this.syncPoseForDeath();
     this.rag = new Ragdoll(this, impulse, o.head ? 'head' : o.part || 'body', !!o.explosive);
-    if (this.headless) this.bones[BN.head].scale.setScalar(0.001);
+    if (this.headless) { this.bones[BN.head].scale.setScalar(0.001); zSever(this, BN.head, dir); } // tête éclatée : moignon du cou qui gicle
     this.limbs = true;
     if (Math.random() < 0.7) Sfx.zombie(this.pos, 'attack', 0.8);
   }
@@ -6294,11 +6305,13 @@ class Zombie {
       const cam = R.camera.position;
       if (this.rag.age < 4 || cam.distanceToSquared(this.rag.p[0]) < 900) this.rag.step(Math.min(dt, 1 / 30));
       if (this.t > 6) { this.rag.baseY -= dt * 0.22; this.rag.apply(); }
+      if (this.real) zrealPose(this);
+      goreTick(this, dt);
     }
     if (this.t > 9) this.destroy();
   }
-  freeze(t) { this.state = 'frozen'; this.frozenT = t; this.mesh.material = ZMAT_FROZEN; this.eyes.visible = false; Sfx.freeze(this.pos); }
-  destroy() { this.state = 'gone'; R.scene.remove(this.holder); this.mesh.skeleton.dispose(); this.eyes.material.dispose(); const i = ZOMBIES.indexOf(this); if (i >= 0) ZOMBIES.splice(i, 1); }
+  freeze(t) { this.state = 'frozen'; this.frozenT = t; this.mesh.material = ZMAT_FROZEN; if (this.real) this.real.mesh.material = ZMAT_FROZEN; this.eyes.visible = false; Sfx.freeze(this.pos); }
+  destroy() { this.state = 'gone'; R.scene.remove(this.holder); this.mesh.skeleton.dispose(); this.real?.mesh.skeleton.dispose(); this.eyes.material.dispose(); const i = ZOMBIES.indexOf(this); if (i >= 0) ZOMBIES.splice(i, 1); }
 }
 
 // Rayon contre les infectés : renvoie les touches triées jusqu'à maxDist.
@@ -6308,16 +6321,246 @@ function rayZombies(o, d, maxDist) {
     if (!z.alive || z.state === 'rise' && z.rise < 0.35) continue;
     const cx = z.pos.x - o.x, cz = z.pos.z - o.z, t0 = cx * d.x + cz * d.z; // pré-filtre horizontal
     if (t0 < -1 || t0 > maxDist + 1) continue;
-    let bestT = 1e9, bestPart = null;
+    let bestT = 1e9, bestPart = null, bestBone = null;
     for (const h of z.hit) {
+      if (h.off) continue; // membre arraché
       const lx = h.c.x - o.x, ly = h.c.y - o.y, lz = h.c.z - o.z, t = lx * d.x + ly * d.y + lz * d.z;
       if (t < 0) continue; const d2 = lx * lx + ly * ly + lz * lz - t * t, r2 = h.r * h.r;
       if (d2 > r2) continue; const th = t - Math.sqrt(r2 - d2);
-      if (th < bestT - (h.part === 'head' ? 0.05 : 0)) { bestT = th; bestPart = h.part; }
+      if (th < bestT - (h.part === 'head' ? 0.05 : 0)) { bestT = th; bestPart = h.part; bestBone = h.bone; }
     }
-    if (bestPart && bestT < maxDist) hits.push({ z, dist: bestT, part: bestPart });
+    if (bestPart && bestT < maxDist) hits.push({ z, dist: bestT, part: bestPart, bone: bestBone });
   }
   return hits.sort((a, b) => a.dist - b.dist);
+}
+
+
+// ───────────────────────── 09B_ZREAL ─────────────────────────
+/* ═══════════════════ INFECTÉS RÉALISTES : modèles MakeHuman, un type par époque ═══════════════════
+   Corps fabriqués hors du jeu (source/tools/make_zombies.py → assets/zombies/) : géométrie et squelette de 53 os en GLB,
+   une seule texture par infecté (couleur, relief, découpe des cheveux). Ils ne s'animent pas eux-mêmes : le squelette
+   procédural de 09_zombies.js (pose, recul, poupée de chiffon, sphères de tir) reste le seul à bouger, invisible, et
+   chaque os du modèle recopie la rotation de son os procédural (« reciblage »).
+   Graphismes « bas » (téléphones), ?nozreal ou échec du chargement : les corps procéduraux restent. */
+
+const ZREAL = { state: 'off', err: '', ms: 0, tpl: {}, list: [], brute: null, boss: null, era: '' };
+// Os procédural → os du modèle (squelette « game_engine » de MakeHuman).
+const ZR_MAP = [[BN.hips, 'pelvis'], [BN.spine, 'spine_01'], [BN.chest, 'spine_03'], [BN.neck, 'neck_01'], [BN.head, 'head'],
+  [BN.clavL, 'clavicle_l'], [BN.uArmL, 'upperarm_l'], [BN.fArmL, 'lowerarm_l'], [BN.handL, 'hand_l'],
+  [BN.clavR, 'clavicle_r'], [BN.uArmR, 'upperarm_r'], [BN.fArmR, 'lowerarm_r'], [BN.handR, 'hand_r'],
+  [BN.thighL, 'thigh_l'], [BN.shinL, 'calf_l'], [BN.footL, 'foot_l'], [BN.thighR, 'thigh_r'], [BN.shinR, 'calf_r'], [BN.footR, 'foot_r']];
+// Direction de repos à aligner : [os procédural, son enfant, os du modèle, son enfant] (bras et jambes : le modèle est
+// en « A », bras écartés ; le squelette procédural, bras le long du corps).
+const ZR_ALIGN = { upperarm_l: [BN.uArmL, BN.fArmL, 'lowerarm_l'], lowerarm_l: [BN.fArmL, BN.handL, 'hand_l'], upperarm_r: [BN.uArmR, BN.fArmR, 'lowerarm_r'], lowerarm_r: [BN.fArmR, BN.handR, 'hand_r'],
+  clavicle_l: [BN.clavL, BN.uArmL, 'upperarm_l'], clavicle_r: [BN.clavR, BN.uArmR, 'upperarm_r'], thigh_l: [BN.thighL, BN.shinL, 'calf_l'], calf_l: [BN.shinL, BN.footL, 'foot_l'],
+  thigh_r: [BN.thighR, BN.shinR, 'calf_r'], calf_r: [BN.shinR, BN.footR, 'foot_r'] };
+const ZR_SAME = { hand_l: 'lowerarm_l', hand_r: 'lowerarm_r', foot_l: 'calf_l', foot_r: 'calf_r' }; // poignet et cheville droits
+
+function zrealWanted() { return settings.quality >= 1 && location.protocol !== 'file:' && !/nozreal/.test(location.search); } // (page ouverte en local : pas de fetch)
+async function zrealStart() {
+  if (!zrealWanted() || ZREAL.state !== 'off') return;
+  ZREAL.state = 'loading'; const t0 = performance.now(), base = 'assets/zombies/';
+  try {
+    const man = await (await fetch(base + 'manifest.json', { cache: 'force-cache' })).json();
+    const era = man.eras[MAP_ID]; ZREAL.era = era;
+    const ids = Object.keys(man.chars).filter((k) => man.chars[k].era === era); if (!ids.length) throw new Error('aucun infecté pour ' + era);
+    const [{ GLTFLoader }, SU] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/utils/SkeletonUtils.js')]);
+    ZREAL.clone = SU.clone;
+    const gl = new GLTFLoader(), hi = settings.quality >= 2;
+    await Promise.all(ids.map(async (id) => {
+      const g = await gl.loadAsync(base + id + '.glb');
+      let src = null; g.scene.traverse((o) => { if (o.isSkinnedMesh) src = o.material; });
+      // Le GLB range la découpe (cheveux, cils) dans la case « occlusion » : elle redevient une découpe ici.
+      const map = hi ? src.map : zrealHalf(src.map);
+      const mat = snowify(new THREE.MeshStandardMaterial({ map, normalMap: src.normalMap, normalScale: new THREE.Vector2(0.9, 0.9), alphaMap: src.aoMap, alphaTest: 0.5, roughness: 0.8, side: THREE.DoubleSide }), 0.12);
+      ZREAL.tpl[id] = zrealTemplate(g.scene, mat, man.chars[id]);
+    }));
+    ZREAL.list = ids.filter((k) => !man.chars[k].brute).map((k) => ZREAL.tpl[k]);
+    ZREAL.brute = ZREAL.tpl[ids.find((k) => man.chars[k].brute)] || ZREAL.list[0];
+    ZREAL.boss = ZREAL.tpl[ids.find((k) => man.chars[k].boss)] || ZREAL.brute;
+    ZREAL.ms = Math.round(performance.now() - t0); ZREAL.state = 'on';
+    for (const z of [...ZOMBIES]) if (z.alive && !z.real) z.useReal(); // les infectés déjà levés changent de corps
+  } catch (e) { ZREAL.state = 'failed'; ZREAL.err = String(e?.message || e); }
+}
+
+// Graphismes « moyen » : couleur ramenée à 1024 px (moins de mémoire vidéo).
+function zrealHalf(t) {
+  const im = t.image, c = document.createElement('canvas'); c.width = (im.width / 2) | 0; c.height = (im.height / 2) | 0;
+  c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+  const h = new THREE.CanvasTexture(c); h.flipY = t.flipY; h.colorSpace = t.colorSpace; h.wrapS = t.wrapS; h.wrapT = t.wrapT; t.dispose(); return h;
+}
+// Modèle chargé → gabarit : maillage, os par nom, et pour chaque os suivi la rotation qui le cale sur l'os procédural.
+function zrealTemplate(scene, mat, info) {
+  // Mains en griffe : phalanges repliées vers la paume (le modèle est livré doigts tendus).
+  scene.traverse((o) => { if (o.isBone && /^(index|middle|ring|pinky)_0[123]_[lr]$/.test(o.name)) o.rotateX(0.38); else if (o.isBone && /^thumb_0[23]_[lr]$/.test(o.name)) o.rotateX(0.2); });
+  scene.updateMatrixWorld(true);
+  let mesh = null; scene.traverse((o) => { if (o.isSkinnedMesh) mesh = o; });
+  mesh.material = mat; mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false;
+  const bones = {}; for (const b of mesh.skeleton.bones) bones[b.name] = b;
+  const wq = (b) => b.getWorldQuaternion(new THREE.Quaternion()), wp = (b) => b.getWorldPosition(new THREE.Vector3());
+  const K = {};
+  for (const [bi, name] of ZR_MAP) {
+    const b = bones[name]; if (!b) continue;
+    const al = ZR_ALIGN[name] || ZR_ALIGN[ZR_SAME[name]];
+    let a = new THREE.Quaternion();
+    if (al) { const dp = boneW(al[1]).sub(boneW(al[0])).normalize(), dm = wp(bones[al[2]]).sub(wp(bones[ZR_SAME[name] || name])).normalize(); a.setFromUnitVectors(dm, dp); }
+    K[name] = a.multiply(wq(b)); // rotation du modèle quand l'os procédural est au repos
+  }
+  const order = []; const walk = (b) => { order.push(b.name); for (const c of b.children) if (c.isBone) walk(c); };
+  walk(mesh.skeleton.bones.find((b) => !b.parent?.isBone));
+  // Taille : les yeux du modèle à la hauteur de ceux du squelette procédural (1,657 m), pour que les sphères de tir
+  // (tête comprise) tombent sur le corps visible.
+  const k = clamp(1.657 / info.eyes[0][1], 0.85, 1.25);
+  const hipsOff = wp(bones.pelvis).multiplyScalar(k).sub(boneW(BN.hips)); // bassin du modèle (à l'échelle) − bassin procédural
+  // Lueur des yeux : deux petites sphères juste devant les globes (fiche du modèle), dans le repère de l'os de la tête.
+  const eyeGeo = mergeGeometries(info.eyes.map((e) => new THREE.SphereGeometry(0.0085, 8, 6).translate(...bones.head.worldToLocal(new THREE.Vector3(e[0], e[1], e[2] + 0.007)).toArray())));
+  return { scene, mesh, K, order, hipsOff, info, eyeGeo, k, id: mesh.name };
+}
+
+// Instance : copie du gabarit (géométrie et matériau partagés, squelette propre).
+function zrealInstance(tpl) {
+  const root = ZREAL.clone(tpl.scene); let mesh = null; root.traverse((o) => { if (o.isSkinnedMesh) mesh = o; });
+  const bones = {}; for (const b of mesh.skeleton.bones) bones[b.name] = b;
+  root.scale.setScalar(tpl.k); root.updateMatrixWorld(true);
+  // Repère fixe du corps → repère de l'os racine du modèle (le bassin s'y place) ; rotation du parent de cet os.
+  const top = bones[tpl.order[0]], toTop = new THREE.Matrix4(), m = new THREE.Matrix4();
+  for (let o = top; o && o !== root.parent; o = o.parent) toTop.premultiply(m.copy(o.matrix)); // racine → os racine (sans le porteur)
+  const topQ = new THREE.Quaternion(); for (let o = top.parent; o && o !== root.parent; o = o.parent) topQ.premultiply(o.quaternion);
+  return { root, mesh, bones, tpl, wq: {}, pq: BONE_DEF.map(() => new THREE.Quaternion()), fromTop: toTop.invert(), topQ };
+}
+
+const _zq = new THREE.Quaternion(), _zv = new THREE.Vector3(), _zv2 = new THREE.Vector3();
+// Reciblage, entièrement dans le repère du corps (le porteur) : chaque os suivi prend la rotation de son os procédural
+// (pose, recul ou poupée de chiffon), les autres suivent leur parent. Aucune matrice monde à recalculer.
+function zrealPose(z) {
+  const rr = z.real; if (!rr) return;
+  const { tpl, bones, wq, pq } = rr, pb = z.bones;
+  for (let i = 0; i < pb.length; i++) { const p = BONE_DEF[i][3]; if (p < 0) pq[i].copy(pb[i].quaternion); else pq[i].multiplyQuaternions(pq[p], pb[i].quaternion); }
+  for (let j = 0; j < tpl.order.length; j++) {
+    const name = tpl.order[j], b = bones[name], parentQ = j === 0 ? rr.topQ : wq[b.parent.name];
+    const k = tpl.K[name], w = wq[name] || (wq[name] = new THREE.Quaternion());
+    if (k) { w.multiplyQuaternions(pq[ZR_IDX[name]], k); b.quaternion.copy(parentQ).invert().multiply(w); }
+    else w.multiplyQuaternions(parentQ, b.quaternion);
+  }
+  // Bassin : à la place du bassin procédural (décalage de repos tourné avec lui), exprimé dans le repère de l'os racine.
+  _zv.copy(tpl.hipsOff).applyQuaternion(pq[BN.hips]).add(pb[BN.hips].position);
+  bones.pelvis.position.copy(_zv.applyMatrix4(rr.fromTop));
+}
+const ZR_IDX = Object.fromEntries(ZR_MAP.map(([bi, n]) => [n, bi]));
+
+
+// ───────────────────────── 09C_GORE ─────────────────────────
+/* ═══════════════════ GORE : membres arrachés, moignons, morceaux qui volent (façon Black Ops 2) ═══════════════════
+   L'hôte décide (dégâts cumulés sur un membre, mort par explosion, tir appuyé sur un membre) et prévient les invités
+   (événement « zlimb »). Un membre arraché : son os est réduit à rien (le maillage se replie sur l'articulation), un
+   moignon sanglant prend sa place et gicle quelques instants ; sur un corps réaliste, le vrai membre part en l'air
+   (copie du modèle dont tout le reste est replié). Une jambe perdue fait ramper l'infecté. */
+
+const GORE = { gibs: [], capGeo: null, capMat: null };
+// Membre : os procédural → [os qu'il emporte, rayon du moignon].
+const LIMBS = {
+  [BN.uArmL]: [[BN.fArmL, BN.handL], 0.055], [BN.fArmL]: [[BN.handL], 0.045], [BN.uArmR]: [[BN.fArmR, BN.handR], 0.055], [BN.fArmR]: [[BN.handR], 0.045],
+  [BN.thighL]: [[BN.shinL, BN.footL], 0.08], [BN.shinL]: [[BN.footL], 0.06], [BN.thighR]: [[BN.shinR, BN.footR], 0.08], [BN.shinR]: [[BN.footR], 0.06], [BN.head]: [[BN.jaw], 0.065],
+};
+const LEGS = new Set([BN.thighL, BN.shinL, BN.thighR, BN.shinR]);
+const ZR_NAME = Object.fromEntries(ZR_MAP);
+
+function goreAssets() {
+  if (GORE.capGeo) return;
+  // Moignon : chair à vif bosselée, rouge sombre et mouillée.
+  const g = new THREE.SphereGeometry(1, 12, 9), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) { const k = 0.82 + 0.3 * vnoise(p.getX(i) * 3 + 5, p.getY(i) * 3 + p.getZ(i) * 2); p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * 0.7, p.getZ(i) * k); }
+  g.computeVertexNormals(); GORE.capGeo = g;
+  GORE.capMat = new THREE.MeshStandardMaterial({ color: 0x5a0808, roughness: 0.28, metalness: 0.05, emissive: 0x120000 });
+}
+
+// Arrache le membre bi (os procédural). dir : sens du coup (le morceau part avec). Renvoie false si déjà parti.
+function zSever(z, bi, dir) {
+  if (!LIMBS[bi]) return false;
+  z.severed ||= new Set();
+  if (z.severed.has(bi)) return false;
+  for (const a of z.severed) if (LIMBS[a][0].includes(bi)) return false; // déjà emporté avec un os plus haut
+  goreAssets();
+  const [kids, r] = LIMBS[bi]; z.severed.add(bi);
+  for (const h of z.hit) if (h.bone === bi || kids.includes(h.bone)) h.off = true;
+  const rb = z.real ? z.real.bones[ZR_NAME[bi]] : z.bones[bi]; if (!rb) return false;
+  z.holder.updateMatrixWorld(true);
+  const joint = rb.getWorldPosition(new THREE.Vector3()), d = dir ? _v3.set(dir.x, 0.4, dir.z).normalize().clone() : new THREE.Vector3(0, 1, 0);
+  if (z.real && bi !== BN.head) goreGib(z, ZR_NAME[bi], d);
+  rb.scale.setScalar(0.001);
+  const cap = new THREE.Mesh(GORE.capGeo, GORE.capMat); cap.position.copy(rb.position); cap.scale.setScalar(r / (z.real ? z.real.tpl.k : 1)); cap.rotation.set(rand(TAU), rand(TAU), 0);
+  rb.parent.add(cap);
+  (z.spurts ||= []).push({ cap, t: rand(1.2, 2.2), acc: 0 });
+  fxBlood(joint, d, 1.6);
+  Sfx.flesh(joint, true);
+  if (LEGS.has(bi) && z.alive && !z.crawl) { z.crawl = true; z.speed = ZSPEED.crawler; if (!SPECIAL_HINTS[z.kind]) z.kind = 'crawler'; }
+  return true;
+}
+
+// Sang qui gicle des moignons (appelé à chaque image de l'infecté, vivant ou à terre).
+function goreTick(z, dt) {
+  if (!z.spurts) return;
+  for (const s of z.spurts) {
+    if (s.t <= 0) continue; s.t -= dt; s.acc += dt;
+    if (s.acc < 0.09) continue; s.acc = 0;
+    s.cap.getWorldPosition(_v1); fxBlood(_v1, _v2.set(rand(-0.3, 0.3), 1, rand(-0.3, 0.3)), 0.22 * Math.min(1, s.t + 0.3));
+  }
+}
+
+// Décision de l'hôte, coup non mortel : dégâts cumulés sur un membre.
+function goreOnHit(z, dmg, info) {
+  const b = info.bone; if (b == null || !LIMBS[b] || b === BN.head || info.explosive || info.melee || z.brute || z.boss) return [];
+  z.limbDmg ||= {}; const t = (z.limbDmg[b] = (z.limbDmg[b] || 0) + dmg);
+  return t >= Math.max(60, z.maxHp * (LEGS.has(b) ? 0.5 : 0.38)) ? [b] : [];
+}
+// Décision de l'hôte, coup mortel : une explosion démembre, un tir appuyé emporte le membre touché.
+function goreOnKill(z, dmg, info) {
+  const out = [];
+  if (info.explosive) {
+    const k = z.brute || z.boss ? 0.5 : 1;
+    for (const [up, fore] of [[BN.uArmL, BN.fArmL], [BN.uArmR, BN.fArmR], [BN.thighL, BN.shinL], [BN.thighR, BN.shinR]]) if (Math.random() < 0.5 * k) out.push(Math.random() < 0.5 ? up : fore);
+    if (!info.head && Math.random() < 0.2 * k) out.push(BN.head);
+  } else if (info.bone != null && LIMBS[info.bone] && info.bone !== BN.head && !info.melee && dmg >= 45 && Math.random() < 0.65) out.push(info.bone);
+  return out;
+}
+
+// Morceau qui vole : copie du modèle dans la pose du moment, dont tout est replié sauf le membre emporté.
+function goreGib(z, name, dir) {
+  while (GORE.gibs.length >= 10) goreDrop(GORE.gibs[0]);
+  const src = z.real, inst = zrealInstance(src.tpl);
+  for (const n in inst.bones) { const a = inst.bones[n], b = src.bones[n]; a.position.copy(b.position); a.quaternion.copy(b.quaternion); a.scale.copy(b.scale); }
+  const holder = new THREE.Group(); holder.add(inst.root);
+  src.root.updateMatrixWorld(true); src.root.parent.matrixWorld.decompose(holder.position, holder.quaternion, holder.scale);
+  R.scene.add(holder); holder.updateMatrixWorld(true);
+  const b = inst.bones[name], Td = b.matrixWorld.clone(), H0 = holder.matrixWorld.clone();
+  inst.bones[src.tpl.order[0]].scale.setScalar(1e-4); b.scale.multiplyScalar(1e4);
+  holder.updateMatrixWorld(true);
+  const H = Td.clone().multiply(b.matrixWorld.clone().invert()).multiply(H0); // le membre reste où il était
+  const pivot = new THREE.Group(); pivot.position.setFromMatrixPosition(Td); R.scene.add(pivot); pivot.updateMatrixWorld(true);
+  pivot.matrixWorld.clone().invert().multiply(H).decompose(holder.position, holder.quaternion, holder.scale); pivot.add(holder);
+  const cap = new THREE.Mesh(GORE.capGeo, GORE.capMat); cap.scale.setScalar(LIMBS[ZR_IDX[name]][1] / src.tpl.k * 0.9); b.add(cap);
+  inst.mesh.castShadow = true;
+  const g = { pivot, inst, life: 8, v: new THREE.Vector3(dir.x * rand(2, 4) + rand(-1, 1), rand(2.5, 4.5), dir.z * rand(2, 4) + rand(-1, 1)), w: new THREE.Vector3(rand(-9, 9), rand(-9, 9), rand(-9, 9)), rest: false, bleed: 0 };
+  GORE.gibs.push(g);
+}
+function goreDrop(g) { R.scene.remove(g.pivot); g.inst.mesh.skeleton.dispose(); GORE.gibs.splice(GORE.gibs.indexOf(g), 1); }
+const _gq = new THREE.Quaternion(), _ge = new THREE.Euler();
+function goreUpdate(dt) {
+  for (const g of [...GORE.gibs]) {
+    g.life -= dt; if (g.life <= 0) { goreDrop(g); continue; }
+    const p = g.pivot.position;
+    if (!g.rest) {
+      g.v.y -= 9.8 * dt; p.addScaledVector(g.v, dt);
+      g.pivot.quaternion.premultiply(_gq.setFromEuler(_ge.set(g.w.x * dt, g.w.y * dt, g.w.z * dt)));
+      g.bleed += dt; if (g.bleed > 0.06) { g.bleed = 0; fxBlood(p, _v2.set(0, 0.3, 0), 0.12); }
+      const floor = groundAt(p.x, p.z) + 0.05;
+      if (p.y < floor) {
+        p.y = floor;
+        if (g.v.y < -1.5) { g.v.y *= -0.25; g.v.x *= 0.45; g.v.z *= 0.45; g.w.multiplyScalar(0.4); Sfx.flesh(p, false); addDecal('blood', _v1.set(p.x, floor - 0.015, p.z), _v2.set(0, 1, 0), rand(0.2, 0.35), 60); }
+        else { g.rest = true; }
+      }
+    } else if (g.life < 1.5) p.y -= dt * 0.08; // s'enfonce avant de disparaître
+  }
 }
 
 
@@ -6721,7 +6964,7 @@ function traceShot(o, d, S, up) {
     }
     Sfx.flesh(point, head);
     h.z.flinch(d, h.part);
-    kill = G.hitZombie(h.z, dmg, P.id, { head, part: h.part, dir: d.clone(), weapon: VM.key, point: point.clone() }) || kill;
+    kill = G.hitZombie(h.z, dmg, P.id, { head, part: h.part, bone: h.bone, dir: d.clone(), weapon: VM.key, point: point.clone() }) || kill;
     hit = true; P.stats.hits++; pen--; dmg *= 0.7;
     if (pen <= 0) { end = point.clone(); break; }
   }
@@ -6737,7 +6980,7 @@ function raygunShot(S, up, o, d, muzzle) {
   if (h) {
     const head = h.part === 'head', dmg = S.dmg * (head ? (S.head || 1.4) * (P.perks.has('deadshot') ? 1.3 : 1) : 1);
     fxBlood(end, d, 0.6); h.z.flinch(d, h.part);
-    kill = G.hitZombie(h.z, dmg, P.id, { head, part: h.part, explosive: true, dir: d.clone(), weapon: 'raygun', point: end.clone() });
+    kill = G.hitZombie(h.z, dmg, P.id, { head, part: h.part, bone: h.bone, explosive: true, dir: d.clone(), weapon: 'raygun', point: end.clone() });
     hit = true; P.stats.hits++;
   }
   const sp = S.splash || 2;
@@ -7087,9 +7330,11 @@ const G = {
     if (z.boss && info.head && z.helmet) dmg *= 0.4; // casque : les tirs à la tête ricochent
     if (this.pu.instakill > 0 && !z.brute && !z.boss) dmg = z.hp;
     z.hp -= dmg;
-    if (z.hp <= 0) { this.killZombie(z, pid, info); return true; }
+    if (z.hp <= 0) { info.dmg = dmg; this.killZombie(z, pid, info); return true; }
     this.addPoints(pid, 10, true);
-    if (info.explosive && info.crawl && !z.brute && !z.crawl) { z.crawl = true; if (!SPECIAL_HINTS[z.kind]) z.kind = 'crawler'; z.speed = ZSPEED.crawler; this.emit('zcrawl', { id: z.id }, true); }
+    this.gore(z, goreOnHit(z, dmg, info), info.dir);
+    // Jambes emportées par l'explosion : l'infecté rampe (zSever le fait ramper, ici et chez les invités).
+    if (info.explosive && info.crawl && !z.brute && !z.crawl) this.gore(z, Math.random() < 0.5 ? [BN.shinL, BN.shinR] : [Math.random() < 0.5 ? BN.thighL : BN.thighR], info.dir);
     return false;
   },
   killZombie(z, pid, info) {
@@ -7101,11 +7346,18 @@ const G = {
     const d = info.dir || _v1.set(0, 0, 1);
     z.die({ head: !!info.head, part: info.part, dir: d, explosive: !!info.explosive, melee: !!info.melee });
     this.emit('zdie', { id: z.id, h: info.head ? 1 : 0, e: info.explosive ? 1 : 0, m: info.melee ? 1 : 0, dx: +d.x.toFixed(2), dz: +d.z.toFixed(2) }, true);
+    this.gore(z, goreOnKill(z, info.dmg || 0, info), d);
     this.alive = Math.max(0, this.alive - 1); this.killsSinceDrop++;
     this.lastKillPos = z.pos.clone();
     if (z.kind === 'frost') this.frostBurst(z.pos);
     this.maybeDrop(z);
     if (z.boss) mapHook('bossDown', z, pid);
+  },
+  // Membres arrachés (09c_gore.js) : appliqués ici et chez les invités.
+  gore(z, bones, dir) {
+    if (!bones.length) return;
+    const d = dir || _v1.set(0, 0, 1); for (const b of bones) zSever(z, b, d);
+    this.emit('zlimb', { id: z.id, b: bones, dx: +d.x.toFixed(2), dz: +d.z.toFixed(2) }, true);
   },
   // Givreux abattu : éclat de glace qui blesse et ralentit les soldats trop proches.
   frostBurst(p) {
@@ -7290,6 +7542,7 @@ const G = {
       case 'zdie': { const z = ZOMBIES.find((q) => q.id === d.id); if (z && z.alive) z.die({ head: !!d.h, explosive: !!d.e, melee: !!d.m, dir: _v1.set(d.dx, 0, d.dz) }); break; }
       case 'zfreeze': { const z = ZOMBIES.find((q) => q.id === d.id); if (z && z.alive) z.freeze(1.2); break; }
       case 'zshatter': { const z = ZOMBIES.find((q) => q.id === d.id); if (z && z.state !== 'dead') { z.state = 'dead'; z.holder.visible = false; z.t = 8.5; fxIce(_v1.set(z.pos.x, z.pos.y + 1, z.pos.z)); Sfx.shatter(z.pos); } break; }
+      case 'zlimb': { const z = ZOMBIES.find((q) => q.id === d.id); if (z) for (const b of d.b) zSever(z, b, _v1.set(d.dx, 0, d.dz)); break; }
       case 'zcrawl': { const z = ZOMBIES.find((q) => q.id === d.id); if (z) { z.crawl = true; z.speed = ZSPEED.crawler; } break; }
       case 'zv': { const z = ZOMBIES.find((q) => q.id === d[0]); if (z && z.remote) Sfx.zombie(z.pos, d[1] ? 'scream' : 'groan'); break; }
       case 'za': { const z = ZOMBIES.find((q) => q.id === d[0]); if (z && z.remote) { z.state = 'attack'; z.attackT = 0; Sfx.zombie(z.pos, 'attack'); } break; }
@@ -9543,7 +9796,7 @@ function applyQuality() {
   r.shadowMap.enabled = Q.shadows; L.moon.castShadow = Q.shadows;
   if (Q.shadows) { L.moon.shadow.mapSize.set(Q.shadowSize, Q.shadowSize); L.moon.shadow.map?.dispose(); L.moon.shadow.map = null; }
   L.torch.castShadow = Q.flashShadow;
-  R.dynScale = 1; buildComposer(); resize(); aoStart(); photoStart();
+  R.dynScale = 1; buildComposer(); resize(); aoStart(); photoStart(); zrealStart();
   if (R.snow) { R.scene.remove(R.snow); R.snow.geometry.dispose(); } buildSnow();
   R.scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => (m.needsUpdate = true)); });
 }
@@ -9559,7 +9812,7 @@ async function init() {
     await step(M.loading || 'CONSTRUCTION DU SECTEUR…');
     buildLights(); buildSky(); buildWorld();
     await step('LEVÉE DES MORTS…');
-    initFX(); buildZombieAssets(); mountWallWeapons(); if (!/nomerge/.test(location.search)) mergeStatic(); buildSnow(); photoStart(); aoStart();
+    initFX(); buildZombieAssets(); mountWallWeapons(); if (!/nomerge/.test(location.search)) mergeStatic(); buildSnow(); photoStart(); aoStart(); zrealStart();
     bindInput(); UI.init(); initBoard();
     NET.detect().then(() => UI.netStatus());
     G.reset();
@@ -9616,7 +9869,7 @@ setInterval(() => {
   while (el > 1e-3) { const dt = Math.min(0.05, el); G.update(dt); el -= dt; }
 }, 250);
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'playing' && !NET.active) pauseGame(); });
-window.SP = { PHOTO_SETS, KIT, meterize, buildGunModel, buildKnife, buildGrenadeModel, clipViewmodel, GM, PHOTO, MATS, GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
+window.SP = { PHOTO_SETS, KIT, meterize, ZREAL, GORE, buildGunModel, buildKnife, buildGrenadeModel, clipViewmodel, GM, PHOTO, MATS, GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
   sim(sec, dt = 0.05) { for (let t = 0; t < sec; t += dt) { if (G.mode === 'playing' || (G.mode === 'paused' && NET.active)) { G.update(dt); if (G.mode === 'playing') updatePlayer(dt); NET.clientTick(dt); } updateFX(dt, performance.now() / 1000 + t); } } };
 
 

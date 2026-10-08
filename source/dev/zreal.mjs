@@ -1,0 +1,60 @@
+// Infectés réalistes (09b_zreal.js) vus en jeu : chargement des modèles, puis infectés posés devant la caméra
+// (marche, course, à quatre pattes, attaque, mort avec tête arrachée) ; captures dans dev/shots/zreal_<carte>_<n>.jpg.
+// usage : node zreal.mjs <carte> [qualité=2] ; env Q='nophoto' pour aller plus vite.
+import { chromium } from 'playwright';
+import path from 'path';
+import fs from 'fs';
+const dir = path.dirname(new URL(import.meta.url).pathname);
+const id = process.argv[2] || 'penitencier', q = +(process.argv[3] ?? 2);
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+await ctx.addInitScript((q) => { localStorage.setItem('sp_settings', JSON.stringify({ quality: q })); }, q);
+const page = await ctx.newPage(); const errors = [];
+page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message));
+page.on('console', (m) => { if (m.type() === 'error') errors.push('[console] ' + m.text().slice(0, 300)); });
+await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(dir, 'node_modules/three', u.pathname.replace('/npm/three@0.186.1/', '')), contentType: 'application/javascript' }); });
+await page.route('https://cdn.jsdelivr.net/npm/n8ao@2.0.1/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/n8ao/dist/N8AO.js'), contentType: 'application/javascript' }));
+await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
+await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
+await page.goto('http://127.0.0.1:8088/index.html?' + (process.env.Q || '') + '#carte=' + id);
+await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
+await page.waitForFunction(() => !['off', 'loading'].includes(SP.ZREAL.state), null, { timeout: 300000, polling: 500 });
+await page.waitForFunction(() => SP.PHOTO.state !== 'loading', null, { timeout: 400000, polling: 1000 });
+const st = await page.evaluate(() => ({ state: SP.ZREAL.state, err: SP.ZREAL.err, ms: SP.ZREAL.ms, era: SP.ZREAL.era, n: SP.ZREAL.list.length, menuReal: SP.ZOMBIES.filter((z) => z.real).length, menu: SP.ZOMBIES.length }));
+console.log('ZREAL', JSON.stringify(st));
+await page.evaluate(() => document.querySelector('#soloButton').click());
+await page.waitForTimeout(1500);
+const shots = await page.evaluate(async () => {
+  const { G, P, R } = SP; P.hp = P.maxHp = 1e9; G.breakT = 1e9; G.toSpawn = 0; for (const z of [...SP.ZOMBIES]) z.destroy();
+  document.getElementById('hud').classList.add('hidden'); R.viewScene.visible = false;
+  const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw), rx = Math.cos(P.yaw), rz = -Math.sin(P.yaw);
+  const at = (f, s) => [P.pos.x + fx * f + rx * s, P.pos.z + fz * f + rz * s];
+  const kinds = [['walker', 4, -1.2], ['runner', 4.5, 0.2], ['brute', 5.5, 1.6], ['crawler', 3, 0.9], ['walker', 3.2, -0.2]];
+  const zs = kinds.map(([k, f, s]) => { const [x, z] = at(f, s); const zb = SP.spawnTestZombie(x, z, k); zb.yaw = Math.atan2(P.pos.x - x, P.pos.z - z); return zb; });
+  const out = []; const cw = 640, ch = 360, mc = document.createElement('canvas'); mc.width = cw * 2; mc.height = ch * 2; const c2 = mc.getContext('2d');
+  const snap = (i) => { SP.renderFrame(1); c2.drawImage(R.renderer.domElement, (i % 2) * cw, ((i / 2) | 0) * ch, cw, ch); };
+  const run = async (sec) => { for (let t = 0; t < sec; t += 1 / 30) { SP.sim(1 / 30); for (const z of zs) if (z.alive && z.state !== 'attack') { z.vel.multiplyScalar(0.2); } } };
+  await run(1.2); snap(0);
+  zs[4].state = 'attack'; zs[4].attackT = 0.3; zs[4].didHit = true; await run(0.25); snap(1);
+  zs[0].die({ dir: { x: fx, z: fz }, head: true }); zs[1].die({ dir: { x: fx, z: fz }, explosive: true }); await run(1.6); snap(2);
+  P.pitch = -0.35; await run(1.5); snap(3);
+  const url0 = mc.toDataURL('image/jpeg', 0.85);
+  // Gore : avant-bras arraché (vivant), jambe arrachée (il rampe), mort par explosion, tir en pleine tête.
+  for (const z of [...SP.ZOMBIES]) z.destroy(); P.pitch = -0.12; c2.clearRect(0, 0, mc.width, mc.height);
+  const g = [['walker', 3, -1.0], ['walker', 3.4, 0.6], ['walker', 4.2, -0.3], ['walker', 3.8, 1.5]].map(([k, f, s]) => { const [x, z] = at(f, s); const zb = SP.spawnTestZombie(x, z, k); zb.maxHp = 150; zb.yaw = Math.atan2(P.pos.x - x, P.pos.z - z); return zb; });
+  zs.length = 0; zs.push(...g); await run(0.6);
+  const dir = { x: fx, z: fz }, d3 = new SP.THREE.Vector3(fx, 0, fz);
+  SP.G.hitZombie(g[0], 120, P.id, { part: 'limb', bone: 8, dir: d3.clone() });
+  SP.G.hitZombie(g[1], 120, P.id, { part: 'limb', bone: 18, dir: d3.clone() });
+  g[2].hp = 50; SP.G.hitZombie(g[2], 200, P.id, { explosive: true, dir: d3.clone() });
+  g[3].hp = 50; SP.G.hitZombie(g[3], 200, P.id, { head: true, part: 'head', bone: 4, dir: d3.clone() });
+  await run(0.25); snap(0); await run(0.5); snap(1); await run(1.5); snap(2); P.pitch = -0.45; await run(0.5); snap(3);
+  const gore = { severed: g.map((z) => [...(z.severed || [])]), crawl: g[1].crawl, gibs: SP.GORE ? SP.GORE.gibs.length : -1 };
+  return { url: url0, url2: mc.toDataURL('image/jpeg', 0.85), gore, real: zs.map((z) => !!z.real), tris: SP.R.renderer.info.render.triangles };
+});
+fs.mkdirSync(path.join(dir, 'shots'), { recursive: true });
+fs.writeFileSync(path.join(dir, 'shots', `zreal_${id}_0.jpg`), Buffer.from(shots.url.split(',')[1], 'base64'));
+fs.writeFileSync(path.join(dir, 'shots', `zreal_${id}_1.jpg`), Buffer.from(shots.url2.split(',')[1], 'base64'));
+console.log('réalistes', shots.real.join(' '), 'gore', JSON.stringify(shots.gore));
+console.log('ERRORS', errors.length); for (const e of errors.slice(0, 10)) console.log(e);
+await browser.close();

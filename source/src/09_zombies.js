@@ -500,6 +500,7 @@ class Zombie {
       const keys = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 14), MATS.brass); keys.position.set(0.18 - BONE_DEF[BN.hips][0], 0.98 - BONE_DEF[BN.hips][1], 0.05 - BONE_DEF[BN.hips][2]); keys.rotation.y = 1.2; this.bones[BN.hips].add(keys);
     }
     R.scene.add(this.holder);
+    if (ZREAL.state === 'on') this.useReal();
     this.pos = new THREE.Vector3(o.x, o.y ?? 0, o.z); this.yaw = o.yaw ?? 0;
     this.maxHp = this.hp = o.hp ?? 150; this.speed = (ZSPEED[this.kind] || 1) * rand(0.9, 1.1);
     this.state = o.state || 'rise'; this.t = 0; this.phase = rand(TAU); this.time = rand(10);
@@ -649,9 +650,10 @@ class Zombie {
     if (this.state === 'frozen') return;
     // Recul : ressort amorti.
     const kd = Math.exp(-9 * dt); this.fl.x *= kd; this.fl.y *= kd; this.fl.h *= kd;
+    goreTick(this, dt);
     // Détail selon la distance : pose moins souvent au loin, ombre seulement de près.
     const cam = R.camera.position, dx = this.pos.x - cam.x, dz = this.pos.z - cam.z, d2 = dx * dx + dz * dz;
-    this.shadowT -= dt; if (this.shadowT <= 0) { this.shadowT = 0.4 + Math.random() * 0.2; this.mesh.castShadow = d2 < 26 * 26; }
+    this.shadowT -= dt; if (this.shadowT <= 0) { this.shadowT = 0.4 + Math.random() * 0.2; (this.real?.mesh || this.mesh).castShadow = d2 < 26 * 26; }
     this.lodAcc += dt; const every = d2 > 70 * 70 ? 0.25 : d2 > 38 * 38 ? 0.066 : 0;
     if (this.lodAcc < every) return; this.lodAcc = 0;
     this.jawT += dt;
@@ -660,6 +662,15 @@ class Zombie {
     const scream = this.screaming > 0 ? Math.sin(Math.min(1, this.screaming / 1.2) * Math.PI) : 0;
     poseBody(this.bones, { phase: this.phase, run: this.brute ? 0 : run, lean: this.lean + (this.brute ? 0.1 : 0) - scream * 0.25, reach: this.speed > 3 || scream ? 0 : 1, attack: this.state === 'attack' ? this.attackT : 0, tear: this.state === 'tear' ? 1 : 0, crawl: this.crawl, rise: this.rise, headTilt: this.headTilt - scream * 0.5, t: this.time, limp: this.limp, moving: clamp(spd / Math.max(0.5, this.speed * 0.6), 0, 1), jaw: scream ? 0.2 + scream * 0.5 : 0.1 + Math.max(0, Math.sin(this.jawT * 2.3 + this.id)) * 0.18, fl: this.fl });
     if (this.headless) this.bones[BN.head].scale.setScalar(0.001);
+    if (this.real) zrealPose(this);
+  }
+  // Corps réaliste (09b_zreal.js) à la place du corps procédural, qui reste invisible et continue de bouger.
+  useReal() {
+    const t = this.boss ? ZREAL.boss : this.brute ? ZREAL.brute : ZREAL.list[this.variant % ZREAL.list.length]; if (!t) return;
+    this.real = zrealInstance(t); this.holder.add(this.real.root); this.mesh.visible = false;
+    this.real.bones.head.add(this.eyes); this.eyes.geometry = t.eyeGeo; this.eyes.position.set(0, 0, 0);
+    if (this.state === 'frozen') this.real.mesh.material = ZMAT_FROZEN;
+    zrealPose(this);
   }
   updateHitboxes() {
     this.holder.updateMatrixWorld(true);
@@ -671,7 +682,7 @@ class Zombie {
     const dir = (o.dir ? new THREE.Vector3(o.dir.x, 0, o.dir.z) : new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw))).normalize();
     if (o.head) { this.headless = true; this.headPos(_v2); fxBlood(_v2, _v3.set(0, 1, 0), 2.2); }
     this.eyes.visible = false;
-    this.mesh.castShadow = true;
+    (this.real?.mesh || this.mesh).castShadow = true;
     // Impulsion : balle (dans l'axe du tir), explosion (projection), corps-à-corps.
     const strength = o.explosive ? rand(2.2, 3.4) : o.melee ? rand(0.8, 1.2) : o.head ? rand(0.5, 0.9) : rand(0.35, 0.75);
     const impulse = dir.clone().multiplyScalar(strength); if (o.explosive) impulse.y += rand(1.6, 2.8);
@@ -679,7 +690,7 @@ class Zombie {
     this.bones[BN.head].scale.setScalar(1);
     this.syncPoseForDeath();
     this.rag = new Ragdoll(this, impulse, o.head ? 'head' : o.part || 'body', !!o.explosive);
-    if (this.headless) this.bones[BN.head].scale.setScalar(0.001);
+    if (this.headless) { this.bones[BN.head].scale.setScalar(0.001); zSever(this, BN.head, dir); } // tête éclatée : moignon du cou qui gicle
     this.limbs = true;
     if (Math.random() < 0.7) Sfx.zombie(this.pos, 'attack', 0.8);
   }
@@ -693,11 +704,13 @@ class Zombie {
       const cam = R.camera.position;
       if (this.rag.age < 4 || cam.distanceToSquared(this.rag.p[0]) < 900) this.rag.step(Math.min(dt, 1 / 30));
       if (this.t > 6) { this.rag.baseY -= dt * 0.22; this.rag.apply(); }
+      if (this.real) zrealPose(this);
+      goreTick(this, dt);
     }
     if (this.t > 9) this.destroy();
   }
-  freeze(t) { this.state = 'frozen'; this.frozenT = t; this.mesh.material = ZMAT_FROZEN; this.eyes.visible = false; Sfx.freeze(this.pos); }
-  destroy() { this.state = 'gone'; R.scene.remove(this.holder); this.mesh.skeleton.dispose(); this.eyes.material.dispose(); const i = ZOMBIES.indexOf(this); if (i >= 0) ZOMBIES.splice(i, 1); }
+  freeze(t) { this.state = 'frozen'; this.frozenT = t; this.mesh.material = ZMAT_FROZEN; if (this.real) this.real.mesh.material = ZMAT_FROZEN; this.eyes.visible = false; Sfx.freeze(this.pos); }
+  destroy() { this.state = 'gone'; R.scene.remove(this.holder); this.mesh.skeleton.dispose(); this.real?.mesh.skeleton.dispose(); this.eyes.material.dispose(); const i = ZOMBIES.indexOf(this); if (i >= 0) ZOMBIES.splice(i, 1); }
 }
 
 // Rayon contre les infectés : renvoie les touches triées jusqu'à maxDist.
@@ -707,14 +720,15 @@ function rayZombies(o, d, maxDist) {
     if (!z.alive || z.state === 'rise' && z.rise < 0.35) continue;
     const cx = z.pos.x - o.x, cz = z.pos.z - o.z, t0 = cx * d.x + cz * d.z; // pré-filtre horizontal
     if (t0 < -1 || t0 > maxDist + 1) continue;
-    let bestT = 1e9, bestPart = null;
+    let bestT = 1e9, bestPart = null, bestBone = null;
     for (const h of z.hit) {
+      if (h.off) continue; // membre arraché
       const lx = h.c.x - o.x, ly = h.c.y - o.y, lz = h.c.z - o.z, t = lx * d.x + ly * d.y + lz * d.z;
       if (t < 0) continue; const d2 = lx * lx + ly * ly + lz * lz - t * t, r2 = h.r * h.r;
       if (d2 > r2) continue; const th = t - Math.sqrt(r2 - d2);
-      if (th < bestT - (h.part === 'head' ? 0.05 : 0)) { bestT = th; bestPart = h.part; }
+      if (th < bestT - (h.part === 'head' ? 0.05 : 0)) { bestT = th; bestPart = h.part; bestBone = h.bone; }
     }
-    if (bestPart && bestT < maxDist) hits.push({ z, dist: bestT, part: bestPart });
+    if (bestPart && bestT < maxDist) hits.push({ z, dist: bestT, part: bestPart, bone: bestBone });
   }
   return hits.sort((a, b) => a.dist - b.dist);
 }

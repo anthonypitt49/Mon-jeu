@@ -198,7 +198,7 @@ function fxRay(from, to, up) {
 function shakeAt(p, amt, radius) { const d = R.camera.position.distanceTo(p); FX.shake = Math.max(FX.shake, amt * clamp(1 - d / radius, 0, 1)); }
 
 function updateFX(dt, time) {
-  FX.soft.update(dt); FX.glow.update(dt);
+  FX.soft.update(dt); FX.glow.update(dt); goreUpdate(dt);
   const fogD = R.scene.fog.density; FX.soft.mat.uniforms.uFogD.value = fogD; FX.glow.mat.uniforms.uFogD.value = fogD;
   for (const d of FX.decals) if (d.life > 0) {
     d.life -= dt; if (d.life <= 0) { d.m.visible = false; continue; }

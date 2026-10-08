@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#222">
+<script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js","three/addons/":"../node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(512, 768); document.body.appendChild(r.domElement);
+r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping;
+const s = new THREE.Scene(); s.background = new THREE.Color(0x30343a);
+s.add(new THREE.HemisphereLight(0xcfd8e8, 0x3a3028, 1.2)); const d = new THREE.DirectionalLight(0xfff2e0, 2.2); d.position.set(2, 4, 3); s.add(d);
+const cam = new THREE.PerspectiveCamera(30, 512 / 768, 0.1, 50);
+window.shots = async (file) => {
+  const g = await new GLTFLoader().loadAsync(file); s.add(g.scene);
+  let zm = null; if (file.startsWith('zombies/')) g.scene.traverse((o) => { if (o.isSkinnedMesh) { const m = o.material; zm = new THREE.MeshStandardMaterial({ map: m.map, normalMap: m.normalMap, alphaMap: m.aoMap, alphaTest: 0.5, roughness: 0.8, side: THREE.DoubleSide }); } });
+  g.scene.traverse((o) => { if (!o.isMesh) return; if (zm) { o.material = zm; return; } const m = o.material, fur = /eyebrow|eyelash|short|long|bob|braid|afro|ponytail/.test(o.name);
+    m.transparent = false; m.depthWrite = true; m.alphaTest = fur ? 0.5 : 0; m.side = fur ? THREE.DoubleSide : THREE.FrontSide; m.needsUpdate = true; });
+  const info = { meshes: 0, tris: 0, bones: 0, mats: [] };
+  g.scene.traverse((o) => { if (o.isMesh) { info.meshes++; info.tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; info.mats.push(o.material.name + ':' + (o.material.map ? o.material.map.image.width : 0)); } if (o.isBone) info.bones++; });
+  if (window.CURL) g.scene.traverse((o) => { if (o.isBone && /^(index|middle|ring|pinky)_0[123]_[lr]$/.test(o.name)) o.rotateX(window.CURL); if (o.isBone && /^thumb_0[23]_[lr]$/.test(o.name)) o.rotateX(window.CURL * 0.5); });
+  if (window.HAND) { g.scene.updateMatrixWorld(true); let h = null; g.scene.traverse((o) => { if (o.name === 'hand_l') h = o; }); const p = h.getWorldPosition(new THREE.Vector3()); const out2 = [];
+    for (const [dx, dy, dz] of [[0.35, 0, 0.05], [0, -0.05, 0.35], [0.1, -0.35, 0.1]]) { cam.position.set(p.x + dx, p.y + dy, p.z + dz); cam.lookAt(p.x + 0.06, p.y - 0.05, p.z); r.render(s, cam); out2.push(r.domElement.toDataURL('image/jpeg', 0.85)); }
+    return { info, out: out2 }; }
+  const out = [];
+  for (const a of [0, 0.7, Math.PI]) { cam.position.set(Math.sin(a) * 4.2, 1.0, Math.cos(a) * 4.2); cam.lookAt(0, 0.9, 0); r.render(s, cam); out.push(r.domElement.toDataURL('image/jpeg', 0.85)); }
+  cam.position.set(0, 1.62, 0.9); cam.lookAt(0, 1.6, 0); r.render(s, cam); out.push(r.domElement.toDataURL('image/jpeg', 0.85));
+  return { info, out };
+};
+window.ready = true;
+</script>

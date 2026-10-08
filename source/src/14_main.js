@@ -37,7 +37,7 @@ function applyQuality() {
   r.shadowMap.enabled = Q.shadows; L.moon.castShadow = Q.shadows;
   if (Q.shadows) { L.moon.shadow.mapSize.set(Q.shadowSize, Q.shadowSize); L.moon.shadow.map?.dispose(); L.moon.shadow.map = null; }
   L.torch.castShadow = Q.flashShadow;
-  R.dynScale = 1; buildComposer(); resize(); aoStart(); photoStart();
+  R.dynScale = 1; buildComposer(); resize(); aoStart(); photoStart(); zrealStart();
   if (R.snow) { R.scene.remove(R.snow); R.snow.geometry.dispose(); } buildSnow();
   R.scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => (m.needsUpdate = true)); });
 }
@@ -53,7 +53,7 @@ async function init() {
     await step(M.loading || 'CONSTRUCTION DU SECTEUR…');
     buildLights(); buildSky(); buildWorld();
     await step('LEVÉE DES MORTS…');
-    initFX(); buildZombieAssets(); mountWallWeapons(); if (!/nomerge/.test(location.search)) mergeStatic(); buildSnow(); photoStart(); aoStart();
+    initFX(); buildZombieAssets(); mountWallWeapons(); if (!/nomerge/.test(location.search)) mergeStatic(); buildSnow(); photoStart(); aoStart(); zrealStart();
     bindInput(); UI.init(); initBoard();
     NET.detect().then(() => UI.netStatus());
     G.reset();
@@ -110,5 +110,5 @@ setInterval(() => {
   while (el > 1e-3) { const dt = Math.min(0.05, el); G.update(dt); el -= dt; }
 }, 250);
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'playing' && !NET.active) pauseGame(); });
-window.SP = { PHOTO_SETS, KIT, meterize, buildGunModel, buildKnife, buildGrenadeModel, clipViewmodel, GM, PHOTO, MATS, GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
+window.SP = { PHOTO_SETS, KIT, meterize, ZREAL, GORE, buildGunModel, buildKnife, buildGrenadeModel, clipViewmodel, GM, PHOTO, MATS, GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
   sim(sec, dt = 0.05) { for (let t = 0; t < sec; t += dt) { if (G.mode === 'playing' || (G.mode === 'paused' && NET.active)) { G.update(dt); if (G.mode === 'playing') updatePlayer(dt); NET.clientTick(dt); } updateFX(dt, performance.now() / 1000 + t); } } };

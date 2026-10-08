@@ -22,6 +22,7 @@ run crater node crater.mjs
 run box node box.mjs
 run bench node bench.mjs
 run board node board.mjs
+run zreal_penitencier env Q=nophoto node zreal.mjs penitencier 2
 run touch node touch.mjs
 run coop node coop.mjs
 run coopmap node coopmap.mjs

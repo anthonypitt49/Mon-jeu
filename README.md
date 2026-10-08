@@ -39,6 +39,14 @@ Les quatre cartes ont été reprises en détail : fenêtres avec encadrements, a
 
 **Les objets aussi** : chaque meuble, véhicule ou machine a sa vraie matière, de l'époque de sa carte : teck des meubles de 1957, chêne du mobilier de la prison de 1933, noyer du saloon de 1880 ; tweed des canapés, velours des rideaux du saloon, cuir du fauteuil du directeur ; émail de la cuisine et de la salle de bains, tôle peinte des boîtes aux lettres et des voitures, épaves calcinées rongées de rouille, poubelles en tôle galvanisée ; caisses, tonneaux, étais de mine et barricades en bois brut, portes et volets en bois peint écaillé ; char et matériel militaire du Poste 7 en tôle peinte, arbres morts en écorce ; pierre de la ferme et du clocher en ruine, poutres et maisons calcinées, laiton patiné des chandeliers et des poignées, pneus en caoutchouc mat, comptoir de marbre et bottes de foin du Filon, pots en terre cuite et sacs de sable en jute de la Cité. Les photos sont posées à leur vraie taille sur chaque pièce (le fil du bois suit la longueur des pieds de table). Crédits : [assets/objets/CREDITS.md](assets/objets/CREDITS.md).
 
+**Des infectés réalistes, un type par époque** (graphismes « moyen » et au-dessus) : de vrais corps humains, sculptés et habillés, puis zombifiés (peau grise et marbrée, veines, orbites creuses aux yeux luisants, bouche en sang, plaies à vif, vêtements boueux, déchirés et ensanglantés).
+- **Poste 7** : poilus en bleu horizon, casque Adrian et bandes molletières ; un tirailleur en kaki.
+- **Cité Atomique** : habitants du village témoin de 1957 (blouson, costume, robe, salopette).
+- **Le Pénitencier** : détenus en toile grise, gardiens en uniforme marine ; le Geôlier est l'un d'eux, en géant.
+- **Filon Maudit** : mineurs en salopette et chapeau, gens de la ville de 1880.
+
+**Gore** : les tirs appuyés arrachent bras et jambes (un infecté qui perd une jambe se met à ramper), les explosions démembrent, les têtes éclatent. Les membres volent et retombent, les moignons giclent. Sur téléphone (graphismes « bas »), les infectés gardent leur corps simplifié, plus léger. Corps, peaux et vêtements : [MakeHuman](https://static.makehumancommunity.org) (CC0), crédits dans [assets/zombies/CREDITS.md](assets/zombies/CREDITS.md).
+
 Les photos (4 à 6,5 Mo par carte, plus 2 à 3 Mo d'objets communs) se chargent pendant que vous jouez ; en graphismes « bas » (téléphones), une version allégée (≈ 1 Mo). En graphismes « élevé » et « ultra », un **ombrage d'ambiance** assombrit les coins, les recoins et le pied des murs. Ressources libres de droits (CC0) de [Poly Haven](https://polyhaven.com) (et [ambientCG](https://ambientcg.com) pour le laiton et le marbre), crédits dans `assets/<carte>/CREDITS.md` ([Poste 7](assets/poste7/CREDITS.md), [Cité](assets/cite/CREDITS.md), [Pénitencier](assets/penitencier/CREDITS.md), [Filon](assets/filon/CREDITS.md)).
 
 ## Commandes

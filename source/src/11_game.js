@@ -210,9 +210,11 @@ const G = {
     if (z.boss && info.head && z.helmet) dmg *= 0.4; // casque : les tirs à la tête ricochent
     if (this.pu.instakill > 0 && !z.brute && !z.boss) dmg = z.hp;
     z.hp -= dmg;
-    if (z.hp <= 0) { this.killZombie(z, pid, info); return true; }
+    if (z.hp <= 0) { info.dmg = dmg; this.killZombie(z, pid, info); return true; }
     this.addPoints(pid, 10, true);
-    if (info.explosive && info.crawl && !z.brute && !z.crawl) { z.crawl = true; if (!SPECIAL_HINTS[z.kind]) z.kind = 'crawler'; z.speed = ZSPEED.crawler; this.emit('zcrawl', { id: z.id }, true); }
+    this.gore(z, goreOnHit(z, dmg, info), info.dir);
+    // Jambes emportées par l'explosion : l'infecté rampe (zSever le fait ramper, ici et chez les invités).
+    if (info.explosive && info.crawl && !z.brute && !z.crawl) this.gore(z, Math.random() < 0.5 ? [BN.shinL, BN.shinR] : [Math.random() < 0.5 ? BN.thighL : BN.thighR], info.dir);
     return false;
   },
   killZombie(z, pid, info) {
@@ -224,11 +226,18 @@ const G = {
     const d = info.dir || _v1.set(0, 0, 1);
     z.die({ head: !!info.head, part: info.part, dir: d, explosive: !!info.explosive, melee: !!info.melee });
     this.emit('zdie', { id: z.id, h: info.head ? 1 : 0, e: info.explosive ? 1 : 0, m: info.melee ? 1 : 0, dx: +d.x.toFixed(2), dz: +d.z.toFixed(2) }, true);
+    this.gore(z, goreOnKill(z, info.dmg || 0, info), d);
     this.alive = Math.max(0, this.alive - 1); this.killsSinceDrop++;
     this.lastKillPos = z.pos.clone();
     if (z.kind === 'frost') this.frostBurst(z.pos);
     this.maybeDrop(z);
     if (z.boss) mapHook('bossDown', z, pid);
+  },
+  // Membres arrachés (09c_gore.js) : appliqués ici et chez les invités.
+  gore(z, bones, dir) {
+    if (!bones.length) return;
+    const d = dir || _v1.set(0, 0, 1); for (const b of bones) zSever(z, b, d);
+    this.emit('zlimb', { id: z.id, b: bones, dx: +d.x.toFixed(2), dz: +d.z.toFixed(2) }, true);
   },
   // Givreux abattu : éclat de glace qui blesse et ralentit les soldats trop proches.
   frostBurst(p) {
@@ -413,6 +422,7 @@ const G = {
       case 'zdie': { const z = ZOMBIES.find((q) => q.id === d.id); if (z && z.alive) z.die({ head: !!d.h, explosive: !!d.e, melee: !!d.m, dir: _v1.set(d.dx, 0, d.dz) }); break; }
       case 'zfreeze': { const z = ZOMBIES.find((q) => q.id === d.id); if (z && z.alive) z.freeze(1.2); break; }
       case 'zshatter': { const z = ZOMBIES.find((q) => q.id === d.id); if (z && z.state !== 'dead') { z.state = 'dead'; z.holder.visible = false; z.t = 8.5; fxIce(_v1.set(z.pos.x, z.pos.y + 1, z.pos.z)); Sfx.shatter(z.pos); } break; }
+      case 'zlimb': { const z = ZOMBIES.find((q) => q.id === d.id); if (z) for (const b of d.b) zSever(z, b, _v1.set(d.dx, 0, d.dz)); break; }
       case 'zcrawl': { const z = ZOMBIES.find((q) => q.id === d.id); if (z) { z.crawl = true; z.speed = ZSPEED.crawler; } break; }
       case 'zv': { const z = ZOMBIES.find((q) => q.id === d[0]); if (z && z.remote) Sfx.zombie(z.pos, d[1] ? 'scream' : 'groan'); break; }
       case 'za': { const z = ZOMBIES.find((q) => q.id === d[0]); if (z && z.remote) { z.state = 'attack'; z.attackT = 0; Sfx.zombie(z.pos, 'attack'); } break; }

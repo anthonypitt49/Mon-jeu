@@ -397,7 +397,7 @@ function traceShot(o, d, S, up) {
     }
     Sfx.flesh(point, head);
     h.z.flinch(d, h.part);
-    kill = G.hitZombie(h.z, dmg, P.id, { head, part: h.part, dir: d.clone(), weapon: VM.key, point: point.clone() }) || kill;
+    kill = G.hitZombie(h.z, dmg, P.id, { head, part: h.part, bone: h.bone, dir: d.clone(), weapon: VM.key, point: point.clone() }) || kill;
     hit = true; P.stats.hits++; pen--; dmg *= 0.7;
     if (pen <= 0) { end = point.clone(); break; }
   }
@@ -413,7 +413,7 @@ function raygunShot(S, up, o, d, muzzle) {
   if (h) {
     const head = h.part === 'head', dmg = S.dmg * (head ? (S.head || 1.4) * (P.perks.has('deadshot') ? 1.3 : 1) : 1);
     fxBlood(end, d, 0.6); h.z.flinch(d, h.part);
-    kill = G.hitZombie(h.z, dmg, P.id, { head, part: h.part, explosive: true, dir: d.clone(), weapon: 'raygun', point: end.clone() });
+    kill = G.hitZombie(h.z, dmg, P.id, { head, part: h.part, bone: h.bone, explosive: true, dir: d.clone(), weapon: 'raygun', point: end.clone() });
     hit = true; P.stats.hits++;
   }
   const sp = S.splash || 2;

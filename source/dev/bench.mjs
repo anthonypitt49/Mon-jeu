@@ -13,6 +13,7 @@ await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '',
 await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
 await page.goto('http://127.0.0.1:8088/' + (process.env.FILE || 'index.html'));
 await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
+await page.waitForFunction(() => !SP.ZREAL || SP.ZREAL.state !== 'loading', null, { timeout: 300000, polling: 500 }); // infectés réalistes chargés
 await page.click('#soloButton');
 const r = await page.evaluate(async (N) => {
   SP.P.hp = SP.P.maxHp = 1e9; SP.sim(4);
@@ -26,7 +27,7 @@ const r = await page.evaluate(async (N) => {
   let upd = 0, ren = 0; const F = 16;
   for (let i = 0; i < F; i++) { upd += T(() => { SP.G.update(1 / 60); SP.updatePlayer(1 / 60); }); ren += T(() => SP.renderFrame(i)); }
   const rr = SP.R.renderer; rr.info.autoReset = false; rr.info.reset(); rr.render(SP.R.scene, SP.R.camera); const calls = rr.info.render.calls, tris = rr.info.render.triangles; rr.info.autoReset = true;
-  return { zombies: SP.ZOMBIES.filter((z) => z.alive).length, updateMs: +(upd / F).toFixed(2), renderMs: +(ren / F).toFixed(1), calls, tris };
+  return { real: SP.ZOMBIES.filter((z) => z.real).length, zombies: SP.ZOMBIES.filter((z) => z.alive).length, updateMs: +(upd / F).toFixed(2), renderMs: +(ren / F).toFixed(1), calls, tris };
 }, N);
 console.log(JSON.stringify(r), 'errors', errors.length, errors.slice(0, 3));
 await browser.close();

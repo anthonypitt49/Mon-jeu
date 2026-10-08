@@ -2,6 +2,29 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.0) : des infectés réalistes, un type par époque, et du gore
+
+Demande du propriétaire : « je veux aller chercher la qualité de visuel d'un zombie de Call of Duty Black Ops 2 mode Zombie ». Ses choix : voie gratuite faite ici, un type par époque, gore comme BO2, version simplifiée sur téléphone.
+
+- **Le constat d'abord** : les corps du jeu étaient faits de tubes et de sphères calculés par le code (`09_zombies.js`) ; aucun réglage ne les aurait menés au niveau de BO2, dont les personnages sont sculptés. Il fallait de vrais modèles 3D.
+- **Fabrication hors du jeu** (`tools/make_zombies.py`) : Blender 4.2 sans écran (module Python `bpy`), extension MPFB2 et pack de ressources MakeHuman (CC0 : corps paramétrables, 27 peaux, vêtements, cheveux, yeux, dents). Pour chaque infecté : silhouette (sexe, âge, carrure, taille), peau, squelette « game_engine » (53 os), visage complet, vêtements teints à l'époque, pièces ajoutées (casque Adrian, casquette de gardien) ; allègement (≈ 14 000 triangles), toutes les textures réunies en une seule image (un seul appel de dessin par infecté), puis **zombification peinte en 3D** : chaque texel connaît sa position sur le corps (rasterisation des triangles dans l'espace UV), d'où peau grise et froide marbrée, veines, ecchymoses, orbites creuses cerclées de rouge, yeux laiteux, bouche et menton en sang, plaies à vif (jamais sur le visage) ; vêtements : boue qui monte du bas, crasse, sang séché sur la poitrine, accrocs ; bandes molletières peintes en spirale pour les poilus. Relief tiré du détail fin de la couleur. Un GLB par infecté (≈ 1 Mo) contenant ses trois images (couleur 2048, relief 1024, découpe des cheveux et des cils rangée dans la case « occlusion » du glTF : un seul fichier, l'Artifact limite le nombre de fichiers).
+- **18 infectés** : Poste 7 (poilus bleu horizon, tirailleur kaki, gros gabarit), Cité 1957 (blouson, vieux monsieur en costume, femme en tailleur, chemise rayée, mécanicien), Pénitencier 1933 (détenus en toile grise, gardien marine, qui sert aussi de Geôlier géant), Filon 1880 (mineur à chapeau, chemise de laine, notable, femme en robe, mineur costaud).
+- **Dans le jeu** (`09b_zreal.js`) : chargés en arrière-plan comme les photos ; les infectés déjà debout changent de corps à l'arrivée. Ils ne s'animent pas eux-mêmes : le squelette procédural (pose, recul, poupée de chiffon, sphères de tir) reste le seul à bouger, invisible, et chaque os du modèle recopie la rotation monde de son os (**reciblage**), avec une rotation de calage par os (le modèle est en « A », bras écartés). Taille : les yeux du modèle à 1,657 m, la hauteur de ceux du squelette, pour que les tirs à la tête tombent sur la tête visible. Lueur des yeux gardée (deux petites sphères devant les globes). Graphismes « bas » (téléphones), `?nozreal` ou échec : corps procéduraux, inchangés. « Moyen » : couleur réduite à 1024.
+- **Gore** (`09c_gore.js`), décidé par l'hôte et transmis (`zlimb`) : dégâts cumulés sur un bras ou une jambe (38 % / 50 % des points de vie, 60 au moins ; pas sur les costauds ni le boss) → membre arraché ; une jambe perdue fait ramper ; mort par explosion → membres arrachés au hasard (et parfois la tête) ; tir appuyé mortel sur un membre → membre arraché ; tête éclatée → moignon du cou. Un membre arraché : os réduit à rien (le maillage se replie sur l'articulation), moignon de chair qui gicle quelques secondes, sphère de tir retirée ; sur un corps réaliste, le vrai membre vole (copie du modèle dans la pose du moment, tout le reste replié ; position recalée par matrices), rebondit, saigne et s'enfonce au bout de 8 s (10 au plus). Les explosions qui faisaient ramper arrachent maintenant les jambes.
+- Mains en griffe : phalanges repliées de 0,38 rad vers la paume au chargement (le modèle est livré doigts tendus ; sens vérifié à la visionneuse).
+- **Coût** (`bench.mjs`, 24 infectés, « élevé », rendu logiciel du conteneur) : mise à jour de la partie 0,99 → 2,3 ms par image (reciblage calculé dans le repère du corps, sans matrices monde : la première version coûtait 4,7 ms) ; rendu + 19 % (1,06 → 1,58 million de triangles). Téléchargement : 4 à 5 Mo par carte (un fichier par infecté), seulement en « moyen » et au-dessus.
+- Outils : `dev/zreal.mjs` (infectés en jeu, puis scène de gore), `dev/zviewer/` (visionneuse d'un GLB), `bench.mjs` attend les modèles.
+- Pièges rencontrés : matériaux MakeHuman exportés « transparents » et double face (l'intérieur de la tête passait devant les yeux : le jeu pose son propre matériau) ; silhouette (âge, taille) à figer avant de mesurer le crâne ; tête du modèle 4,5 cm en avant de l'axe du corps (le casque était décentré) ; âge MakeHuman 0,4 = adolescent (1,58 m).
+
+Reste à faire sur les infectés :
+1. Visage figé : le squelette « game_engine » n'a pas de mâchoire (la bouche ne s'ouvre pas en attaquant).
+2. Un seul jeu d'animations procédurales pour tous : des animations capturées (Quaternius, CC0) donneraient des démarches plus naturelles.
+3. Le Colosse du Filon et les avatars des camarades restent procéduraux.
+4. Les tirs des invités ne transmettent pas l'os touché : chez eux, seuls les coups mortels (explosion, tête) arrachent des membres.
+5. [à vérifier] Sur un vrai PC modeste avec 24 infectés et leurs ombres ; sur iPhone, rien ne change (corps simplifiés).
+
+Ensuite, dans l'ordre demandé par le propriétaire : revue des quatre cartes (murs invisibles, objets mal placés, surtout à la Cité Atomique ; sols : mottes de terre et de neige peu réalistes au Poste 7, et pas assez de neige pour un hiver), puis la résolution et la qualité d'image.
+
 ## Fait (version 5.2) : les matières restées sans photo
 
 Mise en ligne le 8 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu avec salon co-op (version 17, 44 fichiers envoyés, 441 en tout ; une version en accepte 511).
@@ -28,8 +51,6 @@ Reste à faire sur les objets :
 3. Anachronismes de forme, pas de matière : bidon en forme de jerrican (inventé en 1937) et ampoules électriques au Filon de 1880.
 4. Bogue ancien, sans lien : l'aile basse du biplan du Poste 7 n'est jamais dans la scène (`R.scene.add(w)` avalé par un commentaire, `11c_crater.js`).
 5. [à vérifier] Sur iPhone.
-
-Ensuite, dans l'ordre demandé par le propriétaire : les zombies (viser la qualité de ceux de Call of Duty Black Ops 2, mode Zombies), puis une revue des quatre cartes (murs invisibles, objets mal placés, surtout à la Cité Atomique ; sols : mottes de terre et de neige peu réalistes au Poste 7, et pas assez de neige pour un hiver), puis la résolution et la qualité d'image.
 
 ## Fait (version 5.1) : les objets en textures photo
 

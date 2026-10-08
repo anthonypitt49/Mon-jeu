@@ -7,13 +7,16 @@ Le jeu en ligne est **un seul fichier**, `index.html`, à la racine du dépôt. 
 | Dossier ou fichier | Rôle |
 |---|---|
 | `src/shell.html` | La page : menus, interface, styles. |
-| `src/00_core.js` … `src/99_start.js` | Le jeu, découpé en 36 parties assemblées dans l'ordre de leur numéro (moteur, textures, son, cartes, infectés, armes, co-op…). Le numéro de version est `GAME_VERSION` dans `src/00_core.js`. |
-| `build.mjs` | Assemble `shell.html` et les 36 parties en un seul fichier. |
+| `src/00_core.js` … `src/99_start.js` | Le jeu, découpé en 40 parties assemblées dans l'ordre de leur numéro (moteur, textures, son, cartes, infectés, armes, co-op…). Le numéro de version est `GAME_VERSION` dans `src/00_core.js`. |
+| `build.mjs` | Assemble `shell.html` et les 40 parties en un seul fichier. |
 | `dev/` | Les tests automatiques : un navigateur sans écran joue des parties, seul ou à plusieurs, et vérifie que tout se passe bien. |
 | `dev/runall.sh` | La batterie complète (environ 2 heures). |
 | `dev/armes.mjs` | Planche de contrôle des armes (profil, trois quarts, en main, en visée) dans `dev/shots/`, pour dessiner ou retoucher une arme (`src/08b_gunmodels.js`). |
 | `tools/fetch_assets.py` | Télécharge et prépare les textures photo et l'éclairage d'une carte (Poly Haven, CC0) dans `../assets/<carte>/` : `python3 tools/fetch_assets.py cite` (`objets` : photos des objets, communes aux quatre cartes ; options par photo : `gray`, `contrast`, `sat`, `renorm`, `nkey`, `flat`, `crop`, `ao`, `rgain`, `src: 'acg'` pour ambientCG) ; `--petit` refait seulement les versions allégées (`_s`, 512 px) chargées en graphismes « bas ». |
 | `dev/objets.mjs` | Vues rapprochées des objets posés sur une carte (une par sorte d'objet, 6 par planche) dans `dev/shots/` : `node objets.mjs cite 2 avant` ; `Q=nophoto` pour la version dessinée ; `FAM=foin,marbre` : une vue par famille de matière. |
+| `tools/make_zombies.py` | Fabrique les infectés réalistes (un type par époque) dans `../assets/zombies/` : corps, peaux et vêtements MakeHuman (CC0) assemblés par l'extension MPFB2 dans Blender sans écran (module Python `bpy` 4.2), allégés, réunis en une seule texture, zombifiés en 3D, exportés en GLB avec le squelette « game_engine ». Installation en tête du fichier ; `…/python make_zombies.py [1917|1957|1933|1880|identifiant]`. |
+| `dev/zreal.mjs` | Infectés réalistes vus en jeu (marche, course, à quatre pattes, attaque, morts, puis gore : membre arraché, jambe perdue, explosion, tête) : `node zreal.mjs penitencier 2` → `dev/shots/zreal_<carte>_0.jpg` et `_1.jpg`. |
+| `dev/zviewer/` | Visionneuse d'un modèle GLB (face, trois-quarts, dos, visage) : `node zviewer/shot.mjs zombies/p7_a.glb zviewer/out/p7_a`. |
 | `dev/matieres.mjs` | Échantillons des matières d'objets (un cube et un cylindre par famille, avec la vraie matière du jeu) sous l'éclairage d'une carte : `node matieres.mjs cite 2 [foin,marbre]`. Plus fiable que les vues d'objets pour juger une photo : la caméra n'est jamais ramenée dans la zone jouable. |
 | `dev/photo.mjs` | Visite d'une carte en textures photo (`node photo.mjs cite 2` → captures dans `dev/shots/`) ; avec `CHECK=1`, vérifie seulement que chaque matière prévue a reçu sa photo (dans `runall.sh`). `dev/photoperf.mjs <carte>` mesure le coût des photos et de l'ombrage. |
 | `tools/fetch_sounds.py` | Cherche sur Freesound (CC0) 4 candidats par son et fabrique une page d'écoute, dans `../assets/sounds/candidats/` (non publié). Clé : variable d'environnement `FREESOUND_API_KEY`. |

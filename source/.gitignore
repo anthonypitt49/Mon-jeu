@@ -9,3 +9,5 @@ _check.mjs
 dev/assets
 dev/manifest.webmanifest
 __pycache__/
+dev/zviewer/out/
+dev/zviewer/zombies
