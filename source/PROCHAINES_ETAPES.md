@@ -4,6 +4,8 @@ Note de passation entre sessions de travail : où en est le projet et ce qui vie
 
 ## Fait (version 5.2) : les matières restées sans photo
 
+Mise en ligne le 8 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu avec salon co-op (version 17, 44 fichiers envoyés, 441 en tout ; une version en accepte 511).
+
 Demande du propriétaire : « occupe toi de ce qui reste sans photo ». Les huit matières que la 5.1 avait laissées dessinées ont maintenant leur famille (`OBJ_FAM`) et leur photo commune (`assets/objets/`, 42 fichiers, 1,4 Mo de plus, chargés seulement sur les cartes qui les portent).
 
 - **Choix des photos** : 8 éclaireurs (catalogues Poly Haven et ambientCG, vignettes regardées, simulations à l'échelle) puis un contradicteur par choix. Quatre contradicteurs ont tourné (les quatre autres ont buté sur la limite d'usage ; leurs choix ont été vérifiés à l'œil en mosaïque 2×2 et en jeu).
