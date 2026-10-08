@@ -25,9 +25,14 @@ function buildCraterProps() {
   for (const [a, l] of [[0.3, 1.25], [0.3 + Math.PI, 0.55]]) { const b = mesh(boxG(0.06, l, 0.16), rawPost(), 2.95, Math.cos(a) * l * 0.5, Math.sin(a) * l * 0.5, 0, body); b.rotation.x = a; } // hélice (une pale cassée)
   // Ailes arrachées à l'impact : l'inférieure gît à plat dans la neige (on marche dessus),
   // la moitié de l'aile supérieure est restée appuyée contre la paroi est du cratère.
-  { const w = new THREE.Group(); w.position.set(45.0, fy(45.0, 36.2) - 0.12, 36.2); w.rotation.order = "YXZ"; w.rotation.y = 0.35; w.rotation.x = -0.125; // couchée dans la pente R.scene.add(w);
-    mesh(boxG(1.35, 0.08, 8.2), fabric, 0, 0, 0, 0, w, false);
-    for (const z of [-3.2, 3.2]) { const r = mesh(new THREE.PlaneGeometry(0.9, 0.9), roundel, 0, 0.05, z, 0, w, false); r.rotation.x = -Math.PI / 2; } }
+  // L'aile basse (emplanture le long du fuselage, bout à 70 cm de la paroi sud) épouse la cuvette, longerons brisés :
+  // rigide, aucune pose de ses 8 m ne colle à la pente à moins de 11 cm près. Chaque sommet est posé sur la neige
+  // (dessous enfoui de 3 cm, dessus 5 cm plus haut), les cocardes aussi, un centimètre au-dessus de l'entoilage.
+  { const ay = 0.75, w = new THREE.Group(); w.position.set(46.3, 0, 35.8); w.rotation.y = ay; R.scene.add(w);
+    const lay = (x, z) => fy(w.position.x + x * Math.cos(ay) + z * Math.sin(ay), w.position.z - x * Math.sin(ay) + z * Math.cos(ay));
+    const drape = (geo, dy, oz = 0) => { const p = geo.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) + dy + lay(p.getX(i), p.getZ(i) + oz)); geo.computeVertexNormals(); return geo; };
+    mesh(drape(new THREE.BoxGeometry(1.35, 0.08, 8.2, 3, 1, 16), 0.01), fabric, 0, 0, 0, 0, w, false);
+    for (const z of [-3.2, 3.2]) mesh(drape(new THREE.PlaneGeometry(0.9, 0.9, 3, 3).rotateX(-Math.PI / 2), 0.06, z), roundel, 0, 0, z, 0, w, false); }
   { const w = new THREE.Group(); w.position.set(53.25, 0, 30.3); R.scene.add(w);
     const p = mesh(boxG(4.4, 0.1, 1.4), fabric, 0, 0, 0, 0, w); p.rotation.set(0, Math.PI / 2, 1.15); p.position.set(0.2, 0.95, 0);
     const r = mesh(new THREE.PlaneGeometry(0.9, 0.9), roundel, 0, 0, 0, 0, w); r.position.set(0.14, 1.2, 1.1); r.rotation.set(0, -Math.PI / 2 + 0.42, 0);

@@ -28,13 +28,13 @@ Demande du propriétaire : « fais les objets en textures photo maintenant ». A
 - Outil : `dev/objets.mjs <carte> [qualité] [préfixe] [sortes]` → vues rapprochées des objets posés (une par sorte, 6 par planche, `dev/shots/`), grâce à `KIT.spots` (`?spots`).
 - Mesures (Cité, `photoperf.mjs`) : mémoire vidéo des textures en « élevé » 228 → 258 Mo (+ 30 Mo pour les objets) ; en « bas », 84 Mo avec les photos allégées ; temps d'image sans écart mesurable.
 - Tests avant mise en ligne : vérification photo des quatre cartes en « bas » et en « élevé » (chaque famille présente reçoit sa photo, les absentes ne sont pas téléchargées), vues rapprochées des objets et tournées des quatre cartes regardées une à une, `feat.mjs`, `mapplay` sur les quatre cartes, `touch.mjs`, `sounds.mjs`, `volumes.mjs`, `fullscreen.mjs`, `coop.mjs` et `coopmap.mjs` (erreurs des relais MQTT publics, refusés par le conteneur, seulement) : bons.
+- Après la mise en ligne (pas encore publié) : l'aile basse du biplan du Poste 7 n'était jamais dans la scène depuis 902561b (`R.scene.add(w)` avalé par un commentaire, `11c_crater.js`) ; une fois rendue visible, sa pose rigide l'aurait enfouie de 0 à 44 cm (elle fait 8 cm d'épaisseur) et son bout entrait dans la paroi sud. Aucune pose rigide de 8 m ne colle à la cuvette à moins de 11 cm : l'aile épouse maintenant la neige (chaque sommet posé sur `floorH`, cocardes comprises), emplanture le long du fuselage sans le toucher, bout à 70 cm de la paroi sud ; sans collision (on marche dessus). Vues rapprochées regardées (`photo.mjs`, avec et sans photos), `mapplay poste7` et `crater.mjs` : bons (contournement de l'épave inchangé).
 
 Reste à faire sur les objets :
 1. Sans famille, laissés tels quels : bois calciné (`MATS.char` : habitacle du biplan, maisons brûlées au loin), pierre (`MATS.stone`), caoutchouc (tuyaux, pneus), laiton, marbre, foin, verre, lampes, enseignes, petits objets colorés (conserves, livres, bonbons).
 2. Trousse : `kTable` et `kChair` imposent leurs pieds en bois, `kShelf`, `kSign` et `kLamp` leur matière (le Filon les remplace après coup) ; un paramètre de matière serait plus propre. `kStove` : cuisinière domestique émaillée aussi dans la cuisine de la prison de 1933 (il y faudrait un fourneau en fonte).
 3. Anachronismes de forme, pas de matière : bidon en forme de jerrican (inventé en 1937) et ampoules électriques au Filon de 1880.
-4. Bogue ancien, sans lien : l'aile basse du biplan du Poste 7 n'est jamais dans la scène (`R.scene.add(w)` avalé par un commentaire, `11c_crater.js`).
-5. [à vérifier] Sur iPhone, comme pour la 5.0.
+4. [à vérifier] Sur iPhone, comme pour la 5.0.
 
 ## Fait (version 5.0) : les trois autres cartes en textures photo
 
