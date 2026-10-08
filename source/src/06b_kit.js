@@ -22,7 +22,7 @@ function kitMats() {
   if (KM.chrome) return KM;
   Object.assign(KM, {
     chrome: stdMat({ color: 0xd9dde2, roughness: 0.18, metalness: 1 }),
-    rubber: stdMat({ color: 0x151515, roughness: 0.85 }),
+    rubber: fmat('caoutchouc', 0x1c1b1a, { rough: 0.85 }),
     glass: new THREE.MeshStandardMaterial({ color: 0x1b252c, roughness: 0.05, metalness: 0.7, transparent: true, opacity: 0.55 }),
     // Familles photo (OBJ_FAM, 05b_flat.js) : bois de meuble, tissu d'ameublement, acier, fonte, toile.
     wood: fmat('meuble', 0x8a6446), woodDark: fmat('meuble', 0x4e3526), woodLight: fmat('meuble', 0xc49a6c),
@@ -117,7 +117,7 @@ function kShelf(x, z, ry, w = 1.6, h = 2, items = true) {
   const r = mulberry32((x * 13 + z * 7) | 0), cans = [0xc23b3b, 0x3b7ac2, 0xd6b23a, 0x6aa84f, 0xe8e2d0];
   for (let i = 0; i < 4; i++) {
     const y = 0.1 + i * (h - 0.2) / 3; KIT.b(g, 0, y, 0, w, 0.03, 0.45, k.steel);
-    if (items && i < 3) for (let j = 0; j < 7; j++) if (r() > 0.25) { const c = KIT.c(g, -w / 2 + 0.15 + j * (w - 0.3) / 6, y + 0.08, (r() - 0.5) * 0.2, 0.05, 0.05, 0.14, KIT.m(cans[(r() * cans.length) | 0], { rough: 0.4 }), 8, false); }
+    if (items && i < 3) for (let j = 0; j < 7; j++) if (r() > 0.25) { const c = KIT.c(g, -w / 2 + 0.15 + j * (w - 0.3) / 6, y + 0.08, (r() - 0.5) * 0.2, 0.05, 0.05, 0.14, fmat('tole', cans[(r() * cans.length) | 0], { rough: 0.4 }), 8, false); }
   }
   KIT.solid(g, w, 0.45, h, 'metal'); return g;
 }
@@ -131,8 +131,8 @@ function kRug(x, z, ry, w, d, color) { const g = KIT.g(x, z, ry); const m = mesh
 function kToilet(x, z, ry) { const g = KIT.g(x, z, ry), w = kitMats().porcelain; KIT.c(g, 0, 0.2, 0.05, 0.16, 0.13, 0.4, w, 12); KIT.c(g, 0, 0.42, 0.08, 0.2, 0.2, 0.05, w, 14).scale.set(1, 1, 1.25); KIT.b(g, 0, 0.6, -0.2, 0.42, 0.36, 0.17, w); KIT.b(g, 0, 0.8, -0.2, 0.44, 0.04, 0.19, w); KIT.solid(g, 0.45, 0.65, 0.8, 'concrete'); return g; }
 function kSink(x, z, ry, mirror = true) { const g = KIT.g(x, z, ry), k = kitMats(), w = k.porcelain; KIT.c(g, 0, 0.42, -0.05, 0.06, 0.09, 0.84, w, 10); KIT.b(g, 0, 0.86, 0, 0.55, 0.12, 0.42, w); KIT.b(g, 0, 0.93, -0.15, 0.04, 0.12, 0.04, k.chrome); if (mirror) { KIT.b(g, 0, 1.55, -0.2, 0.55, 0.7, 0.02, KIT.m(0xd8dde2, { rough: 0.02, metal: 1 }), 0, false); KIT.b(g, 0, 1.55, -0.205, 0.61, 0.76, 0.015, k.white, 0, false); } return g; }
 function kUpperCab(x, z, ry, len = 3, color = 0xe9e4d6) { const g = KIT.g(x, z, ry, 1.6), m = fmat('email', color, { rough: 0.5 }), k = kitMats(); KIT.b(g, 0, 0.38, 0, len, 0.75, 0.35, m); for (let i = 0; i < Math.round(len / 0.6); i++) { const px = -len / 2 + 0.3 + i * 0.6; KIT.b(g, px, 0.38, 0.178, 0.56, 0.7, 0.01, fmat('email', color, { rough: 0.35 }), 0, false); KIT.b(g, px + 0.2, 0.2, 0.19, 0.02, 0.1, 0.02, k.chrome, 0, false); } return g; }
-function kPlant(x, z, s = 1, pot = 0xb8643a) { const g = KIT.g(x, z, rand(TAU)); KIT.c(g, 0, 0.18 * s, 0, 0.17 * s, 0.13 * s, 0.36 * s, KIT.m(pot, { rough: 0.8 }), 10); const leaf = KIT.m(0x3f7a3a, { rough: 0.8 }); for (let i = 0; i < 7; i++) { const a = (i / 7) * TAU, l = KIT.b(g, Math.cos(a) * 0.12 * s, (0.55 + rand(0, 0.25)) * s, Math.sin(a) * 0.12 * s, 0.08 * s, 0.5 * s, 0.02 * s, leaf, -a, false); l.rotation.z = Math.cos(a) * 0.5; l.rotation.x = Math.sin(a) * 0.5; } return g; }
-function kBookcase(x, z, ry, w = 1.2, h = 2) { const g = KIT.g(x, z, ry), wood = kitMats().woodDark; KIT.b(g, 0, h / 2, 0, w, h, 0.32, wood); const cols = [0x7a2a22, 0x2a4a6a, 0x5a5a3a, 0x3a2a4a, 0x8a6a3a, 0x2a5a3a]; for (let r = 0; r < 4; r++) for (let i = 0; i < Math.floor(w / 0.07) - 2; i++) { if (Math.random() < 0.12) continue; const bh = 0.22 + Math.random() * 0.1; KIT.b(g, -w / 2 + 0.1 + i * 0.07, 0.15 + r * (h / 4.2) + bh / 2, 0.05, 0.06, bh, 0.22, KIT.m(cols[(i * 7 + r * 3) % cols.length], { rough: 0.9 }), 0, false); } KIT.solid(g, w, 0.35, h); return g; }
+function kPlant(x, z, s = 1, pot = 0xb8643a) { const g = KIT.g(x, z, rand(TAU)); KIT.c(g, 0, 0.18 * s, 0, 0.17 * s, 0.13 * s, 0.36 * s, fmat('terreCuite', pot, { rough: 0.8 }), 10); const leaf = KIT.m(0x3f7a3a, { rough: 0.8 }); for (let i = 0; i < 7; i++) { const a = (i / 7) * TAU, l = KIT.b(g, Math.cos(a) * 0.12 * s, (0.55 + rand(0, 0.25)) * s, Math.sin(a) * 0.12 * s, 0.08 * s, 0.5 * s, 0.02 * s, leaf, -a, false); l.rotation.z = Math.cos(a) * 0.5; l.rotation.x = Math.sin(a) * 0.5; } return g; }
+function kBookcase(x, z, ry, w = 1.2, h = 2) { const g = KIT.g(x, z, ry), wood = kitMats().woodDark; KIT.b(g, 0, h / 2, 0, w, h, 0.32, wood); const cols = [0x7a2a22, 0x2a4a6a, 0x5a5a3a, 0x3a2a4a, 0x8a6a3a, 0x2a5a3a]; for (let r = 0; r < 4; r++) for (let i = 0; i < Math.floor(w / 0.07) - 2; i++) { if (Math.random() < 0.12) continue; const bh = 0.22 + Math.random() * 0.1; KIT.b(g, -w / 2 + 0.1 + i * 0.07, 0.15 + r * (h / 4.2) + bh / 2, 0.05, 0.06, bh, 0.22, fmat('toile', cols[(i * 7 + r * 3) % cols.length], { rough: 0.9 }), 0, false); } KIT.solid(g, w, 0.35, h); return g; }
 
 /* ─── Mobilier urbain ─── */
 function kLampPost(x, z, ry, light = null) {

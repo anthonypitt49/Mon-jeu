@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Télécharge et prépare les textures photo et l'éclairage (HDRI) d'une carte.
 
-Toutes les ressources sont sous licence CC0 (Poly Haven) : libres, sans attribution obligatoire.
+Toutes les ressources sont sous licence CC0 (Poly Haven, et ambientCG pour quelques objets : 'src': 'acg') : libres,
+sans attribution obligatoire.
 Usage : python3 tools/fetch_assets.py poste7   (depuis source/ ; écrit ../assets/<carte>/)
         python3 tools/fetch_assets.py cite --petit   (refait seulement les versions allégées, sans rien télécharger)
 Chaque image existe en deux tailles : 1024 px, et une version allégée « _s » (512 px, rugosité 256) pour la qualité
@@ -95,6 +96,15 @@ SETS['objets'] = {
     'galva':     {'id': 'corrugated_iron',           'maps': 'cnr', 'px': 512},                 # poubelles en tôle galvanisée
     'olive':     {'id': 'green_metal_rust',          'maps': 'c',   'px': 512, 'gray': True},   # matériel militaire peint
     'ecorce':    {'id': 'bark_willow_02',            'maps': 'cnr', 'px': 512},
+    # Matières qui n'ont pas de vraie photo CC0 (bois brûlé, laiton) : la photo la plus proche, retouchée.
+    'calcine':   {'id': 'pine_bark',                 'maps': 'cnr', 'px': 512, 'gray': True, 'contrast': 0.85, 'ao': True},  # bois calciné : plaques et fentes noires
+    'pierre':    {'id': 'broken_wall',               'maps': 'cn',  'px': 512, 'gray': True, 'contrast': 0.85, 'nkey': 'normal_gl', 'flat': 'c'},  # moellons de la ferme et du clocher
+    'laiton':    {'src': 'acg', 'id': 'Metal007',    'maps': 'cr',  'px': 512, 'gray': True, 'rgain': 2.2},  # rugosité ×2,2 : patine, pas un miroir
+    'caoutchouc': {'id': 'rubberized_track',         'maps': 'cnr', 'px': 512, 'gray': True, 'contrast': 1.5},  # pneus : caoutchouc mat
+    'marbre':    {'src': 'acg', 'id': 'Marble001',   'maps': 'cr',  'px': 512},                 # comptoir du Filon (marbre poli)
+    'foin':      {'id': 'reed_roof_04',              'maps': 'cnr', 'px': 512, 'crop': 96 / 1024},  # bottes de foin (faîtage du toit coupé)
+    'terrecuite': {'id': 'red_plaster_weathered',    'maps': 'cnr', 'px': 512},                 # pots de fleurs
+    'jute':      {'id': 'hessian_380',               'maps': 'cnr', 'px': 512},                 # sacs de sable neufs de la Cité
 }
 
 # Éclairage d'ambiance : Poste 7, nuit couverte ; Cité, coucher de soleil sur un désert ; Pénitencier, nuit brumeuse ;
@@ -103,11 +113,25 @@ HDRI = {'poste7': 'kloppenheim_07', 'cite': 'rogland_sunset', 'penitencier': 'kl
 KEYS = {'c': 'Diffuse', 'n': 'nor_gl', 'r': 'Rough'}  # relief au format OpenGL, celui de three.js
 QUAL = {'c': 80, 'n': 88, 'r': 80}
 
-def get(url):
+def get(url, tries=4):
     req = urllib.request.Request(url, headers={'User-Agent': 'snowfall-protocol-assets'})
-    with urllib.request.urlopen(req, timeout=120) as r: return r.read()
+    for i in range(tries):  # connexion coupée en route : on réessaie (2, 4, 8 s)
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r: return r.read()
+        except OSError:
+            if i == tries - 1: raise
+            import time; time.sleep(2 ** (i + 1))
 
 def api(path): return json.loads(get('https://api.polyhaven.com/' + path))
+
+def acg(asset):
+    """ambientCG : fiche (nom, largeur réelle en cm) et cartes 1K (couleur, relief OpenGL, rugosité) tirées de l'archive."""
+    import zipfile
+    a = json.loads(get(f'https://ambientcg.com/api/v2/full_json?type=Material&id={asset}&include=dimensionsData'))['foundAssets'][0]
+    z = zipfile.ZipFile(io.BytesIO(get(f'https://ambientcg.com/get?file={asset}_1K-JPG.zip')))
+    pick = lambda suf: next(z.read(n) for n in z.namelist() if n.endswith(suf))
+    return {'name': a['displayName'], 'dim': a.get('dimensionX') or 100,
+            'maps': {'c': pick('_Color.jpg'), 'n': pick('_NormalGL.jpg'), 'r': pick('_Roughness.jpg')}}
 
 def luminance(img):
     a = np.asarray(img.convert('RGB').resize((64, 64)), dtype=np.float32) / 255.0
@@ -155,6 +179,31 @@ def renorm(img):
     a[..., :2] -= a[..., :2].mean(axis=(0, 1)); a[..., 2] = np.sqrt(np.clip(1 - (a[..., :2] ** 2).sum(axis=2), 0.05, 1))
     return Image.fromarray(np.clip((a + 1) * 127.5, 0, 255).astype(np.uint8))
 
+def flat(img, sigma=0.1):
+    """Grandes taches de clarté égalisées (une zone sombre revenait à chaque tuile, en grille sur un mur de 12 m) :
+    photo divisée par son flou (σ = 10 % de la largeur, calculé sur la photo répétée 3×3 pour rester raccordable)."""
+    import cv2
+    a = np.asarray(img, dtype=np.float32); H, W = a.shape[:2]  # (couleur, ou rugosité en niveaux de gris)
+    b = cv2.GaussianBlur(np.tile(a, (3, 3) + (1,) * (a.ndim - 2)), (0, 0), sigma * W)[H:2 * H, W:2 * W]
+    return Image.fromarray(np.clip(a / np.maximum(b, 1) * a.mean(axis=(0, 1)), 0, 255).astype(np.uint8))
+
+def crop_top(img, frac, level=False, fade=0.05):
+    """Bande du haut coupée (faîtage d'un toit de chaume), puis raccord haut/bas fondu : les lignes du bas reviennent
+    en fondu sur celles du haut, la photo se répète à nouveau sans couture. level : clarté égalisée ligne par ligne
+    (la photo s'assombrit du haut vers le bas : sinon, une bande sombre à chaque raccord)."""
+    a = np.asarray(img, dtype=np.float32); H = a.shape[0]
+    a = a[int(round(H * frac)):]; H = a.shape[0]; k = max(2, int(round(H * fade)))
+    if level:
+        import cv2
+        p = a.mean(axis=1).reshape(H, 1, -1)  # profil vertical (par canal), lissé sur ±3 % de la hauteur
+        p = cv2.GaussianBlur(p.reshape(H, -1), (0, 0), sigmaX=0.01, sigmaY=0.03 * H, borderType=cv2.BORDER_REPLICATE).reshape(p.shape)
+        g = p.mean(axis=0, keepdims=True)
+        if level == 'add': a = a + (g - p).reshape((H, 1) + a.shape[2:])  # relief : pente moyenne de chaque ligne recentrée
+        else: a = a * (g / np.maximum(p, 1)).reshape((H, 1) + a.shape[2:])
+    w = (np.arange(k, dtype=np.float32) / k).reshape((k,) + (1,) * (a.ndim - 1))
+    a[:k] = a[:k] * w + a[H - k:] * (1 - w)
+    return Image.fromarray(np.clip(a[:H - k], 0, 255).astype(np.uint8))
+
 def small(out, manifest):
     """Versions allégées pour la qualité « bas » : couleur 512 px, relief 512 px, rugosité 256 px."""
     for key, e in manifest.items():
@@ -175,23 +224,35 @@ def main(map_id, petit=False):
     info = api('assets?t=textures')
     manifest, credits = {}, []
     for key, s in SETS[map_id].items():
-        files, meta = api('files/' + s['id']), info[s['id']]
-        entry = {'m': round(meta['dimensions'][0] / 1000, 3), 'maps': s['maps']}
+        if s.get('src') == 'acg':  # ambientCG (CC0) : archive 1K-JPG, taille réelle en cm
+            meta = acg(s['id']); entry = {'m': round(meta['dim'] / 100, 3), 'maps': s['maps']}
+        else:
+            files, meta = api('files/' + s['id']), info[s['id']]
+            entry = {'m': round(meta['dimensions'][0] / 1000, 3), 'maps': s['maps']}
         for m in s['maps']:
-            img = Image.open(io.BytesIO(get(files[KEYS[m]]['1k']['jpg']['url'])))
+            k = s.get('nkey', KEYS[m]) if m == 'n' else KEYS[m]  # nkey : autre carte de relief (nor_gl mal encodée)
+            img = Image.open(io.BytesIO(meta['maps'][m] if s.get('src') == 'acg' else get(files[k]['1k']['jpg']['url'])))
             img = img.convert('L' if m == 'r' else 'RGB')
+            if s.get('crop'): img = crop_top(img, s['crop'], 'add' if m == 'n' else True)
+            if m == 'c' and s.get('ao'):  # creux assombris par l'occlusion de la photo (écorce brûlée : fissures noires)
+                ao = Image.open(io.BytesIO(get(files['AO']['1k']['jpg']['url']))).convert('L')
+                if s.get('crop'): ao = crop_top(ao, s['crop'])
+                img = Image.fromarray((np.asarray(img, np.float32) * (np.asarray(ao.resize(img.size), np.float32)[..., None] / 255)).astype(np.uint8))
+            if m in s.get('flat', ''): img = flat(img)  # flat : cartes égalisées ('c', 'cr')
             px = s['px'] if m != 'r' else min(512, s['px'])
-            if img.size[0] != px: img = img.resize((px, px), Image.LANCZOS)
+            if img.size != (px, px): img = img.resize((px, px), Image.LANCZOS)
             if m == 'c' and s.get('gray'): img = gray(img, s.get('contrast', 1.0))
             if m == 'c' and 'sat' in s: img = desat(img, s['sat'])
             if m == 'n' and s.get('renorm'): img = renorm(img)
+            if m == 'r' and 'rgain' in s: img = Image.fromarray(np.clip(np.asarray(img, np.float32) * s['rgain'], 0, 255).astype(np.uint8))
             img.save(os.path.join(out, f'{key}_{m}.jpg'), quality=QUAL[m], optimize=True, progressive=True)
             if m == 'c': entry['lum'] = round(luminance(img), 4)
             elif 'c' not in s['maps'] and m == 'n': entry['lum'] = 0.5
             if m == 'r': entry['rm'] = round(float(np.asarray(img, dtype=np.float32).mean() / 255), 3)  # rugosité moyenne
         if s.get('dirty'): entry['lum'] = dirty(out, key, s['dirty'])
         manifest[key] = entry
-        credits.append(f"| `{key}` | [{meta['name']}](https://polyhaven.com/a/{s['id']}) | {', '.join(meta.get('authors', {}).keys())} |")
+        if s.get('src') == 'acg': credits.append(f"| `{key}` | [{meta['name']}](https://ambientcg.com/a/{s['id']}) | ambientCG (Lennart Demes) |")
+        else: credits.append(f"| `{key}` | [{meta['name']}](https://polyhaven.com/a/{s['id']}) | {', '.join(meta.get('authors', {}).keys())} |")
         print(key, entry)
     if map_id in HDRI:  # (objets : pas d'éclairage, seulement des matières communes aux quatre cartes)
         import cv2
@@ -224,8 +285,9 @@ def main(map_id, petit=False):
         print('env', manifest['env'])
     small(out, manifest)
     json.dump(manifest, open(os.path.join(out, 'manifest.json'), 'w'), indent=1)
+    acg_note = ' et [ambientCG](https://ambientcg.com/license)' if any(v.get('src') == 'acg' for v in SETS[map_id].values()) else ''
     with open(os.path.join(out, 'CREDITS.md'), 'w') as f:
-        f.write(f'# Ressources photo : {map_id}\n\nToutes sous licence [CC0](https://polyhaven.com/license) (domaine public), via Poly Haven. Merci à leurs auteurs.\n\n| Fichier | Ressource | Auteur(s) |\n|---|---|---|\n')
+        f.write(f'# Ressources photo : {map_id}\n\nToutes sous licence CC0 (domaine public), via [Poly Haven](https://polyhaven.com/license){acg_note}. Merci à leurs auteurs.\n\n| Fichier | Ressource | Auteur(s) |\n|---|---|---|\n')
         f.write('\n'.join(credits) + '\n')
 
 if __name__ == '__main__':

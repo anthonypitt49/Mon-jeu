@@ -206,11 +206,6 @@ function buildMaterials() {
   MATS.cloth = stdMat({ color: 0x5d5a44, roughness: 0.95, map: TEX.cloth.map, normalMap: TEX.cloth.normalMap }, 0.9);
   // Nom de la matière, recopié dans les clones des fusions : les textures photo (05p_photo.js) les retrouvent tous.
   for (const k of Object.keys(PHOTO_SETS[MAP_ID] || {})) if (MATS[k]) MATS[k].userData.photo = k;
-  // Matières communes des objets : famille photo (OBJ_FAM, 05b_flat.js), donc UV en mètres et photo de la famille.
-  for (const [k, f] of [['iron', 'fonte'], ['rust', 'rouille'], ['olive', 'olive'], ['crate', 'boisBrut'], ['cloth', 'toile'], ['bark', 'ecorce']]) Object.assign(MATS[k].userData, { ftex: f, scale: OBJ_FAM[f][1] });
-  MATS.olive.metalness = 0.1; // une peinture n'est pas un métal
-  // Barricades et poteaux des cartes de plain-pied : bois brut photographié (le Poste 7 garde ses planches de tranchée).
-  if (M.flat) for (const k of ['planks', 'post']) Object.assign(MATS[k].userData, { ftex: 'boisBrut', scale: OBJ_FAM.boisBrut[1] });
   MATS.wire = new THREE.LineBasicMaterial({ color: 0x191919 });
   MATS.wireMesh = stdMat({ color: 0x252525, roughness: 0.5, metalness: 0.8 });
   MATS.brass = stdMat({ color: 0xb58a3c, roughness: 0.35, metalness: 0.9 });
@@ -220,6 +215,11 @@ function buildMaterials() {
   MATS.stone = stdMat({ map: TEX.concrete.map, normalMap: TEX.concrete.normalMap, color: 0x8b8378, roughness: 0.95 }, 1);
   MATS.ice = new THREE.MeshStandardMaterial({ color: 0xbfd8ea, roughness: 0.08, metalness: 0.2, transparent: true, opacity: 0.85 });
   MATS.paper = new THREE.MeshStandardMaterial({ roughness: 0.9 });
+  // Matières communes des objets : famille photo (OBJ_FAM, 05b_flat.js), donc UV en mètres et photo de la famille.
+  for (const [k, f] of [['iron', 'fonte'], ['rust', 'rouille'], ['olive', 'olive'], ['crate', 'boisBrut'], ['cloth', 'toile'], ['bark', 'ecorce'], ['char', 'boisCalcine'], ['stone', 'pierre'], ['brass', 'laiton']]) Object.assign(MATS[k].userData, { ftex: f, scale: OBJ_FAM[f][1] });
+  MATS.olive.metalness = 0.1; // une peinture n'est pas un métal
+  // Barricades et poteaux des cartes de plain-pied : bois brut photographié (le Poste 7 garde ses planches de tranchée).
+  if (M.flat) for (const k of ['planks', 'post']) Object.assign(MATS[k].userData, { ftex: 'boisBrut', scale: OBJ_FAM.boisBrut[1] });
   for (const k in MATS) MATS[k].name ||= k;
 }
 

@@ -281,9 +281,9 @@ function buildOutside() {
 
   // Épave de camion en feu.
   { const x = 46, z = -16, y = surfH(x, z), g = new THREE.Group(); g.position.set(x, y, z); g.rotation.set(0.05, 0.6, -0.12); R.scene.add(g);
-    mesh(boxG(2.2, 0.35, 6), MATS.char, 0, 0.7, 0, 0, g); mesh(boxG(2.1, 1.5, 1.8), MATS.char, 0, 1.55, -2.1, 0, g);
+    mesh(boxG(2.2, 0.35, 6), MATS.rust, 0, 0.7, 0, 0, g); mesh(boxG(2.1, 1.5, 1.8), MATS.rust, 0, 1.55, -2.1, 0, g); // châssis et cabine : tôle brûlée, pas du bois
     mesh(boxG(2.2, 0.08, 3.8), MATS.rust, 0, 1.2, 0.9, 0, g);
-    for (const [a, b] of [[-1.1, -2], [1.1, -2], [-1.1, 1.6], [1.1, 1.6]]) { const w = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 16), MATS.char, a, 0.45, b, 0, g); w.rotation.z = Math.PI / 2; }
+    for (const [a, b] of [[-1.1, -2], [1.1, -2], [-1.1, 1.6], [1.1, 1.6]]) { const w = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 16), fmat('caoutchouc', 0x0e0d0c, { rough: 1, snow: 0.8 }), a, 0.45, b, 0, g); w.rotation.z = Math.PI / 2; }
     for (let k = 0; k < 5; k++) { const r = mesh(boxG(0.06, 1.4, 0.06), MATS.rust, 1.05 * (k % 2 ? 1 : -1), 1.9, -0.4 + k * 0.7, 0, g); r.rotation.x = srand(-0.3, 0.3); }
     WORLD.fires.push({ x, y: y + 1.6, z: z + 0.5, size: 1.6, rate: 0.02, t: 0, smoke: 0.08, light: R.lights.wreck, big: true }); }
   // Ferme en ruine et clocher lointain.

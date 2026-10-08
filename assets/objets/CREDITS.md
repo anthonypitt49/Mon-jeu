@@ -1,6 +1,6 @@
 # Ressources photo : objets
 
-Toutes sous licence [CC0](https://polyhaven.com/license) (domaine public), via Poly Haven. Merci à leurs auteurs.
+Toutes sous licence CC0 (domaine public), via [Poly Haven](https://polyhaven.com/license) et [ambientCG](https://ambientcg.com/license). Merci à leurs auteurs.
 
 | Fichier | Ressource | Auteur(s) |
 |---|---|---|
@@ -21,3 +21,11 @@ Toutes sous licence [CC0](https://polyhaven.com/license) (domaine public), via P
 | `galva` | [Corrugated Iron](https://polyhaven.com/a/corrugated_iron) | Jenelle van Heerden, Dimitrios Savva |
 | `olive` | [Green Metal Rust](https://polyhaven.com/a/green_metal_rust) | Rob Tuytel |
 | `ecorce` | [Bark Willow 02](https://polyhaven.com/a/bark_willow_02) | Charlotte Baglioni |
+| `calcine` | [Pine Bark](https://polyhaven.com/a/pine_bark) | Dimitrios Savva |
+| `pierre` | [Broken Wall](https://polyhaven.com/a/broken_wall) | Rob Tuytel |
+| `laiton` | [Metal 007](https://ambientcg.com/a/Metal007) | ambientCG (Lennart Demes) |
+| `caoutchouc` | [Rubberized Track](https://polyhaven.com/a/rubberized_track) | Charlotte Baglioni |
+| `marbre` | [Marble 001](https://ambientcg.com/a/Marble001) | ambientCG (Lennart Demes) |
+| `foin` | [Reed Roof 04](https://polyhaven.com/a/reed_roof_04) | Rob Tuytel |
+| `terrecuite` | [Red Plaster Weathered](https://polyhaven.com/a/red_plaster_weathered) | Amal Kumar |
+| `jute` | [Hessian 380](https://polyhaven.com/a/hessian_380) | colormass, Rico Cilliers |

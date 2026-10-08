@@ -40,7 +40,7 @@ function vMats(color, burnt) {
   const paint = burnt ? burntMat(color) : (KM['car' + color] ||= fmat('tole', color, { rough: 0.32, metal: 0.45 })); // laque : grain et usure photographiés, brillant gardé
   return {
     paint, chrome: burnt ? (KM.burntTrim ||= KIT.m(0x2c2622, { rough: 0.8 })) : k.chrome, glass: burnt ? k.black : (KM.carGlass ||= new THREE.MeshStandardMaterial({ color: 0x182229, roughness: 0.04, metalness: 0.85, transparent: true, opacity: 0.72 })),
-    tire: burnt ? (KM.burntTire ||= KIT.m(0x0e0d0c, { rough: 1 })) : k.rubber, white: burnt ? k.black : (KM.whitewall ||= KIT.m(0xece8de, { rough: 0.6 })),
+    tire: burnt ? (KM.burntTire ||= fmat('caoutchouc', 0x0e0d0c, { rough: 1 })) : k.rubber, white: burnt ? k.black : (KM.whitewall ||= KIT.m(0xece8de, { rough: 0.6 })),
     lamp: burnt ? k.black : (KM.headlamp ||= new THREE.MeshStandardMaterial({ color: 0xfff6e0, emissive: 0xffe8b0, emissiveIntensity: 0.25, roughness: 0.1 })),
     tail: burnt ? k.black : (KM.taillamp ||= new THREE.MeshStandardMaterial({ color: 0x8a0e0e, emissive: 0x5a0606, emissiveIntensity: 0.3, roughness: 0.2 })),
     seat: burnt ? k.black : (KM.carSeat ||= fmat('skai', 0x8a3a2e, { rough: 0.6 })), dark: k.black, // simili-cuir de sellerie

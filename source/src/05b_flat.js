@@ -126,7 +126,8 @@ const FLAT_SCALE = { brick: 1, siding: 2, plaster: 2, wallpaper: 1.2, victorian:
 const OBJ_FAM = {
   meuble: ['planks', 1], boisPeint: ['grime', 2], /* peinture : repère de clarté clair, sinon la photo est assombrie */ boisBrut: ['planks', 0.7], tissu: ['cloth', 0.6], velours: ['cloth', 0.6], cuir: ['cloth', 0.6],
   skai: ['cloth', 0.6], toile: ['cloth', 1], email: ['grime', 2], tole: ['grime', 2], acier: ['grime', 2], galva: ['grime', 2], fonte: ['grime', 2],
-  rouille: ['grime', 2], olive: ['grime', 2], ecorce: ['grime', 2],
+  rouille: ['grime', 2], olive: ['grime', 2], ecorce: ['grime', 2], boisCalcine: ['grime', 2], pierre: ['concrete', 3], caoutchouc: ['grime', 1],
+  laiton: ['grime', 0.5], marbre: ['grime', 1], foin: ['cloth', 1], terreCuite: ['grime', 1], jute: ['cloth', 1],
 };
 // o.vc : couleurs par sommet (géométries construites ici) ; sans, pour les objets et les lots instanciés.
 function fmat(key, color = 0xffffff, o = {}) {

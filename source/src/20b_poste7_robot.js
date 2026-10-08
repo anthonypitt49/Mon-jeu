@@ -83,7 +83,7 @@ function robotAnim(dt, time) {
 /* ─── No man's land : char losange abattu, canon de campagne à l'arrière ─── */
 function buildPoste7Extras() {
   // Plaques d'acier rivetées peintes du char et du canon : peinture militaire écaillée (famille olive, teinte gardée).
-  const steel = fmat('olive', 0x4a4a3e, { rough: 0.8, metal: 0.15, snow: 0.8 }), rust = MATS.rust, dark = MATS.char;
+  const steel = fmat('olive', 0x4a4a3e, { rough: 0.8, metal: 0.15, snow: 0.8 }), rust = MATS.rust, dark = fmat('fonte', 0x1c1c1e, { rough: 0.6, metal: 0.5, snow: 0.8 }); /* canons : acier noirci */
   // Char : deux flancs losanges (chenilles), caisse centrale, tourelles latérales, canons.
   { const x = 62, z = -12, y = surfH(x, z) - 0.6, g = new THREE.Group(); g.position.set(x, y, z); g.rotation.set(0.06, -0.5, 0.1); R.scene.add(g);
     const side = new THREE.Shape(); side.moveTo(-4, 0.6); side.lineTo(-2.6, 0); side.lineTo(2.6, 0); side.lineTo(4.2, 1.6); side.lineTo(3.9, 2.5); side.lineTo(-2.2, 2.5); side.closePath();

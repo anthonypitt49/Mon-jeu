@@ -97,7 +97,7 @@ function citeDecor() {
   // Aérations de l'abri sur le toit : conduits en tôle galvanisée.
   for (const [x, z] of [[X(25), X(4)], [X(31), X(8)], [X(27), X(9)]]) { const g = KIT.g(x, z, 0, 3.35), v = fmat('galva', 0x8c9196, { rough: 0.45, metal: 0.8 }); KIT.c(g, 0, 0.6, 0, 0.16, 0.16, 1.2, v, 10); KIT.c(g, 0, 1.25, 0, 0.3, 0.3, 0.1, v, 10); }
   // Sacs de sable de la Défense civile : toile de jute.
-  { const bags = new Batch(sandbagGeo(), fmat('toile', 0xb8a47e, { rough: 1 })); for (let x = X(24); x < X(28); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); for (let x = X(29) + 0.3; x < X(33); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); bags.build(); }
+  { const bags = new Batch(sandbagGeo(), fmat('jute', 0xb8a47e, { rough: 1 })); for (let x = X(24); x < X(28); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); for (let x = X(29) + 0.3; x < X(33); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); bags.build(); }
   // Dortoir, salle commune, générateur. Couchettes en acier peint, matelas en coutil de coton.
   const ticking = fmat('toile', 0x3d8a86, { rough: 0.95 });
   for (const x of [X(29) + 0.9, X(31) + 0.9]) { const g = KIT.g(x, X(3) + 1.1, 0); for (const y of [0.45, 1.5]) { KIT.b(g, 0, y, 0, 1.0, 0.08, 2.0, k.steel); KIT.b(g, 0, y + 0.1, 0, 0.92, 0.12, 1.9, ticking); } for (const [a, b] of [[-0.48, -0.95], [0.48, -0.95], [-0.48, 0.95], [0.48, 0.95]]) KIT.b(g, a, 1.0, b, 0.05, 2.0, 0.05, k.steel); KIT.solid(g, 1.0, 2.0, 2.0, 'metal'); }
@@ -177,7 +177,7 @@ function citeFar() {
   { const g = KIT.g(150, 70, -1.2); for (let i = 0; i < 6; i++) KIT.b(g, 0, 0.5 + i * 0.6, i * 0.9, 18, 0.25, 0.9, fmat('boisBrut', 0x9a8a70)); for (let i = 0; i < 4; i++) KIT.b(g, -8 + i * 5.3, 2, 2.5, 0.25, 4, 0.25, k.steel); }
   // Maisons témoins lointaines, carbonisées.
   for (const [x, z, ry] of [[-60, 20, 0.3], [-70, 70, -0.2], [140, -20, 1.1], [120, 120, 0.6], [30, 150, 0.1]]) {
-    const g = KIT.g(x, z, ry), ch = fmat('plain', 0x2a2420, { rough: 1 });
+    const g = KIT.g(x, z, ry), ch = fmat('boisCalcine', 0x2a2420, { rough: 1 });
     KIT.b(g, 0, 1.6, 0, 12, 3.2, 8, ch); const rf = KIT.b(g, 0, 4, 0, 12.5, 0.3, 6, ch); rf.rotation.z = 0.2; KIT.b(g, 4, 3.5, 2, 0.8, 3, 0.8, fmat('brick', 0x8a7a70));
   }
   // Pylônes électriques le long de la route vers l'ouest.

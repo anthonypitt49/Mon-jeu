@@ -28,6 +28,14 @@ const OBJ_PHOTO = {
   rouille: { ft: 1, set: 'objets/rouille', tm: 2.5, neutral: true },
   olive: { ft: 1, set: 'objets/olive' },
   ecorce: { ft: 1, set: 'objets/ecorce', neutral: true },
+  boisCalcine: { ft: 1, set: 'objets/calcine', grain: 'v', tm: 1, ns: 1.2, tint: [1.5, 1.5, 1.5] }, // écorce de pin grisée sur le charbon du jeu : blocs et fentes
+  pierre: { ft: 1, set: 'objets/pierre' },
+  laiton: { ft: 1, set: 'objets/laiton', tm: 0.3, gloss: true }, // laiton patiné rayé : teinte et brillant du jeu gardés
+  caoutchouc: { ft: 1, set: 'objets/caoutchouc', tm: 1, ns: 0.9 },
+  marbre: { ft: 1, set: 'objets/marbre', neutral: true, gloss: true, tm: 1.5 },
+  foin: { ft: 1, set: 'objets/foin', grain: 'v', neutral: true }, // brins dans le sens de la longueur de la botte
+  terreCuite: { ft: 1, set: 'objets/terrecuite', neutral: true, tm: 1.2, tint: [0.9, 0.62, 0.42] }, // photo d'enduit rosé ramenée à l'orange d'une terre cuite
+  jute: { ft: 1, set: 'objets/jute', neutral: true, tm: 0.5 }, // trame agrandie : lisible à distance de jeu
 };
 const PHOTO_SETS = {
   poste7: {
@@ -216,7 +224,7 @@ async function photoFlat(key, s, man, tex) {
     if (m.userData.photoDone) continue; m.userData.photoDone = 1;
     if (s.neutral && map) { const l = lum(m.color); m.color.setRGB(l, l, l); }
     if (s.nomap && !map && m.map?.image) { m.color.multiplyScalar(texLum(m.map.image)); m.map = null; } // couleur unie, même clarté moyenne
-    if (map) { m.map = map; m.color.multiplyScalar(k); }
+    if (map) { m.color.multiplyScalar(m.map?.image ? k : clamp(1 / Math.max(1e-4, e.lum), 0.45, 2.4)); m.map = map; } // (sans texture avant : la photo ne doit pas l'assombrir)
     if (s.tint && (map || s.nomap)) { m.color.r *= s.tint[0]; m.color.g *= s.tint[1]; m.color.b *= s.tint[2]; }
     if (nrm) { m.normalMap = nrm; m.normalScale.set(s.ns || 1, s.ns || 1); }
     // gloss (émail, laque, cuir ciré) : la rugosité de la matière reste la même en moyenne, la photo y met ses variations.

@@ -2,6 +2,33 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 5.2) : les matières restées sans photo
+
+Demande du propriétaire : « occupe toi de ce qui reste sans photo ». Les huit matières que la 5.1 avait laissées dessinées ont maintenant leur famille (`OBJ_FAM`) et leur photo commune (`assets/objets/`, 42 fichiers, 1,4 Mo de plus, chargés seulement sur les cartes qui les portent).
+
+- **Choix des photos** : 8 éclaireurs (catalogues Poly Haven et ambientCG, vignettes regardées, simulations à l'échelle) puis un contradicteur par choix. Quatre contradicteurs ont tourné (les quatre autres ont buté sur la limite d'usage ; leurs choix ont été vérifiés à l'œil en mosaïque 2×2 et en jeu).
+  - bois calciné (`boisCalcine`, `MATS.char`) : aucune vraie photo de bois brûlé en CC0 ; écorce de pin en gris, creux assombris par sa carte d'occlusion (`pine_bark`). Refusé par le contradicteur : la boue craquelée proposée d'abord se lisait comme de la boue de près (habitacle du biplan) et répétait le sol du lac de la Cité ;
+  - pierre (`MATS.stone`, ferme et clocher en ruine du Poste 7) : mur de moellons `broken_wall`, grandes taches de clarté égalisées (`flat`), relief pris dans la carte `normal_gl` (la `nor_gl` de Poly Haven est encodée de travers : tout le mur penchait) ;
+  - laiton (`MATS.brass` : poignées, chandeliers, lampe, volant de la chambre forte) : `Metal007` d'ambientCG (Poly Haven n'a aucun laiton), photo grise sur la teinte du jeu, rugosité ×2,2 (`rgain` : la photo était presque un miroir) ;
+  - caoutchouc (pneus, roues du camion) : scan mat `rubberized_track`. Refusé par le contradicteur : `Rubber004`, un sol de salle de sport moucheté et satiné ; la bande de roulement en photo aussi (camions de 1917 sur bandages pleins) ;
+  - marbre (comptoir de bonbons du Filon) : `Marble001` d'ambientCG, 1,5 m par tuile (les veines en croix se répétaient à 1 m) ;
+  - foin (bottes du Filon) : chaume `reed_roof_04`, faîtage coupé et raccord haut/bas fondu (`crop` : la photo s'assombrit vers le bas, chaque ligne est égalisée) ;
+  - terre cuite (pots de fleurs) : enduit rouge patiné `red_plaster_weathered` (coulures verticales, 1,2 m) ;
+  - jute (sacs de sable neufs de la Cité, avant sur le lin trop fin) : toile `hessian_380` sans la boue du Poste 7, trame agrandie à 0,5 m pour rester lisible.
+- `fetch_assets.py` : options `nkey`, `flat`, `crop`, `ao`, `rgain`, ambientCG (`src: 'acg'`), et nouvelles tentatives quand une connexion est coupée en route.
+- Corrigé en route : les nouvelles étiquettes (`MATS.stone`, `MATS.brass`) étaient posées avant la création de ces matières (le monde ne se construisait plus ; trouvé par le contradicteur du laiton). Une matière sans texture avant (le laiton) était assombrie par la photo grise : elle garde maintenant sa clarté (`photoFlat`). `KIT.rubber` un peu éclairci (0x1c1b1a) pour que la poussière du pneu se lise au crépuscule.
+- Outils : `node matieres.mjs <carte> 2 [familles]` → un cube et un cylindre par famille, avec la vraie matière du jeu, sous l'éclairage de la carte (le jeu ramène le joueur dans la zone jouable : la ferme, le clocher ou les maisons brûlées ne se photographient pas en place) ; `FAM=foin,marbre node objets.mjs filon 2` → une vue par famille sur un objet posé ; `objets.mjs` attend la fin du chargement des photos au menu (en pleine partie, il dépassait 400 s).
+- Réglé à l'œil : la terre cuite sortait rose saumon (la photo est un enduit rosé) ; teinte ramenée à l'orange d'un pot.
+
+Reste à faire sur les objets :
+1. Toujours sans photo : verre, lampes, enseignes, petits objets colorés (conserves, livres, bonbons) ; à cette taille, une photo ne se verrait pas.
+2. Trousse : `kTable` et `kChair` imposent leurs pieds en bois, `kShelf`, `kSign` et `kLamp` leur matière (le Filon les remplace après coup) ; un paramètre de matière serait plus propre. `kStove` : cuisinière domestique émaillée aussi dans la cuisine de la prison de 1933 (il y faudrait un fourneau en fonte).
+3. Anachronismes de forme, pas de matière : bidon en forme de jerrican (inventé en 1937) et ampoules électriques au Filon de 1880.
+4. Bogue ancien, sans lien : l'aile basse du biplan du Poste 7 n'est jamais dans la scène (`R.scene.add(w)` avalé par un commentaire, `11c_crater.js`).
+5. [à vérifier] Sur iPhone.
+
+Ensuite, dans l'ordre demandé par le propriétaire : les zombies (viser la qualité de ceux de Call of Duty Black Ops 2, mode Zombies), puis une revue des quatre cartes (murs invisibles, objets mal placés, surtout à la Cité Atomique ; sols : mottes de terre et de neige peu réalistes au Poste 7, et pas assez de neige pour un hiver), puis la résolution et la qualité d'image.
+
 ## Fait (version 5.1) : les objets en textures photo
 
 Mise en ligne le 8 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu avec salon co-op, republié avec `assets/objets/` (88 fichiers de plus, 399 en tout ; une version en accepte 511).
@@ -29,12 +56,7 @@ Demande du propriétaire : « fais les objets en textures photo maintenant ». A
 - Mesures (Cité, `photoperf.mjs`) : mémoire vidéo des textures en « élevé » 228 → 258 Mo (+ 30 Mo pour les objets) ; en « bas », 84 Mo avec les photos allégées ; temps d'image sans écart mesurable.
 - Tests avant mise en ligne : vérification photo des quatre cartes en « bas » et en « élevé » (chaque famille présente reçoit sa photo, les absentes ne sont pas téléchargées), vues rapprochées des objets et tournées des quatre cartes regardées une à une, `feat.mjs`, `mapplay` sur les quatre cartes, `touch.mjs`, `sounds.mjs`, `volumes.mjs`, `fullscreen.mjs`, `coop.mjs` et `coopmap.mjs` (erreurs des relais MQTT publics, refusés par le conteneur, seulement) : bons.
 
-Reste à faire sur les objets :
-1. Sans famille, laissés tels quels : bois calciné (`MATS.char` : habitacle du biplan, maisons brûlées au loin), pierre (`MATS.stone`), caoutchouc (tuyaux, pneus), laiton, marbre, foin, verre, lampes, enseignes, petits objets colorés (conserves, livres, bonbons).
-2. Trousse : `kTable` et `kChair` imposent leurs pieds en bois, `kShelf`, `kSign` et `kLamp` leur matière (le Filon les remplace après coup) ; un paramètre de matière serait plus propre. `kStove` : cuisinière domestique émaillée aussi dans la cuisine de la prison de 1933 (il y faudrait un fourneau en fonte).
-3. Anachronismes de forme, pas de matière : bidon en forme de jerrican (inventé en 1937) et ampoules électriques au Filon de 1880.
-4. Bogue ancien, sans lien : l'aile basse du biplan du Poste 7 n'est jamais dans la scène (`R.scene.add(w)` avalé par un commentaire, `11c_crater.js`).
-5. [à vérifier] Sur iPhone, comme pour la 5.0.
+(Suite : voir la 5.2.)
 
 ## Fait (version 5.0) : les trois autres cartes en textures photo
 
