@@ -4,6 +4,8 @@ Note de passation entre sessions de travail : où en est le projet et ce qui vie
 
 ## Fait (version 5.1) : les objets en textures photo
 
+Mise en ligne le 8 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu avec salon co-op, republié avec `assets/objets/` (88 fichiers de plus, 399 en tout ; une version en accepte 511).
+
 Demande du propriétaire : « fais les objets en textures photo maintenant ». Après la 5.0, les meubles, véhicules et machines restés dessinés trahissaient le dessin à côté des murs photographiés.
 
 - **Le vrai défaut d'abord : les UV des objets.** Les boîtes, cylindres et sphères de three.js ont des UV de 0 à 1 par face, quelle que soit leur taille. Beaucoup d'objets portaient déjà une photo de mur ou de plancher (tout `fmat('planks' | 'brick' | …)`), mais étirée : meubles en lames de parquet de 2 m par face, briques de 28 cm de haut sur les cheminées de la Cité, fronton du saloon étiré dix fois, rails du Filon étirés ×28. `05_world.js` donne maintenant à toute matière à clé (`userData.ftex`, donc toute `fmat`) des **UV en mètres** : chaque face reçoit la taille réelle qu'elle couvre, divisée par l'échelle de la matière.
