@@ -8,7 +8,8 @@ const KIT = {
   spots: /spots/.test(location.search) ? [] : null,
   g(x, z, ry = 0, y = 0, parent = R.scene) {
     const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; parent.add(g);
-    if (KIT.spots && parent === R.scene) KIT.spots.push({ x, z, ry, y, fn: (new Error().stack.split('\n')[2] || '').trim().split(' ')[1] });
+    // (g : le groupe lui-même, non énumérable pour que les tests qui renvoient les entrées ne sérialisent pas la scène ; dev/placement.mjs)
+    if (KIT.spots && parent === R.scene) KIT.spots.push(Object.defineProperty({ x, z, ry, y, fn: (new Error().stack.split('\n')[2] || '').trim().split(' ')[1] }, 'g', { value: g }));
     return g;
   },
   b(g, x, y, z, w, h, d, mat, ry = 0, shadow = true) { return mesh(boxG(w, h, d), mat, x, y, z, ry, g, shadow); },
