@@ -1,8 +1,8 @@
 // Audit automatique du PLACEMENT DES OBJETS : flottants, enfoncés, dans un mur, superposés, passages bloqués, murs invisibles.
 // usage : node placement.mjs <carte> → results/placement_<carte>.json, shots/placement_<carte>_<rang>.jpg (cas les plus graves),
 //   résumé et « ERRORS n » (erreurs de la page). Une carte : 1 à 2 min sans captures, 20 à 40 s de plus par capture.
-// env : SHOTS=n (captures des n premiers cas, 10 par défaut ; 0 = aucune) ; VOIR='motif' (captures en plus des cas dont le nom
-//   ou les constats correspondent, ex. VOIR='kSink|fenêtre') ; Q='…' (paramètres d'URL en plus).
+// env : SHOTS=n (captures des n premiers cas, 10 par défaut ; 0 = aucune) ; VOIR='motif' (captures en plus des cas dont le nom,
+//   le lieu de pose ou les constats correspondent, ex. VOIR='kSink|fenêtre|cite_decor.js:76\]') ; Q='…' (paramètres d'URL en plus).
 //
 // Méthode (tout est mesuré dans la page, sur la scène construite) :
 // - Chargement en ?spots&nomerge&nophoto&nozreal. La page servie est instrumentée à la volée (rien n'est changé dans src/) :
@@ -10,26 +10,38 @@
 //   ajouté à la scène (maillage, lot, groupe) note la fonction qui l'a créé (userData.fnStack), comme KIT.spots le fait pour
 //   les objets de la trousse (06b_kit.js, qui garde aussi le groupe lui-même) ; colliderBox note l'emprise réelle (rb) de
 //   chaque boîte tournée dont il ne garde que la boîte englobante.
+// - Lieu de pose : chaque objet porte « fichier:ligne » de src/ (la ligne de la carte qui le pose : kSofa ← citeDecor donne
+//   21b_cite_decor.js:49), retrouvé dans la pile d'appels grâce aux en-têtes de parties que build.mjs met dans la page ; un
+//   objet construit directement à une ligne qui porte un commentaire en prend le texte (citeDecor « machine à laver »).
 // - Objets audités : groupes de la trousse (KIT.spots), maillages, lots et groupes du décor (crate, barrel, sacs de sable,
 //   décors de 06_props.js ou des fichiers de carte…), objets du jeu (caisses, établi, générateur, tableau, armes murales,
-//   disques secrets, lampes suspendues). Le lointain (à plus de 10 m de la grille), l'architecture (murs, sols, clôtures,
-//   fenêtres, portes) et les semis au sol (touffes, cailloux) ne sont pas audités (liste « non audités » du résumé).
+//   disques secrets, lampes suspendues, objets à ramasser). Le lointain (à plus de 10 m de la grille), le paysage (voûte et
+//   rochers de la mine, rochers du rivage, décors *Far), les effets de lumière (nuanceurs, mélange additif), l'architecture
+//   (murs, sols, clôtures, fenêtres, portes) et les semis au sol (touffes, cailloux) ne sont pas audités (liste « non
+//   audités » du résumé) ; ils restent des appuis et des parois pour les autres.
 // - Volume : chaque pièce (maillage) est tramée en colonnes verticales de 10 cm (entrée et sortie de la pièce sur la verticale
 //   du centre de la colonne : intervalles exacts) et échantillonnée en surface tous les 5 cm (pièces minces : cadres, miroirs).
 // - Contrôles :
 //   · flottant : aucun point bas (bas de chaque colonne, sommets les plus bas de chaque pièce) à moins de 4 cm d'un appui
-//     visible (triangle non vertical d'un autre objet ou de l'architecture, rayon vertical) ou du sol (groundAt) ; écartés :
-//     objets faits pour être en hauteur, accrochés au plafond, à un mur ou à un objet posé (à moins de 15 cm, s'ils sont à
-//     plus de 30 cm de tout appui : un fauteuil sans pieds contre une bibliothèque flotte quand même) ; mannequins assis :
-//     rien sous le bassin ; végétation en boules à moins de 15 cm : information ;
-//   · enfoncé : base à plus de 15 cm sous le sol, ou plus de la moitié du volume dessous ;
-//   · dans un mur : points du volume dans un mur plein, un mur fin, une clôture, une barricade ou le plafond, au-delà de
+//     visible (triangle non vertical d'un autre objet ou de l'architecture, rayon vertical), du sol (groundAt) ou du plan
+//     d'eau ; écartés :
+//     objets faits pour être en hauteur (cadres, plafonniers, placards hauts, lampes suspendues, armes murales, tableau),
+//     objets à ramasser qui tournent en l'air, objets accrochés au plafond, à un mur de la grille, à une paroi visible
+//     (triangle presque vertical de la scène : façade, enceinte, paroi de tranchée) ou à un objet posé (à moins de 15 cm,
+//     s'ils sont à plus de 30 cm de tout appui : un fauteuil sans pieds contre une bibliothèque flotte quand même ; dès 4 cm
+//     pour un objet mince ou petit : panneau, bouée, lampe) ;
+//     mannequins assis : rien sous le bassin ; végétation en boules à moins de 15 cm : information ;
+//   · enfoncé : base à plus de 15 cm sous le sol, ou plus de la moitié du volume dessous (sans les points au-dessus de la
+//     paroi d'une tranchée : c'est « dans un mur ») ; poteaux et pieux (minces et hauts, plantés) et formations naturelles
+//     (cristaux, rochers, éboulis : nom ou commentaire de la ligne de pose) : information ;
+//   · dans un mur : points du volume dans un mur plein, un mur fin, une clôture, une barricade ou la dalle du plafond (cartes
+//     de plain-pied ; formations naturelles : information), au-delà de
 //     15 % (50 % pour les objets fixés au mur, encastrés à moitié par construction), ou pièce cachée à 80 % dans le mur
 //     (miroir…). Pièces pleines : centres des colonnes à plus de 5 cm sous la surface visible du mur (un dos de meuble enfoncé
 //     de 3 cm ne se voit pas) ; pièces minces : points de surface à plus de 2 cm. Le trou des fenêtres décoratives (look
 //     'window') est compté à part : ce qui s'y trouve se voit en travers de la vitre ;
-//   · superposés : volume commun (intervalles des colonnes) de plus de 20 % du plus petit ; écartés : végétation entre elle,
-//     mannequins assis volontairement (recouvrement de moins de 50 %), exemplaires d'un même lot ;
+//   · superposés : volume commun au-dessus du sol (intervalles des colonnes) de plus de 20 % du plus petit ; écartés :
+//     végétation entre elle, mannequins assis volontairement (recouvrement de moins de 50 %), exemplaires d'un même lot ;
 //   · passage bloqué : boîte de collision (MAP.props, celles qui arrêtent le joueur : y1 > 0,3 et y0 ≤ 1,6) sur une porte,
 //     une barricade ou leur abord ; zones praticables coupées par les objets (dégagement sur une grille de 5 cm, chemin le
 //     plus large depuis l'apparition du joueur, avec et sans les boîtes, rayon 0,34 m) puis vérifiées en jeu : le vrai
@@ -66,19 +78,33 @@ await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '',
 await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
 // Instrumentation de la page servie (test seulement) : pas de fusion statique, nom de la fonction créatrice des maillages,
 // lots et groupes ajoutés à la scène, emprise réelle des boîtes tournées (colliderBox ne garde que la boîte englobante).
+// (pile d'appels : [fonction, ligne de la page] par niveau, __F ; les remplacements n'ajoutent aucune ligne à la page)
 const PATCHES = [
-  ["import * as THREE from 'three';", "import * as THREE from 'three'; if (/spots/.test(location.search)) { const _add = THREE.Object3D.prototype.add; THREE.Object3D.prototype.add = function (...a) { if (this.isScene) for (const o of a) if (o && o.userData && !o.userData.fnStack) o.userData.fnStack = new Error().stack.split('\\n').slice(2, 7).map((l) => l.trim().split(' ')[1]); return _add.apply(this, a); }; }"],
+  ["import * as THREE from 'three';", "import * as THREE from 'three'; window.__F = (l) => { l = l.trim(); const m = l.match(/:(\\d+):\\d+\\)?$/); return [l.split(' ')[1], m ? +m[1] : 0]; }; if (/spots/.test(location.search)) { const _add = THREE.Object3D.prototype.add; THREE.Object3D.prototype.add = function (...a) { if (this.isScene) for (const o of a) if (o && o.userData && !o.userData.fnStack) o.userData.fnStack = new Error().stack.split('\\n').slice(2, 7).map(__F); return _add.apply(this, a); }; }"],
   ['collider(x - hw, z - hd, x + hw, z + hd, h, mat); }', 'collider(x - hw, z - hd, x + hw, z + hd, h, mat); MAP.props[MAP.props.length - 1].rb = { x, z, w, d, ry }; }'],
   ['function mergeStatic() {', 'function mergeStatic() { if (/nomerge/.test(location.search)) return;'],
-  ['const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.y = ry;', "const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.y = ry; if (KIT.spots && parent === R.scene) m.userData.fnStack = new Error().stack.split('\\n').slice(2, 6).map((l) => l.trim().split(' ')[1]);"],
-  ['constructor(geo, mat, shadow = true) { this.geo = geo;', "constructor(geo, mat, shadow = true) { this.fnStack = new Error().stack.split('\\n').slice(2, 5).map((l) => l.trim().split(' ')[1]); this.geo = geo;"],
+  ['const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.y = ry;', "const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.y = ry; if (KIT.spots && parent === R.scene) m.userData.fnStack = new Error().stack.split('\\n').slice(2, 6).map(__F);"],
+  ['constructor(geo, mat, shadow = true) { this.geo = geo;', "constructor(geo, mat, shadow = true) { this.fnStack = new Error().stack.split('\\n').slice(2, 5).map(__F); this.geo = geo;"],
   ['parent.add(im); return im;', 'im.userData.fnStack = this.fnStack; parent.add(im); return im;'],
 ];
 await page.route('http://127.0.0.1:8088/index.html*', async (route) => {
-  const r = await route.fetch(); let body = await r.text();
+  const r = await route.fetch(); let body = await r.text(); const nl = body.split('\n').length;
   for (const [a, b] of PATCHES) { if (!body.includes(a)) errors.push('[instrumentation] motif introuvable dans index.html : ' + a.slice(0, 60)); body = body.replace(a, () => b); }
+  if (body.split('\n').length !== nl) errors.push('[instrumentation] la page instrumentée n\'a plus le même nombre de lignes : lignes de source fausses');
   route.fulfill({ response: r, body, headers: { ...r.headers(), 'content-type': 'text/html; charset=utf-8' } });
 });
+// Lignes de source : build.mjs met un en-tête « // ───── NOM ───── » avant chaque partie de src/ (dans l'ordre des noms de
+// fichiers) ; une ligne L de la page est la ligne L − en-tête de sa partie. Commentaire de fin de ligne (ou ligne de commentaire
+// juste au-dessus) : il nomme souvent l'objet posé à cette ligne (« machine à laver », « cabanon en planches peintes »).
+const SRC = (() => {
+  const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8').split('\n'), files = fs.readdirSync(path.join(dir, '..', 'src')).filter((f) => f.endsWith('.js')).sort();
+  const parts = [], notes = {}, label = (f) => f.replace(/^\d+_/, '').replace('.js', '').toUpperCase();
+  html.forEach((l, i) => { if (l.startsWith('// ───────────────────────── ')) parts.push([i + 1, files[parts.length], l.slice(29).split(' ')[0]]); });
+  if (parts.length !== files.length || parts.some((p) => p[2] !== label(p[1] || ''))) { errors.push('[sources] index.html ne correspond pas à src/ (reconstruire : node ../build.mjs index.html) : lignes de source désactivées'); return { parts: [], notes }; }
+  const note = (l) => { const m = (l || '').match(/(?:^|[\s;})\]])\/\/\s*(.+?)\s*$/); return m && !/^[─═]/.test(m[1]) ? m[1].replace(/\s+/g, ' ').replace(/^\(|\)$/g, '').slice(0, 70) : null; };
+  for (const [h, f] of parts) if (!/^(0[0-5]|06b|06c)/.test(f)) for (let i = h; i < html.length && !html[i].startsWith('// ─────────────────────────'); i++) { let j = i - 1; while (j > h && /^\s*\/\//.test(html[j - 1])) j--; const n = note(html[i]) || (/^\s*\/\//.test(html[i - 1]) ? note(html[j]) : null); if (n) notes[i + 1] = n; } // (bloc de commentaires au-dessus : sa première ligne)
+  return { parts: parts.map(([h, f]) => [h, f]), notes };
+})();
 const t0 = Date.now();
 await page.goto('http://127.0.0.1:8088/index.html?spots&nomerge&nophoto&nozreal' + (process.env.Q ? '&' + process.env.Q : '') + '#carte=' + id);
 await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
@@ -102,7 +128,10 @@ function pageAudit(opt) {
   const roofed = (tx, tz) => inMap(tx, tz) && MAP.roof[tz * W + tx] && MAP.type[tz * W + tx] !== T_SOLID;
   const zoneName = (tx, tz) => { if (!inMap(tx, tz)) return 'hors carte'; const z = MAP.zone[tz * W + tx]; return z >= 0 ? Md.zones[z] : tType(tx, tz) === T_RAMP ? 'barricade' : 'extérieur'; };
   const r2 = (v) => Math.round(v * 100) / 100;
+  const label = (o) => o.name + (o.src ? ` [${o.src}]` : ''); // nom et lieu de pose dans src/
   const VEG = /kShrub|kPlant|kTree|scrub|arbre|Tree/;
+  // Formations naturelles (nom ou commentaire de la ligne de pose) : elles sortent du sol ou de la paroi par construction.
+  const NATURE = /cristal|cristaux|rocher|roches?\b|éboulis|stalag|caillou|kRock/i;
 
   /* ─── Murs : même géométrie que solidAt (03_map.js), mais à l'épaisseur visible (EDGE_T) moins une tolérance ─── */
   function edgeK(ax, az, bx, bz) {
@@ -131,7 +160,8 @@ function pageAudit(opt) {
     const tx = tileOf(x), tz = tileOf(z), t = tType(tx, tz);
     if (t === T_BLOCK) { for (const [a, b] of [[TOL, 0], [-TOL, 0], [0, TOL], [0, -TOL]]) if (tType(tileOf(x + a), tileOf(z + b)) !== T_BLOCK) return null; return SP.solidAt(x, y, z, true) ? 'mur' : null; }
     if (t === T_RAMP) return y > 0.05 && SP.solidAt(x, y, z, true) ? 'barricade' : null;
-    if (t === T_FLOOR || t === T_DOOR) { if (roofed(tx, tz)) { const c = ceilAt(tx, tz); if (y > c + TOL && y < c + 0.35) return 'plafond'; } return null; }
+    // (dalle de toit des cartes de plain-pied ; sur une carte à tranchées, le plafond n'est qu'un plan : rien n'y entre)
+    if (t === T_FLOOR || t === T_DOOR) { if (FLAT && roofed(tx, tz)) { const c = ceilAt(tx, tz); if (y > c + TOL && y < c + 0.35) return 'plafond'; } return null; }
     if (!FLAT && t === T_SOLID) { for (const [a, b] of [[TOL, 0], [-TOL, 0], [0, TOL], [0, -TOL]]) if (walkable(tileOf(x + a), tileOf(z + b))) return null; return y < SP.groundAt(x, z) - TOL ? 'paroi' : null; }
     return null;
   }
@@ -144,17 +174,31 @@ function pageAudit(opt) {
 
   /* ─── Inventaire des objets ─── */
   const SKIP = /^(Object\.)?[bcsg]$|^mesh$|^Array\.|^http|^new$|^Batch\.|^<anonymous>|\.add$|^async$/;
-  const fnName = (st) => (st || []).find((f) => f && !SKIP.test(f)) || null;
+  const fnName = (st) => (st || []).find((f) => f && f[0] && !SKIP.test(f[0]))?.[0] || null;
+  // Lieu de pose (fichier:ligne de src/) : première fonction de la pile hors du moteur et de la trousse, et hors des fonctions
+  // qui fabriquent un objet (kSofa, crate… : c'est la ligne qui les appelle) ; commentaire de cette ligne quand l'objet y est
+  // construit directement (groupe KIT.g d'un fichier de carte : « machine à laver »).
+  const PARTS = opt.src.parts, NOTES = opt.src.notes, LIB = /^(0[0-5]|06b|06c)/, HELP = /^(Object\.)?(crate|barrel|hangingLamp|porch|k[A-Z]\w*)$/;
+  const fileOf = (hl) => { let p = null; for (const q of PARTS) { if (q[0] < hl) p = q; else break; } return p && hl ? [p[1], hl - p[0]] : null; };
+  function placeOf(st) {
+    const fr = (st || []).filter((f) => f && f[0] && !SKIP.test(f[0])).map(([n, l]) => [n, l, fileOf(l)]).filter((f) => f[2]);
+    const at = fr.find(([n, , fl]) => !LIB.test(fl[0]) && !HELP.test(n)) || fr[0];
+    return at ? { src: at[2][0] + ':' + at[2][1], note: at === fr[0] ? NOTES[at[1]] : undefined } : {};
+  }
   // Architecture, terrain, semis, armes en main, infectés : pas audités. (Liste explicite : le décor du Poste 7 est posé par
   // buildProps, buildOutside, buildCraterProps, buildQuestProps, buildRobot, buildPoste7Extras, qui, eux, sont audités.)
   const ARCHI = /^(build(Doors|Fences|FlatRamps|FlatTerrain|FlatWorld|Ramps|Roofs|Sky|Terrain|Trenches|Water|World|Environment|Lights|Snow|Map|ZombieAssets|Body|Composer|ViewLights|Textures|Materials|Sprites|GunModel|DetailedGun|Knife|GrenadeModel)\b|flat|door|rough|qb|init|mount|scatter|decal|make|sky)/i;
   const visible = (o) => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
-  const isPart = (o) => (o.isMesh || o.isInstancedMesh) && !o.isSprite && o.geometry?.attributes?.position && visible(o) && !(o.material && !Array.isArray(o.material) && o.material.visible === false);
+  // (effets de lumière — puits de lune, champignon atomique — : nuanceur ou mélange additif, pas des objets)
+  const isPart = (o) => (o.isMesh || o.isInstancedMesh) && !o.isSprite && o.geometry?.attributes?.position && visible(o) && !(o.material && !Array.isArray(o.material) && (o.material.visible === false || o.material.type === 'ShaderMaterial' || o.material.blending === THREE.AdditiveBlending));
+  // Paysage (voûte et rochers de la mine, rochers du rivage, lointain) : pas audité, mais reste un appui et une paroi.
+  const LAND = /^(filCave|\w+Far)$/;
   const objs = [], owned = new Set();
   const addObj = (o) => { o.i = objs.length; objs.push(o); return o; };
   const partsOf = (root) => { const out = []; root.traverse((c) => { if (isPart(c) && !owned.has(c)) { out.push({ m: c }); owned.add(c); } }); return out; };
   // Trousse : un groupe par objet posé (KIT.g note la fonction qui l'a construit et garde le groupe).
-  for (const s of KIT.spots || []) { if (!s.g || !s.g.parent || !visible(s.g)) continue; const parts = partsOf(s.g); if (parts.length) addObj({ name: s.fn || 'kit', kind: 'kit', parts, ry: s.ry, y: s.y }); }
+  const nameSrc = (fn, st, hint = true) => { const pl = placeOf(st); return { fn, name: fn + (hint && pl.note ? ` « ${pl.note} »` : ''), src: pl.src || null }; };
+  for (const s of KIT.spots || []) { if (!s.g || !s.g.parent || !visible(s.g) || LAND.test(s.fn || '')) continue; const parts = partsOf(s.g); if (parts.length) addObj({ ...nameSrc(s.fn || 'kit', s.g.userData.fnStack), kind: 'kit', parts, ry: s.ry, y: s.y }); }
   // Objets du jeu.
   const named = [];
   for (const p of WORLD.perks || []) named.push([p.group, 'atout ' + p.key]);
@@ -165,29 +209,32 @@ function pageAudit(opt) {
   for (const w of WORLD.wallBuys || []) named.push([w.group, 'arme murale ' + w.weapon]);
   for (const g of SECRET?.meshes || []) named.push([g, 'disque secret']);
   for (const l of WORLD.powerLamps || []) named.push([l.g, 'lampe suspendue']);
-  for (const [g, n] of named) { if (!g || !g.parent || !visible(g)) continue; const parts = partsOf(g); if (parts.length) addObj({ name: n, kind: 'jeu', parts, ry: g.rotation.y, y: 0 }); }
+  // Objets à ramasser qui tournent en l'air (11b_quest.js, 11d_power.js, 22_map_penitencier.js, 23b_filon_rules.js).
+  for (const g of [...(WORLD.tubes || []).map((t) => t.g), ...(WORLD.pwrParts || []).map((w) => w.g), ...(WORLD.penParts || []), WORLD.penKeys, ...(WORLD.filRubble || []).map((r) => r.nug)]) if (g) named.push([g, 'objet à ramasser']);
+  for (const [g, n] of named) { if (!g || !g.parent || !visible(g)) continue; const parts = partsOf(g); if (parts.length) addObj({ ...nameSrc(n, g.userData.fnStack, false), kind: 'jeu', parts, ry: g.rotation.y, y: 0 }); }
   // Groupes posés directement dans la scène hors de la trousse (décors de 06_props.js, 22b_pen_decor.js…) : un objet par groupe.
   const unknown = {};
   for (const o of R.scene.children) {
     if (o.isMesh || o.isInstancedMesh || o.isPoints || o.isLine || !o.children.length || !visible(o)) continue;
     let free = 0; o.traverse((c) => { if (isPart(c) && !owned.has(c)) free++; }); if (!free) continue; // (déjà pris : trousse, objets du jeu)
     const fn = fnName(o.userData.fnStack);
-    if (!fn || ARCHI.test(fn)) { const k = 'groupe ' + (fn || o.type); unknown[k] = (unknown[k] || 0) + 1; continue; }
-    const parts = partsOf(o); if (parts.length) addObj({ name: fn, kind: 'groupe', parts, ry: o.rotation.y, y: o.position.y });
+    if (!fn || ARCHI.test(fn) || LAND.test(fn)) { const k = 'groupe ' + (fn || o.type); unknown[k] = (unknown[k] || 0) + 1; continue; }
+    const parts = partsOf(o); if (parts.length) addObj({ ...nameSrc(fn, o.userData.fnStack), kind: 'groupe', parts, ry: o.rotation.y, y: o.position.y });
   }
   // Maillages et lots posés directement dans la scène par le décor (crate, barrel, kFrame, sacs de sable…).
   for (const o of R.scene.children) {
     if (!isPart(o) || owned.has(o)) continue;
     const fn = fnName(o.userData.fnStack);
-    if (!fn || ARCHI.test(fn)) { const k = (o.isInstancedMesh ? 'lot ' : '') + (fn || o.geometry.type); unknown[k] = (unknown[k] || 0) + 1; continue; }
+    if (!fn || ARCHI.test(fn) || LAND.test(fn)) { const k = (o.isInstancedMesh ? 'lot ' : '') + (fn || o.geometry.type); unknown[k] = (unknown[k] || 0) + 1; continue; }
     owned.add(o);
-    if (!o.isInstancedMesh) { addObj({ name: fn, kind: 'décor', parts: [{ m: o }], ry: o.rotation.y, y: 0 }); continue; }
+    if (!o.isInstancedMesh) { addObj({ ...nameSrc(fn, o.userData.fnStack), kind: 'décor', parts: [{ m: o }], ry: o.rotation.y, y: 0 }); continue; }
     // Lot : exemplaires regroupés par voisinage (moins de 0,8 m), un objet par grappe.
     const n = o.count, pos = [], m4 = new THREE.Matrix4(), v = new THREE.Vector3();
     for (let k = 0; k < n; k++) { o.getMatrixAt(k, m4); v.setFromMatrixPosition(m4).applyMatrix4(o.matrixWorld); pos.push([v.x, v.y, v.z]); }
     const lab = new Int32Array(n).fill(-1); let nl = 0;
     for (let k = 0; k < n; k++) { if (lab[k] >= 0) continue; lab[k] = nl; const st = [k]; while (st.length) { const a = st.pop(); for (let b = 0; b < n; b++) if (lab[b] < 0 && Math.hypot(pos[a][0] - pos[b][0], pos[a][2] - pos[b][2]) < 0.8) { lab[b] = nl; st.push(b); } } nl++; }
-    for (let c = 0; c < nl; c++) { const parts = []; for (let k = 0; k < n; k++) if (lab[k] === c) parts.push({ m: o, k }); addObj({ name: fn + ' (lot)', kind: 'lot', parts, ry: 0, y: 0, batch: true }); }
+    const ns = nameSrc(fn, o.userData.fnStack); ns.name += ' (lot)'; ns.fn += ' (lot)';
+    for (let c = 0; c < nl; c++) { const parts = []; for (let k = 0; k < n; k++) if (lab[k] === c) parts.push({ m: o, k }); addObj({ ...ns, kind: 'lot', parts, ry: 0, y: 0, batch: true }); }
   }
   lap('inventaire');
 
@@ -261,6 +308,7 @@ function pageAudit(opt) {
   /* ─── Appuis visibles : triangles non verticaux de la scène, rangés par cellule de 1 m, pour les rayons verticaux ─── */
   const ownerOf = new Map(); for (const o of objs) for (const p of o.parts) ownerOf.set(p.k === undefined ? p.m : p.m.uuid + ':' + p.k, o.i);
   const cellT = new Map(), TR = []; // TR : ax, ay, az, bx, by, bz, cx, cy, cz, propriétaire
+  const cellV = new Map(), TV = []; // parois visibles (triangles à moins de 17° de la verticale), même rangement
   let nsup = 0;
   R.scene.traverse((m) => {
     if (!(m.isMesh || m.isInstancedMesh) || m.isSprite || !visible(m) || !m.geometry?.attributes?.position) return;
@@ -274,9 +322,11 @@ function pageAudit(opt) {
       const own = ownerOf.get(m.isInstancedMesh ? m.uuid + ':' + k : m) ?? -1;
       worldTris(m, m.isInstancedMesh ? k : undefined, (wp, a, b, c) => {
         const ux = wp[b] - wp[a], uy = wp[b + 1] - wp[a + 1], uz = wp[b + 2] - wp[a + 2], vx = wp[c] - wp[a], vy = wp[c + 1] - wp[a + 1], vz = wp[c + 2] - wp[a + 2];
-        const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, nl = Math.hypot(nx, ny, nz); if (nl < 1e-12 || Math.abs(ny) / nl < 0.05) return;
+        const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, nl = Math.hypot(nx, ny, nz); if (nl < 1e-12) return;
         const x0 = Math.min(wp[a], wp[b], wp[c]), x1 = Math.max(wp[a], wp[b], wp[c]), z0 = Math.min(wp[a + 2], wp[b + 2], wp[c + 2]), z1 = Math.max(wp[a + 2], wp[b + 2], wp[c + 2]);
         if (x1 < X0 || z1 < Z0 || x0 > X0 + NX * V || z0 > Z0 + NZ * V) return;
+        if (Math.abs(ny) / nl < 0.3) { const tv = TV.length / 10; TV.push(wp[a], wp[a + 1], wp[a + 2], wp[b], wp[b + 1], wp[b + 2], wp[c], wp[c + 1], wp[c + 2], own); for (let cx = Math.floor(Math.max(x0, X0)); cx <= Math.floor(Math.min(x1, X0 + NX * V)); cx++) for (let cz = Math.floor(Math.max(z0, Z0)); cz <= Math.floor(Math.min(z1, Z0 + NZ * V)); cz++) { const key = cx * 100000 + cz; const l = cellV.get(key); if (l) l.push(tv); else cellV.set(key, [tv]); } }
+        if (Math.abs(ny) / nl < 0.05) return;
         const ti = TR.length / 10; TR.push(wp[a], wp[a + 1], wp[a + 2], wp[b], wp[b + 1], wp[b + 2], wp[c], wp[c + 1], wp[c + 2], own);
         for (let cx = Math.floor(Math.max(x0, X0)); cx <= Math.floor(Math.min(x1, X0 + NX * V)); cx++) for (let cz = Math.floor(Math.max(z0, Z0)); cz <= Math.floor(Math.min(z1, Z0 + NZ * V)); cz++) { const key = cx * 100000 + cz; const l = cellT.get(key); if (l) l.push(ti); else cellT.set(key, [ti]); }
       });
@@ -297,22 +347,58 @@ function pageAudit(opt) {
     }
     return best > -Infinity ? [best, who] : null;
   }
+  // Distance d'un point au triangle n° t de TV (point le plus proche du triangle, Ericson, « Real-Time Collision Detection »).
+  function triDist(px, py, pz, t) {
+    const o = t * 10, ax = TV[o], ay = TV[o + 1], az = TV[o + 2], bx = TV[o + 3], by = TV[o + 4], bz = TV[o + 5], cx = TV[o + 6], cy = TV[o + 7], cz = TV[o + 8];
+    const abx = bx - ax, aby = by - ay, abz = bz - az, acx = cx - ax, acy = cy - ay, acz = cz - az;
+    const d1 = abx * (px - ax) + aby * (py - ay) + abz * (pz - az), d2 = acx * (px - ax) + acy * (py - ay) + acz * (pz - az);
+    const d3 = abx * (px - bx) + aby * (py - by) + abz * (pz - bz), d4 = acx * (px - bx) + acy * (py - by) + acz * (pz - bz);
+    const d5 = abx * (px - cx) + aby * (py - cy) + abz * (pz - cz), d6 = acx * (px - cx) + acy * (py - cy) + acz * (pz - cz);
+    const va = d3 * d6 - d5 * d4, vb = d5 * d2 - d1 * d6, vc = d1 * d4 - d3 * d2;
+    let qx, qy, qz;
+    if (d1 <= 0 && d2 <= 0) { qx = ax; qy = ay; qz = az; }
+    else if (d3 >= 0 && d4 <= d3) { qx = bx; qy = by; qz = bz; }
+    else if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); qx = ax + v * abx; qy = ay + v * aby; qz = az + v * abz; }
+    else if (d6 >= 0 && d5 <= d6) { qx = cx; qy = cy; qz = cz; }
+    else if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); qx = ax + w * acx; qy = ay + w * acy; qz = az + w * acz; }
+    else if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) { const w = (d4 - d3) / (d4 - d3 + d5 - d6); qx = bx + w * (cx - bx); qy = by + w * (cy - by); qz = bz + w * (cz - bz); }
+    else { const den = 1 / (va + vb + vc), v = vb * den, w = vc * den; qx = ax + abx * v + acx * w; qy = ay + aby * v + acy * w; qz = az + abz * v + acz * w; }
+    return Math.hypot(px - qx, py - qy, pz - qz);
+  }
+  // Paroi visible (mur, façade, enceinte, clôture, paroi de tranchée, flanc d'un autre objet) à moins de d du point, hors de
+  // l'objet lui-même : -1 architecture, n° de l'objet, ou -2 rien. (Le test logique nearWall ne voit que les murs de la grille.)
+  function wallNear(x, y, z, self, d, okObj) {
+    let best = -2;
+    for (let cx = Math.floor(x - d); cx <= Math.floor(x + d); cx++) for (let cz = Math.floor(z - d); cz <= Math.floor(z + d); cz++) {
+      const l = cellV.get(cx * 100000 + cz); if (!l) continue;
+      for (const t of l) {
+        const o = t * 10, own = TV[o + 9]; if (own === self || (own >= 0 && (best >= 0 || !okObj(own)))) continue;
+        if (x < Math.min(TV[o], TV[o + 3], TV[o + 6]) - d || x > Math.max(TV[o], TV[o + 3], TV[o + 6]) + d || y < Math.min(TV[o + 1], TV[o + 4], TV[o + 7]) - d || y > Math.max(TV[o + 1], TV[o + 4], TV[o + 7]) + d || z < Math.min(TV[o + 2], TV[o + 5], TV[o + 8]) - d || z > Math.max(TV[o + 2], TV[o + 5], TV[o + 8]) + d) continue;
+        if (triDist(x, y, z, t) < d) { if (own < 0) return -1; best = own; }
+      }
+    }
+    return best;
+  }
   lap('appuis');
 
   /* ─── Contrôles par objet ─── */
   const F = []; // constats sans objet (zones, boîtes, points)
   // Faits pour être en hauteur ou au mur : tableaux, plafonniers, placards hauts, lampes suspendues, armes murales, tableau
   // électrique (le test « flottant » n'a pas de sens pour eux ; leur encastrement est jugé à 50 %).
-  const HIGH = /kFrame|kCeilLamp|kUpperCab|lampe suspendue|arme murale|tableau électrique/;
+  // (hangingLamp : ampoule au bout d'un fil, pendue à une potence, une poutre ou un plafond)
+  const HIGH = /kFrame|kCeilLamp|kUpperCab|lampe suspendue|hangingLamp|arme murale|tableau électrique/;
   // Colonnes occupées par chaque objet (contacts, superpositions).
   const byCol = new Map();
   for (const o of active) { if (flat(o)) continue; for (const ck of o.cols.keys()) { const l = byCol.get(ck); if (l) l.push(o.i); else byCol.set(ck, [o.i]); } }
   // Appui sous un point : [écart, nom de l'appui].
-  const supportGap = (o, x, y, z) => { const g = SP.groundAt(x, z), s = surfBelow(x, z, y + 0.06, o.i), up = s && s[0] > g; return [y - (up ? s[0] : g), up ? (s[1] >= 0 ? objs[s[1]].name : 'architecture') : 'sol']; };
+  // (plan d'eau : un plan de 1 600 m, écarté des appuis pour sa taille ; il porte ce qui flotte, la vedette amarrée)
+  const WATER = Md.water ? Md.water.y : null;
+  const supportGap = (o, x, y, z) => { const g = SP.groundAt(x, z), s = surfBelow(x, z, y + 0.06, o.i), up = s && s[0] > g; let b = up ? s[0] : g, on = up ? (s[1] >= 0 ? objs[s[1]].name : 'architecture') : 'sol'; if (WATER !== null && WATER > b) { b = WATER; on = "l'eau"; } return [y - b, on]; };
   for (const o of active) {
     o.issues = [];
     const tx = o.tile[0], tz = o.tile[1];
-    if (HIGH.test(o.name)) o.attached = 'fait pour être en hauteur ou au mur';
+    if (HIGH.test(o.fn)) o.attached = 'fait pour être en hauteur ou au mur';
+    else if (o.fn === 'objet à ramasser') o.attached = 'objet à ramasser : flotte en tournant, par construction';
     else if (roofed(tx, tz) && o.maxY > ceilAt(tx, tz) - 0.15 && o.maxY < ceilAt(tx, tz) + 0.4 && o.minY > 0.5) o.attached = 'accroché au plafond'; // (pas ce qui est sur le toit)
     if (flat(o)) continue;
     // Flottant : aucun point bas (sommets bas des pièces, bas des colonnes) à moins de 4 cm d'un appui.
@@ -333,39 +419,54 @@ function pageAudit(opt) {
       if (n >= Math.max(1, 0.3 * base.length)) o.attached = 'planté dans ' + (by >= 0 ? objs[by].name : "l'architecture (toit, soubassement…)");
     }
     // Mannequin assis : quelque chose sous le bassin (colonnes à moins de 15 cm du centre de gravité).
-    if (/kMannequin/.test(o.name) && o.y > 0) {
+    if (/kMannequin/.test(o.fn) && o.y > 0) {
       let sx = 0, sz = 0, sv = 0; for (const [ck, l] of o.cols) { let v = 0; for (const [a, b] of l) v += b - a; sx += ccx(ck) * v; sz += ccz(ck) * v; sv += v; }
       const gx = sx / sv, gz = sz / sv; let sg = Infinity, son = null;
       for (const [ck, l] of o.cols) { if (Math.hypot(ccx(ck) - gx, ccz(ck) - gz) > 0.15) continue; const [g, w] = supportGap(o, ccx(ck), l[0][0], ccz(ck)); if (g < sg) { sg = g; son = w; } }
       if (sg > 0.12 && sg < Infinity) o.seat = { gap: sg, on: son };
     }
     // Enfoncé : base à plus de 15 cm sous le sol, ou plus de la moitié du volume dessous.
-    let sink = -Infinity; for (const [x, y, z] of o.low) sink = Math.max(sink, SP.groundAt(x, z) - y);
-    let under = 0; for (const [ck, l] of o.cols) { const g = SP.groundAt(ccx(ck), ccz(ck)) - 0.01; for (const [a, b] of l) under += Math.max(0, Math.min(b, g) - a) * V * V; }
+    // (carte à tranchées : un point posé au-dessus de la paroi d'un objet qui est dans la tranchée n'a pas le sol de la
+    // surface au-dessus de lui mais la paroi à côté — un établi qui y mord de 3 cm n'est pas « enfoncé de 1,5 m » ; ce qui
+    // entre dans la paroi est compté par le contrôle « dans un mur »)
+    const inWallOfTrench = (x, z) => !FLAT && walkable(tx, tz) && !walkable(tileOf(x), tileOf(z));
+    let sink = -Infinity; for (const [x, y, z] of o.low) if (!inWallOfTrench(x, z)) sink = Math.max(sink, SP.groundAt(x, z) - y);
+    let under = 0; for (const [ck, l] of o.cols) { if (inWallOfTrench(ccx(ck), ccz(ck))) continue; const g = SP.groundAt(ccx(ck), ccz(ck)) - 0.01; for (const [a, b] of l) under += Math.max(0, Math.min(b, g) - a) * V * V; }
     const fr = o.vol > 1e-4 ? under / o.vol : 0;
-    if (sink > 0.15 || fr > 0.5) o.issues.push({ cat: 'enfoncé', grav: sink > 0.3 || fr > 0.5 ? 2 : 1, mag: Math.max(sink, fr), msg: `base ${Math.round(sink * 100)} cm sous le sol, ${Math.round(fr * 100)} % du volume dessous` });
+    // (poteau, pieu : mince et haut, planté dans le sol ou dans l'eau par construction ; la partie enterrée ne se voit pas)
+    const wd = Math.max(o.size[0], o.size[2]), post = wd < 0.5 && o.h > 2 * wd;
+    if (sink > 0.15 || fr > 0.5) o.issues.push({ cat: 'enfoncé', grav: post || NATURE.test(o.name) ? 0 : sink > 0.3 || fr > 0.5 ? 2 : 1, mag: Math.max(sink, fr), msg: `${post ? 'poteau planté : ' : NATURE.test(o.name) ? 'formation naturelle : ' : ''}base ${Math.round(sink * 100)} cm sous le sol, ${Math.round(fr * 100)} % du volume dessous` });
   }
   // Flottants : sauf accrochés à un mur (moins de 15 cm), ou en contact avec un objet qui, lui, est posé (traverse sur un poteau…).
   const posed = (o) => o.attached || o.gap <= 0.04;
+  // Points de surface de tous les objets, par case de 10 cm : contact entre objets, même minces (une pancarte et son
+  // poteau de 10 cm, qui n'a parfois aucune colonne : pas de centre de colonne dans sa section).
+  const surfIdx = new Map();
+  for (const o of active) { if (flat(o)) continue; for (const [k] of o.surf) { const l = surfIdx.get(k); if (!l) surfIdx.set(k, [o.i]); else if (l[l.length - 1] !== o.i) l.push(o.i); } }
+  const touching = (o, x, y, z) => { const ix = ixOf(x), iy = iyOf(y), iz = izOf(z); for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) { const k = vk(ix + a, iy + b, iz + c), l = surfIdx.get(k); if (l) for (const j of l) { if (j === o.i || !posed(objs[j])) continue; const q = objs[j].surf.get(k); if (Math.hypot(q[0] - x, q[1] - y, q[2] - z) < 0.15) return j; } } return -1; }; // (à moins de 15 cm, comme au mur)
   for (let pass = 0; pass < 2; pass++) for (const o of active) {
     if (flat(o) || posed(o) || o.fl) continue;
     // (au mur ou à un autre objet : seulement à plus de 30 cm de tout appui ; un buisson ou un meuble qui flotte de 10 cm
     // contre un mur ou contre son voisin n'y est pas fixé : un fauteuil sans pieds contre une bibliothèque flotte quand même)
-    let why = null; if (o.gap > 0.3 && !VEG.test(o.name)) for (const [, [x, y, z]] of o.surf) if (nearWall(x, y, z, 0.15)) { why = 'accroché au mur'; break; }
-    if (!why && o.gap > 0.3) for (const [, [x, y, z]] of o.surf) { const l = byCol.get(ixOf(x) * NZ + izOf(z)); if (!l) continue; const j = l.find((j) => j !== o.i && posed(objs[j]) && objs[j].cols.get(ixOf(x) * NZ + izOf(z)).some(([a, b]) => y > a - 0.03 && y < b + 0.03)); if (j !== undefined) { why = 'fixé à ' + objs[j].name; break; } }
+    // (objet mince ou petit — panneau, bouée, lampe — : suspendu dès 4 cm d'écart ; un meuble, lui, seulement à plus de 30 cm)
+    const hung = Math.min(o.size[0], o.size[2]) < 0.2 || o.vol < 0.01, G0 = hung ? 0.04 : 0.3;
+    let why = null; if (o.gap > G0 && !VEG.test(o.fn)) for (const [, [x, y, z]] of o.surf) if (nearWall(x, y, z, 0.15)) { why = 'accroché au mur'; break; }
+    if (!why && o.gap > G0) for (const [, [x, y, z]] of o.surf) { const l = byCol.get(ixOf(x) * NZ + izOf(z)); if (!l) continue; const j = l.find((j) => j !== o.i && posed(objs[j]) && objs[j].cols.get(ixOf(x) * NZ + izOf(z)).some(([a, b]) => y > a - 0.03 && y < b + 0.03)); if (j !== undefined) { why = 'fixé à ' + objs[j].name; break; } }
+    if (!why && o.gap > G0 && !VEG.test(o.fn)) for (const [, [x, y, z]] of o.surf) { const w = wallNear(x, y, z, o.i, 0.15, (j) => posed(objs[j])); if (w === -1) { why = 'accroché à une paroi visible (moins de 15 cm)'; break; } if (w >= 0) { why = 'fixé à ' + objs[w].name; break; } }
+    if (!why && o.gap > G0) for (const [, [x, y, z]] of o.surf) { const j = touching(o, x, y, z); if (j >= 0) { why = 'fixé à ' + objs[j].name; break; } }
     if (why) o.attached = why; else if (pass === 1) o.fl = true;
   }
   for (const o of active) {
     if (o.seat) o.issues.push({ cat: 'flottant', grav: 2, mag: o.seat.gap, msg: `assis dans le vide : rien sous le bassin à moins de ${Math.round(o.seat.gap * 100)} cm (dessous : ${o.seat.on})` });
     // (végétation en boules à moins de 15 cm : le bas d'une sphère ne touche le sol qu'en un point, l'écart ne se voit pas
     // dans l'herbe : information seulement)
-    else if (o.fl) o.issues.push({ cat: 'flottant', grav: VEG.test(o.name) && o.gap < 0.15 ? 0 : o.gap > 0.25 ? 2 : 1, mag: o.gap, msg: `flotte à ${Math.round(o.gap * 100)} cm au-dessus de : ${o.on}` });
+    else if (o.fl) o.issues.push({ cat: 'flottant', grav: VEG.test(o.fn) && o.gap < 0.15 ? 0 : o.gap > 0.25 ? 2 : 1, mag: o.gap, msg: `flotte à ${Math.round(o.gap * 100)} cm au-dessus de : ${o.on}` });
   }
   // Dans un mur : points du volume (centres des colonnes des pièces pleines, à plus de 5 cm sous la surface du mur ;
   // points de surface des pièces minces — miroirs, cadres, planches —, à plus de 2 cm) dans un mur, une clôture, une barricade, le plafond.
   for (const o of active) {
     let n = 0; const hit = {}, perPart = {}, nPart = {};
-    const test = (x, y, z, pi, tol) => { n++; nPart[pi] = (nPart[pi] || 0) + 1; let w = wallAt(x, y, z, tol); if (w === 'clôture' && VEG.test(o.name)) w = null; if (w) { hit[w] = (hit[w] || 0) + 1; if (w !== 'fenêtre') perPart[pi] = (perPart[pi] || 0) + 1; } };
+    const test = (x, y, z, pi, tol) => { n++; nPart[pi] = (nPart[pi] || 0) + 1; let w = wallAt(x, y, z, tol); if (w === 'clôture' && VEG.test(o.fn)) w = null; if (w) { hit[w] = (hit[w] || 0) + 1; if (w !== 'fenêtre') perPart[pi] = (perPart[pi] || 0) + 1; } };
     o.pc.forEach((cols, pi) => { if (o.pthin[pi]) return; for (const [ck, [y0, y1]] of cols) { const x = ccx(ck), z = ccz(ck); if (y1 - y0 < V) test(x, (y0 + y1) / 2, z, pi, 0.05); else for (let y = y0 + V / 2; y < y1; y += V) test(x, y, z, pi, 0.05); } });
     for (const [, [x, y, z, pi]] of o.surf) if (o.pthin[pi]) test(x, y, z, pi, 0.02);
     const tot = Object.values(hit).reduce((a, b) => a + b, 0), fr = n ? tot / n : 0; o.inWall = r2(fr);
@@ -377,7 +478,7 @@ function pageAudit(opt) {
       const worst = Object.entries(perPart).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([pi]) => o.pdesc[pi]).join(' ; ');
       const msg = hidden.length ? `${hidden.length} pièce(s) cachée(s) dans le mur (invisibles) : ${hidden.slice(0, 3).map((pi) => o.pdesc[pi]).join(' ; ')} — ${Math.round(fr * 100)} % des points de l'objet dans : ${kinds}`
         : `${Math.round(fr * 100)} % des points de l'objet dans : ${kinds}${hit.fenêtre ? ' (dans le trou de la fenêtre : il se voit en travers de la vitre)' : ''}${worst ? ' — surtout ' + worst : ''}`;
-      o.issues.push({ cat: 'dans un mur', kind: hidden.length ? 'caché' : hit.fenêtre ? 'fenêtre' : '', grav: (fr > 0.4 || hidden.length) && !o.attached ? 2 : 1, mag: fr, msg });
+      o.issues.push({ cat: 'dans un mur', kind: hidden.length ? 'caché' : hit.fenêtre ? 'fenêtre' : '', grav: NATURE.test(o.name) ? 0 : (fr > 0.4 || hidden.length) && !o.attached ? 2 : 1, mag: fr, msg });
     }
   }
   lap('flottants, murs');
@@ -385,9 +486,10 @@ function pageAudit(opt) {
   { const pair = new Map();
     for (const [ck, l] of byCol) {
       if (l.length < 2) continue;
+      const gc = SP.groundAt(ccx(ck), ccz(ck)) - 0.02; // (sous le sol ou le plancher, rien ne se voit : pieux dans les rochers)
       for (let a = 0; a < l.length; a++) for (let b = a + 1; b < l.length; b++) {
         const ia = objs[l[a]].cols.get(ck), ib = objs[l[b]].cols.get(ck); let s = 0;
-        for (const [a0, a1] of ia) for (const [b0, b1] of ib) s += Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
+        for (const [a0, a1] of ia) for (const [b0, b1] of ib) s += Math.max(0, Math.min(a1, b1) - Math.max(a0, b0, gc));
         if (s > 0) { const key = Math.min(l[a], l[b]) + ':' + Math.max(l[a], l[b]); pair.set(key, (pair.get(key) || 0) + s * V * V); }
       }
     }
@@ -395,9 +497,9 @@ function pageAudit(opt) {
       const [a, b] = key.split(':').map(Number), oa = objs[a], ob = objs[b], [s, l] = oa.vol <= ob.vol ? [oa, ob] : [ob, oa];
       if (s.vol < 0.002) continue; const fr = vol / s.vol; if (fr <= 0.2) continue;
       if (oa.batch && ob.batch && oa.name === ob.name) continue; // exemplaires d'un même lot
-      if (VEG.test(oa.name) && VEG.test(ob.name)) continue; // massifs : les buissons se mêlent
-      if (/kMannequin/.test(s.name) && s.y > 0 && fr < 0.5) continue; // mannequin assis volontairement
-      s.issues.push({ cat: 'superposés', grav: fr > 0.5 ? 2 : 1, mag: fr, other: l.i, msg: `${Math.round(fr * 100)} % de son volume (${r2(vol * 1000)} L) dans ${l.name} (${r2(l.c[0])}, ${r2(l.c[2])})` });
+      if (VEG.test(oa.fn) && VEG.test(ob.fn)) continue; // massifs : les buissons se mêlent
+      if (/kMannequin/.test(s.fn) && s.y > 0 && fr < 0.5) continue; // mannequin assis volontairement
+      s.issues.push({ cat: 'superposés', grav: fr > 0.5 ? 2 : 1, mag: fr, other: l.i, msg: `${Math.round(fr * 100)} % de son volume (${r2(vol * 1000)} L) dans ${label(l)} (${r2(l.c[0])}, ${r2(l.c[2])})` });
     }
   }
   lap('superposés');
@@ -416,17 +518,23 @@ function pageAudit(opt) {
   }
   const levels = (y0, y1) => { let m = 0; for (let l = Math.max(1, Math.floor(y0 / 0.1)); l <= Math.min(19, Math.floor((y1 - 1e-6) / 0.1)); l++) m |= 1 << l; return m; };
   const boxOf = new Map();
+  // Colonnes et points de surface de chaque objet, par colonne de 10 cm (propriétaire des boîtes).
+  const colAll = new Map(), surfCol = new Map();
+  for (const o of active) {
+    for (const ck of o.cols.keys()) { const l = colAll.get(ck); if (l) l.push(o.i); else colAll.set(ck, [o.i]); }
+    for (const [, [x, y, z]] of o.surf) { const ck = ixOf(x) * NZ + izOf(z), l = surfCol.get(ck); if (l) l.push(o.i, x, y, z); else surfCol.set(ck, [o.i, x, y, z]); }
+  }
   for (const b of props) {
     boxOf.set(b.i, b);
     // Propriétaire : l'objet qui a le plus de volume (ou de points de surface) dans la boîte.
-    let best = -1, bn = 0;
-    for (const o of active) {
-      if (o.box.max.x < b.x0 || o.box.min.x > b.x1 || o.box.max.z < b.z0 || o.box.min.z > b.z1) continue;
-      let n = 0;
-      for (const [ck, l] of o.cols) { const x = ccx(ck), z = ccz(ck); if (x < b.x0 || x > b.x1 || z < b.z0 || z > b.z1) continue; for (const [a, c] of l) n += Math.max(0, Math.min(c, b.y1 + 0.1) - Math.max(a, (b.y0 || 0) - 0.1)) * 10; }
-      for (const [, [x, y, z]] of o.surf) if (x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && y <= b.y1 + 0.1) n += 0.2;
-      if (n > bn) { bn = n; best = o.i; }
+    // (par les colonnes de la boîte : parcourir tous les points d'un très gros objet pour chaque boîte coûtait 80 s au Filon)
+    const sc = new Map(), addSc = (j, n) => sc.set(j, (sc.get(j) || 0) + n);
+    for (let ix = Math.max(0, ixOf(b.x0)); ix <= Math.min(NX - 1, ixOf(b.x1)); ix++) for (let iz = Math.max(0, izOf(b.z0)); iz <= Math.min(NZ - 1, izOf(b.z1)); iz++) {
+      const ck = ix * NZ + iz, x = ccx(ck), z = ccz(ck);
+      if (x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1) for (const j of colAll.get(ck) || []) { let n = 0; for (const [a, c] of objs[j].cols.get(ck)) n += Math.max(0, Math.min(c, b.y1 + 0.1) - Math.max(a, (b.y0 || 0) - 0.1)) * 10; if (n) addSc(j, n); }
+      const sl = surfCol.get(ck); if (sl) for (let k = 0; k < sl.length; k += 4) if (sl[k + 1] >= b.x0 && sl[k + 1] <= b.x1 && sl[k + 3] >= b.z0 && sl[k + 3] <= b.z1 && sl[k + 2] <= b.y1 + 0.1) addSc(sl[k], 0.2);
     }
+    let best = -1, bn = 0; for (const [j, n] of sc) if (n > bn) { bn = n; best = j; }
     b.owner = best; if (best >= 0) (objs[best].boxes ||= []).push(b.i);
     // Boîte tournée (colliderBox, KIT.solid) : emprise réelle notée par l'instrumentation (rb) ; la boîte gardée est l'englobante.
     b.rot = !!b.rb && Math.abs(Math.sin(2 * b.rb.ry)) > 0.01;
@@ -541,7 +649,7 @@ function pageAudit(opt) {
     }
     return out;
   }
-  const nameBoxes = (bs) => [...new Set(bs.map((i) => boxOf.get(i)?.owner).filter((i) => i >= 0).map((i) => objs[i].name))];
+  const nameBoxes = (bs) => [...new Set(bs.map((i) => boxOf.get(i)?.owner).filter((i) => i >= 0).map((i) => label(objs[i])))];
   // Entrée de la zone : chemin (cellules dégagées d'au moins rMin) depuis la partie atteinte jusqu'à la première cellule de la zone.
   function entry(inC, reached, rMin) {
     const prev = new Int32Array(N).fill(-2), q = new Int32Array(N); let h = 0, t = 0, hit = -1;
@@ -626,7 +734,7 @@ function pageAudit(opt) {
   lap('accessibilité');
   // Objets traversables (information) : assez grands pour gêner, au sol praticable, sans boîte de collision.
   for (const o of active) {
-    if (o.where !== 'jeu' || flat(o) || o.attached || o.minY > 0.3 || o.h < 0.6 || o.boxes?.length || /kMannequin|kShrub|kPlant|kLamp\b|kCone|lampe|disque|porch/.test(o.name)) continue;
+    if (o.where !== 'jeu' || flat(o) || o.attached || o.minY > 0.3 || o.h < 0.6 || o.boxes?.length || /kMannequin|kShrub|kPlant|kLamp\b|kCone|lampe|disque|porch/.test(o.fn)) continue;
     const area = o.cols.size * V * V; if (area < 0.15) continue;
     o.issues.push({ cat: 'traversable', grav: 0, mag: area, msg: `${r2(area)} m² au sol, ${r2(o.h)} m de haut, sans boîte de collision : le joueur passe au travers` });
   }
@@ -656,7 +764,7 @@ function pageAudit(opt) {
         const s = op.alongX ? x : z, bin = Math.min(NB - 1, Math.max(0, Math.floor((s - op.s0) / V)));
         for (const j of l) {
           const o = objs[j]; if (o.attached && o.minY > 1.9) continue;
-          const iv = o.cols.get(ck).filter(([a, b]) => b > 0.1 && a < 2.2); if (!iv.length) continue;
+          const iv = o.cols.get(ck).filter(([a, b]) => b > 0.2 && a < 2.2); if (!iv.length) continue; // (rails, traverses, seuils : sous 20 cm, on les enjambe)
           let h = hits.get(j); if (!h) hits.set(j, (h = { bins: new Set(), y0: Infinity, y1: -Infinity })); h.bins.add(bin); for (const [a, b] of iv) { h.y0 = Math.min(h.y0, a); h.y1 = Math.max(h.y1, b); }
         }
       }
@@ -691,7 +799,7 @@ function pageAudit(opt) {
 
   /* ─── Résultats ─── */
   const vis = { jeu: 1, abords: 0.7, loin: 0.4 };
-  for (const o of active) for (const f of o.issues) F.push({ ...f, obj: o.i, name: o.name, at: [r2(o.c[0]), r2(o.c[1]), r2(o.c[2])], where: o.where, zone: o.zone, boxes: f.box !== undefined ? [f.box] : o.boxes || [] });
+  for (const o of active) for (const f of o.issues) F.push({ ...f, obj: o.i, name: o.name, src: o.src, at: [r2(o.c[0]), r2(o.c[1]), r2(o.c[2])], where: o.where, zone: o.zone, boxes: f.box !== undefined ? [f.box] : o.boxes || [] });
   const AREA = /zone coupée|passage étroit|mur invisible|collision orpheline/;
   for (const f of F) { f.where ||= 'jeu'; f.zone ||= zoneName(tileOf(f.at[0]), tileOf(f.at[2])); f.score = Math.round((f.grav * 100 + Math.min(99, f.mag * (AREA.test(f.cat) ? 10 : 100))) * (vis[f.where] || 1)); }
   F.sort((a, b) => b.score - a.score);
@@ -700,7 +808,7 @@ function pageAudit(opt) {
   const cases = new Map();
   for (const f of F) {
     const k = f.key || (f.obj !== undefined ? 'o' + f.obj : f.cat + f.at.join(','));
-    if (!cases.has(k) || (f.cat === 'zone coupée' && cases.get(k).cat !== 'zone coupée')) cases.set(k, { ...(cases.get(k) || { boxes: new Set(), issues: [] }), name: f.name, cat: f.cat, at: f.at, zone: f.zone, where: f.where, score: Math.max(f.score, cases.get(k)?.score || 0), grav: Math.max(f.grav, cases.get(k)?.grav || 0), obj: f.obj });
+    if (!cases.has(k) || (f.cat === 'zone coupée' && cases.get(k).cat !== 'zone coupée')) cases.set(k, { ...(cases.get(k) || { boxes: new Set(), issues: [] }), name: f.name, src: f.src, cat: f.cat, at: f.at, zone: f.zone, where: f.where, score: Math.max(f.score, cases.get(k)?.score || 0), grav: Math.max(f.grav, cases.get(k)?.grav || 0), obj: f.obj });
     const c = cases.get(k); c.issues.push(f.cat + ' : ' + f.msg); for (const b of f.boxes || []) c.boxes.add(b); if (f.cells) c.cells = f.cells; if (f.other !== undefined) c.other = f.other;
     c.sig = (c.sig || []).concat([[f.cat + (f.kind ? '/' + f.kind : ''), f.mag, f.grav]]);
   }
@@ -716,7 +824,7 @@ function pageAudit(opt) {
   const caseList = groups.map((g) => {
     const c = g.reduce((a, b) => (b.score > a.score ? b : a));
     const out = { ...c, boxes: [...new Set(g.flatMap((d) => [...d.boxes]))], count: g.length };
-    if (g.length > 1) { out.name = `${c.name} ×${g.length}`; out.others = g.filter((d) => d !== c).map((d) => d.obj); out.issues = [...c.issues, `même défaut sur les ${g.length} exemplaires (${g.map((d) => `${d.at[0]}, ${d.at[2]}`).join(' ; ')}) : défaut du modèle ou de sa pose commune`]; }
+    if (g.length > 1) { out.name = `${c.name} ×${g.length}`; const ss = [...new Set(g.map((d) => d.src).filter(Boolean))]; if (ss.length > 1) out.src = ss.join(', '); out.others = g.filter((d) => d !== c).map((d) => d.obj); out.issues = [...c.issues, `même défaut sur les ${g.length} exemplaires (${g.map((d) => `${d.at[0]}, ${d.at[2]}`).join(' ; ')}) : défaut du modèle ou de sa pose commune`]; }
     delete out.sig; delete out.cats; return out;
   }).filter((c) => c.grav > 0).sort((a, b) => b.score - a.score);
   // Mesure de la piste confirmée : boîtes englobantes des objets tournés (colliderBox, KIT.solid). Pour chacune : emprise réelle
@@ -731,7 +839,7 @@ function pageAudit(opt) {
     accessibilité: { praticable: area((i) => cl0[i] >= PR), atteintSansObjets: area((i) => B0[i] >= PR), atteintAvecObjets: area((i) => BP[i] >= PR), atteintEnSeFaufilant: area((i) => reachedPlus[i]), largeurAuMoins08SansObjets: area((i) => B0[i] >= PW), largeurAuMoins08: area((i) => BP[i] >= PW), inaccessibleSansObjets: r2(lostMap * G * G) },
     ouvertures: openings.length,
     byCat, rotBoxes, findings: F.map(({ cells, ...f }) => f), cases: caseList.map(({ cells, ...c }) => c),
-    objects: active.map((o) => ({ i: o.i, name: o.name, kind: o.kind, at: [r2(o.c[0]), r2(o.c[1]), r2(o.c[2])], size: o.size.map(r2), ry: r2(o.ry || 0), where: o.where, zone: o.zone, gap: o.gap === undefined || o.gap === Infinity ? null : r2(o.gap), on: o.on, attached: o.attached || null, inWall: o.inWall, vol: r2(o.vol * 1000), boxes: o.boxes || [] })),
+    objects: active.map((o) => ({ i: o.i, name: o.name, src: o.src, kind: o.kind, at: [r2(o.c[0]), r2(o.c[1]), r2(o.c[2])], size: o.size.map(r2), ry: r2(o.ry || 0), where: o.where, zone: o.zone, gap: o.gap === undefined || o.gap === Infinity ? null : r2(o.gap), on: o.on, attached: o.attached || null, inWall: o.inWall, vol: r2(o.vol * 1000), boxes: o.boxes || [] })),
   };
 }
 
@@ -739,7 +847,8 @@ function pageAudit(opt) {
 function pageShot([ci, label]) {
   const { P, R, THREE, MAP } = SP, c = window.__PL.caseList[ci], o = c.obj !== undefined ? window.__PL.objs[c.obj] : null;
   const TILE = 2, W = SP.MAPW(), D = MAP.type.length / W;
-  const fx = c.at[0], fz = c.at[2], fy = o ? Math.min(1.4, Math.max(0.3, (o.minY + o.maxY) / 2)) : 0.5;
+  // (point visé : milieu de l'objet, jusqu'à 4 m de haut : une lampe de façade à 3 m sortait du cadre quand il était plafonné à 1,4 m)
+  const fx = c.at[0], fz = c.at[2], fy = o ? Math.min(4, Math.max(0.3, (o.minY + o.maxY) / 2)) : 0.5;
   const rad = o ? Math.min(4, Math.max(0.7, Math.hypot(o.size[0], o.size[2]) / 2)) : c.cells ? 2 : 1.2;
   // Repères : objet en jaune, boîtes de collision en rouge (pleines : les murs invisibles se voient), zone en magenta.
   const helpers = [], add = (h) => { R.scene.add(h); helpers.push(h); };
@@ -765,7 +874,7 @@ function pageShot([ci, label]) {
     // ni dans un objet (boîte de collision), ni collé à un mur : la vue serait bouchée
     if (MAP.props.some((b) => !b.off && cx > b.x0 - 0.3 && cx < b.x1 + 0.3 && cz > b.z0 - 0.3 && cz < b.z1 + 0.3 && eye < b.y1 + 0.2 && eye > (b.y0 || 0) - 0.2)) continue;
     if ([[0.25, 0], [-0.25, 0], [0, 0.25], [0, -0.25]].some(([a, b]) => SP.solidAt(cx + a, eye, cz + b, false))) continue;
-    cands.push({ a, cx, cz, eye, sc: (inside ? 2 : 0) + (eye < 2 ? 0.5 : 0) - Math.abs(dist - rad - 1.4) * 0.2 });
+    cands.push({ a, cx, cz, eye, dist, sc: (inside ? 2 : 0) + (eye < 2 ? 0.5 : 0) - Math.abs(dist - rad - 1.4) * 0.2 });
   }
   const angd = (p, q) => { const d = Math.abs(p - q) % (Math.PI * 2); return Math.min(d, Math.PI * 2 - d); };
   const views = [];
@@ -774,7 +883,7 @@ function pageShot([ci, label]) {
     for (const v of cands) { const sep = views.length ? Math.min(...views.map((w) => angd(w.a, v.a))) : Math.PI; const val = v.sc + Math.min(sep, Math.PI / 2) * 2; if (val > bv) { bv = val; best = v; } }
     views.push(best); cands.splice(cands.indexOf(best), 1);
   }
-  while (views.length < 4) { const a = (views.length / 4) * Math.PI * 2 + 0.4; views.push({ a, cx: fx + Math.sin(a) * (rad + 1.5), cz: fz + Math.cos(a) * (rad + 1.5), eye: 3.2, sc: -9 }); }
+  while (views.length < 4) { const a = (views.length / 4) * Math.PI * 2 + 0.4; views.push({ a, cx: fx + Math.sin(a) * (rad + 1.5), cz: fz + Math.cos(a) * (rad + 1.5), eye: 3.2, dist: rad + 1.5, sc: -9 }); }
   const dirName = (a) => ['sud', 'sud-est', 'est', 'nord-est', 'nord', 'nord-ouest', 'ouest', 'sud-ouest'][Math.round((((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8]; // côté de la caméra (nord = −z)
   const cw = 640, ch = 360, mc = document.createElement('canvas'); mc.width = cw * 2; mc.height = ch * 2; const c2 = mc.getContext('2d');
   const cam = R.camera;
@@ -784,15 +893,16 @@ function pageShot([ci, label]) {
     cam.position.set(v.cx, v.eye, v.cz); cam.rotation.set(pitch, yaw, 0); cam.updateMatrixWorld(true);
     SP.renderFrame(1); c2.drawImage(R.renderer.domElement, (i % 2) * cw, ((i / 2) | 0) * ch, cw, ch);
     c2.fillStyle = '#000b'; c2.fillRect((i % 2) * cw, ((i / 2) | 0) * ch, cw, 22); c2.fillStyle = v.sc < -5 ? '#f88' : '#ff0'; c2.font = '14px monospace';
-    c2.fillText(`${label} depuis le ${dirName(v.a)}${v.sc < -5 ? ' (aucune vue dégagée)' : ''} · ${c.name} (${c.at[0]}, ${c.at[2]})`.slice(0, 84), (i % 2) * cw + 5, ((i / 2) | 0) * ch + 16);
+    // (en-tête : direction, distance et hauteur d'œil, pour distinguer deux vues prises du même côté ; le nom est en bas)
+    c2.fillText(`${label} depuis le ${dirName(v.a)}, à ${v.dist.toFixed(1)} m, œil à ${v.eye} m${v.sc < -5 ? ' (aucune vue dégagée)' : ''}`.slice(0, 74), (i % 2) * cw + 5, ((i / 2) | 0) * ch + 16);
   });
-  const txt = c.issues.join(' | '), nl = Math.min(4, Math.ceil(txt.length / 175)); c2.fillStyle = '#000c'; c2.fillRect(0, ch * 2 - 6 - nl * 17, cw * 2, 6 + nl * 17); c2.fillStyle = '#fff'; c2.font = '13px monospace';
-  for (let l = 0; l < nl; l++) c2.fillText(txt.slice(l * 175, (l + 1) * 175), 5, ch * 2 - 7 - (nl - 1 - l) * 17);
+  const LW = 160, txt = `${c.name} (${c.at[0]}, ${c.at[2]})${c.src ? ` [${c.src}]` : ''} — ` + c.issues.join(' | '), nl = Math.min(5, Math.ceil(txt.length / LW)); c2.fillStyle = '#000c'; c2.fillRect(0, ch * 2 - 6 - nl * 17, cw * 2, 6 + nl * 17); c2.fillStyle = '#fff'; c2.font = '13px monospace';
+  for (let l = 0; l < nl; l++) c2.fillText(txt.slice(l * LW, (l + 1) * LW), 5, ch * 2 - 7 - (nl - 1 - l) * 17);
   for (const h of helpers) { R.scene.remove(h); h.geometry?.dispose(); }
   return mc.toDataURL('image/jpeg', 0.85);
 }
 
-const res = await page.evaluate(pageAudit, { margin: 10 });
+const res = await page.evaluate(pageAudit, { margin: 10, src: SRC });
 fs.mkdirSync(path.join(dir, 'results'), { recursive: true }); fs.mkdirSync(path.join(dir, 'shots'), { recursive: true });
 const out = path.join(dir, 'results', `placement_${id}.json`);
 // Captures des cas les plus graves (et de ceux que VOIR désigne), nommées par le rang du cas. Un cas à moins de 1,5 m d'un
@@ -801,7 +911,7 @@ const out = path.join(dir, 'results', `placement_${id}.json`);
 for (const f of fs.readdirSync(path.join(dir, 'shots'))) if (f.startsWith(`placement_${id}_`) && f.endsWith('.jpg')) fs.unlinkSync(path.join(dir, 'shots', f));
 const shots = [], pick = [];
 for (let k = 0; k < res.cases.length && pick.length < NSHOTS; k++) { const a = res.cases[k].at; if (!pick.some((j) => Math.hypot(res.cases[j].at[0] - a[0], res.cases[j].at[2] - a[2]) < 1.5)) pick.push(k); }
-if (process.env.VOIR) { const re = new RegExp(process.env.VOIR, 'i'); res.cases.forEach((c, k) => { if (!pick.includes(k) && re.test(c.name + ' ' + c.issues.join(' '))) pick.push(k); }); }
+if (process.env.VOIR) { const re = new RegExp(process.env.VOIR, 'i'); res.cases.forEach((c, k) => { if (!pick.includes(k) && re.test(`${c.name} [${c.src || ''}] ${c.issues.join(' ')}`)) pick.push(k); }); }
 for (const k of pick) {
   const url = await page.evaluate(pageShot, [k, `n° ${k + 1}`]);
   const f = path.join(dir, 'shots', `placement_${id}_${k + 1}.jpg`); fs.writeFileSync(f, Buffer.from(url.split(',')[1], 'base64')); shots.push(path.relative(dir, f));
@@ -819,7 +929,7 @@ console.log('constats par catégorie [info, léger, moyen, grave] :'); for (cons
   console.log(`objets tournés (colliderBox garde la boîte englobante alignée sur les axes) : ${rb.length} boîtes, emprise réelle ${sum('real')} m², boîtes gardées ${sum('aabb')} m², excédent ${sum('excess')} m² ;`);
   console.log(`   dont ${sum('excessWalk', bl)} m² au-dessus du sol praticable (murs invisibles que la correction rendra), ${sum('excessInvisible', bl)} m² sans rien de visible ; les plus gros :`, bl.slice(0, 6).map((b) => `${b.obj} ${b.deg}° (${b.at.join(', ')}) ${b.excessWalk} m²`).join(' ; ')); }
 console.log('cas les plus graves :');
-res.cases.slice(0, 15).forEach((c, k) => console.log(`  ${String(k + 1).padStart(2)}. [${GR[c.grav]}] ${c.name} (${c.at[0]}, ${c.at[2]}) ${c.zone} — ${c.issues.join(' | ')}`.slice(0, 420)));
+res.cases.slice(0, 15).forEach((c, k) => console.log(`  ${String(k + 1).padStart(2)}. [${GR[c.grav]}] ${c.name}${c.src ? ` [${c.src}]` : ''} (${c.at[0]}, ${c.at[2]}) ${c.zone} — ${c.issues.join(' | ')}`.slice(0, 460)));
 console.log('→', path.relative(dir, out), shots.length ? '+ ' + shots.length + ' captures' : '');
 console.log('ERRORS', errors.length); for (const e of errors.slice(0, 10)) console.log(e);
 await browser.close();
