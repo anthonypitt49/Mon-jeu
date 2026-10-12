@@ -86,7 +86,7 @@ const PATCHES = [
   ['constructor(geo, mat, shadow = true) { this.geo = geo;', "constructor(geo, mat, shadow = true) { this.fnStack = new Error().stack.split('\\n').slice(2, 5).map(__F); this.geo = geo;"],
   ['parent.add(im); return im;', 'im.userData.fnStack = this.fnStack; parent.add(im); return im;'],
 ];
-await page.route('http://127.0.0.1:8088/index.html*', async (route) => {
+await page.route((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html*', async (route) => {
   const r = await route.fetch(); let body = await r.text(); const nl = body.split('\n').length;
   for (const [a, b] of PATCHES) { if (!body.includes(a)) errors.push('[instrumentation] motif introuvable dans index.html : ' + a.slice(0, 60)); body = body.replace(a, () => b); }
   if (body.split('\n').length !== nl) errors.push('[instrumentation] la page instrumentée n\'a plus le même nombre de lignes : lignes de source fausses');
@@ -105,7 +105,7 @@ const SRC = (() => {
   return { parts: parts.map(([h, f]) => [h, f]), notes };
 })();
 const t0 = Date.now();
-await page.goto('http://127.0.0.1:8088/index.html?spots&nomerge&nophoto&nozreal' + (process.env.Q ? '&' + process.env.Q : '') + '#carte=' + id);
+await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?spots&nomerge&nophoto&nozreal' + (process.env.Q ? '&' + process.env.Q : '') + '#carte=' + id);
 await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
 await page.evaluate(() => document.querySelector('#soloButton').click());
 await page.waitForTimeout(1500);
