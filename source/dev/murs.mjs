@@ -163,7 +163,15 @@ const A = await page.evaluate(([PAS, ECART]) => {
   const DIRS = [...Array(8)].map((_, i) => [Math.round(Math.cos((i * Math.PI) / 4) * 1e6) / 1e6, Math.round(Math.sin((i * Math.PI) / 4) * 1e6) / 1e6]);
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const live = (b, y) => !b.off && !(y + 0.3 >= b.y1 || y + 1.6 < (b.y0 || 0)); // mêmes conditions que collideProps
-  const inBox = (x, z, y) => MAP.props.some((b) => live(b, y) && x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1);
+  // Forme réelle d'une boîte (03_map.js) : boîte tournée (b.rot), cylindre debout (b.rad) ou boîte alignée ; point le plus proche.
+  const near = (b, x, z) => {
+    const o = b.rot; if (o) { const wx = x - o.cx, wz = z - o.cz, lx = clamp(o.c * wx - o.s * wz, -o.hw, o.hw), lz = clamp(o.s * wx + o.c * wz, -o.hd, o.hd); return [o.cx + o.c * lx + o.s * lz, o.cz - o.s * lx + o.c * lz]; }
+    if (b.rad) { const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, dx = x - cx, dz = z - cz, d = Math.hypot(dx, dz); return d <= b.rad ? [x, z] : [cx + (dx * b.rad) / d, cz + (dz * b.rad) / d]; }
+    return [clamp(x, b.x0, b.x1), clamp(z, b.z0, b.z1)];
+  };
+  const inShape = (b, x, z) => { if (!(x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1)) return false; const [cx, cz] = near(b, x, z); return Math.abs(cx - x) < 1e-9 && Math.abs(cz - z) < 1e-9; };
+  window.__inShape = inShape;
+  const inBox = (x, z, y) => MAP.props.some((b) => live(b, y) && inShape(b, x, z));
   const resolve = (p, y) => { SP.collideCircle(p, R0, SP.pBlocked); SP.collideProps(p, R0, y, 0.3); };
   const tmS = Date.now();
   // Points d'échantillon (là où le joueur peut se tenir).
@@ -209,12 +217,12 @@ const A = await page.evaluate(([PAS, ECART]) => {
   // Ce qui arrête le joueur en q : boîte, mur fin ou carreau, le plus en face du mouvement.
   function sourceOf(q, d, y) {
     let best = null; const RR = R0 + 0.03;
-    const consider = (s, x0, x1, z0, z1) => {
-      const cx = clamp(q.x, x0, x1), cz = clamp(q.z, z0, z1), dx = q.x - cx, dz = q.z - cz, dist = Math.hypot(dx, dz); if (dist > RR) return;
+    const consider = (s, x0, x1, z0, z1, pt) => {
+      const [cx, cz] = pt || [clamp(q.x, x0, x1), clamp(q.z, z0, z1)], dx = q.x - cx, dz = q.z - cz, dist = Math.hypot(dx, dz); if (dist > RR) return;
       const face = dist > 1e-6 ? -(dx * d[0] + dz * d[1]) / dist : 1; if (face < 0.2) return;
       s.face = face; s.dist = dist; s.n = dist > 1e-6 ? [(cx - q.x) / dist, (cz - q.z) / dist] : d; if (!best || face > best.face + 0.05 || (Math.abs(face - best.face) <= 0.05 && dist < best.dist)) best = s;
     };
-    MAP.props.forEach((b, i) => { if (live(b, y)) consider({ type: 'prop', i }, b.x0, b.x1, b.z0, b.z1); });
+    MAP.props.forEach((b, i) => { if (live(b, y)) consider({ type: 'prop', i }, b.x0, b.x1, b.z0, b.z1, near(b, q.x, q.z)); });
     const cx = SP.tileOf(q.x), cz = SP.tileOf(q.z);
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
       const tx = cx + dx, tz = cz + dz;
@@ -252,10 +260,11 @@ const A = await page.evaluate(([PAS, ECART]) => {
   const props = MAP.props.map((b, i) => {
     const w = b.x1 - b.x0, dd = b.z1 - b.z0, sx = Math.min(0.2, w / 5), sz = Math.min(0.2, dd / 5); let tot = 0, cov = 0;
     if (!b.off) for (let z = b.z0 + sz / 2; z < b.z1; z += sz) for (let x = b.x0 + sx / 2; x < b.x1; x += sx) {
+      if (!inShape(b, x, z)) continue; // (forme réelle : coins de l'enveloppe d'une boîte tournée ou d'un cylindre exclus)
       const lo = Math.max(b.y0 || 0, SP.groundAt(x, z) + 0.05), hi = b.y1 + 0.05; if (hi <= lo) continue; tot++;
       if (ray(x, hi, z, 0, -1, 0, hi - lo, false, true)) cov++;
     }
-    return { i, x0: +b.x0.toFixed(3), x1: +b.x1.toFixed(3), z0: +b.z0.toFixed(3), z1: +b.z1.toFixed(3), y0: b.y0 || 0, y1: +b.y1.toFixed(3), mat: b.mat, off: !!b.off, cov: tot ? cov / tot : null, stack: window.__propSrc.get(b) || '' };
+    return { i, x0: +b.x0.toFixed(3), x1: +b.x1.toFixed(3), z0: +b.z0.toFixed(3), z1: +b.z1.toFixed(3), y0: b.y0 || 0, y1: +b.y1.toFixed(3), mat: b.mat, off: !!b.off, cov: tot ? cov / tot : null, stack: window.__propSrc.get(b) || '', exact: !!(b.rot || b.rad), rad: b.rad || null };
   });
   return {
     W, D, nTiles, inside, pushed, nPts: pts.length, nSteps, nBlocked, nVis, tmSteps, reach: [...reach].reduce((a, b) => a + b, 0),
@@ -296,7 +305,7 @@ for (const b of A.props) {
   if (sp) { b.ry = +sp.ry.toFixed(3); b.objet = sp.fn; }
   const ang = b.ry != null ? Math.abs(Math.sin(2 * b.ry)) : 0, bw = b.x1 - b.x0, bdp = b.z1 - b.z0;
   const aligned = b.w != null && ((Math.abs(bw - b.w) < 0.02 && Math.abs(bdp - b.d) < 0.02) || (Math.abs(bw - b.d) < 0.02 && Math.abs(bdp - b.w) < 0.02));
-  b.biais = b.via !== 'collider' && !aligned && (b.w != null || ang > 0.03); // tournée : la boîte englobante dépasse les dimensions demandées
+  b.biais = !b.exact && b.via !== 'collider' && !aligned && (b.w != null || ang > 0.03); // tournée : la boîte englobante dépasse les dimensions demandées (b.exact : forme réelle, 03_map.js)
   if (b.biais) {
     const c = Math.abs(Math.cos(b.ry || 0)), s = Math.abs(Math.sin(b.ry || 0)), hw = (b.x1 - b.x0) / 2, hd = (b.z1 - b.z0) / 2;
     if (b.w == null && Math.abs(c * c - s * s) > 0.2) { b.w = +((2 * hw * c - 2 * hd * s) / (c * c - s * s)).toFixed(2); b.d = +((2 * hd * c - 2 * hw * s) / (c * c - s * s)).toFixed(2); }

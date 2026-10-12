@@ -8,8 +8,8 @@
 // - Chargement en ?spots&nomerge&nophoto&nozreal. La page servie est instrumentée à la volée (rien n'est changé dans src/) :
 //   la fusion statique est sautée (?nomerge ne retient que la seconde : buildWorld fusionne déjà le décor) ; tout ce qui est
 //   ajouté à la scène (maillage, lot, groupe) note la fonction qui l'a créé (userData.fnStack), comme KIT.spots le fait pour
-//   les objets de la trousse (06b_kit.js, qui garde aussi le groupe lui-même) ; colliderBox note l'emprise réelle (rb) de
-//   chaque boîte tournée dont il ne garde que la boîte englobante.
+//   les objets de la trousse (06b_kit.js, qui garde aussi le groupe lui-même). Les boîtes tournées (b.rot) et les cylindres
+//   (b.rad) du jeu sont mesurés avec leur forme réelle (emprise rb, distances, dégagement).
 // - Lieu de pose : chaque objet porte « fichier:ligne » de src/ (la ligne de la carte qui le pose : kSofa ← citeDecor donne
 //   21b_cite_decor.js:49), retrouvé dans la pile d'appels grâce aux en-têtes de parties que build.mjs met dans la page ; un
 //   objet construit directement à une ligne qui porte un commentaire en prend le texte (citeDecor « machine à laver »).
@@ -81,7 +81,6 @@ await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
 // (pile d'appels : [fonction, ligne de la page] par niveau, __F ; les remplacements n'ajoutent aucune ligne à la page)
 const PATCHES = [
   ["import * as THREE from 'three';", "import * as THREE from 'three'; window.__F = (l) => { l = l.trim(); const m = l.match(/:(\\d+):\\d+\\)?$/); return [l.split(' ')[1], m ? +m[1] : 0]; }; if (/spots/.test(location.search)) { const _add = THREE.Object3D.prototype.add; THREE.Object3D.prototype.add = function (...a) { if (this.isScene) for (const o of a) if (o && o.userData && !o.userData.fnStack) o.userData.fnStack = new Error().stack.split('\\n').slice(2, 7).map(__F); return _add.apply(this, a); }; }"],
-  ['collider(x - hw, z - hd, x + hw, z + hd, h, mat); }', 'collider(x - hw, z - hd, x + hw, z + hd, h, mat); MAP.props[MAP.props.length - 1].rb = { x, z, w, d, ry }; }'],
   ['function mergeStatic() {', 'function mergeStatic() { if (/nomerge/.test(location.search)) return;'],
   ['const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.y = ry;', "const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.y = ry; if (KIT.spots && parent === R.scene) m.userData.fnStack = new Error().stack.split('\\n').slice(2, 6).map(__F);"],
   ['constructor(geo, mat, shadow = true) { this.geo = geo;', "constructor(geo, mat, shadow = true) { this.fnStack = new Error().stack.split('\\n').slice(2, 5).map(__F); this.geo = geo;"],
@@ -505,7 +504,8 @@ function pageAudit(opt) {
   lap('superposés');
 
   /* ─── Boîtes de collision ─── */
-  const props = MAP.props.map((b, i) => ({ ...b, i })).filter((b) => !b.off);
+  // (forme réelle des boîtes, 03_map.js : b.rot = boîte tournée { cx, cz, hw, hd, c, s }, b.rad = cylindre debout ; rb = emprise tournée)
+  const props = MAP.props.map((b, i) => ({ ...b, i, rb: b.rot ? { x: b.rot.cx, z: b.rot.cz, w: b.rot.hw * 2, d: b.rot.hd * 2, ry: Math.atan2(b.rot.s, b.rot.c) } : null })).filter((b) => !b.off);
   // Distance d'un point à l'emprise réelle d'une boîte tournée { x, z, w, d, ry } (w le long du x local, comme colliderBox).
   const rotDist = (rb, x, z) => { const c = Math.cos(rb.ry), s = Math.sin(rb.ry), dx = x - rb.x, dz = z - rb.z, lx = c * dx - s * dz, lz = s * dx + c * dz; return Math.hypot(Math.max(Math.abs(lx) - rb.w / 2, 0), Math.max(Math.abs(lz) - rb.d / 2, 0)); };
   const blocksPlayer = (b) => b.y1 > 0.3 && (b.y0 || 0) <= 1.6;
@@ -537,7 +537,7 @@ function pageAudit(opt) {
     let best = -1, bn = 0; for (const [j, n] of sc) if (n > bn) { bn = n; best = j; }
     b.owner = best; if (best >= 0) (objs[best].boxes ||= []).push(b.i);
     // Boîte tournée (colliderBox, KIT.solid) : emprise réelle notée par l'instrumentation (rb) ; la boîte gardée est l'englobante.
-    b.rot = !!b.rb && Math.abs(Math.sin(2 * b.rb.ry)) > 0.01;
+    b.rot = false; // (les boîtes tournées ont leur forme réelle depuis la version 6.1 : plus d'enveloppe en trop à mesurer)
     // Mur invisible : part de la boîte au-dessus du sol praticable sans rien de visible entre 10 cm et 2 m (tolérance 10 cm) ;
     // pour une boîte tournée, part de la boîte hors de l'emprise réelle (ce que la correction de colliderBox rendra au joueur).
     if (!blocksPlayer(b)) continue;
@@ -571,6 +571,14 @@ function pageAudit(opt) {
   lap('murs invisibles');
   // Portes, barricades et leurs abords recouverts par une boîte qui arrête le joueur.
   const rectI = (a, b) => Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0])) * Math.max(0, Math.min(a[3], b[3]) - Math.max(a[1], b[1]));
+  // Aire commune d'une boîte et d'un rectangle, forme réelle comprise (boîte tournée, cylindre : échantillons de 4 cm).
+  const shapeI = (b, br, r) => {
+    if (!b.rb && !b.rad) return rectI(br, r);
+    const x0 = Math.max(br[0], r[0]), x1 = Math.min(br[2], r[2]), z0 = Math.max(br[1], r[1]), z1 = Math.min(br[3], r[3]); if (x1 <= x0 || z1 <= z0) return 0;
+    const nx = Math.ceil((x1 - x0) / 0.04), nz = Math.ceil((z1 - z0) / 0.04), dx = (x1 - x0) / nx, dz = (z1 - z0) / nz; let n = 0;
+    for (let i = 0; i < nx; i++) for (let k = 0; k < nz; k++) { const x = x0 + (i + 0.5) * dx, z = z0 + (k + 0.5) * dz; if (b.rb ? rotDist(b.rb, x, z) <= 0 : Math.hypot(x - (b.x0 + b.x1) / 2, z - (b.z0 + b.z1) / 2) <= b.rad) n++; }
+    return n * dx * dz;
+  };
   const zonesP = [];
   for (const d of MAP.doors) {
     const x0 = d.x * TILE, z0 = d.z * TILE; zonesP.push({ kind: 'porte', label: `la porte « ${d.label} »`, r: [x0, z0, x0 + TILE, z0 + TILE], grav: 3 });
@@ -584,7 +592,7 @@ function pageAudit(opt) {
   for (const b of props) {
     if (!blocksPlayer(b)) continue; const br = [b.x0, b.z0, b.x1, b.z1];
     for (const zp of zonesP) {
-      const a = rectI(br, zp.r), za = (zp.r[2] - zp.r[0]) * (zp.r[3] - zp.r[1]); if (a < 0.01 || (zp.frac && a / za < zp.frac)) continue;
+      const a = shapeI(b, br, zp.r), za = (zp.r[2] - zp.r[0]) * (zp.r[3] - zp.r[1]); if (a < 0.01 || (zp.frac && a / za < zp.frac)) continue;
       boxF(b, { cat: zp.kind === 'porte' ? 'porte obstruée' : zp.kind === 'barricade' ? 'barricade obstruée' : 'accès gêné', grav: zp.grav, mag: a, box: b.i, msg: `boîte de collision sur ${zp.label} (${r2(a)} m², ${Math.round(a / za * 100)} %)` });
     }
   }
@@ -602,13 +610,13 @@ function pageAudit(opt) {
   for (let tz = 0; tz < D; tz++) for (let tx = 0; tx < W; tx++) { if (walkable(tx, tz)) continue; let nb = false; for (let a = -1; a <= 1; a++) for (let c = -1; c <= 1; c++) if (walkable(tx + a, tz + c)) nb = true; if (nb) rects0.push([tx * TILE, tz * TILE, tx * TILE + TILE, tz * TILE + TILE]); }
   for (let tz = 0; tz < D; tz++) for (let tx = 0; tx < W; tx++) { const w = MAP.ew[tz * W + tx]; if (w & 1) rects0.push([(tx + 1) * TILE - E, tz * TILE - E, (tx + 1) * TILE + E, (tz + 1) * TILE + E]); if (w & 2) rects0.push([tx * TILE - E, (tz + 1) * TILE - E, (tx + 1) * TILE + E, (tz + 1) * TILE + E]); }
   const pBoxes = props.filter(blocksPlayer);
-  const boxDist = (b, x, z) => Math.hypot(Math.max(b.x0 - x, 0, x - b.x1), Math.max(b.z0 - z, 0, z - b.z1));
+  const boxDist = (b, x, z) => (b.rb ? rotDist(b.rb, x, z) : b.rad ? Math.max(0, Math.hypot(x - (b.x0 + b.x1) / 2, z - (b.z0 + b.z1) / 2) - b.rad) : Math.hypot(Math.max(b.x0 - x, 0, x - b.x1), Math.max(b.z0 - z, 0, z - b.z1)));
   function clearance(rects, from) {
     const cl = from ? from.slice() : new Float32Array(N); if (!from) for (let i = 0; i < N; i++) cl[i] = base[i] ? CAP : 0;
     for (const r of rects) {
       const [x0, z0, x1, z1] = r.x0 !== undefined ? [r.x0, r.z0, r.x1, r.z1] : r;
       const gx0 = Math.max(0, Math.floor((x0 - CAP) / G)), gx1 = Math.min(GX - 1, Math.floor((x1 + CAP) / G)), gz0 = Math.max(0, Math.floor((z0 - CAP) / G)), gz1 = Math.min(GZ - 1, Math.floor((z1 + CAP) / G));
-      for (let gz = gz0; gz <= gz1; gz++) for (let gx = gx0; gx <= gx1; gx++) { const j = gz * GX + gx; if (!base[j]) continue; const x = (gx + 0.5) * G, z = (gz + 0.5) * G, d = Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1)); if (d < cl[j]) cl[j] = d; }
+      for (let gz = gz0; gz <= gz1; gz++) for (let gx = gx0; gx <= gx1; gx++) { const j = gz * GX + gx; if (!base[j]) continue; const x = (gx + 0.5) * G, z = (gz + 0.5) * G, d = r.x0 !== undefined ? boxDist(r, x, z) : Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1)); if (d < cl[j]) cl[j] = d; }
     }
     return cl;
   }
@@ -926,7 +934,7 @@ console.log('non audités (architecture, semis, sans nom) :', JSON.stringify(res
 console.log('accessibilité (m²) :', JSON.stringify(res.accessibilité));
 console.log('constats par catégorie [info, léger, moyen, grave] :'); for (const [k, v] of Object.entries(res.byCat)) console.log('  ', k.padEnd(20), v.join(' / '));
 { const rb = res.rotBoxes, sum = (k, l = rb) => l.reduce((a, b) => a + (b[k] || 0), 0).toFixed(1), bl = rb.filter((b) => b.blocks);
-  console.log(`objets tournés (colliderBox garde la boîte englobante alignée sur les axes) : ${rb.length} boîtes, emprise réelle ${sum('real')} m², boîtes gardées ${sum('aabb')} m², excédent ${sum('excess')} m² ;`);
+  console.log(`objets tournés gardant une boîte englobante (corrigé en 6.1 : 0 attendu) : ${rb.length} boîtes, emprise réelle ${sum('real')} m², boîtes gardées ${sum('aabb')} m², excédent ${sum('excess')} m² ;`);
   console.log(`   dont ${sum('excessWalk', bl)} m² au-dessus du sol praticable (murs invisibles que la correction rendra), ${sum('excessInvisible', bl)} m² sans rien de visible ; les plus gros :`, bl.slice(0, 6).map((b) => `${b.obj} ${b.deg}° (${b.at.join(', ')}) ${b.excessWalk} m²`).join(' ; ')); }
 console.log('cas les plus graves :');
 res.cases.slice(0, 15).forEach((c, k) => console.log(`  ${String(k + 1).padStart(2)}. [${GR[c.grav]}] ${c.name}${c.src ? ` [${c.src}]` : ''} (${c.at[0]}, ${c.at[2]}) ${c.zone} — ${c.issues.join(' | ')}`.slice(0, 460)));
