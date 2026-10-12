@@ -214,7 +214,7 @@ function citeLandPerk(key, padIdx, animate) {
   const face = [Math.sin(pad.yaw), Math.cos(pad.yaw)];
   p.group.position.set(pad.x, animate ? 48 : 0, pad.z); p.group.rotation.y = pad.yaw; p.group.visible = true;
   p.pos.set(pad.x, 1, pad.z); p.face = face;
-  if (p.col) { const c = Math.abs(Math.cos(pad.yaw)), s = Math.abs(Math.sin(pad.yaw)), hw = (0.92 * c + 0.66 * s) / 2, hd = (0.92 * s + 0.66 * c) / 2; Object.assign(p.col, { x0: pad.x - hw, x1: pad.x + hw, z0: pad.z - hd, z1: pad.z + hd, off: !!animate }); }
+  if (p.col) { propBox(p.col, pad.x, pad.z, 0.92, 0.66, pad.yaw); p.col.off = !!animate; } // (même boîte que perkMachine, 06_props.js)
   if (animate) { CITE_STATE.anims.push({ p, t: 0 }); Sfx.shellWhistle?.(_v1.set(pad.x, 0, pad.z), 1.2); }
 }
 function citeHost(dt) {

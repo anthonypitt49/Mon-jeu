@@ -121,8 +121,9 @@ function buildInteractables() {
 /* ─── Mobilier et détails ─── */
 function crate(x, z, ry = 0, s = 1, y = 0) { const m = mesh(boxG(0.8 * s, 0.55 * s, 0.55 * s), MATS.crate, x, y + 0.275 * s, z, ry); if (y === 0) colliderBox(x, z, 0.8 * s, 0.55 * s, ry, 0.55 * s, 'wood'); return m; }
 function barrel(x, z, mat = MATS.olive, tipped = false) {
-  const m = mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.88, 18), mat, x, tipped ? 0.29 : 0.44, z, rand(TAU));
-  if (tipped) { m.rotation.z = Math.PI / 2; } else collider(x - 0.3, z - 0.3, x + 0.3, z + 0.3, 0.9, 'metal');
+  const ry = rand(TAU), m = mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.88, 18), mat, x, tipped ? 0.29 : 0.44, z, ry);
+  // (couché : l'axe du fût, tourné d'un quart de tour autour de z puis de ry, suit l'axe x local de colliderBox)
+  if (tipped) { m.rotation.z = Math.PI / 2; colliderBox(x, z, 0.88, 0.58, ry, 0.58, 'metal'); } else colliderCyl(x, z, 0.3, 0.9, 'metal');
   for (const y of [-0.3, 0.3]) { const r = mesh(new THREE.TorusGeometry(0.295, 0.015, 6, 20), MATS.iron, 0, y, 0, 0, m, false); r.rotation.x = Math.PI / 2; }
   return m;
 }

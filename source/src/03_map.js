@@ -263,6 +263,12 @@ function collideProps(p, r, y = 0, step = 0, out) {
   let hit = false;
   for (const b of MAP.props) {
     if (b.off || y + step >= b.y1 || y + 1.6 < (b.y0 || 0)) continue;
+    if (b.rot) { if (p.x + r > b.x0 && p.x - r < b.x1 && p.z + r > b.z0 && p.z - r < b.z1 && collideRot(p, r, b.rot, out)) hit = true; continue; }
+    if (b.rad) { // cylindre debout (05_world.js colliderCyl) : poussée hors du cercle
+      const dx = p.x - (b.x0 + b.x1) / 2, dz = p.z - (b.z0 + b.z1) / 2, R = b.rad + r, d2 = dx * dx + dz * dz; if (d2 >= R * R) continue;
+      hit = true; const d = Math.sqrt(d2), mx = d > 1e-6 ? dx * (R - d) / d : R, mz = d > 1e-6 ? dz * (R - d) / d : 0;
+      p.x += mx; p.z += mz; if (out) { out.x += mx; out.z += mz; } continue;
+    }
     const qx = clamp(p.x, b.x0, b.x1), qz = clamp(p.z, b.z0, b.z1), dx = p.x - qx, dz = p.z - qz, d2 = dx * dx + dz * dz;
     if (d2 < r * r) {
       hit = true; const bx = p.x, bz = p.z;
@@ -272,6 +278,19 @@ function collideProps(p, r, y = 0, step = 0, out) {
     }
   }
   return hit;
+}
+// Boîte tournée (o = b.rot, 05_world.js propBox) : même poussée que ci-dessus, calculée dans le repère de la boîte.
+// Repère local : lx = c·dx − s·dz, lz = s·dx + c·dz ; retour au monde : dx = c·lx + s·lz, dz = −s·lx + c·lz.
+function collideRot(p, r, o, out) {
+  const wx = p.x - o.cx, wz = p.z - o.cz, lx = o.c * wx - o.s * wz, lz = o.s * wx + o.c * wz;
+  const ex = lx - clamp(lx, -o.hw, o.hw), ez = lz - clamp(lz, -o.hd, o.hd), d2 = ex * ex + ez * ez;
+  if (d2 >= r * r) return false;
+  let mx = 0, mz = 0;
+  if (d2 > 1e-9) { const d = Math.sqrt(d2), k = (r - d) / d; mx = ex * k; mz = ez * k; }
+  else { const px = o.hw - Math.abs(lx), pz = o.hd - Math.abs(lz); if (px < pz) mx = (lx < 0 ? -1 : 1) * (px + r); else mz = (lz < 0 ? -1 : 1) * (pz + r); }
+  const dx = o.c * mx + o.s * mz, dz = -o.s * mx + o.c * mz;
+  p.x += dx; p.z += dz; if (out) { out.x += dx; out.z += dz; }
+  return true;
 }
 
 /* ─── Champ de flux (Dijkstra multi-sources) vers les joueurs ─── */
@@ -377,7 +396,12 @@ function rayProps(o, d, maxDist) {
   for (const b of MAP.props) {
     if (b.off || b.noRay) continue;
     let t0 = 0, t1 = bd, nAxis = -1, nSign = 0;
-    const lo = [b.x0, b.y0 || 0, b.z0], hi = [b.x1, b.y1, b.z1], oo = [o.x, o.y, o.z], dd = [d.x, d.y, d.z];
+    if (b.rad) { const t = rayCyl(o, d, b, bd); if (t !== null) { bd = t; best = b; best._n = [-2, 0]; } continue; }
+    const q = b.rot, lo = _rlo, hi = _rhi, oo = _roo, dd = _rdd;
+    // (boîte tournée : rayon ramené dans le repère de la boîte, voir collideRot)
+    if (q) { const wx = o.x - q.cx, wz = o.z - q.cz; lo[0] = -q.hw; lo[2] = -q.hd; hi[0] = q.hw; hi[2] = q.hd; oo[0] = q.c * wx - q.s * wz; oo[2] = q.s * wx + q.c * wz; dd[0] = q.c * d.x - q.s * d.z; dd[2] = q.s * d.x + q.c * d.z; }
+    else { lo[0] = b.x0; lo[2] = b.z0; hi[0] = b.x1; hi[2] = b.z1; oo[0] = o.x; oo[2] = o.z; dd[0] = d.x; dd[2] = d.z; }
+    lo[1] = b.y0 || 0; hi[1] = b.y1; oo[1] = o.y; dd[1] = d.y;
     let ok = true;
     for (let a = 0; a < 3; a++) {
       if (Math.abs(dd[a]) < 1e-8) { if (oo[a] < lo[a] || oo[a] > hi[a]) { ok = false; break; } continue; }
@@ -389,12 +413,35 @@ function rayProps(o, d, maxDist) {
   if (!best) return null;
   _rh.dist = bd; _rh.point.set(o.x + d.x * bd, o.y + d.y * bd, o.z + d.z * bd); _rh.mat = best.mat || 'wood'; _rh.prop = best;
   _rh.normal.set(0, 0, 0); if (best._n[0] >= 0) _rh.normal.setComponent(best._n[0], best._n[1]);
+  const q = best.rot; if (q && best._n[0] !== 1) { const lx = _rh.normal.x, lz = _rh.normal.z; _rh.normal.set(q.c * lx + q.s * lz, 0, -q.s * lx + q.c * lz); }
+  if (best._n[0] === -2) { // cylindre : normale du couvercle ou du flanc
+    const y = _rh.point.y; if (y > best.y1 - 1e-4) _rh.normal.set(0, 1, 0); else if (y < (best.y0 || 0) + 1e-4) _rh.normal.set(0, -1, 0);
+    else _rh.normal.set(_rh.point.x - (best.x0 + best.x1) / 2, 0, _rh.point.z - (best.z0 + best.z1) / 2).normalize();
+  }
   return _rh;
 }
+// Entrée d'un rayon dans un cylindre debout (b.rad), avant maxDist ; null s'il le manque ou part de dedans.
+function rayCyl(o, d, b, maxDist) {
+  const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, ox = o.x - cx, oz = o.z - cz, r2 = b.rad * b.rad;
+  let t0 = 0, t1 = maxDist;
+  const a = d.x * d.x + d.z * d.z, bb = ox * d.x + oz * d.z, c = ox * ox + oz * oz - r2;
+  if (a < 1e-10) { if (c > 0) return null; }
+  else { const disc = bb * bb - a * c; if (disc < 0) return null; const s = Math.sqrt(disc); t0 = Math.max(t0, (-bb - s) / a); t1 = Math.min(t1, (-bb + s) / a); }
+  const y0 = b.y0 || 0;
+  if (Math.abs(d.y) < 1e-8) { if (o.y < y0 || o.y > b.y1) return null; }
+  else { let ta = (y0 - o.y) / d.y, tb = (b.y1 - o.y) / d.y; if (ta > tb) [ta, tb] = [tb, ta]; t0 = Math.max(t0, ta); t1 = Math.min(t1, tb); }
+  return t0 <= t1 && t0 > 0 && t0 < maxDist ? t0 : null;
+}
+const _rlo = [0, 0, 0], _rhi = [0, 0, 0], _roo = [0, 0, 0], _rdd = [0, 0, 0];
 // Hauteur d'appui (caisses, banquettes) sous un cercle.
 function propSupport(p, r, y, step) {
   let g = M.floorH ? M.floorH(p.x, p.z) : 0;
-  for (const b of MAP.props) { if (b.off || b.y1 > y + step || b.y1 <= g) continue; if (p.x + r * 0.5 < b.x0 || p.x - r * 0.5 > b.x1 || p.z + r * 0.5 < b.z0 || p.z - r * 0.5 > b.z1) continue; g = b.y1; }
+  for (const b of MAP.props) {
+    if (b.off || b.y1 > y + step || b.y1 <= g) continue; if (p.x + r * 0.5 < b.x0 || p.x - r * 0.5 > b.x1 || p.z + r * 0.5 < b.z0 || p.z - r * 0.5 > b.z1) continue;
+    const q = b.rot; if (q) { const wx = p.x - q.cx, wz = p.z - q.cz; if (Math.abs(q.c * wx - q.s * wz) > q.hw + r * 0.5 || Math.abs(q.s * wx + q.c * wz) > q.hd + r * 0.5) continue; }
+    if (b.rad && Math.hypot(p.x - (b.x0 + b.x1) / 2, p.z - (b.z0 + b.z1) / 2) > b.rad + r * 0.5) continue;
+    g = b.y1;
+  }
   return g;
 }
 function lineClear(a, b) { _v3.subVectors(b, a); const L = _v3.length(); if (L < 0.01) return true; _v3.divideScalar(L); const h = rayWorld(a, _v3, L); return !h; }

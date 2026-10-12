@@ -170,8 +170,19 @@ function meterInstHook(m) {
   m.customProgramCacheKey = () => key + '|mu';
 }
 function collider(x0, z0, x1, z1, y1, mat = 'wood', y0 = 0) { MAP.props.push({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1), y0, y1, mat }); }
-// Collision d'une boîte tournée autour de Y (approximée par son enveloppe).
-function colliderBox(x, z, w, d, ry, h, mat) { const c = Math.abs(Math.cos(ry)), s = Math.abs(Math.sin(ry)); const hw = (w * c + d * s) / 2, hd = (w * s + d * c) / 2; collider(x - hw, z - hd, x + hw, z + hd, h, mat); }
+// Collision d'une boîte tournée autour de Y : centre (x, z), côtés w (axe x local) et d (axe z local), hauteur h.
+function colliderBox(x, z, w, d, ry, h, mat) { const b = { y0: 0, y1: h, mat }; MAP.props.push(propBox(b, x, z, w, d, ry)); return b; }
+// Collision d'un cylindre debout (fût, poubelle, piscine ronde) : centre (x, z), rayon r, hauteur h.
+function colliderCyl(x, z, r, h, mat) { const b = { x0: x - r, x1: x + r, z0: z - r, z1: z + r, y0: 0, y1: h, mat, rad: r }; MAP.props.push(b); return b; }
+// Place (ou déplace) une boîte d'obstacle tournée. x0..z1 restent son enveloppe alignée sur les axes (tri rapide,
+// tests grossiers) ; la vraie boîte (rot : centre, demi-côtés, cosinus et sinus) sert aux collisions, aux rayons et
+// aux appuis (03_map.js). Un quart de tour près, l'enveloppe est exacte et rot reste vide.
+function propBox(b, x, z, w, d, ry) {
+  const c = Math.cos(ry), s = Math.sin(ry), ac = Math.abs(c), as = Math.abs(s), ex = (w * ac + d * as) / 2, ez = (w * as + d * ac) / 2;
+  Object.assign(b, { x0: x - ex, x1: x + ex, z0: z - ez, z1: z + ez });
+  b.rot = ac < 1e-3 || as < 1e-3 ? null : { cx: x, cz: z, hw: w / 2, hd: d / 2, c, s };
+  return b;
+}
 
 // Sac de sable : boîte bombée.
 function sandbagGeo() {
