@@ -1,5 +1,6 @@
 # Régénérables : pas besoin de les garder dans le dépôt.
-dev/node_modules/
+# (node_modules : dossier, ou lien vers celui du dépôt principal dans une copie du dépôt)
+dev/node_modules
 dev/shots/
 dev/results/
 dev/index.html
