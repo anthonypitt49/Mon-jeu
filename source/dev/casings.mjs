@@ -8,7 +8,7 @@ for (const mapId of ['poste7', 'cite']) {
   const page = await ctx.newPage(); const errors = []; page.on('pageerror', (e) => errors.push(e.message));
   await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(dir, 'node_modules/three', u.pathname.replace('/npm/three@0.186.1/', '')), contentType: 'application/javascript' }); });
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
-  await page.goto('http://127.0.0.1:8088/index.html#carte=' + mapId); await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
+  await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html#carte=' + mapId); await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
   await page.evaluate(() => document.getElementById('soloButton').click());
   const r = await page.evaluate(() => {
     const { G, P } = SP; P.hp = P.maxHp = 1e9; G.toSpawn = 0; G.breakT = 1e9; SP.sim(5); for (const z of [...SP.ZOMBIES]) z.destroy();

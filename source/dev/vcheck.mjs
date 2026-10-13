@@ -10,7 +10,7 @@ await C.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', co
 await C.route('https://fonts.gstatic.com/**', (r) => r.abort());
 let hits = 0; await C.route('**/version.json*', (r) => { hits++; r.fulfill({ body: '{"v":"9.9"}', contentType: 'application/json' }); });
 C.on('framenavigated', (f) => { if (f === C.mainFrame()) console.log('navigation ->', f.url()); });
-await C.goto('http://127.0.0.1:8088/index.html?vcheck=1');
+await C.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?vcheck=1');
 await C.waitForURL(/v=9\.9/, { timeout: 180000 }).catch((e) => console.log('pas de redirection', e.message.slice(0, 80)));
 await C.waitForTimeout(3000);
 console.log('version.json demandé', hits, 'fois ; url finale', C.url(), 'erreurs', errs);

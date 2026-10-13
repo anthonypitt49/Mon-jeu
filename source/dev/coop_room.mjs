@@ -14,7 +14,7 @@ const mk = async (tag) => {
   await page.route('https://cdn.jsdelivr.net/npm/peerjs@1.5.5/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/peerjs/dist/peerjs.min.js'), contentType: 'application/javascript' }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
   await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
-  await page.goto('http://127.0.0.1:8088/index.html');
+  await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html');
   await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
   return page;
 };

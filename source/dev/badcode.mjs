@@ -9,6 +9,6 @@ await B.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { cons
 await B.route('https://cdn.jsdelivr.net/npm/peerjs@1.5.5/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/peerjs/dist/peerjs.min.js'), contentType: 'application/javascript' }));
 await B.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 await B.route('https://fonts.gstatic.com/**', (r) => r.abort());
-await B.goto('http://127.0.0.1:8088/index.html?peer=127.0.0.1:9000&relay=ws://127.0.0.1:8883'); await B.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
+await B.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?peer=127.0.0.1:9000&relay=ws://127.0.0.1:8883'); await B.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
 console.log(await B.evaluate(async () => { const t0 = performance.now(); try { await SP.NET.joinGame('ZZZZZZ', 'X'); return 'trouvé ?!'; } catch (e) { return ((performance.now() - t0) / 1000).toFixed(1) + ' s : ' + e.message.slice(0, 60); } }));
 await browser.close();

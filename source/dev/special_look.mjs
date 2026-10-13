@@ -8,7 +8,7 @@ await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { c
 await page.route('https://cdn.jsdelivr.net/npm/n8ao@2.0.1/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/n8ao/dist/N8AO.js'), contentType: 'application/javascript' }));
 await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
-await page.goto('http://127.0.0.1:8088/index.html'); await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
+await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html'); await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
 await page.evaluate(() => document.getElementById('soloButton').click());
 await page.evaluate(() => { const { G, P } = SP; P.hp = P.maxHp = 1e9; SP.sim(0.5); G.toSpawn = 0; G.breakT = 1e9; for (const z of [...SP.ZOMBIES]) z.destroy();
   P.pos.set(36, 0, 14.5); P.yaw = Math.PI / 2; P.pitch = 0.05; P.torch = true;

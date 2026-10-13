@@ -13,7 +13,7 @@ page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') 
 await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(dir, 'node_modules/three', u.pathname.replace('/npm/three@0.186.1/', '')), contentType: 'application/javascript' }); });
 await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
-await page.goto('http://127.0.0.1:8088/index.html?' + (process.env.Q || '') + '#carte=' + id);
+await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?' + (process.env.Q || '') + '#carte=' + id);
 await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
 await page.evaluate(() => document.querySelector('#soloButton').click());
 await page.waitForFunction(() => ['on', 'failed'].includes(SP.Sfx.bankInfo.state) || /nosamples/.test(location.search), null, { timeout: 60000 });

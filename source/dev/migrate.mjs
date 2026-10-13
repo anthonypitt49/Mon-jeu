@@ -16,7 +16,7 @@ const mk = async (tag) => {
   await page.route('https://cdn.jsdelivr.net/npm/peerjs@1.5.5/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/peerjs/dist/peerjs.min.js'), contentType: 'application/javascript' }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
   await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
-  await page.goto(MODE === 'room' ? 'http://127.0.0.1:8088/index.html' : MODE.startsWith('relay') ? 'http://127.0.0.1:8088/index.html?relay=' + (MODE === 'relaydead' ? 'ws://127.0.0.1:1' : 'ws://127.0.0.1:8883') + (MODE === 'relaynortc' ? '&nortc=1' : '') + (MODE === 'relaydead' ? '&peer=127.0.0.1:9000' : '') : 'file://' + path.join(dir, 'index.html') + '?peer=127.0.0.1:9000');
+  await page.goto(MODE === 'room' ? (process.env.WEB || 'http://127.0.0.1:8088') + '/index.html' : MODE.startsWith('relay') ? (process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?relay=' + (MODE === 'relaydead' ? 'ws://127.0.0.1:1' : 'ws://127.0.0.1:8883') + (MODE === 'relaynortc' ? '&nortc=1' : '') + (MODE === 'relaydead' ? '&peer=127.0.0.1:9000' : '') : 'file://' + path.join(dir, 'index.html') + '?peer=127.0.0.1:9000');
   await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
   return page;
 };

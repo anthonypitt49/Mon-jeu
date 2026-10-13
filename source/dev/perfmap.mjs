@@ -12,7 +12,7 @@ await page.route('https://cdn.jsdelivr.net/npm/n8ao@2.0.1/**', (route) => route.
 await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
 const t0 = Date.now();
-await page.goto('http://127.0.0.1:8088/index.html#carte=' + mapId); await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
+await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html#carte=' + mapId); await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
 const load = ((Date.now() - t0) / 1000).toFixed(1);
 await page.evaluate(() => document.getElementById('soloButton').click());
 const res = await page.evaluate((views) => {

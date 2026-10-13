@@ -9,7 +9,7 @@ await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { c
 await page.route('https://cdn.jsdelivr.net/npm/n8ao@2.0.1/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/n8ao/dist/N8AO.js'), contentType: 'application/javascript' }));
 await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
-await page.goto('http://127.0.0.1:8088/index.html#carte=penitencier'); await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
+await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html#carte=penitencier'); await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
 await page.evaluate(() => document.getElementById('soloButton').click());
 await page.evaluate(() => { SP.P.hp = SP.P.maxHp = 1e7; SP.sim(0.5); for (const z of [...SP.ZOMBIES]) z.destroy(); SP.G.toSpawn = 0; SP.G.breakT = 1e9;
   const z = new SP.Zombie({ x: 44, z: 32.2, y: 0, kind: 'warden', hp: 1e6, state: 'move', round: 5, yaw: 0 }); z.speed = 0.0001;

@@ -16,7 +16,7 @@ await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { c
 await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
 if (process.env.SONS) await page.route('**/assets/sounds/**', (r) => { const f = path.join(process.env.SONS, path.basename(new URL(r.request().url()).pathname)); fs.existsSync(f) ? r.fulfill({ path: f }) : r.fulfill({ status: 404, body: '' }); });
-await page.goto('http://127.0.0.1:8088/index.html?' + (process.env.Q || '') + '#carte=' + id);
+await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?' + (process.env.Q || '') + '#carte=' + id);
 await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
 await page.evaluate(() => document.querySelector('#soloButton').click());
 await page.waitForFunction(() => ['on', 'failed'].includes(SP.Sfx.bankInfo.state) || /nosamples/.test(location.search), null, { timeout: 60000 });

@@ -11,7 +11,7 @@ await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { c
 await page.route('https://cdn.jsdelivr.net/npm/n8ao@2.0.1/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/n8ao/dist/N8AO.js'), contentType: 'application/javascript' }));
 await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
-await page.goto('http://127.0.0.1:8088/index.html#carte=' + mapId); await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
+await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html#carte=' + mapId); await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
 await page.evaluate(() => document.getElementById('soloButton').click());
 await page.evaluate(async (code) => { SP.P.hp = SP.P.maxHp = 1e7; SP.G.me().points = 1e6; SP.sim(0.3); for (const z of [...SP.ZOMBIES]) z.destroy(); SP.G.toSpawn = 0; SP.G.breakT = 1e9; await (new Function('return (async () => {' + code + '})()'))(); SP.renderFrame(1); }, code);
 await page.screenshot({ path: path.join(dir, 'shots', name + '.png') });

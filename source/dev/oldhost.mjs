@@ -17,7 +17,7 @@ const mk = async (tag, url) => {
 };
 const joinUI = (p, name, c) => p.evaluate(([name, c]) => { document.getElementById('joinButton').click(); document.getElementById('playerName').value = name; document.getElementById('sessionCode').value = c; document.getElementById('joinSubmit').click(); }, [name, c]);
 const H = await mk('ancien hôte', 'file://' + path.join(dir, 'index_prev.html') + '?peer=127.0.0.1:9000');
-const A = await mk('nouvel invité', 'http://127.0.0.1:8088/index.html?peer=127.0.0.1:9000&relay=ws://127.0.0.1:8883');
+const A = await mk('nouvel invité', (process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?peer=127.0.0.1:9000&relay=ws://127.0.0.1:8883');
 await joinUI(H, 'Hote', ''); await H.waitForFunction(() => SP.NET.active, null, { timeout: 30000 });
 const code = await H.evaluate(() => SP.NET.code); console.log('code ancien hôte', code);
 const t0 = Date.now(); await joinUI(A, 'Ami', code);
@@ -25,7 +25,7 @@ await A.waitForFunction(() => SP.NET.active || /Aucune|impossible/i.test(documen
 console.log('invité', ((Date.now() - t0) / 1000).toFixed(1), 's', JSON.stringify(await A.evaluate(() => [SP.NET.active, SP.NET.via, SP.NET.lobby.map((p) => p.name), document.getElementById('joinStatus').textContent])));
 console.log('hôte voit', JSON.stringify(await H.evaluate(() => SP.NET.lobby.map((p) => p.name))));
 // Mauvais code : message clair.
-const B = await mk('invité 2', 'http://127.0.0.1:8088/index.html?peer=127.0.0.1:9000&relay=ws://127.0.0.1:8883');
+const B = await mk('invité 2', (process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?peer=127.0.0.1:9000&relay=ws://127.0.0.1:8883');
 const t1 = Date.now(); await joinUI(B, 'Autre', 'ZZZZZZ');
 await B.waitForFunction(() => /Aucune|impossible/i.test(document.getElementById('joinStatus').textContent), null, { timeout: 40000 });
 console.log('mauvais code', ((Date.now() - t1) / 1000).toFixed(1), 's :', await B.evaluate(() => document.getElementById('joinStatus').textContent));
@@ -34,7 +34,7 @@ const C = await (await browser.newContext()).newPage();
 await C.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(dir, 'node_modules/three', u.pathname.replace('/npm/three@0.186.1/', '')), contentType: 'application/javascript' }); });
 await C.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 await C.route('**/version.json*', (r) => r.fulfill({ body: '{"v":"9.9"}', contentType: 'application/json' }));
-await C.goto('http://127.0.0.1:8088/index.html?vcheck=1'); await C.waitForURL(/v=9\.9/, { timeout: 120000 }).catch(() => {});
+await C.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?vcheck=1'); await C.waitForURL(/v=9\.9/, { timeout: 120000 }).catch(() => {});
 console.log('mise à jour ->', C.url());
 console.log('erreurs', [...H.errors, ...A.errors, ...B.errors]);
 await browser.close();
