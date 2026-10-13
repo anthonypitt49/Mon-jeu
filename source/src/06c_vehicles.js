@@ -142,5 +142,8 @@ function kTruck(x, z, ry, label = 'DÉMÉNAGEMENTS') {
   for (const [a, s] of [[4.3, 1], [-2.8, 1], [4.3, -1], [-2.8, -1]]) vWheel(g, a, 0.52, s * 1.08, 0.52, 0.32, V, s, true);
   for (const s of [-1, 1]) vWheel(g, -2.8, 0.52, s * 0.78, 0.52, 0.28, V, s, false);
   vPlate(g, -4.36, 0.62, 0, -Math.PI / 2, 'TR-1957');
-  KIT.solid(g, 9.4, 2.5, 3.4, 'metal', -0.2, 0); return g;
+  // Collisions : caisse, cabine (plus étroite), et les deux vantaux ouverts ; la rampe basse reste franchissable.
+  KIT.solid(g, 6.65, 2.56, 3.4, 'metal', -0.95, 0); KIT.solid(g, 3.0, 2.36, 2.75, 'metal', 4.05, 0);
+  for (const s of [-1, 1]) { const p = new THREE.Vector3(-4.3, 0, s * 1.95).applyMatrix4(g.matrixWorld); colliderBox(p.x, p.z, 0.1, 1.25, ry + s * 0.15, 2.9, 'metal'); }
+  return g;
 }

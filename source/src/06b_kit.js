@@ -197,7 +197,8 @@ function kMannequin(x, z, ry, { pose = 'stand', cloth = null, y = 0, head = true
   let hd = null;
   if (head) { hd = mesh(new THREE.SphereGeometry(0.12, 16, 12), M0, 0, hipY + 1.0, 0, 0, g); hd.scale.set(0.9, 1.12, 1); hd.userData.dynamic = true; }
   if (!sit) KIT.c(g, 0, 0.02, 0.18, 0.2, 0.2, 0.03, kitMats().steel, 16); // socle
-  colliderBox(x, z, 0.5, 0.5, 0, sit ? 1.3 : 1.9, 'wood');
+  // Collision à la taille du corps, tournée avec lui : debout, épaules et socle ; assis, du dos aux tibias.
+  if (sit) KIT.solid(g, 0.55, 0.7, 1.3 + y, 'wood', 0, 0.2); else KIT.solid(g, 0.62, 0.5, 1.9 + y, 'wood', 0, 0.13);
   return { g, head: hd };
 }
 
