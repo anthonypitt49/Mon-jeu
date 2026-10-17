@@ -44,10 +44,13 @@ function buildCraterProps() {
   g.updateMatrixWorld(true);
   // Un seul bloc convexe (fuselage, moteur, dérive) : les infectés en font le tour sans se coincer.
   // De sous le nez planté (fond − 0,3) jusqu'au-dessus de l'habitacle et de l'hélice ; la dérive monte plus haut :
-  // depuis la queue, où le sol remonte, on ne grimpe plus sur l'épave.
-  { const fh = fy(45.4, 31.6);
-    collider(45.4 - 3.45, 31.6 - 0.55, 45.4 + 3.05, 31.6 + 0.55, fh + 1.5, 'wood', fh - 0.3);
-    collider(45.4 - 3.45, 31.6 - 0.55, 45.4 - 2.65, 31.6 + 0.55, fh + 2.05, 'wood', fh - 0.3); }
+  // depuis la queue, où le sol remonte, on ne grimpe plus sur l'épave. Ces deux boîtes laissent passer les tirs (noRay) :
+  // les balles butent sur des boîtes qui suivent la coque mesurée (queue et dérive, fuselage effilé, habitacle, avant calciné), à 15 cm près.
+  { const fh = fy(45.4, 31.6), y0 = fh - 0.3;
+    MAP.props.push({ x0: 45.4 - 3.45, x1: 45.4 + 3.05, z0: 31.6 - 0.55, z1: 31.6 + 0.55, y0, y1: fh + 1.5, mat: 'wood', noRay: true },
+      { x0: 45.4 - 3.45, x1: 45.4 - 2.65, z0: 31.6 - 0.55, z1: 31.6 + 0.55, y0, y1: fh + 2.05, mat: 'wood', noRay: true });
+    for (const [x0, x1, z0, z1, h] of [[41.95, 42.75, 31.45, 31.85, 2.05], [42.75, 43.9, 31.4, 31.85, 1.32], [43.9, 45.0, 31.3, 31.95, 1.2],
+      [45.0, 45.75, 31.25, 31.95, 1.42], [45.75, 47.0, 31.1, 32.1, 1.02], [47.0, 47.8, 31.1, 32.1, 0.94], [47.8, 48.45, 31.05, 32.15, 0.83]]) collider(x0, z0, x1, z1, fh + h, 'wood', y0); }
   // Le moteur brûle encore.
   const fire = _v1.set(2.45, 0.35, 0).applyMatrix4(body.matrixWorld);
   WORLD.fires.push({ x: fire.x, y: fire.y, z: fire.z, size: 0.9, rate: 0.04, t: 0, smoke: 0.1 });
