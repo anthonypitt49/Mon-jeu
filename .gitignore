@@ -1,2 +1,5 @@
 # Candidats sonores téléchargés pour écoute : seuls les sons choisis sont publiés.
 /assets/sounds/candidats/
+
+# Copies de travail temporaires des agents (git worktree) : jamais dans le dépôt.
+/.claude/worktrees/
