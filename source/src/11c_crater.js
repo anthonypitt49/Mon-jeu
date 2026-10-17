@@ -23,28 +23,37 @@ function buildCraterProps() {
   mesh(boxG(0.7, 0.3, 0.6), MATS.char, -0.1, 0.6, 0, 0, body); // habitacle
   const cowl = mesh(new THREE.CylinderGeometry(0.5, 0.56, 0.7, 14), MATS.iron, 2.55, 0, 0, 0, body); cowl.rotation.z = Math.PI / 2;
   for (const [a, l] of [[0.3, 1.25], [0.3 + Math.PI, 0.55]]) { const b = mesh(boxG(0.06, l, 0.16), rawPost(), 2.95, Math.cos(a) * l * 0.5, Math.sin(a) * l * 0.5, 0, body); b.rotation.x = a; } // hélice (une pale cassée)
-  // Ailes arrachées à l'impact : l'inférieure gît à plat dans la neige (on marche dessus),
-  // la moitié de l'aile supérieure est restée appuyée contre la paroi est du cratère.
-  { const w = new THREE.Group(); w.position.set(45.0, fy(45.0, 36.2) - 0.12, 36.2); w.rotation.order = "YXZ"; w.rotation.y = 0.35; w.rotation.x = -0.125; // couchée dans la pente R.scene.add(w);
-    mesh(boxG(1.35, 0.08, 8.2), fabric, 0, 0, 0, 0, w, false);
-    for (const z of [-3.2, 3.2]) { const r = mesh(new THREE.PlaneGeometry(0.9, 0.9), roundel, 0, 0.05, z, 0, w, false); r.rotation.x = -Math.PI / 2; } }
+  // Ailes arrachées à l'impact : un tronçon de l'inférieure, cassé à l'emplanture, gît dans la pente au sud de l'épave
+  // (on marche dessus) ; la moitié de l'aile supérieure est restée appuyée contre la paroi est du cratère.
+  { const L = 4.6, cx = 45.3, cz = 35.6, yaw = -0.13, dx = Math.sin(yaw), dz = Math.cos(yaw); // envergure dans le sens de la pente, emplanture côté épave
+    // (une aile entière, 8,2 m, ne peut pas épouser le fond en cuvette : le tronçon prend les pentes du sol réel, à 4 cm près)
+    const sp = (fy(cx + dx * L / 2, cz + dz * L / 2) - fy(cx - dx * L / 2, cz - dz * L / 2)) / L, sc = (fy(cx + dz * 0.6, cz - dx * 0.6) - fy(cx - dz * 0.6, cz + dx * 0.6)) / 1.2;
+    const w = new THREE.Group(); w.position.set(cx, fy(cx, cz) + 0.035, cz); w.rotation.order = "YXZ"; w.rotation.set(-Math.atan(sp), yaw, Math.atan(sc)); R.scene.add(w);
+    mesh(boxG(1.35, 0.08, L), fabric, 0, 0, 0, 0, w, false);
+    const r = mesh(new THREE.PlaneGeometry(0.9, 0.9), roundel, 0, 0.05, L / 2 - 0.9, 0, w, false); r.rotation.x = -Math.PI / 2;
+    for (const x of [-0.35, 0.3]) mesh(boxG(0.06, 0.05, 0.42), rawPost(), x, 0, -L / 2 - 0.13, 0, w, false); } // longerons rompus à l'emplanture
   { const w = new THREE.Group(); w.position.set(53.25, 0, 30.3); R.scene.add(w);
-    const p = mesh(boxG(4.4, 0.1, 1.4), fabric, 0, 0, 0, 0, w); p.rotation.set(0, Math.PI / 2, 1.15); p.position.set(0.2, 0.95, 0);
-    const r = mesh(new THREE.PlaneGeometry(0.9, 0.9), roundel, 0, 0, 0, 0, w); r.position.set(0.14, 1.2, 1.1); r.rotation.set(0, -Math.PI / 2 + 0.42, 0);
-    for (const z of [-1.4, 1.4]) mesh(boxG(0.06, 1.4, 0.06), rawPost(), 0.45, 0.7, z, 0, w);
-    collider(52.55, 28.1, 54, 32.5, 1.9, 'wood'); } // plaquée contre la paroi : aucun recoin où rester coincé
+    // Envergure le long de la paroi, corde inclinée de 66° : bord bas dans la neige, bord haut contre la paroi (x 54).
+    const p = mesh(boxG(4.4, 0.1, 1.4), fabric, 0, 0, 0, 0, w); p.rotation.order = 'ZYX'; p.rotation.set(0, Math.PI / 2, 1.15); p.position.set(0.45, 0.68, 0);
+    const r = mesh(new THREE.PlaneGeometry(0.9, 0.9), roundel, 0, 0, 0, 0, w); r.rotation.order = 'ZYX'; r.rotation.set(0, -Math.PI / 2, -0.42); r.position.set(0.39, 0.71, 1.1); // cocarde sur l'extrados
+    collider(53.3, 28.1, 54, 32.5, 1.4, 'wood'); } // de l'aile à la paroi, trop haut pour y grimper
   mesh(boxG(0.95, 0.9, 0.06), fabric, -3.25, 0.5, 0, 0, body); // dérive
   mesh(boxG(0.8, 0.06, 2.4), fabric, -3.2, 0.12, 0, 0, body); // empennage
   const wheel = mesh(new THREE.TorusGeometry(0.34, 0.08, 8, 18), MATS.iron, 0, 0, 0, 0, g); wheel.position.set(3.4, 0.1, 1.9); wheel.rotation.x = Math.PI / 2 - 0.2; // roue arrachée
-  // Obstacles (boîtes le long du fuselage et de l'aile basse, en coordonnées du monde).
+  // Obstacles (boîtes le long du fuselage, en coordonnées du monde).
   g.updateMatrixWorld(true);
   // Un seul bloc convexe (fuselage, moteur, dérive) : les infectés en font le tour sans se coincer.
-  collider(45.4 - 3.45, 31.6 - 0.55, 45.4 + 3.05, 31.6 + 0.55, 1.5 + fy(45.4, 31.6), 'wood');
+  // De sous le nez planté (fond − 0,3) jusqu'au-dessus de l'habitacle et de l'hélice ; la dérive monte plus haut :
+  // depuis la queue, où le sol remonte, on ne grimpe plus sur l'épave.
+  { const fh = fy(45.4, 31.6);
+    collider(45.4 - 3.45, 31.6 - 0.55, 45.4 + 3.05, 31.6 + 0.55, fh + 1.5, 'wood', fh - 0.3);
+    collider(45.4 - 3.45, 31.6 - 0.55, 45.4 - 2.65, 31.6 + 0.55, fh + 2.05, 'wood', fh - 0.3); }
   // Le moteur brûle encore.
   const fire = _v1.set(2.45, 0.35, 0).applyMatrix4(body.matrixWorld);
   WORLD.fires.push({ x: fire.x, y: fire.y, z: fire.z, size: 0.9, rate: 0.04, t: 0, smoke: 0.1 });
   // Débris épars.
-  crate(40.4, 26.2, 0.4); crate(51.6, 37.4, -0.3, 0.9); barrel(41.2, 38.2, MATS.rust, true);
+  crate(40.4, 26.2, 0.4); crate(51.6, 37.4, -0.3, 0.9);
+  barrel(42.6, 38.4, MATS.rust, true); // fût couché à l'écart de l'arrivée de la barricade sud (x 40-42) : sa boîte n'y gêne plus les infectés
   // Téléphone de campagne (soutien d'artillerie).
   const s = wallSpot(SPOTS.mortar, 0.42), t = new THREE.Group(); t.position.set(s.x, 0, s.z); t.rotation.y = s.yaw; R.scene.add(t);
   mesh(boxG(0.8, 0.55, 0.55), MATS.crate, 0, 0.275, 0.05, 0, t); colliderBox(s.x, s.z, 0.8, 0.6, s.yaw, 0.55, 'wood');

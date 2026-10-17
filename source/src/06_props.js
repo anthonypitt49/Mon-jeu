@@ -162,8 +162,10 @@ function buildProps() {
   mesh(boxG(3.5, 0.45, 0.7), rawWood(), 55.95, 0.225, 8.35); collider(54.2, 8, 57.7, 8.7, 0.45, 'wood');
   mesh(boxG(3.6, 0.45, 0.7), rawWood(), 29.8, 0.225, 8.35); collider(28.0, 8, 31.6, 8.7, 0.45, 'wood'); // dégagé de la sortie de la barricade voisine
   { const g = new THREE.Group(); g.position.set(56.7, 0.45, 8.4); R.scene.add(g);
-    for (const a of [0, 2.1, 4.2]) { const leg = mesh(boxG(0.04, 0.9, 0.04), MATS.iron, Math.sin(a) * 0.25, 0.4, Math.cos(a) * 0.25, 0, g); leg.rotation.x = Math.cos(a) * 0.4; leg.rotation.z = -Math.sin(a) * 0.4; }
-    const gun = new THREE.Group(); gun.position.set(0, 0.95, 0); gun.rotation.set(0.08, 0.1, 0); g.add(gun);
+    // trépied : pieds écartés sur la banquette (z 8,1 à 8,7), têtes réunies sous l'arme
+    for (const a of [1.05, 3.15, 5.25]) { const leg = mesh(boxG(0.04, 0.9, 0.04), MATS.iron, Math.sin(a) * 0.15, 0.4, Math.cos(a) * 0.15, 0, g); leg.rotation.x = -Math.cos(a) * 0.33; leg.rotation.z = Math.sin(a) * 0.33; }
+    // au repos le long de la banquette, canon vers l'ouest (pointée au nord, il entrerait dans le parapet)
+    const gun = new THREE.Group(); gun.position.set(0, 0.95, 0); gun.rotation.order = 'YXZ'; gun.rotation.set(0.08, 0.1 + Math.PI / 2, 0); g.add(gun);
     mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9, 12), MATS.olive, 0, 0, -0.3, 0, gun).rotation.x = Math.PI / 2;
     mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 8), MATS.iron, 0, 0.02, -0.95, 0, gun).rotation.x = Math.PI / 2;
     mesh(boxG(0.14, 0.18, 0.5), MATS.iron, 0, 0.02, 0.28, 0, gun);
@@ -214,7 +216,7 @@ function buildProps() {
   poster(16, 1.5, 26.05, 0, 'SILENCE', 'L\'ENNEMI\nÉCOUTE', '#c9b48a');
   poster(21, 1.45, 26.05, 0, 'TENIR', 'CHAQUE MÈTRE\nCOMPTE', '#b9a37c');
   poster(27.95, 1.5, 33, -Math.PI / 2, 'MASQUE', 'TOUJOURS\nÀ PORTÉE', '#a8b08a');
-  crate(27.2, 37.3, 0.2); crate(26.6, 37.35, -0.1, 0.8, 0.55);
+  crate(27.2, 37.3, 0.2); crate(27.15, 37.3, -0.1, 0.8, 0.55); // petite caisse posée sur la grande (pas en porte-à-faux)
   for (let k = 0; k < 3; k++) mesh(new THREE.SphereGeometry(0.12, 10, 8), MATS.olive, 12 + k * 0.4, 1.7, 26.15);
 
   // ── Zone C : dépôt du générateur ──
@@ -234,9 +236,10 @@ function buildProps() {
   crate(60.6, 30, 0.2); crate(63.4, 44, -0.1); barrel(60.5, 36.5, MATS.olive);
   { const s = new THREE.Group(); s.position.set(63.3, 0, 31.9); R.scene.add(s);
     for (const o of [-0.25, 0.25]) mesh(boxG(0.05, 0.05, 2.1), rawPost(), o, 0.3, 0, 0, s); mesh(boxG(0.5, 0.03, 1.8), MATS.cloth, 0, 0.33, 0, 0, s);
+    for (const o of [-0.25, 0.25]) for (const c of [-0.85, 0.85]) mesh(boxG(0.05, 0.28, 0.05), rawPost(), o, 0.14, c, 0, s); // pieds : le brancard ne flotte plus
     collider(63.0, 30.8, 63.6, 33.0, 0.4, 'wood'); }
   signPost(61, 26.6, 0, ['SOUTIEN EST', 'SAPE →']);
-  poster(64.05, 1.5, 39, Math.PI / 2, 'VIGILANCE', 'LA NUIT\nNE DORT PAS', '#c2b089');
+  poster(65, 1.5, 41.91, Math.PI, 'VIGILANCE', 'LA NUIT\nNE DORT PAS', '#c2b089'); // mur sud de la sape (l'abri est ouvert côté tranchée)
 }
 
 /* ─── No man's land et arrière ─── */
