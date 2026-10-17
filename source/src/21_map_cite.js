@@ -9,8 +9,8 @@ const CITE = (() => {
   const X = (lx) => (lx + OX) * TILE, CX = (lx) => (lx + OX) * TILE + TILE / 2; // bord et centre d'un carreau local
   return { OX, OZ, X, CX, T: (lx, lz) => [lx + OX, lz + OZ] };
 })();
-// Emplacements d'atterrissage des atouts (mètres, orientation de la façade).
-const CITE_PADS = [[11, 18.2, 0], [24, 16.5, Math.PI], [36.5, 34.5, Math.PI / 2], [13.5, 5.5, 0], [30, 38.5, 0], [8.2, 25.4, -Math.PI / 2], [4.2, 32, Math.PI], [32.5, 11.5, Math.PI], [26.5, 35, 0]]
+// Emplacements d'atterrissage des atouts (mètres, orientation de la façade) : tous sur le sol des joueurs, à découvert, face au passage.
+const CITE_PADS = [[11, 18.2, 0], [24, 16.5, Math.PI], [36.5, 35, -Math.PI / 2], [13.5, 5.5, 0], [24, 36.3, Math.PI], [8.2, 24.5, 0], [7.2, 29.4, Math.PI], [35, 23.5, Math.PI], [26.5, 35, 0]]
   .map(([lx, lz, yaw]) => ({ x: CITE.X(lx), z: CITE.X(lz), yaw }));
 const CITE_STATE = { landed: [], heads: [], pop: 1954, lastPop: -1, dropT: 0, dropRound: 0, anims: [] };
 
@@ -110,7 +110,7 @@ MAPS.cite = {
     H(7, 24, 25, 'bunkerIn'); H(7, 27, 29, 'bunkerIn'); H(7, 31, 32, 'bunkerIn'); V(28, 3, 6, 'bunkerIn');
     // Station-service.
     H(24, 10, 15, 'stucco'); V(16, 24, 28, 'stucco'); V(10, 24, 25, 'stucco'); V(10, 27, 28, 'stucco'); V(10, 25, 25, 'stuccoWin'); V(10, 27, 27, 'stuccoWin'); H(24, 12, 12, 'stuccoWin'); H(24, 14, 14, 'stuccoWin');
-    V(10, 29, 29, 'stucco'); V(10, 31, 32, 'stucco'); H(33, 10, 11, 'stucco'); H(33, 13, 15, 'stucco'); V(16, 29, 32, 'stucco');
+    V(10, 29, 32, 'stucco'); H(33, 10, 11, 'stucco'); H(33, 13, 15, 'stucco'); V(16, 29, 32, 'stucco');
     H(29, 10, 12, 'stucco'); H(29, 14, 15, 'stucco');
 
     // Passages.
@@ -126,10 +126,10 @@ MAPS.cite = {
   spots: (() => {
     const T = CITE.T;
     return {
-      start: T(20, 18), startYaw: -Math.PI / 2,
-      coopStarts: [T(20, 18), T(20, 19), T(22, 18), T(22, 19)],
+      start: T(20, 19), startYaw: -Math.PI / 2, // (sur la chaussée, à l'écart du car)
+      coopStarts: [T(20, 19), T(20, 20), T(22, 19), T(22, 20)],
       wallBuys: [
-        { weapon: 'bolt', ...xz(T(17, 15)), wall: 'n' },
+        { weapon: 'bolt', ...xz(T(14, 15)), wall: 'n' }, // (sur le bardage, entre la fenêtre et la porte de garage)
         { weapon: 'shotgun', ...xz(T(14, 10)), wall: 'e' },
         { weapon: 'smg', ...xz(T(22, 24)), wall: 'w' },
         { weapon: 'carbine', ...xz(T(24, 9)), wall: 'w' },
@@ -141,7 +141,8 @@ MAPS.cite = {
       generator: { x: CITE.X(26) + 0.6, z: CITE.X(4) + 1.2, ry: Math.PI / 2 },
       box: [{ ...xz(T(12, 22)), wall: 's' }, { ...xz(T(4, 13)), wall: 'w' }, { ...xz(T(32, 5)), wall: 'e' }, { ...xz(T(22, 29)), wall: 'w' }, { ...xz(T(15, 27)), wall: 'e' }],
       bench: { ...xz(T(15, 31)), wall: 'e' },
-      groundSpawns: [T(5, 15), T(14, 16), T(31, 22), T(37, 18), T(37, 23), T(6, 2), T(16, 4), T(21, 35), T(33, 35), T(4, 27), T(26, 16)].map(([x, z]) => [x, z]),
+      // Sorties de terre (± 0,6 m autour du centre du carreau) : à l'écart de tout objet.
+      groundSpawns: [T(5, 15), T(15, 16), T(31, 22), T(38, 18), T(37, 23), T(6, 2), T(16, 4), T(21, 36), T(32, 33), T(4, 28), T(26, 16)].map(([x, z]) => [x, z]),
     };
     function xz([x, z]) { return { x, z }; }
   })(),
@@ -225,7 +226,7 @@ function citeHost(dt) {
     if (CITE_STATE.dropT > (G.round === 1 ? 6 : 4)) {
       CITE_STATE.dropT = 0; CITE_STATE.dropRound = G.round;
       const left = WORLD.perks.filter((p) => !p.landed).map((p) => p.key), key = left.includes('revive') ? 'revive' : pick(left);
-      const used = new Set(CITE_STATE.landed.map(([, i]) => i)), free = CITE_PADS.map((_, i) => i).filter((i) => !used.has(i));
+      const used = new Set(CITE_STATE.landed.map(([, i]) => i)), free = CITE_PADS.map((_, i) => i).filter((i) => !used.has(i) && MAP.type[ti(tileOf(CITE_PADS[i].x), tileOf(CITE_PADS[i].z))] === T_FLOOR); // (jamais hors du sol des joueurs)
       // Emplacement libre, de préférence dans une zone déjà ouverte.
       const open = free.filter((i) => { const pd = CITE_PADS[i], t = ti(tileOf(pd.x), tileOf(pd.z)); return MAP.zoneActive[MAP.zone[t]]; });
       G.emit('pdrop', { k: key, p: pick(open.length ? open : free) });

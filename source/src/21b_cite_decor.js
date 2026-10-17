@@ -13,10 +13,10 @@ function citeDecor() {
   kGable(X(17), X(23), X(22), X(29), 3.35, 1.7, shingleG, 0.45, fv(['siding', 0xa6dbb8]));
   kChimney(X(6) + 1, X(9), 3.35, 4.0, fmat('brick', 0xffffff)); kChimney(X(30) + 1, X(29), 3.35, 4.0, fmat('brick', 0xffffff));
   kAntenna(X(12), X(11), 5.2); kAntenna(X(25), X(27), 5.2);
-  // Porches : auvent en bardeaux sur quatre poteaux en bois peint.
-  const porch = (x0, z0, x1, z1, mat) => { const g = KIT.g(0, 0); KIT.b(g, (x0 + x1) / 2, 2.62, (z0 + z1) / 2, x1 - x0 + 0.6, 0.1, z1 - z0 + 0.5, mat); for (const [a, b] of [[x0 + 0.1, z1 - 0.1], [x1 - 0.1, z1 - 0.1], [x0 + 0.1, z0 + 0.1], [x1 - 0.1, z0 + 0.1]]) KIT.b(g, a, 1.3, b, 0.1, 2.6, 0.1, fmat('boisPeint', 0xeeeae0, { rough: 0.8 })); };
-  porch(X(8), X(15), X(9), X(16), fmat('shingle', 0xb07a62)); porch(X(9), X(6), X(10), X(7), fmat('shingle', 0xb07a62));
-  porch(X(26), X(22), X(27), X(23), fmat('shingle', 0x7c8c9a)); porch(X(28), X(31), X(29), X(32), fmat('shingle', 0x7c8c9a));
+  // Porches : auvent en bardeaux sur quatre poteaux en bois peint ; il déborde côté dehors (s : sens du dehors en z), pas dans la maison.
+  const porch = (x0, z0, x1, z1, mat, s) => { const g = KIT.g(0, 0), a = s > 0 ? z0 : z0 - 0.25, b = s > 0 ? z1 + 0.25 : z1; KIT.b(g, (x0 + x1) / 2, 2.62, (a + b) / 2, x1 - x0 + 0.6, 0.1, b - a, mat); for (const [a, b] of [[x0 + 0.1, z1 - 0.1], [x1 - 0.1, z1 - 0.1], [x0 + 0.1, z0 + 0.1], [x1 - 0.1, z0 + 0.1]]) KIT.b(g, a, 1.3, b, 0.1, 2.6, 0.1, fmat('boisPeint', 0xeeeae0, { rough: 0.8 })); };
+  porch(X(8), X(15), X(9), X(16), fmat('shingle', 0xb07a62), 1); porch(X(9), X(6), X(10), X(7), fmat('shingle', 0xb07a62), -1);
+  porch(X(26), X(22), X(27), X(23), fmat('shingle', 0x7c8c9a), -1); porch(X(28), X(31), X(29), X(32), fmat('shingle', 0x7c8c9a), 1);
   // Portes de garage sectionnelles en bois peint (façade côté rue).
   for (const [x0, x1, z, col, s] of [[X(15), X(20), X(15), 0xf6f2e6, 1], [X(17), X(22), X(23), 0xf6f2e6, -1]]) {
     const g = KIT.g((x0 + x1) / 2, z + s * 0.1); for (let i = 0; i < 4; i++) KIT.b(g, 0, 0.35 + i * 0.55, 0, x1 - x0 - 1.0, 0.5, 0.04, fmat('boisPeint', col, { rough: 0.5 }));
@@ -29,8 +29,8 @@ function citeDecor() {
 
   /* ── La rue ── */
   const line = fmat('plain', 0xe0b83a, { rough: 0.8 }), white = fmat('plain', 0xe8e4da, { rough: 0.8 });
-  for (let x = X(2) + 1; x < X(34); x += 3.2) KIT.b(R.scene, x, 0.012, X(19), 1.6, 0.01, 0.14, line, 0, false);
-  for (let i = 0; i < 6; i++) KIT.b(R.scene, X(27) + 0.4 + i * 0.55, 0.012, X(17) + 0.9, 0.3, 0.01, 1.6, white, 0, false); // passage piéton vers l'abri
+  for (let x = X(2) + 1; x < X(34); x += 3.2) if (Math.abs(x - X(28) - 1) > 2.3) KIT.b(R.scene, x, 0.012, X(19), 1.6, 0.01, 0.14, line, 0, false); // (interrompue au passage piéton)
+  for (let i = 0; i < 14; i++) KIT.b(R.scene, X(28) + 1, 0.012, X(17) + 0.3 + i * 0.55, 3.0, 0.01, 0.3, white, 0, false); // passage piéton vers l'abri : toute la chaussée, dans l'axe de l'allée
   const curb = fmat('concrete', 0xb8b2a6, { rough: 0.9 }); // bordures en béton coulé (photo de béton de la carte)
   for (const z of [X(17), X(21)]) KIT.b(R.scene, (X(2) + X(34)) / 2, 0.05, z, X(34) - X(2), 0.1, 0.18, curb, 0, false);
   const lw = kLampPost(X(10), X(16) + 0.35, -Math.PI / 2, L.lampW), le = kLampPost(X(31) + 1, X(21) + 1.65, Math.PI / 2, L.lampE);
@@ -39,13 +39,13 @@ function citeDecor() {
   kTrash(X(21), X(16) + 0.6); kTrash(X(3), X(21) + 1.2);
   kStopSign(X(33) + 1.6, X(21) + 1.6, Math.PI);
   kSign(X(2) + 0.5, X(16) + 0.4, Math.PI / 2, ['ZONE D\'ESSAIS', 'ACCÈS INTERDIT'], '#e8d24a', '#1a1a1a');
-  kBench(X(19) + 1, X(22) + 1.3, Math.PI);
+  kBench(X(9) + 1, X(22) + 1.3, Math.PI); // sur la pelouse, dos à la clôture de la station
   for (const [x, z] of [[X(4), X(18)], [X(4) + 0.8, X(19) + 1], [X(38), X(20)], [X(37) + 1, X(22) + 1.5], [X(30), X(17) + 0.4]]) kCone(x, z);
   // Car scolaire brûlé et camion de déménagement renversant ses meubles.
   kBus(X(22) + 0.6, X(17) + 1.9, 0.05, true);
   WORLD.fires.push({ x: X(25), y: 1.4, z: X(17) + 1.9, size: 0.9, rate: 0.05, t: 0, smoke: 0.12, light: L.busFire });
   if (L.busFire) L.busFire.position.set(X(25), 1.8, X(17) + 1.9);
-  kTruck(X(12), X(20) + 0.2, Math.PI + 0.04);
+  kTruck(X(12), X(20) + 0.2, 0.04); // cabine à l'est : vantaux et rampe du côté des meubles tombés
   kSofa(X(5) + 1.5, X(19) + 0.8, 1.9, k.fabricRed); kArmchair(X(7) + 0.6, X(18) + 0.7, -0.6); crate(X(6) + 1.4, X(20) + 0.6, 0.4); crate(X(6) + 1.6, X(20) + 0.5, -0.2, 0.8, 0.55);
   kCar(X(37), X(17) + 1.4, 1.25, 0xc9d9df, true); kCar(X(17) + 1, X(12) + 1, Math.PI / 2, 0xd9636a); kCar(X(19) + 0.4, X(25) + 1, -Math.PI / 2 + 0.03, 0x6fb7c8);
   // Panneau POPULATION (décompte des morts), à l'entrée ouest.
@@ -56,52 +56,62 @@ function citeDecor() {
     g.userData.dynamic = true; WORLD.popSign = { canvas: c, tex }; drawPopSign(1954); }
 
   /* ── Maison jaune : intérieur ── */
-  kSofa(X(6) + 1, X(13) + 1.2, Math.PI, k.fabricTeal); kArmchair(X(7) + 0.4, X(11) + 0.9, -0.4); kTV(X(6) + 1, X(10) + 0.55, 0);
-  kTable(X(6) + 1, X(12) + 0.8, 0, 1.1, 0.55, 0.42, k.woodDark); kLamp(X(8) + 1.4, X(14) + 1.4, 0); kRug(X(6) + 1, X(12) + 0.6, 0, 3.2, 2.2, 0x8a3b32);
-  kCounter(X(11) + 1, X(10) + 0.33, 0, 4.2); kFridge(X(14) + 1.4, X(10) + 0.4, 0); kStove(X(9) + 0.5, X(10) + 0.36, 0); kDining(X(11) + 1, X(13), 0);
-  kBed(X(6), X(7) + 1.1, 0); kDresser(X(8) + 1.7, X(9) + 0.8, -Math.PI / 2);
+  // (télé contre le mur plein, hors de l'ouverture vers la chambre ; lampadaire dans le coin, à côté de l'entrée)
+  kSofa(X(6) + 1, X(13) + 1.2, Math.PI, k.fabricTeal); kArmchair(X(7) + 0.4, X(11) + 0.9, -0.4); kTV(X(5) + 1.1, X(10) + 0.4, 0);
+  kTable(X(6) + 1, X(12) + 0.8, 0, 1.1, 0.55, 0.42, k.woodDark); kLamp(X(7) + 1.4, X(14) + 1.5, 0); kRug(X(6) + 1, X(12) + 0.6, 0, 3.2, 2.2, 0x8a3b32);
+  // (comptoir contre la cuisinière, hors de l'ouverture vers la salle de bains ; réfrigérateur à l'écart du fusil à pompe)
+  kCounter(X(10) + 1.1, X(10) + 0.33, 0, 4.2); kFridge(X(13) + 1.5, X(10) + 0.4, 0); kStove(X(9) + 0.5, X(10) + 0.36, 0); kDining(X(11) + 1, X(13), 0);
+  kBed(X(6) + 0.7, X(7) + 1.1, 0); kDresser(X(8) + 1.7, X(9) + 0.8, -Math.PI / 2); // (tête de lit à côté de la fenêtre, pas derrière son rideau)
   { const g = KIT.g(X(13) + 0.4, X(7) + 0.5, 0); KIT.b(g, 0, 0.3, 0, 1.6, 0.6, 0.75, fmat('email', 0xeeeae0, { rough: 0.15 })); KIT.b(g, 0, 0.58, 0, 1.45, 0.05, 0.62, fmat('plain', 0x9ad0e0, { rough: 0.1 })); KIT.solid(g, 1.6, 0.75, 0.6); } // baignoire en fonte émaillée
   for (const p of [[X(15) + 1.2, X(9) + 0.3], [X(18) + 0.6, X(9) + 0.3]]) kShelf(p[0], p[1], 0, 1.4, 1.9);
   kTires(X(19) + 1.4, X(14) + 1.3, 3);
 
-  // Tableaux et plafonniers.
-  kFrame(X(4) + 0.1, 1.6, X(12), Math.PI / 2, 0.8, 0.9, 0); kFrame(X(11), 1.7, X(10) + 0.1, 0, 0.6, 0.8, 1); kFrame(X(6), 1.7, X(7) + 0.1, 0, 0.9, 0.7, 2); kFrame(X(9) - 0.1, 1.6, X(13), -Math.PI / 2, 0.7, 0.9, 3);
-  kFrame(X(22) + 0.1, 1.6, X(25), Math.PI / 2, 0.8, 0.9, 4); kFrame(X(25), 1.7, X(27) - 0.1, Math.PI, 0.9, 0.7, 5); kFrame(X(27) + 0.1, 1.6, X(29), Math.PI / 2, 0.6, 0.8, 6); kFrame(X(30), 1.7, X(23) + 0.1, 0, 0.7, 0.9, 7);
+  // Tableaux (sur du mur plein : loin des ouvertures, des fenêtres et de leurs rideaux, des placards et des armes murales) et plafonniers.
+  kFrame(X(4) + 0.1, 1.6, X(12) + 1, Math.PI / 2, 0.8, 0.9, 0); kFrame(X(12) + 1, 1.7, X(15) - 0.1, Math.PI, 0.6, 0.8, 1); kFrame(X(6) + 0.7, 1.75, X(7) + 0.1, 0, 0.9, 0.7, 2); kFrame(X(9) - 0.1, 1.6, X(14), -Math.PI / 2, 0.7, 0.9, 3);
+  kFrame(X(22) + 0.1, 1.6, X(23) + 1.3, Math.PI / 2, 0.8, 0.9, 4); kFrame(X(25) + 1.5, 1.7, X(27) - 0.1, Math.PI, 0.9, 0.7, 5); kFrame(X(27) + 0.1, 1.6, X(29), Math.PI / 2, 0.6, 0.8, 6); kFrame(X(28) + 0.1, 1.6, X(23) + 1.5, Math.PI / 2, 0.7, 0.9, 7);
   for (const [x, z] of [[X(6) + 1, X(12) + 1], [X(12), X(12) + 1], [X(6) + 1, X(8) + 1], [X(12), X(8) + 1], [X(17) + 1, X(12)], [X(25), X(24) + 1], [X(30) + 1, X(24) + 1], [X(24), X(28) + 1], [X(30), X(28) + 1], [X(19), X(25) + 1]]) kCeilLamp(x, z);
   /* ── Maison verte : intérieur ── */
-  kSofa(X(24), X(22) + 0.6 + 2.8, 0, k.fabricMustard); kTV(X(24), X(26) + 1.4, Math.PI); kArmchair(X(26) + 1.2, X(24) + 1, -Math.PI / 2); kRug(X(24), X(25), 0, 3, 2.4, 0x2f5a6a);
+  kSofa(X(24), X(22) + 0.6 + 2.8, 0, k.fabricMustard); kTV(X(23) + 1.4, X(26) + 1.4, Math.PI); kArmchair(X(26) + 1.2, X(24) + 1, -Math.PI / 2); kRug(X(24), X(25), 0, 3, 2.4, 0x2f5a6a); // (télé hors de l'ouverture vers la chambre)
   kLamp(X(22) + 0.5, X(23) + 0.5, 0);
   kCounter(X(32) + 1.62, X(24) + 1, -Math.PI / 2, 3.6, 0xe6efe6, 0x2f7a6a); kFridge(X(30) + 1, X(23) + 0.42, 0, 0xe8e2d0); kDining(X(30), X(25) + 0.2, Math.PI / 2);
   kBed(X(24), X(30) + 0.9, Math.PI, k.fabricTeal); kDresser(X(22) + 0.3, X(28), Math.PI / 2);
-  kShelf(X(31), X(30) + 1.7, Math.PI, 1.6, 1.9); { const g = KIT.g(X(28) + 1, X(30) + 1.4, Math.PI); KIT.b(g, 0, 0.45, 0, 0.8, 0.9, 0.7, fmat('email', 0xeeeae0, { rough: 0.3 })); KIT.c(g, 0, 0.6, 0.36, 0.22, 0.22, 0.02, k.glass, 16, false).rotation.x = Math.PI / 2; KIT.solid(g, 0.8, 0.7, 0.9, 'metal'); } // machine à laver
+  // Salle de bains verte : étagère entre la porte du jardin et les toilettes, machine à laver contre le mur ouest (porte et fenêtre dégagées).
+  kShelf(X(29) + 1.2, X(30) + 1.7, Math.PI, 1.6, 1.9); { const g = KIT.g(X(27) + 0.6, X(30) + 1.4, Math.PI); KIT.b(g, 0, 0.45, 0, 0.8, 0.9, 0.7, fmat('email', 0xeeeae0, { rough: 0.3 })); KIT.c(g, 0, 0.6, 0.36, 0.22, 0.22, 0.02, k.glass, 16, false).rotation.x = Math.PI / 2; KIT.solid(g, 0.8, 0.7, 0.9, 'metal'); } // machine à laver
   kShelf(X(17) + 0.3, X(26) + 1, Math.PI / 2, 1.4, 1.9); kTires(X(20) + 1.4, X(27) + 1.4, 2);
 
   /* ── Finitions des intérieurs : placards hauts, salles de bains, plantes, bibliothèques ── */
-  kUpperCab(X(11) + 1, X(10) + 0.2, 0, 4.0); kUpperCab(X(33) - 0.2, X(24) + 1, -Math.PI / 2, 3.4, 0xe6efe6);
-  kToilet(X(10) + 0.5, X(7) + 0.35, 0); kSink(X(11) + 1.1, X(7) + 0.25, 0);
-  kToilet(X(30) + 0.5, X(31) - 0.35, Math.PI); kSink(X(31) + 1.0, X(31) - 0.25, Math.PI);
+  // (placards hauts au-dessus du comptoir jaune, sur toute sa longueur, multiple de 0,6 m comme leurs portes ; pas de placards
+  // dans la cuisine verte, dont le comptoir est sous la fenêtre, comme un évier)
+  kUpperCab(X(10) + 1.1, X(10) + 0.2, 0, 4.2);
+  // (miroirs devant le mur ; lavabo vert sur le mur plein entre la fenêtre et l'angle)
+  kToilet(X(10) + 0.5, X(7) + 0.35, 0); kSink(X(11) + 1.1, X(7) + 0.32, 0);
+  kToilet(X(30) + 0.5, X(31) - 0.35, Math.PI); kSink(X(32) + 1.0, X(31) - 0.32, Math.PI);
   kPlant(X(4) + 0.5, X(14) + 1.5, 1.2); kPlant(X(22) + 0.5, X(26) + 1.5, 1.2); kPlant(X(14) + 1.5, X(14) + 1.5, 0.9, 0x3a6a8a); kPlant(X(32) + 1.5, X(26) + 1.5, 0.9, 0x3a6a8a);
-  kBookcase(X(4) + 0.2, X(11), Math.PI / 2, 1.2, 2.0); kBookcase(X(27) - 0.2, X(25), -Math.PI / 2, 1.2, 2.0);
+  kBookcase(X(4) + 0.2, X(10) + 0.8, Math.PI / 2, 1.2, 2.0); kBookcase(X(28) - 0.2, X(24) + 0.8, -Math.PI / 2, 1.2, 2.0); // (contre un mur plein, à l'écart de la fenêtre-barricade et des ouvertures)
   /* ── Jardins ── */
   kSwing(X(5) + 1, X(1) + 1, 0); kGrill(X(13), X(4) + 1, 0); kPicnic(X(16), X(2) + 1, 0.1); kDoghouse(X(19) + 1, X(0) + 1.2, -0.3);
   kClothesline(X(12), X(1) + 0.6, 0); kPool(X(4) + 1, X(5), 1.3);
   kSwing(X(33), X(35) + 1, 0.2); kPool(X(22), X(34) + 1, 1.5); kClothesline(X(26), X(36) + 0.6, 0); kGrill(X(31) + 1, X(32) + 1, 0); kPicnic(X(20) + 1, X(36), Math.PI / 2);
   { const g = KIT.g(X(35), X(31) + 1.4, 0); KIT.b(g, 0, 1.1, 0, 2.2, 2.2, 1.8, fmat('boisPeint', 0x9a6a4a)); KIT.b(g, 0, 2.3, 0, 2.5, 0.12, 2.1, fmat('shingle', 0x55606a)); KIT.solid(g, 2.2, 1.8, 2.3); } // cabanon en planches peintes
-  for (let i = 0; i < 10; i++) kShrub(X(2) + srand(0, 36), X(0) + srand(-0.2, 0.2), srand(0.6, 1), 0x4f7a3a);
+  // Haie le long du grillage nord, côté jardin ; ni dans la brèche de la barricade (x 24–26) ni contre la niche (mêmes tirages qu'avant).
+  for (let i = 0; i < 10; i++) { let x = X(2) + srand(0, 36); const z = X(0) + 0.7 + srand(-0.1, 0.1), s = srand(0.6, 1); if (Math.abs(x - X(8) - 1) < 1.8) x = X(8) + 1 + (x < X(8) + 1 ? -1.8 : 1.8); kShrub(Math.min(x, X(19) - 0.6), z, s, 0x4f7a3a); }
 
   /* ── Abri antiatomique ── */
   { const g = KIT.g(X(28) + 1, X(11) + 1.02, 0);
     const trefoil = textTexture(256, 256, (c) => { c.fillStyle = '#e8c21a'; c.fillRect(0, 0, 256, 256); c.fillStyle = '#111'; c.beginPath(); c.arc(128, 128, 20, 0, TAU); c.fill(); for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + i * TAU / 3; c.beginPath(); c.moveTo(128, 128); c.arc(128, 128, 100, a - 0.52, a + 0.52); c.closePath(); c.fill(); } c.fillStyle = '#e8c21a'; c.beginPath(); c.arc(128, 128, 30, 0, TAU); c.fill(); c.fillStyle = '#111'; c.beginPath(); c.arc(128, 128, 20, 0, TAU); c.fill(); });
     for (const s of [-1.35, 1.35]) mesh(new THREE.PlaneGeometry(0.6, 0.6), new THREE.MeshStandardMaterial({ map: trefoil, roughness: 0.6 }), s, 1.9, 0.02, 0, g, false);
-    const sign = mesh(new THREE.PlaneGeometry(2.6, 0.5), new THREE.MeshStandardMaterial({ map: woodSign(['ABRI ANTIATOMIQUE'], { w: 512, h: 100, bg: '#222', color: '#e8c21a' }), roughness: 0.6 }), 0, 3.0, 0.02, 0, g, false); }
+    // Enseigne sur la face avant du linteau de la porte (le linteau remplit le carreau de la porte de 2,45 à 3,4 m).
+    const sign = mesh(new THREE.PlaneGeometry(2.2, 0.42), new THREE.MeshStandardMaterial({ map: woodSign(['ABRI ANTIATOMIQUE'], { w: 512, h: 100, bg: '#222', color: '#e8c21a' }), roughness: 0.6 }), 0, 3.0, 0.02, 0, KIT.g(X(28) + 1, X(12), 0), false); }
   // Aérations de l'abri sur le toit : conduits en tôle galvanisée.
   for (const [x, z] of [[X(25), X(4)], [X(31), X(8)], [X(27), X(9)]]) { const g = KIT.g(x, z, 0, 3.35), v = fmat('galva', 0x8c9196, { rough: 0.45, metal: 0.8 }); KIT.c(g, 0, 0.6, 0, 0.16, 0.16, 1.2, v, 10); KIT.c(g, 0, 1.25, 0, 0.3, 0.3, 0.1, v, 10); }
-  // Sacs de sable de la Défense civile : toile de jute.
-  { const bags = new Batch(sandbagGeo(), fmat('jute', 0xb8a47e, { rough: 1 })); for (let x = X(24); x < X(28); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); for (let x = X(29) + 0.3; x < X(33); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); bags.build(); }
+  // Sacs de sable de la Défense civile : toile de jute. Deux rangées le long de la façade, sans entrer dans les murets du porche
+  // (même nombre de sacs qu'avant, un peu plus serrés : le tirage au hasard du décor reste le même).
+  { const bags = new Batch(sandbagGeo(), fmat('jute', 0xb8a47e, { rough: 1 })); for (let x = X(24); x < X(28) - 0.6; x += 0.56) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); for (let x = X(29) + 0.4; x < X(33) - 0.3; x += 0.58) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); bags.build(); }
   // Dortoir, salle commune, générateur. Couchettes en acier peint, matelas en coutil de coton.
   const ticking = fmat('toile', 0x3d8a86, { rough: 0.95 });
   for (const x of [X(29) + 0.9, X(31) + 0.9]) { const g = KIT.g(x, X(3) + 1.1, 0); for (const y of [0.45, 1.5]) { KIT.b(g, 0, y, 0, 1.0, 0.08, 2.0, k.steel); KIT.b(g, 0, y + 0.1, 0, 0.92, 0.12, 1.9, ticking); } for (const [a, b] of [[-0.48, -0.95], [0.48, -0.95], [-0.48, 0.95], [0.48, 0.95]]) KIT.b(g, a, 1.0, b, 0.05, 2.0, 0.05, k.steel); KIT.solid(g, 1.0, 2.0, 2.0, 'metal'); }
-  kShelf(X(24) + 0.3, X(8) + 1, Math.PI / 2, 1.8, 2.1); kShelf(X(24) + 0.3, X(10), Math.PI / 2, 1.8, 2.1); kTable(X(29), X(8) + 1.2, 0, 2.2, 1.0);
+  kShelf(X(24) + 0.3, X(8) + 1, Math.PI / 2, 1.8, 2.1); kShelf(X(24) + 0.3, X(7) + 1, Math.PI / 2, 1.8, 2.1); kTable(X(29), X(8) + 1.2, 0, 2.2, 1.0); // (2e étagère dans l'angle nord-ouest : la carabine reste dégagée)
+  kChair(X(28) + 0.3, X(8) + 1.2, Math.PI / 2, k.steel); // chaise du mannequin assis au bout de la table
   // Fûts de 200 litres en tôle peinte ; poste radio de la Défense civile en tôle peinte vert olive.
   for (const [x, z] of [[X(32) + 1.4, X(10) + 1.4], [X(32) + 0.7, X(10) + 1.5]]) barrel(x, z, fmat('tole', 0x3a5a7a, { rough: 0.5, metal: 0.4 }));
   { const g = KIT.g(X(29) - 0.4, X(8) + 1.2, 0); KIT.b(g, 0, 0.88, 0, 0.5, 0.28, 0.3, fmat('olive', 0x4a4a3a, { rough: 0.8 })); KIT.b(g, 0.15, 0.95, 0.16, 0.12, 0.1, 0.02, k.screen, 0, false); const lamp = new THREE.MeshBasicMaterial({ color: 0x401010 }); KIT.s(g, -0.15, 1.05, 0.16, 0.03, lamp); WORLD.citeRadio = { pos: new THREE.Vector3(X(29) - 0.4, 1, X(8) + 1.2), lamp }; } // poste radio d'urgence
@@ -127,7 +137,7 @@ function citeDecor() {
     colliderBox(X(2) + 1, X(23) + 0.6, 0.3, 0.3, 0, 6, 'concrete'); }
   // Comptoir de la boutique : caisson en bois peint, dessus en stratifié lisse (famille émail), caisse enregistreuse en acier.
   { const g = KIT.g(X(12) + 1, X(26) + 1.2, Math.PI / 2); KIT.b(g, 0, 0.5, 0, 2.6, 1.0, 0.6, fmat('boisPeint', 0xc23b3b, { rough: 0.4 })); KIT.b(g, 0, 1.02, 0, 2.7, 0.05, 0.7, fmat('email', 0xf2eee4, { rough: 0.3 })); KIT.b(g, 0.7, 1.2, 0, 0.4, 0.3, 0.35, k.steel); KIT.solid(g, 2.6, 0.6, 1.05); }
-  kShelf(X(15) + 1.6, X(24) + 1.2, -Math.PI / 2, 1.6, 1.8); kShelf(X(13), X(28) + 1.6, Math.PI, 1.6, 1.8);
+  kShelf(X(15) + 1.6, X(24) + 1.2, -Math.PI / 2, 1.6, 1.8); kShelf(X(12) + 0.6, X(28) + 1.6, Math.PI, 1.6, 1.8); // (2e étagère contre le mur plein, hors de l'ouverture vers l'atelier)
   // Fûts d'huile et d'essence de l'atelier, en tôle peinte.
   for (let i = 0; i < 6; i++) barrel(X(10) + 0.5 + (i % 3) * 0.62, X(32) + 1.4 - Math.floor(i / 3) * 0.6, fmat('tole', [0xc23b3b, 0x2e6a8a, 0xe8c21a][i % 3], { rough: 0.5, metal: 0.4 }));
   kTires(X(15) + 1.3, X(29) + 0.7, 4); kCar(X(12) + 1.4, X(30) + 1.4, Math.PI / 2 + 0.05, 0x3a4a6a);
@@ -135,7 +145,8 @@ function citeDecor() {
   /* ── Mannequins : les six marqués d'un foulard rouge, et leurs voisins ── */
   const scarf = stdMat({ color: 0xc81e1e, roughness: 0.8, map: TEX.cloth.map });
   WORLD.citeHeads = [];
-  const quest = [[X(9) + 1.2, X(15) + 1.2, 0, 'stand'], [X(6) + 0.2, X(13) + 1.3, Math.PI, 'sit', 0.08], [X(32) + 0.9, X(25) + 1.2, -Math.PI / 2, 'point'], [X(29) + 0.9, X(3) + 0.8, Math.PI / 2, 'sit', 1.05], [X(34), X(36), -0.4, 'wave'], [X(13) + 0.2, X(26) + 1.2, Math.PI / 2, 'stand']];
+  // (n°4 assis sur le matelas de la couchette du haut, jambes pendantes ; n°6, le vendeur, tourné vers son comptoir)
+  const quest = [[X(9) + 1.2, X(15) + 1.2, 0, 'stand'], [X(6) + 0.2, X(13) + 1.3, Math.PI, 'sit', 0.08], [X(32) + 0.9, X(25) + 1.2, -Math.PI / 2, 'point'], [X(29) + 1.05, X(3) + 0.8, Math.PI / 2, 'sit', 1.23], [X(34), X(36), -0.4, 'wave'], [X(13) + 0.2, X(26) + 1.2, -Math.PI / 2, 'stand']];
   quest.forEach(([x, z, ry, pose, y = 0], i) => {
     const m = kMannequin(x, z, ry, { pose, y, cloth: [0x3a5a8a, 0x8a3a5a, 0x3a7a5a, 0x7a6a3a, 0x5a3a7a, 0x2a2a2a][i] });
     const hp = m.head.getWorldPosition(new THREE.Vector3());
@@ -144,9 +155,10 @@ function citeDecor() {
     MAP.props.push(col);
     WORLD.citeHeads.push({ head: m.head, col, pos: hp, shot: false });
   });
-  // Mannequins de décor (têtes fusionnées avec le reste).
-  for (const [x, z, ry, pose, y = 0, cloth] of [[X(4) + 1, X(22) + 0.6, 0.4, 'stand', 0, 0x8a3a5a], [X(5) + 1, X(22) + 1.4, -0.3, 'wave', 0, 0x3a5a8a], [X(26) + 1.2, X(8) + 1.4, 0, 'sit', 0.35], [X(10) + 1, X(12) + 0.2, 0, 'sit', 0.05, 0x7a6a3a], [X(12) + 1, X(13) + 1.7, Math.PI, 'sit', 0.05],
-    [X(24) + 1.4, X(23) + 0.9, Math.PI + 0.2, 'sit', 0.08, 0x3a7a5a], [X(3) + 1, X(33) + 1, 1.2, 'stand'], [X(29), X(36) + 1, 2.2, 'point', 0, 0x7a6a3a], [X(7) + 1.6, X(25) + 1.4, -1.2, 'stand', 0, 0x3a5a8a], [X(38), X(24) + 1.5, 2.8, 'stand'], [X(36) + 1, X(14) + 1, -2, 'wave', 0, 0x5a3a7a], [X(20) + 1.2, X(13), -Math.PI / 2, 'stand', 0, 0x2a2a2a]])
+  // Mannequins de décor (têtes fusionnées avec le reste). Les assis sont sur un siège : chaise au bout de la table de l'abri,
+  // deux chaises de la salle à manger jaune, coussin du canapé vert ; celui qui salue est sur la pelouse, à côté de la porte de la station.
+  for (const [x, z, ry, pose, y = 0, cloth] of [[X(4) + 1, X(22) + 0.6, 0.4, 'stand', 0, 0x8a3a5a], [X(6) + 1.4, X(22) + 1.2, -0.3, 'wave', 0, 0x3a5a8a], [X(28) + 0.3, X(8) + 1.2, Math.PI / 2, 'sit', 0.05], [X(11) + 0.55, X(13) - 0.7, 0, 'sit', 0.05, 0x7a6a3a], [X(11) + 1.45, X(13) + 0.7, Math.PI, 'sit', 0.05],
+    [X(24) + 0.5, X(23) + 1.3, 0, 'sit', 0.08, 0x3a7a5a], [X(3) + 1, X(33) + 1, 1.2, 'stand'], [X(29), X(36) + 1, 2.2, 'point', 0, 0x7a6a3a], [X(7) + 1.6, X(25) + 1.4, -1.2, 'stand', 0, 0x3a5a8a], [X(38), X(24) + 1.5, 2.8, 'stand'], [X(36) + 1, X(14) + 1, -2, 'wave', 0, 0x5a3a7a], [X(20) + 1.2, X(13), -Math.PI / 2, 'stand', 0, 0x2a2a2a]])
     { const m = kMannequin(x, z, ry, { pose, y, cloth }); m.head.userData.dynamic = false; }
 
   /* ── Au loin : désert, mesas, château d'eau, tour d'essai, gradins, pylônes, champignon atomique ── */
