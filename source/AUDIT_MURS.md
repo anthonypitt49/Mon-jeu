@@ -28,5 +28,5 @@ Reste pour plus tard (hors de cette étape) : boîte du Colosse un peu plus larg
 
 ## Après la 6.1
 
-- Pénitencier : à la demande du propriétaire (option 2), le mur ajouté entre le réfectoire et la direction devient une porte payante « Réfectoire ↔ Direction » (1 250, acier, carreau local 36,16, montants V(36) et V(37)), ajoutée en dernier (les numéros des autres portes ne changent pas) ; panneau DIRECTION décalé sur le mur plein. `portes.mjs penitencier` : 8 portes sans faute ; `murs.mjs` : 0. Vérification complète en cours.
+- Pénitencier : à la demande du propriétaire (option 2), le mur ajouté entre le réfectoire et la direction devient une porte payante « Réfectoire ↔ Direction » (1 250, acier, carreau local 36,16, montants V(36) et V(37)), ajoutée en dernier (les numéros des autres portes ne changent pas) ; panneau DIRECTION décalé sur le mur plein. `portes.mjs penitencier` : 8 portes sans faute ; `verif_carte.sh penitencier` : murs 0, placement 0 cas, mapplay 0, codfeat 0, power 0, mission 0, entrées 25/25. Pas encore en ligne (attend la capture du propriétaire).
 - À venir : capture du propriétaire d'un mur invisible près du réfectoire ; l'esthétique du Pénitencier est à reprendre (demande du propriétaire).
