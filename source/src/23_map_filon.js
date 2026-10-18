@@ -78,8 +78,8 @@ MAPS.filon = {
     V(11, 16, 16, 'red'); V(12, 16, 16, 'red');
     H(17, 18, 20, 'plankWin'); H(17, 22, 24, 'plankWin'); V(21, 16, 16, 'plank'); V(22, 16, 16, 'plank');
     H(17, 26, 28, 'brickWin'); H(17, 30, 33, 'brickWin'); H(17, 27, 27, 'brick'); H(17, 31, 31, 'brick'); V(29, 16, 16, 'brick'); V(30, 16, 16, 'brick');
-    H(17, 18, 18, 'plank'); H(17, 20, 20, 'plank'); H(17, 33, 33, 'brick'); H(23, 8, 8, 'plank'); // pans pleins : affiches « RECHERCHÉ » et arme murale, pas sur une fenêtre
-    H(23, 7, 9, 'plankWin'); H(23, 11, 13, 'plankWin'); V(10, 23, 23, 'plank'); V(11, 23, 23, 'plank');
+    H(17, 18, 18, 'plank'); H(17, 20, 20, 'plank'); H(17, 33, 33, 'brick'); // pans pleins : affiches « RECHERCHÉ » et arme murale, pas sur une fenêtre
+    H(23, 7, 9, 'plankWin'); H(23, 11, 13, 'plankWin'); V(10, 23, 23, 'plank'); V(11, 23, 23, 'plank'); H(23, 8, 8, 'plank'); // (pan plein sous l'affiche de la prison)
     H(23, 22, 26, 'whiteWin'); H(23, 28, 32, 'whiteWin'); H(23, 24, 24, 'white'); H(23, 30, 30, 'white'); V(27, 23, 23, 'white'); V(28, 23, 23, 'white');
     // Saloon : scène au fond. Banque : chambre forte. Prison : cellules (le Colosse dort dans la grande).
     H(12, 7, 9, 'inner'); H(12, 11, 16, 'inner');
