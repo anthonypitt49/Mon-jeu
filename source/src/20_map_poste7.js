@@ -68,7 +68,7 @@ MAPS.poste7 = {
       { perk: 'reload', x: 15, z: 25, wall: 'e' },
       { perk: 'rof', x: 31, z: 26, wall: 'e' },
       { perk: 'mule', x: 19, z: 15, wall: 'w' },
-      { perk: 'deadshot', x: 28, z: 4, wall: 'n' },
+      { perk: 'deadshot', x: 28, z: 5, wall: 'e' }, // fond de l'alvéole 2, dégagé de la banquette et de la mitrailleuse
     ],
     power: { x: 5, z: 26, wall: 'w' },
     generator: { x: 14.6, z: 53.4, ry: 0 },
