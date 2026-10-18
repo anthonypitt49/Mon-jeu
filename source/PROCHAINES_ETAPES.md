@@ -2,6 +2,16 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.1) : plus de murs invisibles ni d'objets mal placés
+
+Demande du propriétaire : « Cherche toi-même les murs invisibles et les objets mal placés », surtout à la Cité Atomique. Le détail constat par constat et l'état de chaque vérification sont dans `source/AUDIT_MURS.md` (fichier de reprise de l'étape).
+
+- **Détecteurs** (`dev/murs.mjs`, `dev/placement.mjs`) : le premier fait marcher le joueur dans 8 directions depuis des milliers de points avec ses vraies collisions et signale chaque pas arrêté sans rien de visible devant (rayons contre les maillages) ; le second audite chaque objet (flottant, enfoncé, dans un mur, superposé, passage bouché, zone coupée, élément de jeu hors de portée). `dev/portes.mjs` teste chaque porte fermée ; `dev/verif_carte.sh <carte>` enchaîne détecteurs et tests de non-régression.
+- **Cause principale** : `colliderBox` remplaçait toute boîte tournée par son enveloppe alignée sur les axes (une voiture de travers bloquait un carré de 4,9 m). Les boîtes ont maintenant leur vraie forme (`b.rot`, `03_map.js` collideRot ; tirs et appuis aussi), et les objets ronds une collision ronde (`colliderCyl`, `b.rad`).
+- **Portes fermées** : le carreau entier bloquait ; le joueur s'avance maintenant jusqu'au battant (`playerTile`, `pBlockedP`, boîte mince `d.slab`), les balles s'y arrêtent, les infectés et le Colosse gardent leur logique (`pBlocked`). Champ de flux visé depuis le carreau voisin (`flowTile`).
+- **Par carte** : Cité (télé, machine à laver, comptoir, atterrissages des atouts, départ hors du car, sorties de terre, mannequins assis sur un siège, tableaux, lavabos, enseigne de l'abri…), Poste 7 (épave du biplan, Œil de lynx, affiche, caisse, brancard), Pénitencier (gradins, carabine, mur réfectoire/direction, coffre-fort, étagères, bouées, lampes, panneaux, rochers), Filon (flancs des ruelles, disque secret atteignable, établi, coffre, wagonnet, lustre, bouteilles, fenêtres derrière les atouts, affiches, charpente, filons d'or…), trousse commune (balançoires en A, fauteuils et lits sur pieds, arbustes, camion, mannequins, fûts, caisses empilées).
+- **Leçon de méthode** : les workflows à plusieurs agents ont consommé la limite d'usage et perdu leur travail à chaque coupure (branches locales non poussées, reprise qui refaisait tout). Pour une étape longue : une correction à la fois, poussée aussitôt, et un fichier de reprise dans le dépôt.
+
 ## Fait (version 6.0) : des infectés réalistes, un type par époque, et du gore
 
 Mise en ligne le 8 octobre 2026 : `main` (GitHub Pages) et l'Artifact du jeu avec salon co-op (version 18, 20 fichiers de plus). L'Artifact ne sert pas les `.glb` (types web seulement) : `build.mjs --artifact` fait charger `<id>.glb.txt`, le même fichier en base64 (`base64 -w0 x.glb > x.glb.txt`, 33 % plus gros, non gardé dans le dépôt).
