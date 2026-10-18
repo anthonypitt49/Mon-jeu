@@ -55,19 +55,26 @@ function buildInteractables() {
   WORLD.boxSpots = SPOTS.box.map((s, idx) => {
     const w = wallSpot(s, 0.42), g = new THREE.Group(); g.userData.dynamic = true; g.position.set(w.x, 0, w.z); g.rotation.y = w.yaw; R.scene.add(g);
     const base = mesh(boxG(1.5, 0.62, 0.72), MATS.crate, 0, 0.31, 0, 0, g);
-    const lidPivot = new THREE.Group(); lidPivot.position.set(0, 0.62, -0.36); g.add(lidPivot);
-    const lid = mesh(boxG(1.52, 0.1, 0.74), MATS.crate, 0, 0.05, 0.37, 0, lidPivot);
+    // Charnière sur l'arête haute arrière : couvercle ouvert, il reste au-dessus de la caisse (sans entrer dans le mur derrière).
+    const lidPivot = new THREE.Group(); lidPivot.position.set(0, 0.72, -0.36); g.add(lidPivot);
+    const lid = mesh(boxG(1.52, 0.1, 0.74), MATS.crate, 0, -0.05, 0.37, 0, lidPivot);
     const label = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.34), new THREE.MeshStandardMaterial({ map: woodSign(['RAVITAILLEMENT', '950 · ARME ALÉATOIRE'], { w: 512, h: 160, bg: '#3d3022', color: '#e8dfc6' }), roughness: 0.9 }));
     label.position.set(0, 0.34, 0.365); g.add(label);
     for (const o of [-0.68, 0.68]) mesh(boxG(0.06, 0.64, 0.76), MATS.iron, o, 0.32, 0, 0, g);
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.sprites.glow, color: 0x7fffd0, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
-    glow.scale.set(1.6, 1.6, 1); glow.position.set(0, 1.0, 0); g.add(glow);
+    // Lumière à la BO2 : faisceau qui jaillit de la caisse ouverte (deux plans croisés, dans l'emprise de la caisse : il ne
+    // traverse jamais le mur), fond lumineux, et colonne de lumière qui signale la caisse de loin (jusqu'au plafond à l'intérieur).
+    const bfx = boxFxMats(), shaft = new THREE.Group(); shaft.position.set(0, 0.62, 0); g.add(shaft);
+    for (const [w, ry] of [[1.36, 0], [0.6, Math.PI / 2]]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.7).translate(0, 0.85, 0), bfx.shaft); p.rotation.y = ry; p.renderOrder = 5; shaft.add(p); }
+    const inner = new THREE.Mesh(new THREE.PlaneGeometry(1.36, 0.6), bfx.inner); inner.rotation.x = -Math.PI / 2; inner.position.set(0, 0.6, 0); inner.renderOrder = 5; g.add(inner);
+    const tx = tileOf(w.x), tz = tileOf(w.z), roofed = inMap(tx, tz) && MAP.roof[ti(tx, tz)], ph = roofed ? Math.max(1, roomCeil(tx, tz) - 0.62) : 26;
+    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, ph, 16, 1, true).translate(0, ph / 2 + 0.62, 0), bfx.pillar.clone()); pillar.renderOrder = 5; pillar.visible = false; g.add(pillar);
+    shaft.visible = inner.visible = false;
     // Fusée éclairante verte plantée à côté (signale la caisse active).
     const flare = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 8), MATS.rust, 0.85, 0.25, 0.1, 0, g);
     const beacon = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.sprites.glow, color: 0x6dffb0, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
     beacon.scale.set(0.9, 0.9, 1); beacon.position.set(0.85, 0.55, 0.1); g.add(beacon);
     colliderBox(w.x, w.z, 1.5, 0.72, w.yaw, 0.7, 'wood');
-    return { idx, pos: new THREE.Vector3(w.x, 0.9, w.z), face: w.face, group: g, lid: lidPivot, glow, beacon, flare, yaw: w.yaw, label };
+    return { idx, pos: new THREE.Vector3(w.x, 0.9, w.z), face: w.face, group: g, lid: lidPivot, shaft, inner, pillar, lightK: 0, beacon, flare, yaw: w.yaw, label };
   });
   // Établi d'armurier.
   { const s = SPOTS.bench, w = wallSpot(s, 0.5), g = new THREE.Group(); g.userData.dynamic = true; g.position.set(w.x, 0, w.z); g.rotation.y = w.yaw; R.scene.add(g);
@@ -116,6 +123,22 @@ function buildInteractables() {
     WORLD.generator = { group: g, fly, exhaust: new THREE.Vector3(-1.0, 2.9, -0.35).applyMatrix4(g.matrixWorld) };
     WORLD.spin.push({ obj: fly, axis: 'y', speed: 0, key: 'gen' });
   }
+}
+
+// Matières de la lumière de la caisse (partagées entre ses emplacements ; l'opacité du faisceau et du fond est commune, une
+// seule caisse étant ouverte à la fois ; chaque colonne a la sienne).
+let BOX_FX = null;
+function boxFxMats() {
+  if (BOX_FX) return BOX_FX;
+  const grad = (w, h, f) => textTexture(w, h, (x) => { const im = x.createImageData(w, h); for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const a = f(i / (w - 1), 1 - j / (h - 1)), k = (j * w + i) * 4; im.data[k] = im.data[k + 1] = im.data[k + 2] = 255; im.data[k + 3] = Math.round(255 * clamp(a, 0, 1)); } x.putImageData(im, 0, 0); });
+  const mat = (map, color) => new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  // u : en travers, v : de bas (0) en haut (1).
+  BOX_FX = {
+    shaft: mat(grad(32, 128, (u, v) => Math.pow(Math.sin(Math.PI * u), 1.6) * Math.pow(1 - v, 1.8)), 0xc8f6ff),
+    inner: mat(grad(64, 32, (u, v) => Math.pow(Math.sin(Math.PI * u) * Math.sin(Math.PI * v), 0.6)), 0xa8f0ff),
+    pillar: mat(grad(32, 128, (u, v) => (0.55 + 0.45 * Math.sin(Math.PI * u)) * Math.pow(1 - v, 0.7) * Math.min(1, v * 12 + 0.3)), 0x8fe4ff),
+  };
+  return BOX_FX;
 }
 
 /* ─── Mobilier et détails ─── */

@@ -489,14 +489,35 @@ const G = {
   updateBoxBench(dt) {
     const bx = this.box, spot = WORLD.boxSpots[bx.loc];
     bx.visT = (bx.visT || 0) + dt;
-    for (const s of WORLD.boxSpots) { const active = s === spot && bx.state !== 'moving'; s.beacon.material.opacity = active ? 0.7 + Math.sin(this.time * 6) * 0.3 : 0; s.glow.material.opacity = active && bx.state !== 'idle' ? 0.35 : active ? 0.1 : 0; if (active && Math.random() < dt * 10) FX.glow.spawn(s.group.position.x + s.face[0] * -0.3, 0.6, s.group.position.z + s.face[1] * -0.3, rand(-0.2, 0.2), rand(0.4, 1.2), rand(-0.2, 0.2), 1, 0.05, 0.4, 1, 0.7, 1, -0.3, 0.2); }
-    // Couvercle.
+    // Caisse à la BO2 : colonne de lumière qui la signale de loin ; couvercle qui s'ouvre et faisceau qui jaillit de l'intérieur ;
+    // l'arme monte en défilant, ralentit, plane, puis redescend lentement dans la caisse si personne ne la prend.
     const open = bx.state === 'rolling' || bx.state === 'offer';
-    spot.lid.rotation.x = damp(spot.lid.rotation.x, open ? -1.6 : 0, 7, dt);
+    for (const s of WORLD.boxSpots) {
+      const active = s === spot && bx.state !== 'moving';
+      s.beacon.material.opacity = active ? 0.7 + Math.sin(this.time * 6) * 0.3 : 0;
+      const pm = s.pillar.material; pm.opacity = damp(pm.opacity, active ? (open ? 0.1 : 0.32 + Math.sin(this.time * 1.7) * 0.06) : 0, 3, dt); s.pillar.visible = pm.opacity > 0.004;
+      if (s !== spot) { s.lightK = 0; s.shaft.visible = s.inner.visible = false; }
+    }
+    spot.lid.rotation.x = damp(spot.lid.rotation.x, open ? -1.45 : 0, 6, dt);
+    const lidK = clamp(-spot.lid.rotation.x / 1.2, 0, 1), want = bx.state === 'rolling' ? 1 : bx.state === 'offer' ? 0.4 + 0.45 * (bx.clientT / (bx.offerT || 9)) : 0;
+    spot.lightK = damp(spot.lightK, want, 5, dt);
+    const L = spot.lightK * lidK, fl = 0.9 + 0.1 * Math.sin(this.time * 23) * Math.sin(this.time * 7.3);
+    BOX_FX.shaft.opacity = 0.6 * L * fl; BOX_FX.inner.opacity = 0.95 * L; spot.shaft.visible = spot.inner.visible = L > 0.01; spot.shaft.scale.y = 0.55 + 0.45 * L;
+    if (L > 0.05 && Math.random() < dt * 30 * L) { const g = spot.group, a = rand(-0.6, 0.6); FX.glow.spawn(g.position.x - spot.face[1] * a, rand(0.65, 0.9), g.position.z + spot.face[0] * a, rand(-0.05, 0.05), rand(0.5, 1.1), rand(-0.05, 0.05), rand(0.4, 0.9), 0.04, 0.75, 0.95, 1, 0.9, -0.3, 0.3); } // poussières lumineuses qui montent dans le faisceau
     if (bx.display) {
       const dp = bx.display;
-      if (bx.state === 'rolling') { dp.cycleT -= dt; if (dp.cycleT <= 0) { dp.cycleT = lerp(0.08, 0.35, 1 - bx.clientT / 4.2); setBoxDisplay(bx.empty && bx.clientT < 0.6 ? 'skull' : pick(Object.keys(WEAPONS).filter((k) => k !== 'pistol'))); } bx.clientT = Math.max(0, (bx.clientT ?? 4.2) - dt); dp.obj.position.y = lerp(0.7, 1.35, 1 - bx.clientT / 4.2); }
-      if (dp.obj) { dp.obj.rotation.y = bx.state === 'offer' ? Math.sin(this.time) * 0.3 : 0; if (bx.state === 'offer') dp.obj.position.y = 1.35 + Math.sin(this.time * 2) * 0.03 - Math.max(0, 3 - bx.clientT) * 0.12; if (bx.state === 'offer') bx.clientT = Math.max(0, bx.clientT - dt); }
+      if (bx.state === 'rolling') {
+        dp.cycleT -= dt; const p = 1 - bx.clientT / 4.2;
+        if (dp.cycleT <= 0) { dp.cycleT = lerp(0.07, 0.42, p * p); setBoxDisplay(bx.empty && bx.clientT < 0.6 ? 'skull' : pick(Object.keys(WEAPONS).filter((k) => k !== 'pistol'))); }
+        bx.clientT = Math.max(0, (bx.clientT ?? 4.2) - dt);
+        const e = 1 - Math.pow(1 - clamp(p / 0.55, 0, 1), 3); // sort vite de la caisse, puis plane en défilant
+        dp.obj.position.y = lerp(0.4, 1.3, e) + Math.sin(this.time * 9) * 0.015;
+        if (!dp.obj.isSprite) dp.obj.rotation.set(0, 0, Math.sin(this.time * 11) * 0.04);
+      } else if (bx.state === 'offer') {
+        bx.clientT = Math.max(0, bx.clientT - dt); const q = 1 - bx.clientT / (bx.offerT || 9);
+        dp.obj.position.y = 1.3 - 0.72 * q * q + Math.sin(this.time * 2) * 0.025; // redescend lentement dans la caisse
+        if (!dp.obj.isSprite) dp.obj.rotation.set(0, Math.sin(this.time * 0.9) * 0.15, Math.sin(this.time * 1.3) * 0.03); // toujours dans la longueur de la caisse
+      }
     }
     if (bx.state === 'moving') { bx.clientT = (bx.clientT || 0) + dt; spot.group.position.y = Math.max(0, (bx.clientT - 1) * 6); if (Math.random() < dt * 30) fxSnowBurst(_v1.set(spot.group.position.x, spot.group.position.y + 0.3, spot.group.position.z), 2); }
     // Établi.
@@ -539,9 +560,17 @@ function setBoxDisplay(key) {
   if (bx.display?.obj) bx.display.obj.removeFromParent(); // retiré de là où il est vraiment, même si la caisse a changé de place
   let obj;
   if (key === 'skull') { obj = new THREE.Sprite(new THREE.SpriteMaterial({ map: dropTexture('instakill'), color: 0x9fe8ff, depthWrite: false })); obj.scale.set(0.6, 0.6, 1); }
-  else obj = gunShow(key, false, 'box');
-  obj.position.set(0, 0.8, 0); spot.group.add(obj);
+  else obj = boxGun(key);
+  obj.position.set(0, 0.8, 0); obj.rotation.set(0, 0, 0); spot.group.add(obj);
   bx.display = Object.assign(bx.display || { cycleT: 0 }, { obj, key });
+}
+// Arme de la caisse : dans la longueur de la caisse (axe x du groupe), centrée sur sa propre longueur ; pivot gardé par arme.
+const BOX_PIV = new Map();
+function boxGun(key) {
+  let piv = BOX_PIV.get(key); if (piv) return piv;
+  const o = gunShow(key, false, 'box'); o.removeFromParent(); o.position.set(0, 0, 0); o.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(o); o.position.set(-(b.min.x + b.max.x) / 2, -(b.min.y + b.max.y) / 2, -(b.min.z + b.max.z) / 2);
+  piv = new THREE.Group(); piv.add(o); BOX_PIV.set(key, piv); return piv;
 }
 function clearBoxDisplay() { const bx = G.box; if (bx.display?.obj) bx.display.obj.removeFromParent(); bx.display = null; }
 function applyBoxState(d) {
@@ -552,7 +581,7 @@ function applyBoxState(d) {
   if (d.buyer !== undefined) bx.buyer = d.buyer; if (d.key !== undefined) bx.key = d.key; if (d.empty !== undefined) bx.empty = d.empty; if (d.next !== undefined) bx.next = d.next; if (d.uses !== undefined) bx.uses = d.uses;
   const spot = WORLD.boxSpots[bx.loc];
   if (d.state === 'rolling') { bx.display = { cycleT: 0 }; setBoxDisplay('bolt'); Sfx.musicBox(spot.group.position); }
-  else if (d.state === 'offer') { setBoxDisplay(bx.key); bx.clientT = d.t; }
+  else if (d.state === 'offer') { setBoxDisplay(bx.key); bx.clientT = d.t; bx.offerT = d.t; }
   else if (d.state === 'moving') { if (bx.display?.obj) setBoxDisplay('skull'); Sfx.eerie(spot.group.position); UI.message('LA CAISSE SE DÉPLACE', 'Points remboursés. Cherchez la fusée verte.'); bx.clientT = 0; }
   else if (d.state === 'closing' || d.state === 'idle') clearBoxDisplay();
 }
