@@ -277,6 +277,21 @@ function flatSolidWall(K, X0, Z0, X1, Z1, bit, ax, az, bx, bz, roofA, roofB) {
       qb(mA).wall(xa, Z0 - E, xb, Z0 - E, py0, py1, 0, -1, py0 < 0.1); qb(mB).wall(xa, Z0 + E, xb, Z0 + E, py0, py1, 0, 1, py0 < 0.1);
     }
   }
+  // Bouts : un mur fin qui s'arrête sans se prolonger ni faire d'angle (contre un pilier T_BLOCK, au bord d'une ouverture)
+  // est fermé par une face de bout ; sinon on voyait dehors par la fente entre ses deux faces (cuisine du réfectoire du
+  // Pénitencier). Pas de face dans un angle : elle doublerait celle du mur perpendiculaire.
+  const solidK = (k) => k && ['solid', 'window'].includes(wallDef(k).look || 'solid'), mCap = roofA || roofB ? matIn : matOut;
+  for (const end of [-1, 1]) {
+    if (bit === 0) { // mur nord-sud en x = X0, entre les carreaux (ax, az) et (ax + 1, az) ; bout nord (-1) ou sud (1)
+      const zn = az + end, zl = end < 0 ? az : az + 1;
+      if (solidK(edgeWall(ax, zn, ax + 1, zn)) || edgeWall(ax, zl - 1, ax, zl) || edgeWall(ax + 1, zl - 1, ax + 1, zl)) continue;
+      const Z = zl * TILE + end * E; qb(mCap).wall(X0 - E, Z, X0 + E, Z, y0, h, 0, end, false);
+    } else { // mur est-ouest en z = Z0, entre (ax, az) et (ax, az + 1) ; bout ouest (-1) ou est (1)
+      const xn = ax + end, xl = end < 0 ? ax : ax + 1;
+      if (solidK(edgeWall(xn, az, xn, az + 1)) || edgeWall(xl - 1, az, xl, az) || edgeWall(xl - 1, az + 1, xl, az + 1)) continue;
+      const X = xl * TILE + end * E; qb(mCap).wall(X, Z0 - E, X, Z0 + E, y0, h, end, 0, false);
+    }
+  }
   // Dessus du mur.
   const top = qb(roofA || roofB ? fv(M.roofTex || 'concrete') : matOut);
   if (bit === 0) top.flat(X0 - E, Z0 - E, X0 + E, Z1 + E, h, 1); else top.flat(X0 - E, Z0 - E, X1 + E, Z0 + E, h, 1);

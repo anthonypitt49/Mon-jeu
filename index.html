@@ -737,7 +737,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '6.1'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '6.1.1'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -3168,6 +3168,21 @@ function flatSolidWall(K, X0, Z0, X1, Z1, bit, ax, az, bx, bz, roofA, roofB) {
     } else {
       const xa = X0 + a0, xb = X0 + a1;
       qb(mA).wall(xa, Z0 - E, xb, Z0 - E, py0, py1, 0, -1, py0 < 0.1); qb(mB).wall(xa, Z0 + E, xb, Z0 + E, py0, py1, 0, 1, py0 < 0.1);
+    }
+  }
+  // Bouts : un mur fin qui s'arrête sans se prolonger ni faire d'angle (contre un pilier T_BLOCK, au bord d'une ouverture)
+  // est fermé par une face de bout ; sinon on voyait dehors par la fente entre ses deux faces (cuisine du réfectoire du
+  // Pénitencier). Pas de face dans un angle : elle doublerait celle du mur perpendiculaire.
+  const solidK = (k) => k && ['solid', 'window'].includes(wallDef(k).look || 'solid'), mCap = roofA || roofB ? matIn : matOut;
+  for (const end of [-1, 1]) {
+    if (bit === 0) { // mur nord-sud en x = X0, entre les carreaux (ax, az) et (ax + 1, az) ; bout nord (-1) ou sud (1)
+      const zn = az + end, zl = end < 0 ? az : az + 1;
+      if (solidK(edgeWall(ax, zn, ax + 1, zn)) || edgeWall(ax, zl - 1, ax, zl) || edgeWall(ax + 1, zl - 1, ax + 1, zl)) continue;
+      const Z = zl * TILE + end * E; qb(mCap).wall(X0 - E, Z, X0 + E, Z, y0, h, 0, end, false);
+    } else { // mur est-ouest en z = Z0, entre (ax, az) et (ax, az + 1) ; bout ouest (-1) ou est (1)
+      const xn = ax + end, xl = end < 0 ? ax : ax + 1;
+      if (solidK(edgeWall(xn, az, xn, az + 1)) || edgeWall(xl - 1, az, xl, az) || edgeWall(xl - 1, az + 1, xl, az + 1)) continue;
+      const X = xl * TILE + end * E; qb(mCap).wall(X, Z0 - E, X, Z0 + E, y0, h, end, 0, false);
     }
   }
   // Dessus du mur.
@@ -10916,12 +10931,15 @@ MAPS.penitencier = {
     D(14, 14, 1000, 'steel', 'Infirmerie'); D(29, 14, 1250, 'steel', 'Direction');
     V(40, 5, 7, 'yardWall'); V(41, 5, 7, 'yardWall'); D(40, 7, 1250, 'bars', 'Cour de promenade');
     V(31, 22, 22, 'stone'); V(32, 22, 22, 'stone'); D(31, 22, 1500, 'debris', 'Quais');
-    D(45, 17, 1250, 'bars', 'Chemin de ronde');
+    V(45, 17, 17, 'stone'); V(46, 17, 17, 'stone'); D(45, 17, 1250, 'bars', 'Chemin de ronde'); // (montants de pierre : linteau au-dessus de la grille, comme aux Quais)
     // Cloisons intérieures.
     V(30, 15, 17, 'officeIn'); V(30, 19, 21, 'officeIn'); H(19, 31, 33, 'officeIn'); H(19, 35, 37, 'officeIn');
     V(16, 15, 16, 'infirmIn'); H(19, 10, 11, 'infirmIn'); H(19, 13, 15, 'infirmIn');
     H(10, 36, 37, 'stone'); H(10, 39, 45, 'stone'); // passe-plats de la cuisine du réfectoire
-    V(35, 15, 16, 'stone'); H(17, 35, 38, 'stone'); // réfectoire | direction : mur plein (on ne passe que par les portes), fermé aussi devant la fenêtre-barricade (38, 17)
+    // Réfectoire | direction : mur de pierre percé d'une porte payante (36, 16) ; montants posés avant la porte (son axe en dépend).
+    // Le mur ferme aussi le côté réfectoire de la fenêtre-barricade (38, 17), qui s'ouvre sur la direction.
+    V(35, 15, 16, 'stone'); H(17, 35, 35, 'stone'); H(17, 37, 38, 'stone'); V(36, 16, 16, 'stone'); V(37, 16, 16, 'stone');
+    D(36, 16, 1250, 'steel', 'Réfectoire ↔ Direction');
     // Barricades : fenêtres (bloc, douches, réfectoire, infirmerie, direction), brèches de la cour, accès depuis l'eau.
     for (const [x, z] of [[16, 8], [22, 8], [28, 8], [1, 10], [1, 12], [5, 8], [47, 10], [47, 14], [37, 7], [38, 17], [9, 17], [9, 20], [15, 22], [24, 18], [38, 19]]) Rp(x, z, 'window');
     Rp(22, 14, 'window', 'n');
@@ -11369,7 +11387,7 @@ function penDetails() {
     const mat = new THREE.MeshStandardMaterial({ map: atlas, transparent: true, roughness: 0.8, depthWrite: false }); let n = 0;
     for (let x = 11; x <= 32; x++) for (const [z, ry] of [[X(10) + 0.13, 0], [X(13) - 0.13, Math.PI]]) { if (n >= 32) break; const geo = new THREE.PlaneGeometry(0.42, 0.42), uv = geo.attributes.uv, i = n++; for (let j = 0; j < uv.count; j++) { uv.setX(j, ((i % 8) + uv.getX(j)) / 8); uv.setY(j, 1 - (((i / 8) | 0) + 1 - uv.getY(j)) / 4); } mesh(geo, mat, X(x) + 1, 3.25, z, ry, R.scene, false); } }
   // Panneaux d'avertissement : façade de l'infirmerie face aux quais, mur nord de la cour (au-dessus des gradins), mur du réfectoire qui le sépare de la direction.
-  for (const [x, y, z, ry, lines] of [[X(18) + 1, 2.4, X(22) + 0.1, 0, ['ZONE INTERDITE', 'LES GARDES TIRENT']], [X(36), 3.0, X(0) + 0.1, 0, ['DÉFENSE D\'APPROCHER', 'DU MUR']], [X(37), 2.4, X(17) - 0.1, Math.PI, ['DIRECTION', 'ACCÈS RÉSERVÉ']]]) mesh(new THREE.PlaneGeometry(1.5, 0.6), new THREE.MeshStandardMaterial({ map: woodSign(lines, { w: 512, h: 200, bg: '#b83a2a', color: '#f2eee4' }), roughness: 0.6 }), x, y, z, ry, R.scene, false);
+  for (const [x, y, z, ry, lines] of [[X(18) + 1, 2.4, X(22) + 0.1, 0, ['ZONE INTERDITE', 'LES GARDES TIRENT']], [X(36), 3.0, X(0) + 0.1, 0, ['DÉFENSE D\'APPROCHER', 'DU MUR']], [X(37) + 1, 2.4, X(17) - 0.1, Math.PI, ['DIRECTION', 'ACCÈS RÉSERVÉ']] /* (à côté de la porte réfectoire ↔ direction, sur le mur plein) */]) mesh(new THREE.PlaneGeometry(1.5, 0.6), new THREE.MeshStandardMaterial({ map: woodSign(lines, { w: 512, h: 200, bg: '#b83a2a', color: '#f2eee4' }), roughness: 0.6 }), x, y, z, ry, R.scene, false);
 }
 
 

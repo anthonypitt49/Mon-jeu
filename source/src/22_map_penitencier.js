@@ -102,7 +102,7 @@ MAPS.penitencier = {
     D(14, 14, 1000, 'steel', 'Infirmerie'); D(29, 14, 1250, 'steel', 'Direction');
     V(40, 5, 7, 'yardWall'); V(41, 5, 7, 'yardWall'); D(40, 7, 1250, 'bars', 'Cour de promenade');
     V(31, 22, 22, 'stone'); V(32, 22, 22, 'stone'); D(31, 22, 1500, 'debris', 'Quais');
-    D(45, 17, 1250, 'bars', 'Chemin de ronde');
+    V(45, 17, 17, 'stone'); V(46, 17, 17, 'stone'); D(45, 17, 1250, 'bars', 'Chemin de ronde'); // (montants de pierre : linteau au-dessus de la grille, comme aux Quais)
     // Cloisons intérieures.
     V(30, 15, 17, 'officeIn'); V(30, 19, 21, 'officeIn'); H(19, 31, 33, 'officeIn'); H(19, 35, 37, 'officeIn');
     V(16, 15, 16, 'infirmIn'); H(19, 10, 11, 'infirmIn'); H(19, 13, 15, 'infirmIn');

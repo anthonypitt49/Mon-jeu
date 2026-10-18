@@ -2,6 +2,13 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.1.1) : retours du propriétaire sur le Pénitencier
+
+- Le mur plein ajouté en 6.1 entre le réfectoire et la direction devient une porte payante « Réfectoire ↔ Direction » (1 250, acier ; choix du propriétaire parmi : garder le mur, porte payante, revenir au passage libre). Ajoutée en dernier : les numéros des autres portes (co-op) ne changent pas.
+- Fente dans le coin de la cuisine du réfectoire (capture du propriétaire) : un mur fin qui s'arrête contre un pilier T_BLOCK dépassait de 8 cm de sa face, et son bout n'était pas fermé ; de biais, on voyait dehors entre ses deux faces. Correction générale (`05b_flat.js` flatSolidWall) : face de bout sur tout mur fin qui ne se prolonge pas et ne fait pas d'angle (toutes les cartes de plain-pied).
+- Porte du Chemin de ronde : sans montants déclarés, ses côtés prenaient la rambarde ajourée des quais et aucun linteau n'était construit (on voyait tout le ciel au-dessus de la grille). Montants de pierre comme aux Quais : linteau construit.
+- Le propriétaire trouve l'esthétique du Pénitencier à améliorer : à reprendre plus tard.
+
 ## Fait (version 6.1) : plus de murs invisibles ni d'objets mal placés
 
 Mise en ligne le 18 octobre 2026 : `main` (GitHub Pages, vérifié : version.json et GAME_VERSION à 6.1) et l'Artifact du jeu avec salon co-op (version 19, page seule : aucun fichier ajouté).
