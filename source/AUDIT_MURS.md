@@ -1,0 +1,25 @@
+# Murs invisibles et objets mal placés : suivi de l'étape
+
+Fichier de reprise. Mis à jour et poussé après CHAQUE correction : si une session est coupée (limite d'usage, redémarrage), la suivante repart de la première ligne « à faire » ci-dessous, sans rien refaire.
+Plus de workflows multi-agents pour cette étape : ils consommaient la limite d'usage et perdaient leur travail à chaque coupure. Une correction à la fois, construite, mesurée, poussée.
+
+Outils (source/dev, voir leur en-tête) : `murs.mjs <carte>` (pas du joueur bloqués sans rien de visible), `placement.mjs <carte>` (objets flottants, enfoncés, dans les murs, superposés, passages bouchés, éléments hors de portée), `photo.mjs` (captures rapprochées). Constats de l'audit : `source/dev/results/` n'est pas gardé ; les listes complètes sont résumées ici.
+
+## Fait
+
+- **Correction générale** (poussée) : les boîtes de collision des objets posés de biais gardaient l'enveloppe alignée sur la rue (une voiture de travers bloquait un carré de 4,9 m). Elles ont maintenant leur vraie forme pour les déplacements, les tirs et les appuis (`03_map.js` collideRot, rayCyl ; `05_world.js` propBox, colliderCyl). Fûts, poubelles, pneus, barbecues, piscines : collision ronde. Balançoires en portiques en A, fauteuils et lits sur pieds, arbustes au sol, placards hauts en double retirés, camion découpé en caisse + cabine + vantaux, mannequins à la taille du corps, fûts couchés avec collision. Mesure : à la Cité, les murs invisibles passent de 8 zones (117 pas bloqués sans rien de visible) à 8 pas isolés.
+- **Poste 7** (vérifié, commit e74ebd0, fusionné) : demi-aile du biplan appuyée contre la paroi (plus de mur invisible de 1,4 m), boîte du fuselage à la hauteur de l'épave (les tirs suivent la coque), aile basse enfin affichée, affiche VIGILANCE sur un vrai mur, atout Œil de lynx déplacé hors de la banquette et de la mitrailleuse, caisse empilée recalée, brancard sur pieds, fût du cratère hors de l'arrivée d'une barricade. murs.mjs : 11 → 1 pas isolé.
+
+## Fait, à vérifier (fusionné, pas encore mesuré après la dernière retouche)
+
+- **Cité Atomique** (commit 8f007ec) : télé hors du passage salon → chambre (chambre et barricade de nouveau accessibles), machine à laver hors de la porte du jardin vert, comptoir et placards hors de l'ouverture cuisine → salle de bains, emplacements d'atterrissage des atouts tous sur le sol des joueurs, départ hors du car, sorties de terre des infectés hors des objets, arme « bolt » hors de la porte de garage, mannequins assis sur un siège, lavabos et miroirs, tableaux sur du mur plein, bibliothèques, étagères, lampadaire, sacs de sable, enseigne de l'abri, auvents des porches, passage piéton, banc, haie, camion retourné (vantaux côté meubles).
+- **Pénitencier** (commit d5e4383) : carabine de la cour de nouveau accessible (gradins en quatre tronçons, marche haute contre le mur, une boîte par marche), mur plein entre réfectoire et direction (fin du passage sans porte et du mur invisible devant la fenêtre-barricade 9), SMG hors de la fenêtre, atout Double détente contre la rambarde, coffre-fort hors de l'embrasure de la porte, étagères des archives hors de la porte des quais, fauteuil du directeur derrière le bureau, paravents sur pieds, bouées sur la rambarde, lampes et panneaux sur de vrais murs, rochers du rivage sous le plancher.
+
+## À faire, dans l'ordre
+
+1. Vérifier la Cité : construction, `murs.mjs cite`, `placement.mjs cite`, `mapplay.mjs cite`, `codfeat.mjs cite`, `power.mjs cite`, `mission.mjs cite`, captures des endroits changés.
+2. Vérifier le Pénitencier : mêmes outils sur `penitencier` (+ essai : sauter des gradins ne permet pas de se percher hors de portée).
+3. Filon (constats de l'audit, non vérifiés) : barricades « fence » des ruelles qui bloquent sans rien de visible (15 pas) ; boîte de la cage du Colosse (8 pas) ; éboulis de la mission (boîte carrée pour un tas rond) ; disque secret dans une cellule fermée (`11e_extras.js` secretSpots) ; établi enfoncé dans l'autel ; porte ronde du coffre dans le mur ; départ co-op n° 3 dans le wagonnet ; lustre du saloon sans chaîne ; atout « armor » dans le meuble à bouteilles ; atouts et arme devant des fenêtres ; contrefiches de la charpente de l'église ; affiches dans un trou de fenêtre ; roue du chariot enfoncée ; caisse du saloon sous la scène ; pioche dans la caisse de la galerie ; filons d'or hors des parois.
+4. Portes fermées (toutes les cartes de plain-pied) : le carreau-porte entier bloque, on bute sur du vide à ~1 m du battant. Rendre le carreau praticable pour le joueur et poser une boîte mince au battant, coupée à l'ouverture (les infectés gardent leur logique).
+5. Caisses empilées sans collision (`06_props.js` crate, y > 0) : boîte tournée de y à y + 0,55·s.
+6. Version 6.1 : note de passation, README, mise en ligne (main, Pages, Artifact).
