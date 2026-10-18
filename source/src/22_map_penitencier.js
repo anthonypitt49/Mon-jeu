@@ -87,7 +87,7 @@ MAPS.penitencier = {
     F(35, 8, 46, 16, 2, 'mess', 1);
     F(18, 0, 42, 4, 3, 'yard'); F(40, 5, 40, 6, 3, 'yard');
     F(10, 15, 19, 21, 4, 'infirm', 1);
-    F(25, 15, 37, 21, 5, 'office', 1);
+    F(25, 15, 34, 16, 5, 'office', 1); F(25, 17, 37, 21, 5, 'office', 1); // (le coin 35-37 × 15-16 est au réfectoire)
     F(18, 23, 44, 29, 6, 'dock'); F(45, 18, 45, 29, 6, 'dock');
     // Murs épais : ouest et est du bloc, rangée sud (vers l'infirmerie et la direction).
     B(9, 9, 9, 13); B(34, 9, 34, 13); B(10, 14, 33, 14);
@@ -107,6 +107,7 @@ MAPS.penitencier = {
     V(30, 15, 17, 'officeIn'); V(30, 19, 21, 'officeIn'); H(19, 31, 33, 'officeIn'); H(19, 35, 37, 'officeIn');
     V(16, 15, 16, 'infirmIn'); H(19, 10, 11, 'infirmIn'); H(19, 13, 15, 'infirmIn');
     H(10, 36, 37, 'stone'); H(10, 39, 45, 'stone'); // passe-plats de la cuisine du réfectoire
+    V(35, 15, 16, 'stone'); H(17, 35, 38, 'stone'); // réfectoire | direction : mur plein (on ne passe que par les portes), fermé aussi devant la fenêtre-barricade (38, 17)
     // Barricades : fenêtres (bloc, douches, réfectoire, infirmerie, direction), brèches de la cour, accès depuis l'eau.
     for (const [x, z] of [[16, 8], [22, 8], [28, 8], [1, 10], [1, 12], [5, 8], [47, 10], [47, 14], [37, 7], [38, 17], [9, 17], [9, 20], [15, 22], [24, 18], [38, 19]]) Rp(x, z, 'window');
     Rp(22, 14, 'window', 'n');
@@ -120,11 +121,11 @@ MAPS.penitencier = {
       coopStarts: [T(20, 11), T(22, 11), T(20, 12), T(22, 12)],
       wallBuys: [
         { weapon: 'bolt', ...xz(T(19, 9)), wall: 'n' }, { weapon: 'shotgun', ...xz(T(2, 11)), wall: 'w' },
-        { weapon: 'smg', ...xz(T(46, 12)), wall: 'e' }, { weapon: 'carbine', ...xz(T(30, 0)), wall: 'n' }, { weapon: 'revolver', ...xz(T(25, 16)), wall: 'w' },
+        { weapon: 'smg', ...xz(T(46, 13)), wall: 'e' } /* pan de mur plein, entre la fenêtre (46,12) et la barricade (47,14) */, { weapon: 'carbine', ...xz(T(30, 0)), wall: 'n' }, { weapon: 'revolver', ...xz(T(25, 16)), wall: 'w' },
       ],
       perks: [
         { perk: 'revive', ...xz(T(12, 9)), wall: 'n' }, { perk: 'armor', ...xz(T(41, 16)), wall: 's' }, { perk: 'sprint', ...xz(T(18, 3)), wall: 'w' },
-        { perk: 'reload', ...xz(T(19, 18)), wall: 'e' }, { perk: 'rof', ...xz(T(44, 23)), wall: 'e' },
+        { perk: 'reload', ...xz(T(19, 18)), wall: 'e' }, { perk: 'rof', ...xz(T(43, 23)), wall: 'n' } /* contre la rambarde nord du quai */,
         { perk: 'mule', ...xz(T(17, 13)), wall: 's' }, { perk: 'cherry', ...xz(T(8, 9)), wall: 'e' },
       ],
       power: { ...xz(T(37, 20)), wall: 'e' },
