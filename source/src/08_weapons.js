@@ -169,14 +169,41 @@ function gunShow(key, up = false, slot = 'box') {
   o.rotation.set(0, Math.PI / 2, 0); o.position.set(0, 0, 0); return o;
 }
 
-// Accroche les armes réelles au-dessus des silhouettes à la craie.
+// Accroche les armes réelles sur les silhouettes à la craie.
 function mountWallWeapons() {
+  // Surface visible du mur (mur fin, maçonnerie, paroi de tranchée) : le groupe y est posé, le contour 3 cm devant et l'arme
+  // devant le contour ; avant, le contour était dans la surface d'un mur fin et scintillait selon l'angle de vue.
+  R.scene.updateMatrixWorld(true);
+  const solids = []; R.scene.traverse((o) => { if (o.isMesh && o.visible && !o.isSprite && o.material && !o.material.transparent && !o.material.isMeshBasicMaterial) solids.push(o); });
+  const rc = new THREE.Raycaster(); rc.far = 1.6;
   for (const wb of WORLD.wallBuys) {
-    const w = WEAPONS[wb.weapon];
-    const chalk = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.75), new THREE.MeshBasicMaterial({ map: chalkOutline(CHALK[wb.weapon], w.name, w.cost), transparent: true, depthWrite: false, opacity: 0.85 }));
-    chalk.position.set(0, -0.05, 0.02); wb.group.add(chalk);
-    const m = buildGunModel(wb.weapon, false, false).root;
-    m.rotation.y = Math.PI / 2; m.position.set(0.25, 0.05, 0.08); m.scale.setScalar(1.05); wb.group.add(m);
-    for (const o of [-0.5, 0.4]) { const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.1, 6), MATS.iron); peg.rotation.x = Math.PI / 2; peg.position.set(o, 0.0, 0.05); wb.group.add(peg); }
+    const w = WEAPONS[wb.weapon], g = wb.group, d = wb.face, P0 = g.position.clone();
+    let best = null; // rayon depuis la pièce vers le mur, au centre et aux deux bouts du contour : la surface la plus avancée
+    for (const a of [-0.55, 0, 0.55]) for (const y of [-0.1, 0.15]) {
+      const o = new THREE.Vector3(P0.x - d[0] * 0.8 + d[1] * a, P0.y + y, P0.z - d[1] * 0.8 - d[0] * a); rc.set(o, new THREE.Vector3(d[0], 0, d[1]));
+      const h = rc.intersectObjects(solids, false)[0]; if (h && h.distance > 0.35 && (best === null || h.distance < best)) best = h.distance; // (plus de 45 cm devant le mur : un objet, pas le mur)
+    }
+    if (best !== null) g.position.set(P0.x - d[0] * (0.8 - best), P0.y, P0.z - d[1] * (0.8 - best));
+    // Ce qui est posé devant (banquette de tir, parapet, meuble) ne doit cacher ni l'arme ni son prix : on remonte au besoin.
+    const fy = groundAt(g.position.x - d[0] * 0.5, g.position.z - d[1] * 0.5); let top = fy;
+    for (const a of [-0.5, 0, 0.5]) for (const k of [0.12, 0.35, 0.6, 0.9]) {
+      rc.set(new THREE.Vector3(g.position.x - d[0] * k + d[1] * a, fy + 2.4, g.position.z - d[1] * k - d[0] * a), new THREE.Vector3(0, -1, 0));
+      const h = rc.intersectObjects(solids, false)[0]; if (h && h.point.y < fy + 1.5) top = Math.max(top, h.point.y);
+    }
+    g.position.y = clamp(Math.max(g.position.y, top + 0.55), g.position.y, fy + 2.3);
+    g.updateMatrixWorld(true);
+    // Contour à la craie (au-dessus du mur dans l'ordre de profondeur, sans écrire la profondeur).
+    const chalk = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.75), new THREE.MeshBasicMaterial({ map: chalkOutline(CHALK[wb.weapon], w.name, w.cost), transparent: true, depthWrite: false, opacity: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    chalk.position.set(0, -0.05, 0.03); g.add(chalk);
+    // Arme : canon du côté du canon dessiné (+x), à la taille du contour et centrée dessus.
+    const m = buildGunModel(wb.weapon, false, false).root; m.rotation.y = -Math.PI / 2; g.add(m); g.updateMatrixWorld(true);
+    const prof = CHALK[wb.weapon], px = prof.map((p) => p[0]), py = prof.map((p) => p[1]);
+    const cx = (u) => ((40 + u * 432) / 512 - 0.5) * 1.5, cy = (v) => (0.5 - (36 + v * 146) / 256) * 0.75 - 0.05; // profil → plan du contour (chalkOutline, 512 × 256)
+    const ox0 = cx(Math.min(...px)), ox1 = cx(Math.max(...px)), oy0 = cy(Math.max(...py)), oy1 = cy(Math.min(...py));
+    const bb = new THREE.Box3().setFromObject(m), inv = new THREE.Matrix4().copy(g.matrixWorld).invert(); bb.applyMatrix4(inv);
+    const k = clamp(0.82 * (ox1 - ox0) / Math.max(0.05, bb.max.x - bb.min.x), 0.5, 1.6); m.scale.setScalar(k); // (un peu plus petite que son contour : la craie l'entoure)
+    m.position.set((ox0 + ox1) / 2 - ((bb.min.x + bb.max.x) / 2) * k, (oy0 + oy1) / 2 - ((bb.min.y + bb.max.y) / 2) * k, 0.03 + 0.01 - bb.min.z * k);
+    // Deux chevilles plantées dans le mur, sous l'arme.
+    for (const o of [ox0 + (ox1 - ox0) * 0.2, ox0 + (ox1 - ox0) * 0.75]) { const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.14, 6), MATS.iron); peg.rotation.x = Math.PI / 2; peg.position.set(o, m.position.y + bb.min.y * k - 0.005, 0.0); g.add(peg); }
   }
 }

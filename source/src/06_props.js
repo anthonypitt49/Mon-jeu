@@ -173,7 +173,7 @@ function buildProps() {
     mesh(boxG(0.3, 0.06, 0.02), MATS.olive, 0, 0.15, -0.1, 0, gun); }
   // Périscope, râtelier, casques et caisses de munitions.
   mesh(boxG(0.14, 1.2, 0.1), MATS.olive, 40, 2.1, 12.1);
-  { const rack = new THREE.Group(); rack.position.set(35, 0, 15.75); R.scene.add(rack);
+  { const rack = new THREE.Group(); rack.position.set(28, 0, 15.75); R.scene.add(rack); // (à l'écart de l'arme murale du fusil à verrou, x 35)
     mesh(boxG(1.4, 0.08, 0.2), rawPost(), 0, 0.3, 0, 0, rack); mesh(boxG(1.4, 0.08, 0.2), rawPost(), 0, 1.2, 0, 0, rack);
     for (let k = 0; k < 4; k++) { const r = mesh(boxG(0.05, 1.2, 0.07), rawPost(), -0.5 + k * 0.33, 0.75, -0.08, 0, rack); r.rotation.z = rand(-0.08, 0.08); } }
   for (const [x, z] of [[20, 12.4], [37, 15.6], [57, 13], [48, 15.6]]) { const h = mesh(new THREE.SphereGeometry(0.17, 12, 8, 0, TAU, 0, Math.PI / 2), MATS.olive, x, 0.03, z, rand(TAU)); h.rotation.x = rand(-0.4, 0.4); }
