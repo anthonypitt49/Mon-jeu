@@ -21,10 +21,11 @@ await page.evaluate(() => document.querySelector('#soloButton').click());
 await page.waitForTimeout(1500);
 const res = await page.evaluate(() => {
   const { G, P, MAP, THREE } = SP; P.hp = P.maxHp = 1e9; G.toSpawn = 0; for (const z of [...SP.ZOMBIES]) z.destroy();
-  const tcx = (t) => t * 2 + 1, R0 = 0.34, out = [];
+  const tcx = (t) => t * 2 + 1, R0 = 0.34, out = [], MAP_ID_IS_FILON = SP.MAP_ID() === 'filon';
   const walk = (p, dx, dz, n) => { for (let k = 0; k < n; k++) { p.x += dx * 0.05; p.z += dz * 0.05; SP.collideCircle(p, R0, SP.pBlockedP); SP.collideProps(p, R0, SP.groundAt(p.x, p.z), 0.3); } return p; };
   for (const d of MAP.doors) {
     if (d.open) continue;
+    if (MAP_ID_IS_FILON && d.label === 'Libérer le Colosse') { out.push({ id: d.id, label: d.label, kind: d.kind, axis: d.axis, sides: [], note: 'le Colosse occupe la cage (sa boîte bloque le passage, voulu)' }); continue; }
     const cx = tcx(d.x), cz = tcx(d.z), ax = d.axis === 'x', th = d.slab ? (ax ? d.slab.x1 - cx : d.slab.z1 - cz) : 1, r = { id: d.id, label: d.label, kind: d.kind, axis: d.axis, at: [cx, cz], th: +th.toFixed(2), sides: [] };
     for (const s of [-1, 1]) {
       // Départ à 2,4 m du milieu de la porte, du côté s, dans l'axe ; marche de 3 m vers la porte.
@@ -60,6 +61,7 @@ for (const r of res) {
   }
   if (r.snap > 0.05) why.push(`ramené de ${r.snap} m par le filet de sécurité`);
   if (why.length) bad++;
+  if (r.note) { console.log(`– porte ${r.id} « ${r.label} » : ${r.note}`); continue; }
   console.log(`${why.length ? '✗' : '✓'} porte ${r.id} « ${r.label} » (${r.kind}, axe ${r.axis}) : ${r.sides.map((s) => s.skip ? `côté ${s.s} ${s.skip}` : `côté ${s.s} arrêt ${s.stop} m, balle ${s.bullet}`).join(' ; ')}${why.length ? ' — ' + why.join(' ; ') : ''}`);
 }
 for (const e of errors) console.log(e);

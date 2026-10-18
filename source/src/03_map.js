@@ -201,7 +201,7 @@ const SILL_H = 0.62;
 function sillH(r, t) { return r.look === 'window' ? SILL_H * smooth(clamp(1 - Math.abs(t - 0.1) / 0.2, 0, 1)) : 0; }
 function groundAt(x, z) {
   const tx = tileOf(x), tz = tileOf(z), c = tClass(tx, tz);
-  if (c === C_TRENCH) return M.floorH ? M.floorH(x, z) : 0;
+  if (c === C_TRENCH || tType(tx, tz) === T_DOOR) return M.floorH ? M.floorH(x, z) : 0; // (porte fermée : le sol du passage, où le joueur s'avance jusqu'au battant)
   if (c === C_RAMP) { const r = MAP.barricades[MAP.rampAt[ti(tx, tz)]], t = rampT(r, x, z); return M.flat ? (r.look === 'slope' ? smooth(clamp((t - 0.15) / 0.85, 0, 1)) * r.outH : sillH(r, t)) : smooth(t) * WALL_H; }
   return surfH(x, z);
 }
