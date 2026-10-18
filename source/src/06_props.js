@@ -119,7 +119,8 @@ function buildInteractables() {
 }
 
 /* ─── Mobilier et détails ─── */
-function crate(x, z, ry = 0, s = 1, y = 0) { const m = mesh(boxG(0.8 * s, 0.55 * s, 0.55 * s), MATS.crate, x, y + 0.275 * s, z, ry); if (y === 0) colliderBox(x, z, 0.8 * s, 0.55 * s, ry, 0.55 * s, 'wood'); return m; }
+// (caisse empilée, y > 0 : sa boîte commence à sa hauteur de pose ; on ne la traverse plus, les balles non plus)
+function crate(x, z, ry = 0, s = 1, y = 0) { const m = mesh(boxG(0.8 * s, 0.55 * s, 0.55 * s), MATS.crate, x, y + 0.275 * s, z, ry); if (y === 0) colliderBox(x, z, 0.8 * s, 0.55 * s, ry, 0.55 * s, 'wood'); else MAP.props.push(propBox({ y0: y, y1: y + 0.55 * s, mat: 'wood' }, x, z, 0.8 * s, 0.55 * s, ry)); return m; }
 function barrel(x, z, mat = MATS.olive, tipped = false) {
   const ry = rand(TAU), m = mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.88, 18), mat, x, tipped ? 0.29 : 0.44, z, ry);
   // (couché : l'axe du fût, tourné d'un quart de tour autour de z puis de ry, suit l'axe x local de colliderBox)
