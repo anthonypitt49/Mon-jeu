@@ -74,7 +74,7 @@ function penDecor() {
 
   /* ── Infirmerie ── */
   for (let i = 0; i < 3; i++) { const g = KIT.g(X(11) + 1.1 + i * 2.4, X(20) + 1.1, 0); KIT.b(g, 0, 0.55, 0, 0.9, 0.08, 1.9, steel); KIT.b(g, 0, 0.64, 0, 0.86, 0.12, 1.85, sheet); KIT.b(g, 0, 0.72, -0.7, 0.6, 0.1, 0.3, sheet); KIT.b(g, 0, 0.8, -0.95, 0.9, 0.9, 0.04, steel); for (const [a, b] of [[-0.42, -0.9], [0.42, -0.9], [-0.42, 0.9], [0.42, 0.9]]) KIT.b(g, a, 0.27, b, 0.04, 0.55, 0.04, steel); KIT.solid(g, 0.9, 1.9, 0.9, 'metal'); }
-  for (let i = 0; i < 2; i++) { const g = KIT.g(X(11) + 2.3 + i * 2.4, X(20) + 1.1, 0); KIT.b(g, 0, 1.0, 0, 0.03, 1.9, 1.7, sheet); } // paravents
+  for (let i = 0; i < 2; i++) { const g = KIT.g(X(11) + 2.3 + i * 2.4, X(20) + 1.1, 0); KIT.b(g, 0, 1.0, 0, 0.03, 1.9, 1.7, sheet); for (const s of [-1, 1]) { KIT.b(g, 0, 0.99, s * 0.87, 0.04, 1.98, 0.04, steel); KIT.b(g, 0, 0.02, s * 0.87, 0.4, 0.04, 0.05, steel); } } // paravents : toile tendue sur deux montants d'acier à patins
   { const g = KIT.g(X(17), X(16) + 1, 0); KIT.c(g, 0, 1.0, 0, 0.02, 0.02, 2.0, steel, 6); KIT.s(g, 0, 2.05, 0, 0.3, KIT.m(0xe8e8e2), 1, 0.4, 1); KIT.glow(g, 0, 1.95, 0, 0xe8fff4, 1.1, 0.35); }
   kShelf(X(10) + 0.3, X(16), Math.PI / 2, 1.6, 2); kTable(X(18) + 0.2, X(17) + 1, Math.PI / 2, 1.6, 0.8, 0.9, steel);
 
@@ -82,15 +82,16 @@ function penDecor() {
   kRug(X(27) + 1, X(18), 0, 5, 3.4, 0x5a1e1e);
   kTable(X(27) + 1, X(17) + 1, 0, 2.2, 1.0, 0.78, k.woodDark);
   // Fauteuil du directeur : assise et dossier de cuir, pieds de chêne (kChair met une seule matière partout, pieds compris).
-  { const g = KIT.g(X(27) + 1, X(16) + 1.4, 0), cuir = fmat('cuir', 0x9b2e2a, { rough: 0.95 }); KIT.b(g, 0, 0.45, 0, 0.44, 0.05, 0.44, cuir); KIT.b(g, 0, 0.72, -0.2, 0.44, 0.5, 0.04, cuir);
+  // (derrière le bureau, face à la porte nord, l'assise glissée sous le plateau)
+  { const g = KIT.g(X(27) + 1, X(17) + 1.9, Math.PI), cuir = fmat('cuir', 0x9b2e2a, { rough: 0.95 }); KIT.b(g, 0, 0.45, 0, 0.44, 0.05, 0.44, cuir); KIT.b(g, 0, 0.72, -0.2, 0.44, 0.5, 0.04, cuir);
     for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) KIT.b(g, a * 0.19, 0.22, b * 0.19, 0.04, 0.44, 0.04, k.woodDark); }
   { const g = KIT.g(X(28), X(17) + 1.1, 0); KIT.b(g, 0, 0.84, 0, 0.4, 0.14, 0.3, dark); } // machine à écrire
   for (let i = 0; i < 3; i++) kShelf(X(25) + 0.3, X(19) + i * 1.8, Math.PI / 2, 1.6, 2.2, true);
-  { const g = KIT.g(X(29) + 1.4, X(15) + 0.5, 0); KIT.b(g, 0, 0.6, 0, 0.9, 1.2, 0.7, fmat('fonte', 0x2a2e30, { rough: 0.4, metal: 0.7 })); KIT.c(g, 0.1, 0.75, 0.36, 0.12, 0.12, 0.03, k.chrome, 16).rotation.x = Math.PI / 2; KIT.solid(g, 0.9, 0.7, 1.2, 'metal'); } // coffre-fort
+  { const g = KIT.g(X(28) + 0.6, X(15) + 0.5, 0); /* contre le mur nord, à l'écart de la porte (x 68-70) */ KIT.b(g, 0, 0.6, 0, 0.9, 1.2, 0.7, fmat('fonte', 0x2a2e30, { rough: 0.4, metal: 0.7 })); KIT.c(g, 0.1, 0.75, 0.36, 0.12, 0.12, 0.03, k.chrome, 16).rotation.x = Math.PI / 2; KIT.solid(g, 0.9, 0.7, 1.2, 'metal'); } // coffre-fort
   kFrame(X(25) + 0.1, 2.2, X(16) + 1, Math.PI / 2, 0.8, 1.0, 1); kFrame(X(27) + 1, 2.3, X(15) + 0.1, 0, 1.0, 0.8, 3);
   { const mapTex = textTexture(512, 320, (c) => { c.fillStyle = '#d8ceb0'; c.fillRect(0, 0, 512, 320); c.fillStyle = '#6a8aa0'; c.fillRect(0, 0, 512, 320); c.fillStyle = '#c8bc98'; c.beginPath(); c.ellipse(256, 160, 180, 100, 0.1, 0, TAU); c.fill(); c.fillStyle = '#6a5a4a'; for (let i = 0; i < 7; i++) c.fillRect(150 + i * 34, 120 + (i % 3) * 30, 26, 18); c.fillStyle = '#2a2a2a'; c.font = font(30); c.fillText('LE ROCHER — PLAN DU PÉNITENCIER', 60, 40); });
     mesh(new THREE.PlaneGeometry(2.2, 1.4), new THREE.MeshStandardMaterial({ map: mapTex, roughness: 0.9 }), X(30) - 0.1, 2.1, X(20) + 1, -Math.PI / 2, R.scene, false); }
-  for (let i = 0; i < 4; i++) kShelf(X(32) + i * 1.7, X(21) + 1.7, Math.PI, 1.5, 2.2, false);
+  for (let i = 0; i < 4; i++) kShelf(X(32) + 1.75 + i * 1.7, X(21) + 1.7, Math.PI, 1.5, 2.2, false); // (à 1 m de la porte des quais, x 72-74)
 
   /* ── Quais : pilotis, bittes d'amarrage, bateau, grue, lampadaires ── */
   { const pil = new Batch(new THREE.CylinderGeometry(0.18, 0.2, 1, 8), fmat('boisBrut', 0x4a3a2a)); /* pieux ronds créosotés : bois brut, pas les planches du quai */
@@ -101,7 +102,7 @@ function penDecor() {
   for (const x of [X(24), X(32), X(40)]) { const g = KIT.g(x, X(30) - 0.35, 0); KIT.c(g, 0, 0.3, 0, 0.16, 0.2, 0.6, dark, 10); KIT.c(g, 0, 0.62, 0, 0.22, 0.2, 0.08, dark, 10); colliderBox(x, X(30) - 0.35, 0.45, 0.45, 0, 0.7, 'metal'); }
   for (const [x, z] of [[X(20), X(24) + 0.8], [X(20) + 0.9, X(24) + 0.7], [X(34), X(28) + 1.2], [X(42), X(24) + 1]]) crate(x, z, rand(-0.3, 0.3));
   barrel(X(28), X(24) + 0.6, MATS.rust); barrel(X(28) + 0.7, X(24) + 0.5, MATS.olive); barrel(X(36), X(29) + 1.3, MATS.rust, true);
-  for (const [x, z, ry] of [[X(19) + 0.2, X(28), Math.PI / 2], [X(44) + 1.8, X(26), -Math.PI / 2]]) { const b = mesh(new THREE.TorusGeometry(0.32, 0.08, 8, 20), fmat('toile', 0xe8601a, { rough: 0.6 }), x, 1.2, z, ry, R.scene, false); } /* bouées : liège gainé de toile peinte */
+  for (const [x, z, ry] of [[X(18) + 0.2, X(28) + 1, Math.PI / 2], [X(46) - 0.2, X(27) + 1, -Math.PI / 2]]) { const b = mesh(new THREE.TorusGeometry(0.32, 0.08, 8, 20), fmat('toile', 0xe8601a, { rough: 0.6 }), x, 1.2, z, ry, R.scene, false); } /* bouées : liège gainé de toile peinte, pendues aux rambardes ouest du quai et est du chemin de ronde, entre deux poteaux */
   // Vedette amarrée au sud.
   { const g = KIT.g(X(33), X(32) + 0.6, 0.06, -0.55), hullM = fmat('boisPeint', 0x2e3a44, { rough: 0.5 }), deck = fmat('planks', 0x9a8466); /* coque bordée en bois peint gris marine ; pont : planches du quai */ g.userData.dynamic = true; WORLD.penBoat = { g, home: g.position.clone(), dock: new THREE.Vector3(X(33), 1, X(30) - 0.6) };
     const hull = new THREE.CylinderGeometry(1.4, 1.1, 10, 16, 1, false, 0, Math.PI); hull.rotateZ(Math.PI / 2); hull.rotateX(Math.PI / 2); hull.scale(1, 0.7, 1);
@@ -114,10 +115,12 @@ function penDecor() {
   kSign(X(18) + 0.4, X(23) + 0.4, Math.PI / 2, ['ACCOSTAGE', 'INTERDIT'], '#b83a2a', '#f2eee4');
 
   /* ── Cour de promenade : gradins, lignes, projecteur ── */
-  { const steps = fmat('concrete', 0xa8a49c); // gradins en trois tronçons : les brèches nord de la cour restent dégagées
-    for (const [a, b] of [[X(20), X(24) - 0.3], [X(25) + 0.3, X(34) - 0.3], [X(35) + 0.3, X(39)]]) {
-      for (let i = 0; i < 3; i++) KIT.b(R.scene, (a + b) / 2, 0.22 + i * 0.4, X(0) + 0.35 + i * 0.6, b - a, 0.44 + i * 0.8, 0.6, steps);
-      collider(a, X(0), b, X(0) + 1.8, 1.5, 'concrete');
+  { const steps = fmat('concrete', 0xa8a49c); // gradins en quatre tronçons : les brèches nord de la cour et l'arme murale (carabine, x 70-72) restent dégagées
+    for (const [a, b] of [[X(20), X(24) - 0.3], [X(25) + 0.3, X(30) - 0.3], [X(31) + 0.3, X(34) - 0.3], [X(35) + 0.3, X(39)]]) {
+      for (let i = 0; i < 3; i++) KIT.b(R.scene, (a + b) / 2, 0.22 + i * 0.4, X(0) + 1.55 - i * 0.6, b - a, 0.44 + i * 0.8, 0.6, steps); // la marche la plus haute contre le mur
+      // Une boîte par marche ; la deuxième compte 1,5 m (et non 1,24) : sauté de la première, on monte au plus à 1,48 m (pieds à 1,18 m
+      // plus la marche de 0,3 m), on ne se perche donc pas hors de portée des infectés (ils frappent jusqu'à 1,2 m de dénivelé).
+      collider(a, X(0) + 1.25, b, X(0) + 1.85, 0.44, 'concrete'); collider(a, X(0) + 0.65, b, X(0) + 1.25, 1.5, 'concrete'); collider(a, X(0), b, X(0) + 0.65, 2.04, 'concrete');
     } }
   { const line = fmat('plain', 0xe8e4da); for (const [x0, z0, x1, z1] of [[X(26), X(4), X(33), X(2)], [X(33), X(2), X(29), X(1) + 1.2]]) { const len = Math.hypot(x1 - x0, z1 - z0); KIT.b(R.scene, (x0 + x1) / 2, 0.012, (z0 + z1) / 2, len, 0.01, 0.08, line, -Math.atan2(z1 - z0, x1 - x0), false); } }
   kBench(X(36), X(4) + 1, Math.PI); kBench(X(24), X(4) + 1, Math.PI);
@@ -149,7 +152,11 @@ function penDecor() {
 function penFar(beamMat) {
   const k = kitMats(), rock = fmat('rock', 0x5a5e58);
   { const parts = [], r = mulberry32(3);
-    for (let i = 0; i < 90; i++) { const a = r() * TAU, rx = 60 + r() * 14, rz = 34 + r() * 10, x = 60 + Math.cos(a) * rx, z = 28 + Math.sin(a) * rz; const s = 1 + r() * 2.6; const g = new THREE.DodecahedronGeometry(s, 0); g.scale(1, 0.6 + r() * 0.5, 1); g.rotateY(r() * TAU); g.translate(x, surfH(x, z) + s * 0.2, z); parts.push(g.index ? g.toNonIndexed() : g); }
+    // Un rocher dont l'emprise touche un carreau praticable (quais, chemin de ronde, accès des infectés) est enfoncé sous le plancher.
+    const nearFloor = (x, z, s) => { for (let tz = tileOf(z - s); tz <= tileOf(z + s); tz++) for (let tx = tileOf(x - s); tx <= tileOf(x + s); tx++) if (inMap(tx, tz) && MAP.edge[ti(tx, tz)] === 0 && Math.hypot(clamp(x, tx * TILE, tx * TILE + TILE) - x, clamp(z, tz * TILE, tz * TILE + TILE) - z) < s) return true; return false; };
+    for (let i = 0; i < 90; i++) { const a = r() * TAU, rx = 60 + r() * 14, rz = 34 + r() * 10, x = 60 + Math.cos(a) * rx, z = 28 + Math.sin(a) * rz; const s = 1 + r() * 2.6, sy = 0.6 + r() * 0.5, ry = r() * TAU; /* (tirages dans le même ordre qu'avant) */
+      const y = nearFloor(x, z, s) ? Math.min(surfH(x, z) + s * 0.2, -0.1 - s * sy) : surfH(x, z) + s * 0.2;
+      const g = new THREE.DodecahedronGeometry(s, 0); g.scale(1, sy, 1); g.rotateY(ry); g.translate(x, y, z); parts.push(g.index ? g.toNonIndexed() : g); }
     mesh(mergeGeometries(parts), rock, 0, 0, 0, 0, R.scene, true); }
   // Phare sur son îlot.
   { const g = KIT.g(190, 140, 0, -1), white = fmat('plaster', 0xe8e4da); const isl = mesh(new THREE.CylinderGeometry(14, 22, 5, 14), rock, 0, 0, 0, 0, g);
@@ -185,11 +192,12 @@ function penDetails() {
   // Lampes grillagées le long des couloirs et sur les façades.
   const caged = (x, y, z, ry, col = 0xffe2b0) => { const g = KIT.g(x, z, ry, y); KIT.b(g, 0, 0, 0, 0.2, 0.06, 0.08, dark); KIT.s(g, 0, -0.08, 0.06, 0.07, KM.bulb, 1, 1.2, 1); for (let i = 0; i < 4; i++) { const b = KIT.b(g, -0.06 + (i % 2) * 0.12, -0.08, 0.02 + (i > 1 ? 0.08 : 0), 0.01, 0.18, 0.01, dark, 0, false); } KIT.glow(g, 0, -0.08, 0.08, col, 0.9, 0.7); };
   for (let x = X(12); x < X(34); x += 4) { caged(x, 2.7, X(10) + 0.12, 0); caged(x + 2, 2.7, X(13) - 0.12, Math.PI); }
-  for (let x = X(19); x < X(46); x += 6) caged(x, 3.2, X(23) - 0.12, Math.PI, 0xffb070);
+  // Quais : sur les façades sud de l'infirmerie et de la direction (z 54), tournées vers les quais ; ni sur les fenêtres ni sur la porte (x 72-74).
+  for (const x of [X(16) + 1, X(19), X(26), X(29), X(34), X(37)]) caged(x, 3.2, X(22) + 0.12, 0, 0xffb070);
   // Numéros peints au-dessus des cellules.
   { const atlas = textTexture(512, 256, (c) => { c.fillStyle = 'rgba(0,0,0,0)'; c.clearRect(0, 0, 512, 256); c.font = font(52); c.textAlign = 'center'; c.textBaseline = 'middle'; for (let i = 0; i < 32; i++) { const cx = (i % 8) * 64 + 32, cy = ((i / 8) | 0) * 64 + 32; c.fillStyle = '#e8e2c8'; c.fillText(String(i + 1).padStart(2, '0'), cx, cy); } }, { repeat: false });
     const mat = new THREE.MeshStandardMaterial({ map: atlas, transparent: true, roughness: 0.8, depthWrite: false }); let n = 0;
     for (let x = 11; x <= 32; x++) for (const [z, ry] of [[X(10) + 0.13, 0], [X(13) - 0.13, Math.PI]]) { if (n >= 32) break; const geo = new THREE.PlaneGeometry(0.42, 0.42), uv = geo.attributes.uv, i = n++; for (let j = 0; j < uv.count; j++) { uv.setX(j, ((i % 8) + uv.getX(j)) / 8); uv.setY(j, 1 - (((i / 8) | 0) + 1 - uv.getY(j)) / 4); } mesh(geo, mat, X(x) + 1, 3.25, z, ry, R.scene, false); } }
-  // Panneaux d'avertissement et gyrophares sur l'enceinte.
-  for (const [x, z, ry, lines] of [[X(20), X(23) - 0.05, Math.PI, ['ZONE INTERDITE', 'LES GARDES TIRENT']], [X(36), X(-0.5) + 0.05, 0, ['DÉFENSE D\'APPROCHER', 'DU MUR']], [X(46) - 0.05, X(14), -Math.PI / 2, ['DIRECTION', 'ACCÈS RÉSERVÉ']]]) mesh(new THREE.PlaneGeometry(1.5, 0.6), new THREE.MeshStandardMaterial({ map: woodSign(lines, { w: 512, h: 200, bg: '#b83a2a', color: '#f2eee4' }), roughness: 0.6 }), x, 2.4, z, ry, R.scene, false);
+  // Panneaux d'avertissement : façade de l'infirmerie face aux quais, mur nord de la cour (au-dessus des gradins), mur du réfectoire qui le sépare de la direction.
+  for (const [x, y, z, ry, lines] of [[X(18) + 1, 2.4, X(22) + 0.1, 0, ['ZONE INTERDITE', 'LES GARDES TIRENT']], [X(36), 3.0, X(0) + 0.1, 0, ['DÉFENSE D\'APPROCHER', 'DU MUR']], [X(37), 2.4, X(17) - 0.1, Math.PI, ['DIRECTION', 'ACCÈS RÉSERVÉ']]]) mesh(new THREE.PlaneGeometry(1.5, 0.6), new THREE.MeshStandardMaterial({ map: woodSign(lines, { w: 512, h: 200, bg: '#b83a2a', color: '#f2eee4' }), roughness: 0.6 }), x, y, z, ry, R.scene, false);
 }
