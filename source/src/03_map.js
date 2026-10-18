@@ -179,6 +179,17 @@ function zBlocked(cx, cz, tx, tz) {
   return cc === C_RAMP || ct !== cc || edgeBlocked(cx, cz, tx, tz);
 }
 const pBlocked = (cx, cz, tx, tz) => !isTrench(tx, tz);
+// Joueur : le carreau d'une porte fermée est praticable jusqu'au battant, que porte une boîte mince (d.slab, 05_world.js
+// buildDoors) ; avant, tout le carreau bloquait et l'on butait sur du vide à 1 m du battant. Infectés et Colosse gardent
+// le carreau entier (pBlocked, tClass).
+const playerTile = (x, z) => isTrench(x, z) || (inMap(x, z) && MAP.type[ti(x, z)] === T_DOOR);
+const pBlockedP = (cx, cz, tx, tz) => !playerTile(tx, tz);
+// Carreau à viser pour le champ de flux : un joueur avancé dans le carreau d'une porte fermée est visé depuis le carreau
+// voisin de son côté (les infectés n'entrent pas dans ce carreau).
+function flowTile(x, z) {
+  const tx = tileOf(x), tz = tileOf(z); if (!inMap(tx, tz) || MAP.type[ti(tx, tz)] !== T_DOOR || isTrench(tx, tz)) return [tx, tz];
+  const d = MAP.doors[MAP.doorAt[ti(tx, tz)]]; return d.axis === 'x' ? [tx + (x < tcx(tx) ? -1 : 1), tz] : [tx, tz + (z < tcx(tz) ? -1 : 1)];
+}
 
 // Hauteur du sol pour un infecté selon sa classe.
 function rampT(r, x, z) {
@@ -343,7 +354,7 @@ function solidAt(x, y, z, phys) {
       if (r.look === 'window' && rt < 0.08 && (y < SILL_H || y > 2.25) && y < ceilH() + 0.3) return M.wallMat || 'concrete';
       return null;
     }
-    if (t === T_DOOR) { const d = MAP.doors[MAP.doorAt[i]]; if (!d.open && y < WALL_H && y >= 0) return doorMat(d); if (d.lintel && y > WALL_H - 0.05 && y < d.lintel) return M.wallMat || 'concrete'; }
+    if (t === T_DOOR) { const d = MAP.doors[MAP.doorAt[i]]; if (!d.open && y < WALL_H && y >= 0 && inSlab(d, x, z)) return doorMat(d); if (d.lintel && y > WALL_H - 0.05 && y < d.lintel) return M.wallMat || 'concrete'; }
     if (y < 0) return M.floorMat ? M.floorMat(MAP.style[i]) : 'concrete';
     if (MAP.roof[i]) { const ch = roomCeil(tx, tz); if (y > ch - 0.05 && y < ch + 0.4) return M.ceilMat || 'wood'; }
     return null;
@@ -351,11 +362,13 @@ function solidAt(x, y, z, phys) {
   if (t === T_SOLID) return y < WALL_H + (MAP.edge[i] > 1 ? surfH(x, z) - WALL_H : 0) ? (MAP.style[i] === STYLE_BUNKER ? 'concrete' : 'earth') : null;
   if (t === T_BLOCK) return y < blockH(i) ? 'concrete' : null;
   if (t === T_RAMP) { const r = MAP.barricades[MAP.rampAt[i]]; return y < smooth(rampT(r, x, z)) * WALL_H - 0.02 ? 'earth' : null; }
-  if (t === T_DOOR && !MAP.doors[MAP.doorAt[i]].open) return y < WALL_H ? doorMat(MAP.doors[MAP.doorAt[i]]) : null;
+  if (t === T_DOOR && !MAP.doors[MAP.doorAt[i]].open && inSlab(MAP.doors[MAP.doorAt[i]], x, z)) return y < WALL_H ? doorMat(MAP.doors[MAP.doorAt[i]]) : null;
   if (y < (M.floorH ? M.floorH(x, z) : 0)) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : MAP.style[i] === STYLE_CRATER ? 'earth' : 'wood';
   if (MAP.roof[i] && y > WALL_H - 0.12 && y < WALL_H + 0.5) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : 'metal';
   return null;
 }
+// Les balles s'arrêtent au battant (d.slab), plus à l'entrée du carreau de la porte.
+const inSlab = (d, x, z) => !d.slab || (x >= d.slab.x0 && x <= d.slab.x1 && z >= d.slab.z0 && z <= d.slab.z1);
 const doorMat = (d) => (d.kind === 'steel' || d.kind === 'bars' ? 'metal' : d.kind === 'rubble' ? 'concrete' : 'wood');
 function edgeSolid(x, y, z, tx, tz, phys) {
   const fx = x - tx * TILE, fz = z - tz * TILE, T = EDGE_T + 0.02;

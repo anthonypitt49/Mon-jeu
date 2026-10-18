@@ -172,7 +172,7 @@ const A = await page.evaluate(([PAS, ECART]) => {
   const inShape = (b, x, z) => { if (!(x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1)) return false; const [cx, cz] = near(b, x, z); return Math.abs(cx - x) < 1e-9 && Math.abs(cz - z) < 1e-9; };
   window.__inShape = inShape;
   const inBox = (x, z, y) => MAP.props.some((b) => live(b, y) && inShape(b, x, z));
-  const resolve = (p, y) => { SP.collideCircle(p, R0, SP.pBlocked); SP.collideProps(p, R0, y, 0.3); };
+  const resolve = (p, y) => { SP.collideCircle(p, R0, SP.pBlockedP || SP.pBlocked); SP.collideProps(p, R0, y, 0.3); }; // (joueur : pBlockedP, 03_map.js)
   const tmS = Date.now();
   // Points d'échantillon (là où le joueur peut se tenir).
   const pts = [], lat = new Map(), n = Math.round(TILE / PAS); let nTiles = 0, inside = 0, pushed = 0;
@@ -226,7 +226,7 @@ const A = await page.evaluate(([PAS, ECART]) => {
     const cx = SP.tileOf(q.x), cz = SP.tileOf(q.z);
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
       const tx = cx + dx, tz = cz + dz;
-      if (SP.pBlocked(cx, cz, tx, tz)) consider({ type: 'tile', tx, tz, t: SP.inMap(tx, tz) ? MAP.type[tz * W + tx] : -1 }, tx * TILE, tx * TILE + TILE, tz * TILE, tz * TILE + TILE);
+      if ((SP.pBlockedP || SP.pBlocked)(cx, cz, tx, tz)) consider({ type: 'tile', tx, tz, t: SP.inMap(tx, tz) ? MAP.type[tz * W + tx] : -1 }, tx * TILE, tx * TILE + TILE, tz * TILE, tz * TILE + TILE);
       if (!SP.inMap(tx, tz) || !MAP.hasEdges) continue; const w = MAP.ew[tz * W + tx];
       for (let bit = 0; bit < 2; bit++) {
         if (!(w & (1 << bit))) continue;

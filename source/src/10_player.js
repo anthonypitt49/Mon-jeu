@@ -132,12 +132,12 @@ function updatePlayer(dt) {
   INPUT.jumpPressed = false;
   P.vel.y -= GRAVITY * dt;
   P.pos.x += P.vel.x * dt; P.pos.z += P.vel.z * dt; P.pos.y += P.vel.y * dt;
-  collideCircle(P.pos, P_RADIUS, pBlocked);
+  collideCircle(P.pos, P_RADIUS, pBlockedP);
   collideProps(P.pos, P_RADIUS, P.pos.y, 0.3);
   const ground = propSupport(P.pos, P_RADIUS, P.pos.y, 0.3);
   if (P.pos.y <= ground) { if (!P.onGround && P.vel.y < -3) { P.land = Math.min(1, -P.vel.y / 9); stepSound(1.4); } P.pos.y = ground; P.vel.y = 0; P.onGround = true; } else if (P.pos.y > ground + 0.05) P.onGround = false;
   // Filet de sécurité : jamais hors des tranchées.
-  if (!isTrench(tileOf(P.pos.x), tileOf(P.pos.z))) { const s = G.lastSafe || P.pos; P.pos.x = s.x; P.pos.z = s.z; } else G.lastSafe = P.pos.clone();
+  if (!playerTile(tileOf(P.pos.x), tileOf(P.pos.z))) { const s = G.lastSafe || P.pos; P.pos.x = s.x; P.pos.z = s.z; } else G.lastSafe = P.pos.clone();
 
   // Pas et balancement.
   const hv = Math.hypot(P.vel.x, P.vel.z);

@@ -110,7 +110,7 @@ const G = {
     this.flowT -= dt;
     if (this.flowT <= 0) {
       this.flowT = 0.25;
-      const src = []; for (const [, p] of this.players) if (!p.down && !p.dead && p.pos && !(p.zb > this.time)) src.push([tileOf(p.pos.x), tileOf(p.pos.z)]);
+      const src = []; for (const [, p] of this.players) if (!p.down && !p.dead && p.pos && !(p.zb > this.time)) src.push(flowTile(p.pos.x, p.pos.z));
       if (src.length) computeFlow(src);
     }
     for (const z of [...ZOMBIES]) if (!z.remote) z.think(dt, this);

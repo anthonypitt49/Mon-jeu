@@ -553,6 +553,10 @@ function buildDoors() {
   for (const d of MAP.doors) {
     const g = new THREE.Group(), cx = tcx(d.x), cz = tcx(d.z); g.userData.dynamic = true;
     g.position.set(cx, 0, cz); g.rotation.y = d.axis === 'x' ? Math.PI / 2 : 0; R.scene.add(g);
+    // Battant pour le joueur (03_map.js pBlockedP) : boîte mince au milieu du carreau, épaisse pour un amas ; absente porte ouverte.
+    const th = d.kind === 'debris' || d.kind === 'rubble' ? 0.6 : 0.15, ax = d.axis === 'x';
+    d.slab = { x0: cx - (ax ? th : 1), x1: cx + (ax ? th : 1), z0: cz - (ax ? 1 : th), z1: cz + (ax ? 1 : th), y0: 0, y1: WALL_H, mat: doorMat(d), noRay: true, tag: 'porte' };
+    Object.defineProperty(d.slab, 'off', { get: () => d.open, enumerable: true }); MAP.props.push(d.slab);
     const leaf = new THREE.Group(); g.add(leaf);
     const H = WALL_H - 0.1;
     if (d.kind === 'steel') {
