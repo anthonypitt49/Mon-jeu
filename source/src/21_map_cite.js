@@ -9,8 +9,9 @@ const CITE = (() => {
   const X = (lx) => (lx + OX) * TILE, CX = (lx) => (lx + OX) * TILE + TILE / 2; // bord et centre d'un carreau local
   return { OX, OZ, X, CX, T: (lx, lz) => [lx + OX, lz + OZ] };
 })();
-// Emplacements d'atterrissage des atouts (mètres, orientation de la façade) : tous sur le sol des joueurs, à découvert, face au passage.
-const CITE_PADS = [[11, 18.2, 0], [24, 16.5, Math.PI], [36.5, 35, -Math.PI / 2], [13.5, 5.5, 0], [24, 36.3, Math.PI], [8.2, 24.5, 0], [7.2, 29.4, Math.PI], [35, 23.5, Math.PI], [26.5, 35, 0]]
+// Emplacements d'atterrissage des atouts (mètres, orientation de la façade) : tous sur le sol des joueurs, à découvert, face au passage,
+// à plus de 1,6 m de l'arrivée des barricades.
+const CITE_PADS = [[11, 18.2, 0], [24, 16.5, Math.PI], [36.5, 35.3, -Math.PI / 2], [13.5, 5.5, 0], [24, 36.3, Math.PI], [8.2, 24.5, 0], [7.2, 29.4, Math.PI], [35, 23.5, Math.PI], [26.5, 35, 0]]
   .map(([lx, lz, yaw]) => ({ x: CITE.X(lx), z: CITE.X(lz), yaw }));
 const CITE_STATE = { landed: [], heads: [], pop: 1954, lastPop: -1, dropT: 0, dropRound: 0, anims: [] };
 

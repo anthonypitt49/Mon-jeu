@@ -14,7 +14,7 @@ function citeDecor() {
   kChimney(X(6) + 1, X(9), 3.35, 4.0, fmat('brick', 0xffffff)); kChimney(X(30) + 1, X(29), 3.35, 4.0, fmat('brick', 0xffffff));
   kAntenna(X(12), X(11), 5.2); kAntenna(X(25), X(27), 5.2);
   // Porches : auvent en bardeaux sur quatre poteaux en bois peint ; il déborde côté dehors (s : sens du dehors en z), pas dans la maison.
-  const porch = (x0, z0, x1, z1, mat, s) => { const g = KIT.g(0, 0), a = s > 0 ? z0 : z0 - 0.25, b = s > 0 ? z1 + 0.25 : z1; KIT.b(g, (x0 + x1) / 2, 2.62, (a + b) / 2, x1 - x0 + 0.6, 0.1, b - a, mat); for (const [a, b] of [[x0 + 0.1, z1 - 0.1], [x1 - 0.1, z1 - 0.1], [x0 + 0.1, z0 + 0.1], [x1 - 0.1, z0 + 0.1]]) KIT.b(g, a, 1.3, b, 0.1, 2.6, 0.1, fmat('boisPeint', 0xeeeae0, { rough: 0.8 })); };
+  const porch = (x0, z0, x1, z1, mat, s) => { const g = KIT.g(0, 0), za = s > 0 ? z0 : z0 - 0.25, zb = s > 0 ? z1 + 0.25 : z1; KIT.b(g, (x0 + x1) / 2, 2.62, (za + zb) / 2, x1 - x0 + 0.6, 0.1, zb - za, mat); for (const [a, b] of [[x0 + 0.1, z1 - 0.1], [x1 - 0.1, z1 - 0.1], [x0 + 0.1, z0 + 0.1], [x1 - 0.1, z0 + 0.1]]) KIT.b(g, a, 1.3, b, 0.1, 2.6, 0.1, fmat('boisPeint', 0xeeeae0, { rough: 0.8 })); };
   porch(X(8), X(15), X(9), X(16), fmat('shingle', 0xb07a62), 1); porch(X(9), X(6), X(10), X(7), fmat('shingle', 0xb07a62), -1);
   porch(X(26), X(22), X(27), X(23), fmat('shingle', 0x7c8c9a), -1); porch(X(28), X(31), X(29), X(32), fmat('shingle', 0x7c8c9a), 1);
   // Portes de garage sectionnelles en bois peint (façade côté rue).
