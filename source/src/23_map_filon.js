@@ -54,7 +54,7 @@ MAPS.filon = {
     { key: 'rail', look: 'rail', h: 1.1, see: true, mat: 'wood' },
   ],
   boundary(x, z) {
-    const st = this.styles[MAP.style[ti(x, z)]], w = (x * 5 + z * 3) % 3 === 0;
+    const st = this.styles[MAP.style[ti(x, z)]], busy = [...this.spots.perks, ...this.spots.wallBuys].some((s) => s.x === x && s.z === z), w = !busy && (x * 5 + z * 3) % 3 === 0; // (pas de fenêtre derrière un atout ou une arme murale)
     if (st === 'saloon') return w ? 'redWin' : 'red'; if (st === 'bank') return w ? 'brickWin' : 'brick'; if (st === 'church') return w ? 'whiteWin' : 'white';
     if (st === 'store' || st === 'jail') return w ? 'plankWin' : 'plank';
     return 'rail';
@@ -78,6 +78,7 @@ MAPS.filon = {
     V(11, 16, 16, 'red'); V(12, 16, 16, 'red');
     H(17, 18, 20, 'plankWin'); H(17, 22, 24, 'plankWin'); V(21, 16, 16, 'plank'); V(22, 16, 16, 'plank');
     H(17, 26, 28, 'brickWin'); H(17, 30, 33, 'brickWin'); H(17, 27, 27, 'brick'); H(17, 31, 31, 'brick'); V(29, 16, 16, 'brick'); V(30, 16, 16, 'brick');
+    H(17, 18, 18, 'plank'); H(17, 20, 20, 'plank'); H(17, 33, 33, 'brick'); H(23, 8, 8, 'plank'); // pans pleins : affiches « RECHERCHÉ » et arme murale, pas sur une fenêtre
     H(23, 7, 9, 'plankWin'); H(23, 11, 13, 'plankWin'); V(10, 23, 23, 'plank'); V(11, 23, 23, 'plank');
     H(23, 22, 26, 'whiteWin'); H(23, 28, 32, 'whiteWin'); H(23, 24, 24, 'white'); H(23, 30, 30, 'white'); V(27, 23, 23, 'white'); V(28, 23, 23, 'white');
     // Saloon : scène au fond. Banque : chambre forte. Prison : cellules (le Colosse dort dans la grande).
@@ -94,13 +95,16 @@ MAPS.filon = {
     // Barricades : brèches dans le roc (galerie, éboulis), ruelles, fenêtres.
     for (const [x, z] of [[41, 17], [44, 22], [47, 19], [5, 18], [5, 21]]) Rp(x, z, 'gap', x === 41 ? 's' : x === 44 ? 'n' : x === 47 ? 'w' : 'e');
     for (const [x, z, w] of [[17, 16, 's'], [25, 16, 's'], [16, 23, 'n'], [19, 23, 'n'], [34, 16, 's'], [34, 23, 'n']]) Rp(x, z, 'fence', w);
+    // Flancs des ruelles du nord : la clôture automatique ne ferme que le sol contre le roc, pas une barricade entre deux
+    // bâtiments ; sans ces murs, on voyait d'un bâtiment à l'autre par un trou de 2 m et on butait sur un mur invisible.
+    V(17, 16, 16, 'red'); V(18, 16, 16, 'plank'); V(25, 16, 16, 'plank'); V(26, 16, 16, 'brick'); V(34, 16, 16, 'brick');
     for (const [x, z] of [[6, 11], [6, 14], [10, 8], [14, 8], [21, 9], [28, 9], [34, 14], [6, 26], [14, 26], [33, 28], [27, 34], [21, 30]]) Rp(x, z, 'window');
   },
   spots: (() => {
     const T = FIL.T, xz = ([x, z]) => ({ x, z });
     return {
       start: T(42, 19), startYaw: Math.PI / 2,
-      coopStarts: [T(42, 19), T(42, 20), T(44, 19), T(44, 20)],
+      coopStarts: [T(42, 19), T(42, 20), T(45, 19), T(44, 20)], // (n° 3 à côté du wagonnet, pas dedans)
       wallBuys: [
         { weapon: 'bolt', ...xz(T(20, 17)), wall: 'n' }, { weapon: 'shotgun', ...xz(T(7, 13)), wall: 'w' },
         { weapon: 'smg', ...xz(T(39, 18)), wall: 'n' }, { weapon: 'carbine', ...xz(T(22, 28)), wall: 'w' }, { weapon: 'revolver', ...xz(T(13, 25)), wall: 'e' },
@@ -113,7 +117,7 @@ MAPS.filon = {
       power: { ...xz(T(33, 11)), wall: 'e' },
       generator: { x: FIL.X(31) + 1, z: FIL.X(10) + 1, ry: 0 },
       box: [{ ...xz(T(12, 9)), wall: 'n' }, { ...xz(T(18, 11)), wall: 'w' }, { ...xz(T(32, 32)), wall: 'e' }, { ...xz(T(45, 21)), wall: 's' }, { ...xz(T(26, 12)), wall: 'w' }],
-      bench: { ...xz(T(27, 32)), wall: 's' },
+      bench: { ...xz(T(22, 32)), wall: 'w' }, // (contre le mur ouest du chœur ; au sud de l'autel, il n'y a pas de mur)
       candy: { ...xz(T(18, 14)), wall: 'w' },
       bank: { ...xz(T(28, 14)), wall: 'n' },
       cage: T(8, 28), giantIdle: T(20, 19),

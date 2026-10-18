@@ -9,8 +9,13 @@ function secretSpots() {
   const rnd = mulberry32(h), out = [], zones = new Set();
   const clear = (x, z) => { const cx = tcx(x), cz = tcx(z); for (const b of MAP.props) if (!b.off && b.x0 < cx + 0.6 && b.x1 > cx - 0.6 && b.z0 < cz + 0.6 && b.z1 > cz - 0.6) return false; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const t = tType(x + dx, z + dz); if (t === T_RAMP || t === T_DOOR) return false; } return true; };
   const cand = []; for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) { const i = ti(x, z); if (MAP.type[i] === T_FLOOR && clear(x, z) && Math.hypot(x - SPOTS.start[0], z - SPOTS.start[1]) > 4) cand.push(i); }
+  // Carreaux que le joueur peut atteindre depuis le départ (portes comptées ouvertes, murs fins et barreaux respectés) :
+  // un disque tiré ailleurs (cellule à barreaux sans porte du Filon) est sauté, sans changer les tirages des autres cartes.
+  const reach = new Uint8Array(MAP_W * MAP_D), q = [ti(SPOTS.start[0], SPOTS.start[1])]; reach[q[0]] = 1;
+  while (q.length) { const i = q.pop(), x = i % MAP_W, z = (i - x) / MAP_W; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = x + dx, b = z + dz; if (!inMap(a, b)) continue; const j = ti(a, b), t = MAP.type[j]; if (reach[j] || (t !== T_FLOOR && t !== T_DOOR) || edgeBlocked(x, z, a, b)) continue; reach[j] = 1; q.push(j); } }
   for (let tries = 0; tries < 400 && out.length < 3 && cand.length; tries++) {
     const i = cand[(rnd() * cand.length) | 0], zn = MAP.zone[i];
+    if (!reach[i]) continue;
     if (zones.has(zn) && tries < 300) continue; zones.add(zn); out.push(i);
   }
   return out;

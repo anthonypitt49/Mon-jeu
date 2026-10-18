@@ -187,7 +187,7 @@ function filBuildMission() {
     for (let i = 0; i < 2; i++) { const b = mesh(boxG(1.6, 0.14, 0.2), plank, rand(-0.3, 0.3), 0.5 + i * 0.25, rand(-0.3, 0.3), rand(TAU), g); b.rotation.z = rand(-0.5, 0.5); }
     meterize(g); // construit après le monde (remise à zéro de la partie) : UV en mètres des madriers
     const glint = KIT.glow(g, 0, 0.9, 0, 0xffc040, 0.6, 0.5);
-    const col = { x0: p.x - 0.7, x1: p.x + 0.7, z0: p.z - 0.7, z1: p.z + 0.7, y0: 0, y1: 1.1, mat: 'concrete' }; MAP.props.push(col);
+    const col = { x0: p.x - 0.8, x1: p.x + 0.8, z0: p.z - 0.8, z1: p.z + 0.8, y0: 0, y1: 1.1, mat: 'concrete', rad: 0.8 }; MAP.props.push(col); // (tas rond : collision ronde, plus de coins vides)
     const nug = new THREE.Group(); nug.userData.dynamic = true; nug.position.set(p.x, 0.25, p.z); nug.visible = false; R.scene.add(nug);
     for (let i = 0; i < 3; i++) mesh(new THREE.DodecahedronGeometry(rand(0.06, 0.1), 0), gold, rand(-0.08, 0.08), rand(0, 0.08), rand(-0.08, 0.08), rand(TAU), nug, false);
     KIT.glow(nug, 0, 0.05, 0, 0xffc040, 1.2, 0.7);
