@@ -25,3 +25,8 @@ Outils (source/dev, voir leur en-tête) : `murs.mjs <carte>` (pas du joueur bloq
 6. ~~Version 6.1~~ EN LIGNE le 18 octobre 2026 : main et GitHub Pages (6.1 vérifiée), Artifact version 19. Étape terminée.
 
 Reste pour plus tard (hors de cette étape) : boîte du Colosse un peu plus large que son corps (8 pas) ; caisse de ravitaillement du saloon à poser sur la scène ; couchettes du Poste 7 (0,6 m² de boîte derrière le lit).
+
+## Après la 6.1
+
+- Pénitencier : à la demande du propriétaire (option 2), le mur ajouté entre le réfectoire et la direction devient une porte payante « Réfectoire ↔ Direction » (1 250, acier, carreau local 36,16, montants V(36) et V(37)), ajoutée en dernier (les numéros des autres portes ne changent pas) ; panneau DIRECTION décalé sur le mur plein. `portes.mjs penitencier` : 8 portes sans faute ; `murs.mjs` : 0. Vérification complète en cours.
+- À venir : capture du propriétaire d'un mur invisible près du réfectoire ; l'esthétique du Pénitencier est à reprendre (demande du propriétaire).

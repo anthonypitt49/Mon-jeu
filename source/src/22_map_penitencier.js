@@ -107,7 +107,10 @@ MAPS.penitencier = {
     V(30, 15, 17, 'officeIn'); V(30, 19, 21, 'officeIn'); H(19, 31, 33, 'officeIn'); H(19, 35, 37, 'officeIn');
     V(16, 15, 16, 'infirmIn'); H(19, 10, 11, 'infirmIn'); H(19, 13, 15, 'infirmIn');
     H(10, 36, 37, 'stone'); H(10, 39, 45, 'stone'); // passe-plats de la cuisine du réfectoire
-    V(35, 15, 16, 'stone'); H(17, 35, 38, 'stone'); // réfectoire | direction : mur plein (on ne passe que par les portes), fermé aussi devant la fenêtre-barricade (38, 17)
+    // Réfectoire | direction : mur de pierre percé d'une porte payante (36, 16) ; montants posés avant la porte (son axe en dépend).
+    // Le mur ferme aussi le côté réfectoire de la fenêtre-barricade (38, 17), qui s'ouvre sur la direction.
+    V(35, 15, 16, 'stone'); H(17, 35, 35, 'stone'); H(17, 37, 38, 'stone'); V(36, 16, 16, 'stone'); V(37, 16, 16, 'stone');
+    D(36, 16, 1250, 'steel', 'Réfectoire ↔ Direction');
     // Barricades : fenêtres (bloc, douches, réfectoire, infirmerie, direction), brèches de la cour, accès depuis l'eau.
     for (const [x, z] of [[16, 8], [22, 8], [28, 8], [1, 10], [1, 12], [5, 8], [47, 10], [47, 14], [37, 7], [38, 17], [9, 17], [9, 20], [15, 22], [24, 18], [38, 19]]) Rp(x, z, 'window');
     Rp(22, 14, 'window', 'n');
