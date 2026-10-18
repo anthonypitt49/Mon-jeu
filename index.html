@@ -737,7 +737,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '6.0'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '6.1'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -1650,6 +1650,17 @@ function zBlocked(cx, cz, tx, tz) {
   return cc === C_RAMP || ct !== cc || edgeBlocked(cx, cz, tx, tz);
 }
 const pBlocked = (cx, cz, tx, tz) => !isTrench(tx, tz);
+// Joueur : le carreau d'une porte fermée est praticable jusqu'au battant, que porte une boîte mince (d.slab, 05_world.js
+// buildDoors) ; avant, tout le carreau bloquait et l'on butait sur du vide à 1 m du battant. Infectés et Colosse gardent
+// le carreau entier (pBlocked, tClass).
+const playerTile = (x, z) => isTrench(x, z) || (inMap(x, z) && MAP.type[ti(x, z)] === T_DOOR);
+const pBlockedP = (cx, cz, tx, tz) => !playerTile(tx, tz);
+// Carreau à viser pour le champ de flux : un joueur avancé dans le carreau d'une porte fermée est visé depuis le carreau
+// voisin de son côté (les infectés n'entrent pas dans ce carreau).
+function flowTile(x, z) {
+  const tx = tileOf(x), tz = tileOf(z); if (!inMap(tx, tz) || MAP.type[ti(tx, tz)] !== T_DOOR || isTrench(tx, tz)) return [tx, tz];
+  const d = MAP.doors[MAP.doorAt[ti(tx, tz)]]; return d.axis === 'x' ? [tx + (x < tcx(tx) ? -1 : 1), tz] : [tx, tz + (z < tcx(tz) ? -1 : 1)];
+}
 
 // Hauteur du sol pour un infecté selon sa classe.
 function rampT(r, x, z) {
@@ -1661,7 +1672,7 @@ const SILL_H = 0.62;
 function sillH(r, t) { return r.look === 'window' ? SILL_H * smooth(clamp(1 - Math.abs(t - 0.1) / 0.2, 0, 1)) : 0; }
 function groundAt(x, z) {
   const tx = tileOf(x), tz = tileOf(z), c = tClass(tx, tz);
-  if (c === C_TRENCH) return M.floorH ? M.floorH(x, z) : 0;
+  if (c === C_TRENCH || tType(tx, tz) === T_DOOR) return M.floorH ? M.floorH(x, z) : 0; // (porte fermée : le sol du passage, où le joueur s'avance jusqu'au battant)
   if (c === C_RAMP) { const r = MAP.barricades[MAP.rampAt[ti(tx, tz)]], t = rampT(r, x, z); return M.flat ? (r.look === 'slope' ? smooth(clamp((t - 0.15) / 0.85, 0, 1)) * r.outH : sillH(r, t)) : smooth(t) * WALL_H; }
   return surfH(x, z);
 }
@@ -1734,6 +1745,12 @@ function collideProps(p, r, y = 0, step = 0, out) {
   let hit = false;
   for (const b of MAP.props) {
     if (b.off || y + step >= b.y1 || y + 1.6 < (b.y0 || 0)) continue;
+    if (b.rot) { if (p.x + r > b.x0 && p.x - r < b.x1 && p.z + r > b.z0 && p.z - r < b.z1 && collideRot(p, r, b.rot, out)) hit = true; continue; }
+    if (b.rad) { // cylindre debout (05_world.js colliderCyl) : poussée hors du cercle
+      const dx = p.x - (b.x0 + b.x1) / 2, dz = p.z - (b.z0 + b.z1) / 2, R = b.rad + r, d2 = dx * dx + dz * dz; if (d2 >= R * R) continue;
+      hit = true; const d = Math.sqrt(d2), mx = d > 1e-6 ? dx * (R - d) / d : R, mz = d > 1e-6 ? dz * (R - d) / d : 0;
+      p.x += mx; p.z += mz; if (out) { out.x += mx; out.z += mz; } continue;
+    }
     const qx = clamp(p.x, b.x0, b.x1), qz = clamp(p.z, b.z0, b.z1), dx = p.x - qx, dz = p.z - qz, d2 = dx * dx + dz * dz;
     if (d2 < r * r) {
       hit = true; const bx = p.x, bz = p.z;
@@ -1743,6 +1760,19 @@ function collideProps(p, r, y = 0, step = 0, out) {
     }
   }
   return hit;
+}
+// Boîte tournée (o = b.rot, 05_world.js propBox) : même poussée que ci-dessus, calculée dans le repère de la boîte.
+// Repère local : lx = c·dx − s·dz, lz = s·dx + c·dz ; retour au monde : dx = c·lx + s·lz, dz = −s·lx + c·lz.
+function collideRot(p, r, o, out) {
+  const wx = p.x - o.cx, wz = p.z - o.cz, lx = o.c * wx - o.s * wz, lz = o.s * wx + o.c * wz;
+  const ex = lx - clamp(lx, -o.hw, o.hw), ez = lz - clamp(lz, -o.hd, o.hd), d2 = ex * ex + ez * ez;
+  if (d2 >= r * r) return false;
+  let mx = 0, mz = 0;
+  if (d2 > 1e-9) { const d = Math.sqrt(d2), k = (r - d) / d; mx = ex * k; mz = ez * k; }
+  else { const px = o.hw - Math.abs(lx), pz = o.hd - Math.abs(lz); if (px < pz) mx = (lx < 0 ? -1 : 1) * (px + r); else mz = (lz < 0 ? -1 : 1) * (pz + r); }
+  const dx = o.c * mx + o.s * mz, dz = -o.s * mx + o.c * mz;
+  p.x += dx; p.z += dz; if (out) { out.x += dx; out.z += dz; }
+  return true;
 }
 
 /* ─── Champ de flux (Dijkstra multi-sources) vers les joueurs ─── */
@@ -1795,7 +1825,7 @@ function solidAt(x, y, z, phys) {
       if (r.look === 'window' && rt < 0.08 && (y < SILL_H || y > 2.25) && y < ceilH() + 0.3) return M.wallMat || 'concrete';
       return null;
     }
-    if (t === T_DOOR) { const d = MAP.doors[MAP.doorAt[i]]; if (!d.open && y < WALL_H && y >= 0) return doorMat(d); if (d.lintel && y > WALL_H - 0.05 && y < d.lintel) return M.wallMat || 'concrete'; }
+    if (t === T_DOOR) { const d = MAP.doors[MAP.doorAt[i]]; if (!d.open && y < WALL_H && y >= 0 && inSlab(d, x, z)) return doorMat(d); if (d.lintel && y > WALL_H - 0.05 && y < d.lintel) return M.wallMat || 'concrete'; }
     if (y < 0) return M.floorMat ? M.floorMat(MAP.style[i]) : 'concrete';
     if (MAP.roof[i]) { const ch = roomCeil(tx, tz); if (y > ch - 0.05 && y < ch + 0.4) return M.ceilMat || 'wood'; }
     return null;
@@ -1803,11 +1833,13 @@ function solidAt(x, y, z, phys) {
   if (t === T_SOLID) return y < WALL_H + (MAP.edge[i] > 1 ? surfH(x, z) - WALL_H : 0) ? (MAP.style[i] === STYLE_BUNKER ? 'concrete' : 'earth') : null;
   if (t === T_BLOCK) return y < blockH(i) ? 'concrete' : null;
   if (t === T_RAMP) { const r = MAP.barricades[MAP.rampAt[i]]; return y < smooth(rampT(r, x, z)) * WALL_H - 0.02 ? 'earth' : null; }
-  if (t === T_DOOR && !MAP.doors[MAP.doorAt[i]].open) return y < WALL_H ? doorMat(MAP.doors[MAP.doorAt[i]]) : null;
+  if (t === T_DOOR && !MAP.doors[MAP.doorAt[i]].open && inSlab(MAP.doors[MAP.doorAt[i]], x, z)) return y < WALL_H ? doorMat(MAP.doors[MAP.doorAt[i]]) : null;
   if (y < (M.floorH ? M.floorH(x, z) : 0)) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : MAP.style[i] === STYLE_CRATER ? 'earth' : 'wood';
   if (MAP.roof[i] && y > WALL_H - 0.12 && y < WALL_H + 0.5) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : 'metal';
   return null;
 }
+// Les balles s'arrêtent au battant (d.slab), plus à l'entrée du carreau de la porte.
+const inSlab = (d, x, z) => !d.slab || (x >= d.slab.x0 && x <= d.slab.x1 && z >= d.slab.z0 && z <= d.slab.z1);
 const doorMat = (d) => (d.kind === 'steel' || d.kind === 'bars' ? 'metal' : d.kind === 'rubble' ? 'concrete' : 'wood');
 function edgeSolid(x, y, z, tx, tz, phys) {
   const fx = x - tx * TILE, fz = z - tz * TILE, T = EDGE_T + 0.02;
@@ -1848,7 +1880,12 @@ function rayProps(o, d, maxDist) {
   for (const b of MAP.props) {
     if (b.off || b.noRay) continue;
     let t0 = 0, t1 = bd, nAxis = -1, nSign = 0;
-    const lo = [b.x0, b.y0 || 0, b.z0], hi = [b.x1, b.y1, b.z1], oo = [o.x, o.y, o.z], dd = [d.x, d.y, d.z];
+    if (b.rad) { const t = rayCyl(o, d, b, bd); if (t !== null) { bd = t; best = b; best._n = [-2, 0]; } continue; }
+    const q = b.rot, lo = _rlo, hi = _rhi, oo = _roo, dd = _rdd;
+    // (boîte tournée : rayon ramené dans le repère de la boîte, voir collideRot)
+    if (q) { const wx = o.x - q.cx, wz = o.z - q.cz; lo[0] = -q.hw; lo[2] = -q.hd; hi[0] = q.hw; hi[2] = q.hd; oo[0] = q.c * wx - q.s * wz; oo[2] = q.s * wx + q.c * wz; dd[0] = q.c * d.x - q.s * d.z; dd[2] = q.s * d.x + q.c * d.z; }
+    else { lo[0] = b.x0; lo[2] = b.z0; hi[0] = b.x1; hi[2] = b.z1; oo[0] = o.x; oo[2] = o.z; dd[0] = d.x; dd[2] = d.z; }
+    lo[1] = b.y0 || 0; hi[1] = b.y1; oo[1] = o.y; dd[1] = d.y;
     let ok = true;
     for (let a = 0; a < 3; a++) {
       if (Math.abs(dd[a]) < 1e-8) { if (oo[a] < lo[a] || oo[a] > hi[a]) { ok = false; break; } continue; }
@@ -1860,12 +1897,35 @@ function rayProps(o, d, maxDist) {
   if (!best) return null;
   _rh.dist = bd; _rh.point.set(o.x + d.x * bd, o.y + d.y * bd, o.z + d.z * bd); _rh.mat = best.mat || 'wood'; _rh.prop = best;
   _rh.normal.set(0, 0, 0); if (best._n[0] >= 0) _rh.normal.setComponent(best._n[0], best._n[1]);
+  const q = best.rot; if (q && best._n[0] !== 1) { const lx = _rh.normal.x, lz = _rh.normal.z; _rh.normal.set(q.c * lx + q.s * lz, 0, -q.s * lx + q.c * lz); }
+  if (best._n[0] === -2) { // cylindre : normale du couvercle ou du flanc
+    const y = _rh.point.y; if (y > best.y1 - 1e-4) _rh.normal.set(0, 1, 0); else if (y < (best.y0 || 0) + 1e-4) _rh.normal.set(0, -1, 0);
+    else _rh.normal.set(_rh.point.x - (best.x0 + best.x1) / 2, 0, _rh.point.z - (best.z0 + best.z1) / 2).normalize();
+  }
   return _rh;
 }
+// Entrée d'un rayon dans un cylindre debout (b.rad), avant maxDist ; null s'il le manque ou part de dedans.
+function rayCyl(o, d, b, maxDist) {
+  const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, ox = o.x - cx, oz = o.z - cz, r2 = b.rad * b.rad;
+  let t0 = 0, t1 = maxDist;
+  const a = d.x * d.x + d.z * d.z, bb = ox * d.x + oz * d.z, c = ox * ox + oz * oz - r2;
+  if (a < 1e-10) { if (c > 0) return null; }
+  else { const disc = bb * bb - a * c; if (disc < 0) return null; const s = Math.sqrt(disc); t0 = Math.max(t0, (-bb - s) / a); t1 = Math.min(t1, (-bb + s) / a); }
+  const y0 = b.y0 || 0;
+  if (Math.abs(d.y) < 1e-8) { if (o.y < y0 || o.y > b.y1) return null; }
+  else { let ta = (y0 - o.y) / d.y, tb = (b.y1 - o.y) / d.y; if (ta > tb) [ta, tb] = [tb, ta]; t0 = Math.max(t0, ta); t1 = Math.min(t1, tb); }
+  return t0 <= t1 && t0 > 0 && t0 < maxDist ? t0 : null;
+}
+const _rlo = [0, 0, 0], _rhi = [0, 0, 0], _roo = [0, 0, 0], _rdd = [0, 0, 0];
 // Hauteur d'appui (caisses, banquettes) sous un cercle.
 function propSupport(p, r, y, step) {
   let g = M.floorH ? M.floorH(p.x, p.z) : 0;
-  for (const b of MAP.props) { if (b.off || b.y1 > y + step || b.y1 <= g) continue; if (p.x + r * 0.5 < b.x0 || p.x - r * 0.5 > b.x1 || p.z + r * 0.5 < b.z0 || p.z - r * 0.5 > b.z1) continue; g = b.y1; }
+  for (const b of MAP.props) {
+    if (b.off || b.y1 > y + step || b.y1 <= g) continue; if (p.x + r * 0.5 < b.x0 || p.x - r * 0.5 > b.x1 || p.z + r * 0.5 < b.z0 || p.z - r * 0.5 > b.z1) continue;
+    const q = b.rot; if (q) { const wx = p.x - q.cx, wz = p.z - q.cz; if (Math.abs(q.c * wx - q.s * wz) > q.hw + r * 0.5 || Math.abs(q.s * wx + q.c * wz) > q.hd + r * 0.5) continue; }
+    if (b.rad && Math.hypot(p.x - (b.x0 + b.x1) / 2, p.z - (b.z0 + b.z1) / 2) > b.rad + r * 0.5) continue;
+    g = b.y1;
+  }
   return g;
 }
 function lineClear(a, b) { _v3.subVectors(b, a); const L = _v3.length(); if (L < 0.01) return true; _v3.divideScalar(L); const h = rayWorld(a, _v3, L); return !h; }
@@ -2339,8 +2399,19 @@ function meterInstHook(m) {
   m.customProgramCacheKey = () => key + '|mu';
 }
 function collider(x0, z0, x1, z1, y1, mat = 'wood', y0 = 0) { MAP.props.push({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1), y0, y1, mat }); }
-// Collision d'une boîte tournée autour de Y (approximée par son enveloppe).
-function colliderBox(x, z, w, d, ry, h, mat) { const c = Math.abs(Math.cos(ry)), s = Math.abs(Math.sin(ry)); const hw = (w * c + d * s) / 2, hd = (w * s + d * c) / 2; collider(x - hw, z - hd, x + hw, z + hd, h, mat); }
+// Collision d'une boîte tournée autour de Y : centre (x, z), côtés w (axe x local) et d (axe z local), hauteur h.
+function colliderBox(x, z, w, d, ry, h, mat) { const b = { y0: 0, y1: h, mat }; MAP.props.push(propBox(b, x, z, w, d, ry)); return b; }
+// Collision d'un cylindre debout (fût, poubelle, piscine ronde) : centre (x, z), rayon r, hauteur h.
+function colliderCyl(x, z, r, h, mat) { const b = { x0: x - r, x1: x + r, z0: z - r, z1: z + r, y0: 0, y1: h, mat, rad: r }; MAP.props.push(b); return b; }
+// Place (ou déplace) une boîte d'obstacle tournée. x0..z1 restent son enveloppe alignée sur les axes (tri rapide,
+// tests grossiers) ; la vraie boîte (rot : centre, demi-côtés, cosinus et sinus) sert aux collisions, aux rayons et
+// aux appuis (03_map.js). Un quart de tour près, l'enveloppe est exacte et rot reste vide.
+function propBox(b, x, z, w, d, ry) {
+  const c = Math.cos(ry), s = Math.sin(ry), ac = Math.abs(c), as = Math.abs(s), ex = (w * ac + d * as) / 2, ez = (w * as + d * ac) / 2;
+  Object.assign(b, { x0: x - ex, x1: x + ex, z0: z - ez, z1: z + ez });
+  b.rot = ac < 1e-3 || as < 1e-3 ? null : { cx: x, cz: z, hw: w / 2, hd: d / 2, c, s };
+  return b;
+}
 
 // Sac de sable : boîte bombée.
 function sandbagGeo() {
@@ -2711,6 +2782,10 @@ function buildDoors() {
   for (const d of MAP.doors) {
     const g = new THREE.Group(), cx = tcx(d.x), cz = tcx(d.z); g.userData.dynamic = true;
     g.position.set(cx, 0, cz); g.rotation.y = d.axis === 'x' ? Math.PI / 2 : 0; R.scene.add(g);
+    // Battant pour le joueur (03_map.js pBlockedP) : boîte mince au milieu du carreau, épaisse pour un amas ; absente porte ouverte.
+    const th = d.kind === 'debris' || d.kind === 'rubble' ? 0.6 : 0.15, ax = d.axis === 'x';
+    d.slab = { x0: cx - (ax ? th : 1), x1: cx + (ax ? th : 1), z0: cz - (ax ? 1 : th), z1: cz + (ax ? 1 : th), y0: 0, y1: WALL_H, mat: doorMat(d), noRay: true, tag: 'porte' };
+    Object.defineProperty(d.slab, 'off', { get: () => d.open, enumerable: true }); MAP.props.push(d.slab);
     const leaf = new THREE.Group(); g.add(leaf);
     const H = WALL_H - 0.1;
     if (d.kind === 'steel') {
@@ -4020,10 +4095,12 @@ function buildInteractables() {
 }
 
 /* ─── Mobilier et détails ─── */
-function crate(x, z, ry = 0, s = 1, y = 0) { const m = mesh(boxG(0.8 * s, 0.55 * s, 0.55 * s), MATS.crate, x, y + 0.275 * s, z, ry); if (y === 0) colliderBox(x, z, 0.8 * s, 0.55 * s, ry, 0.55 * s, 'wood'); return m; }
+// (caisse empilée, y > 0 : sa boîte commence à sa hauteur de pose ; on ne la traverse plus, les balles non plus)
+function crate(x, z, ry = 0, s = 1, y = 0) { const m = mesh(boxG(0.8 * s, 0.55 * s, 0.55 * s), MATS.crate, x, y + 0.275 * s, z, ry); if (y === 0) colliderBox(x, z, 0.8 * s, 0.55 * s, ry, 0.55 * s, 'wood'); else MAP.props.push(propBox({ y0: y, y1: y + 0.55 * s, mat: 'wood' }, x, z, 0.8 * s, 0.55 * s, ry)); return m; }
 function barrel(x, z, mat = MATS.olive, tipped = false) {
-  const m = mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.88, 18), mat, x, tipped ? 0.29 : 0.44, z, rand(TAU));
-  if (tipped) { m.rotation.z = Math.PI / 2; } else collider(x - 0.3, z - 0.3, x + 0.3, z + 0.3, 0.9, 'metal');
+  const ry = rand(TAU), m = mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.88, 18), mat, x, tipped ? 0.29 : 0.44, z, ry);
+  // (couché : l'axe du fût, tourné d'un quart de tour autour de z puis de ry, suit l'axe x local de colliderBox)
+  if (tipped) { m.rotation.z = Math.PI / 2; colliderBox(x, z, 0.88, 0.58, ry, 0.58, 'metal'); } else colliderCyl(x, z, 0.3, 0.9, 'metal');
   for (const y of [-0.3, 0.3]) { const r = mesh(new THREE.TorusGeometry(0.295, 0.015, 6, 20), MATS.iron, 0, y, 0, 0, m, false); r.rotation.x = Math.PI / 2; }
   return m;
 }
@@ -4062,8 +4139,10 @@ function buildProps() {
   mesh(boxG(3.5, 0.45, 0.7), rawWood(), 55.95, 0.225, 8.35); collider(54.2, 8, 57.7, 8.7, 0.45, 'wood');
   mesh(boxG(3.6, 0.45, 0.7), rawWood(), 29.8, 0.225, 8.35); collider(28.0, 8, 31.6, 8.7, 0.45, 'wood'); // dégagé de la sortie de la barricade voisine
   { const g = new THREE.Group(); g.position.set(56.7, 0.45, 8.4); R.scene.add(g);
-    for (const a of [0, 2.1, 4.2]) { const leg = mesh(boxG(0.04, 0.9, 0.04), MATS.iron, Math.sin(a) * 0.25, 0.4, Math.cos(a) * 0.25, 0, g); leg.rotation.x = Math.cos(a) * 0.4; leg.rotation.z = -Math.sin(a) * 0.4; }
-    const gun = new THREE.Group(); gun.position.set(0, 0.95, 0); gun.rotation.set(0.08, 0.1, 0); g.add(gun);
+    // trépied : pieds écartés sur la banquette (z 8,1 à 8,7), têtes réunies sous l'arme
+    for (const a of [1.05, 3.15, 5.25]) { const leg = mesh(boxG(0.04, 0.9, 0.04), MATS.iron, Math.sin(a) * 0.15, 0.4, Math.cos(a) * 0.15, 0, g); leg.rotation.x = -Math.cos(a) * 0.33; leg.rotation.z = Math.sin(a) * 0.33; }
+    // au repos le long de la banquette, canon vers l'ouest (pointée au nord, il entrerait dans le parapet)
+    const gun = new THREE.Group(); gun.position.set(0, 0.95, 0); gun.rotation.order = 'YXZ'; gun.rotation.set(0.08, 0.1 + Math.PI / 2, 0); g.add(gun);
     mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9, 12), MATS.olive, 0, 0, -0.3, 0, gun).rotation.x = Math.PI / 2;
     mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 8), MATS.iron, 0, 0.02, -0.95, 0, gun).rotation.x = Math.PI / 2;
     mesh(boxG(0.14, 0.18, 0.5), MATS.iron, 0, 0.02, 0.28, 0, gun);
@@ -4114,7 +4193,7 @@ function buildProps() {
   poster(16, 1.5, 26.05, 0, 'SILENCE', 'L\'ENNEMI\nÉCOUTE', '#c9b48a');
   poster(21, 1.45, 26.05, 0, 'TENIR', 'CHAQUE MÈTRE\nCOMPTE', '#b9a37c');
   poster(27.95, 1.5, 33, -Math.PI / 2, 'MASQUE', 'TOUJOURS\nÀ PORTÉE', '#a8b08a');
-  crate(27.2, 37.3, 0.2); crate(26.6, 37.35, -0.1, 0.8, 0.55);
+  crate(27.2, 37.3, 0.2); crate(27.15, 37.3, -0.1, 0.8, 0.55); // petite caisse posée sur la grande (pas en porte-à-faux)
   for (let k = 0; k < 3; k++) mesh(new THREE.SphereGeometry(0.12, 10, 8), MATS.olive, 12 + k * 0.4, 1.7, 26.15);
 
   // ── Zone C : dépôt du générateur ──
@@ -4134,9 +4213,10 @@ function buildProps() {
   crate(60.6, 30, 0.2); crate(63.4, 44, -0.1); barrel(60.5, 36.5, MATS.olive);
   { const s = new THREE.Group(); s.position.set(63.3, 0, 31.9); R.scene.add(s);
     for (const o of [-0.25, 0.25]) mesh(boxG(0.05, 0.05, 2.1), rawPost(), o, 0.3, 0, 0, s); mesh(boxG(0.5, 0.03, 1.8), MATS.cloth, 0, 0.33, 0, 0, s);
+    for (const o of [-0.25, 0.25]) for (const c of [-0.85, 0.85]) mesh(boxG(0.05, 0.28, 0.05), rawPost(), o, 0.14, c, 0, s); // pieds : le brancard ne flotte plus
     collider(63.0, 30.8, 63.6, 33.0, 0.4, 'wood'); }
   signPost(61, 26.6, 0, ['SOUTIEN EST', 'SAPE →']);
-  poster(64.05, 1.5, 39, Math.PI / 2, 'VIGILANCE', 'LA NUIT\nNE DORT PAS', '#c2b089');
+  poster(65, 1.5, 41.91, Math.PI, 'VIGILANCE', 'LA NUIT\nNE DORT PAS', '#c2b089'); // mur sud de la sape (l'abri est ouvert côté tranchée)
 }
 
 /* ─── No man's land et arrière ─── */
@@ -4238,13 +4318,15 @@ const KIT = {
   spots: /spots/.test(location.search) ? [] : null,
   g(x, z, ry = 0, y = 0, parent = R.scene) {
     const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; parent.add(g);
-    if (KIT.spots && parent === R.scene) KIT.spots.push({ x, z, ry, y, fn: (new Error().stack.split('\n')[2] || '').trim().split(' ')[1] });
+    // (g : le groupe lui-même, non énumérable pour que les tests qui renvoient les entrées ne sérialisent pas la scène ; dev/placement.mjs)
+    if (KIT.spots && parent === R.scene) KIT.spots.push(Object.defineProperty({ x, z, ry, y, fn: (new Error().stack.split('\n')[2] || '').trim().split(' ')[1] }, 'g', { value: g }));
     return g;
   },
   b(g, x, y, z, w, h, d, mat, ry = 0, shadow = true) { return mesh(boxG(w, h, d), mat, x, y, z, ry, g, shadow); },
   c(g, x, y, z, r0, r1, h, mat, seg = 12, shadow = true) { return mesh(new THREE.CylinderGeometry(r0, r1, h, seg), mat, x, y, z, 0, g, shadow); },
   s(g, x, y, z, r, mat, sx = 1, sy = 1, sz = 1) { const m = mesh(new THREE.SphereGeometry(r, 14, 10), mat, x, y, z, 0, g); m.scale.set(sx, sy, sz); return m; },
-  solid(g, w, d, h, mat = 'wood', ox = 0, oz = 0) { g.updateMatrixWorld(true); const p = new THREE.Vector3(ox, 0, oz).applyMatrix4(g.matrixWorld); colliderBox(p.x, p.z, w, d, g.rotation.y, h, mat); },
+  // (cap dans le monde, lu sur l'axe z du groupe : juste aussi pour un groupe posé dans un autre groupe tourné, ou penché)
+  solid(g, w, d, h, mat = 'wood', ox = 0, oz = 0) { g.updateMatrixWorld(true); const p = new THREE.Vector3(ox, 0, oz).applyMatrix4(g.matrixWorld), e = g.matrixWorld.elements; return colliderBox(p.x, p.z, w, d, Math.atan2(e[8], e[10]), h, mat); },
   glow(g, x, y, z, color, size = 1, opacity = 0.8) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.sprites.glow, color, blending: THREE.AdditiveBlending, depthWrite: false, opacity })); s.scale.set(size, size, 1); s.position.set(x, y, z); g.add(s); return s; },
 };
 const KM = {}; // matières partagées de la trousse
@@ -4281,6 +4363,7 @@ function kArmchair(x, z, ry, fab) {
   const k = kitMats(), g = KIT.g(x, z, ry), f = fab || k.fabricMustard;
   KIT.b(g, 0, 0.25, 0, 0.85, 0.3, 0.85, f); KIT.b(g, 0, 0.65, -0.34, 0.85, 0.7, 0.18, f);
   for (const s of [-1, 1]) KIT.b(g, s * 0.36, 0.45, 0, 0.14, 0.45, 0.85, f);
+  for (const [a, b] of [[-0.36, -0.36], [0.36, -0.36], [-0.36, 0.36], [0.36, 0.36]]) KIT.c(g, a, 0.05, b, 0.025, 0.02, 0.1, k.woodDark, 6); // pieds (comme le canapé)
   KIT.solid(g, 0.85, 0.85, 0.8, 'wood'); return g;
 }
 function kTable(x, z, ry, w = 1.6, d = 0.9, h = 0.76, top) {
@@ -4300,7 +4383,6 @@ function kCounter(x, z, ry, len = 3, color = 0xe9e4d6, top = 0xc23b3b) {
   const k = kitMats(), g = KIT.g(x, z, ry), body = fmat('email', color, { rough: 0.4 }), tp = fmat('email', top, { rough: 0.35 });
   KIT.b(g, 0, 0.44, 0, len, 0.88, 0.62, body); KIT.b(g, 0, 0.91, 0.02, len + 0.04, 0.05, 0.68, tp);
   for (let i = 0; i < Math.floor(len / 0.6); i++) { KIT.b(g, -len / 2 + 0.3 + i * 0.6, 0.5, 0.315, 0.52, 0.7, 0.02, fmat('email', 0xdcd6c6, { rough: 0.4 })); KIT.b(g, -len / 2 + 0.3 + i * 0.6, 0.78, 0.33, 0.14, 0.02, 0.02, KM.chrome); }
-  KIT.b(g, 0, 1.55, -0.2, len, 0.6, 0.34, body); // placards hauts
   KIT.solid(g, len, 0.66, 0.95, 'wood'); return g;
 }
 function kFridge(x, z, ry, color = 0xe8e2d0) {
@@ -4333,7 +4415,8 @@ function kLamp(x, z, ry, lit = true) {
 function kBed(x, z, ry, fab) {
   const k = kitMats(), g = KIT.g(x, z, ry), f = fab || k.fabricRed;
   KIT.b(g, 0, 0.25, 0, 1.5, 0.3, 2.1, k.woodDark); KIT.b(g, 0, 0.48, 0.05, 1.45, 0.18, 1.95, k.linen); KIT.b(g, 0, 0.56, 0.3, 1.47, 0.08, 1.4, f);
-  KIT.b(g, 0, 0.62, -0.75, 1.2, 0.14, 0.35, k.linen); KIT.b(g, 0, 0.75, -1.03, 1.55, 1.0, 0.07, k.woodDark);
+  KIT.b(g, 0, 0.62, -0.75, 1.2, 0.14, 0.35, k.linen); KIT.b(g, 0, 0.65, -1.03, 1.55, 1.3, 0.07, k.woodDark); // tête de lit posée au sol
+  for (const [a, b] of [[-0.68, -0.9], [0.68, -0.9], [-0.68, 0.98], [0.68, 0.98]]) KIT.b(g, a, 0.05, b, 0.08, 0.1, 0.08, k.woodDark); // pieds
   KIT.solid(g, 1.5, 2.1, 0.6, 'wood'); return g;
 }
 function kDresser(x, z, ry, w = 1.2) {
@@ -4376,7 +4459,7 @@ function kLampPost(x, z, ry, light = null) {
 }
 function kHydrant(x, z) { const g = KIT.g(x, z, rand(TAU)), m = fmat('tole', 0xc23a2a, { rough: 0.5 }); KIT.c(g, 0, 0.3, 0, 0.12, 0.14, 0.6, m, 10); KIT.s(g, 0, 0.6, 0, 0.13, m, 1, 0.7, 1); const n = KIT.c(g, 0, 0.42, 0, 0.05, 0.05, 0.4, m, 8); n.rotation.z = Math.PI / 2; colliderBox(x, z, 0.3, 0.3, 0, 0.7, 'metal'); return g; }
 function kMailbox(x, z, ry, color = 0x2e5a8a) { const g = KIT.g(x, z, ry), m = fmat('tole', color, { rough: 0.4 }); KIT.b(g, 0, 0.55, 0, 0.08, 1.1, 0.08, fmat('boisPeint', 0x4e3526)); KIT.b(g, 0, 1.18, 0, 0.26, 0.24, 0.5, m); const f = KIT.b(g, 0.15, 1.3, 0.1, 0.02, 0.2, 0.06, fmat('tole', 0xc23a2a, { rough: 0.4 })); return g; }
-function kTrash(x, z) { const g = KIT.g(x, z, rand(TAU)), m = fmat('galva', 0xb8bcbe, { rough: 0.55, metal: 0.6 }); /* poubelle en tôle galvanisée ondulée */ KIT.c(g, 0, 0.45, 0, 0.28, 0.25, 0.9, m, 12); KIT.c(g, 0, 0.93, 0, 0.3, 0.3, 0.06, m, 12); colliderBox(x, z, 0.6, 0.6, 0, 0.95, 'metal'); return g; }
+function kTrash(x, z) { const g = KIT.g(x, z, rand(TAU)), m = fmat('galva', 0xb8bcbe, { rough: 0.55, metal: 0.6 }); /* poubelle en tôle galvanisée ondulée */ KIT.c(g, 0, 0.45, 0, 0.28, 0.25, 0.9, m, 12); KIT.c(g, 0, 0.93, 0, 0.3, 0.3, 0.06, m, 12); colliderCyl(x, z, 0.3, 0.95, 'metal'); return g; }
 function kCone(x, z) { const g = KIT.g(x, z, rand(TAU)); KIT.b(g, 0, 0.02, 0, 0.36, 0.04, 0.36, KIT.m(0x1b1b1b)); KIT.c(g, 0, 0.3, 0, 0.03, 0.15, 0.56, KIT.m(0xff6a1a, { rough: 0.5 }), 10); return g; }
 function kSign(x, z, ry, lines, bg = '#e8e2d0', color = '#1a1a1a', h = 2.2) { const g = KIT.g(x, z, ry); KIT.c(g, 0, h / 2, 0, 0.035, 0.035, h, kitMats().steel, 6); const s = mesh(new THREE.PlaneGeometry(0.9, 0.5), new THREE.MeshStandardMaterial({ map: woodSign(lines, { w: 256, h: 140, bg, color }), roughness: 0.6, side: THREE.DoubleSide }), 0, h, 0.04, 0, g, false); return g; }
 function kStopSign(x, z, ry) { const g = KIT.g(x, z, ry); KIT.c(g, 0, 1.1, 0, 0.035, 0.035, 2.2, kitMats().steel, 6); const t = textTexture(128, 128, (c) => { c.fillStyle = '#b8261e'; c.beginPath(); for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU + TAU / 16; c.lineTo(64 + Math.cos(a) * 62, 64 + Math.sin(a) * 62); } c.fill(); c.fillStyle = '#fff'; c.font = font(38); c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('STOP', 64, 66); }); const s = mesh(new THREE.CircleGeometry(0.34, 8), new THREE.MeshStandardMaterial({ map: t, roughness: 0.5, side: THREE.DoubleSide }), 0, 2.2, 0.04, 0, g, false); s.rotation.z = TAU / 16; return g; }
@@ -4384,17 +4467,18 @@ function kBench(x, z, ry) { const k = kitMats(), g = KIT.g(x, z, ry); for (let i
 
 /* ─── Jardins ─── */
 function kSwing(x, z, ry) { const k = kitMats(), g = KIT.g(x, z, ry), m = fmat('tole', 0xb8372c, { rough: 0.5, metal: 0.4 });
-  for (const s of [-1, 1]) for (const t of [-1, 1]) { const l = KIT.c(g, s * 1.3 + t * 0.35, 1.1, 0, 0.04, 0.04, 2.35, m, 6); l.rotation.z = -t * 0.3; }
+  for (const s of [-1, 1]) for (const t of [-1, 1]) { const l = KIT.c(g, s * 1.3, 1.1, t * 0.35, 0.04, 0.04, 2.31, m, 6); l.rotation.x = -t * 0.308; } // portique en A : pieds à ±0,7 m de la barre
   const bar = KIT.c(g, 0, 2.2, 0, 0.05, 0.05, 2.7, m, 8); bar.rotation.z = Math.PI / 2;
   for (const o of [-0.6, 0.5]) { for (const s of [-0.22, 0.22]) KIT.c(g, o + s, 1.45, 0, 0.008, 0.008, 1.5, k.steel, 4); KIT.b(g, o, 0.7, 0, 0.5, 0.04, 0.2, k.black); }
-  colliderBox(x, z, 3.2, 0.5, ry, 2.2, 'metal'); return g; }
-function kGrill(x, z, ry) { const k = kitMats(), g = KIT.g(x, z, ry); const b = KIT.s(g, 0, 0.8, 0, 0.3, k.iron, 1, 0.6, 1); for (let i = 0; i < 3; i++) { const l = KIT.c(g, Math.cos(i * 2.1) * 0.18, 0.38, Math.sin(i * 2.1) * 0.18, 0.02, 0.02, 0.8, k.black, 6); l.rotation.z = Math.cos(i * 2.1) * 0.2; l.rotation.x = -Math.sin(i * 2.1) * 0.2; } KIT.c(g, 0, 1.0, 0, 0.3, 0.3, 0.02, k.steel, 14); colliderBox(x, z, 0.6, 0.6, 0, 1, 'metal'); return g; }
+  for (const s of [-1, 1]) KIT.solid(g, 0.15, 1.5, 2.2, 'metal', s * 1.3, 0); // les deux portiques ; on passe entre eux, sous la barre
+  return g; }
+function kGrill(x, z, ry) { const k = kitMats(), g = KIT.g(x, z, ry); const b = KIT.s(g, 0, 0.8, 0, 0.3, k.iron, 1, 0.6, 1); for (let i = 0; i < 3; i++) { const l = KIT.c(g, Math.cos(i * 2.1) * 0.18, 0.38, Math.sin(i * 2.1) * 0.18, 0.02, 0.02, 0.8, k.black, 6); l.rotation.z = Math.cos(i * 2.1) * 0.2; l.rotation.x = -Math.sin(i * 2.1) * 0.2; } KIT.c(g, 0, 1.0, 0, 0.3, 0.3, 0.02, k.steel, 14); colliderCyl(x, z, 0.3, 1, 'metal'); return g; }
 function kPicnic(x, z, ry) { const g = KIT.g(x, z, ry), pl = fmat('boisBrut', 0xc49a6c), ft = fmat('boisBrut', 0x8a6446); KIT.b(g, 0, 0.75, 0, 1.8, 0.05, 0.8, pl); for (const s of [-1, 1]) { KIT.b(g, 0, 0.45, s * 0.65, 1.8, 0.05, 0.3, pl); for (const t of [-1, 1]) { const l = KIT.b(g, t * 0.7, 0.38, s * 0.3, 0.06, 0.8, 0.06, ft); l.rotation.x = s * 0.5; } } KIT.solid(g, 1.8, 1.6, 0.8, 'wood'); return g; }
 function kDoghouse(x, z, ry, color = 0xb8372c) { const k = kitMats(), g = KIT.g(x, z, ry), m = fmat('siding', color); KIT.b(g, 0, 0.45, 0, 1.0, 0.9, 1.2, m); for (const s of [-1, 1]) { const r = KIT.b(g, s * 0.3, 1.12, 0, 0.72, 0.05, 1.3, fmat('shingle', 0x4a3a30)); r.rotation.z = -s * 0.7; } KIT.b(g, 0, 0.35, 0.61, 0.45, 0.55, 0.02, k.black, 0, false); KIT.solid(g, 1.0, 1.2, 1.3, 'wood'); return g; }
 function kClothesline(x, z, ry) { const k = kitMats(), g = KIT.g(x, z, ry); for (const s of [-1, 1]) { KIT.c(g, s * 2, 1.0, 0, 0.04, 0.04, 2.0, k.steel, 6); KIT.b(g, s * 2, 1.95, 0, 0.05, 0.05, 0.9, k.steel); } for (const o of [-0.3, 0.3]) KIT.b(g, 0, 1.93, o, 4, 0.01, 0.01, k.white, 0, false); const cols = [0xe8e2d0, 0x6fa8c8, 0xd77a8a, 0xe8d28a]; for (let i = 0; i < 5; i++) { const c = mesh(new THREE.PlaneGeometry(0.55, 0.7), fmat('toile', cols[i % 4], { rough: 1, side: THREE.DoubleSide }), -1.5 + i * 0.75, 1.55, i % 2 ? 0.3 : -0.3, 0, g, true); c.rotation.z = rand(-0.05, 0.05); } return g; }
-function kPool(x, z, r = 1.4) { const g = KIT.g(x, z, 0); const t = mesh(new THREE.TorusGeometry(r, 0.18, 10, 32), stdMat({ color: 0x5fb3d9, roughness: 0.4 }), 0, 0.18, 0, 0, g); t.rotation.x = Math.PI / 2; const w = mesh(new THREE.CircleGeometry(r, 32), new THREE.MeshStandardMaterial({ color: 0x3f8fae, roughness: 0.05, metalness: 0.3 }), 0, 0.2, 0, 0, g, false); w.rotation.x = -Math.PI / 2; colliderBox(x, z, r * 2, r * 2, 0, 0.36, 'wood'); return g; }
-function kShrub(x, z, s = 1, color = 0x4f7a3a) { const g = KIT.g(x, z, rand(TAU)), m = fmat('plain', color, { rough: 1 }); for (let i = 0; i < 4; i++) KIT.s(g, rand(-0.3, 0.3) * s, (0.35 + rand(0, 0.25)) * s, rand(-0.3, 0.3) * s, 0.42 * s, m, 1, 0.8, 1); return g; }
-function kTires(x, z, n = 3) { const g = KIT.g(x, z, rand(TAU)), k = kitMats(); for (let i = 0; i < n; i++) { const t = mesh(new THREE.TorusGeometry(0.34, 0.13, 8, 18), k.rubber, rand(-0.03, 0.03), 0.13 + i * 0.26, rand(-0.03, 0.03), 0, g); t.rotation.x = Math.PI / 2; } colliderBox(x, z, 0.95, 0.95, 0, n * 0.26, 'wood'); return g; }
+function kPool(x, z, r = 1.4) { const g = KIT.g(x, z, 0); const t = mesh(new THREE.TorusGeometry(r, 0.18, 10, 32), stdMat({ color: 0x5fb3d9, roughness: 0.4 }), 0, 0.18, 0, 0, g); t.rotation.x = Math.PI / 2; const w = mesh(new THREE.CircleGeometry(r, 32), new THREE.MeshStandardMaterial({ color: 0x3f8fae, roughness: 0.05, metalness: 0.3 }), 0, 0.2, 0, 0, g, false); w.rotation.x = -Math.PI / 2; colliderCyl(x, z, r + 0.18, 0.36, 'wood'); return g; }
+function kShrub(x, z, s = 1, color = 0x4f7a3a) { const g = KIT.g(x, z, rand(TAU)), m = fmat('plain', color, { rough: 1 }); for (let i = 0; i < 4; i++) KIT.s(g, rand(-0.3, 0.3) * s, (0.26 + rand(0, 0.07)) * s, rand(-0.3, 0.3) * s, 0.42 * s, m, 1, 0.8, 1); return g; } // (demi-hauteur 0,336 : le bas des boules touche le sol)
+function kTires(x, z, n = 3) { const g = KIT.g(x, z, rand(TAU)), k = kitMats(); for (let i = 0; i < n; i++) { const t = mesh(new THREE.TorusGeometry(0.34, 0.13, 8, 18), k.rubber, rand(-0.03, 0.03), 0.13 + i * 0.26, rand(-0.03, 0.03), 0, g); t.rotation.x = Math.PI / 2; } colliderCyl(x, z, 0.47, n * 0.26, 'wood'); return g; }
 
 /* ─── Mannequins : silhouettes lisses et sans visage (tête détachable) ─── */
 let MANNE_MAT = null;
@@ -4423,7 +4507,8 @@ function kMannequin(x, z, ry, { pose = 'stand', cloth = null, y = 0, head = true
   let hd = null;
   if (head) { hd = mesh(new THREE.SphereGeometry(0.12, 16, 12), M0, 0, hipY + 1.0, 0, 0, g); hd.scale.set(0.9, 1.12, 1); hd.userData.dynamic = true; }
   if (!sit) KIT.c(g, 0, 0.02, 0.18, 0.2, 0.2, 0.03, kitMats().steel, 16); // socle
-  colliderBox(x, z, 0.5, 0.5, 0, sit ? 1.3 : 1.9, 'wood');
+  // Collision à la taille du corps, tournée avec lui : debout, épaules et socle ; assis, du dos aux tibias.
+  if (sit) KIT.solid(g, 0.55, 0.7, 1.3 + y, 'wood', 0, 0.2); else KIT.solid(g, 0.62, 0.5, 1.9 + y, 'wood', 0, 0.13);
   return { g, head: hd };
 }
 
@@ -4630,7 +4715,10 @@ function kTruck(x, z, ry, label = 'DÉMÉNAGEMENTS') {
   for (const [a, s] of [[4.3, 1], [-2.8, 1], [4.3, -1], [-2.8, -1]]) vWheel(g, a, 0.52, s * 1.08, 0.52, 0.32, V, s, true);
   for (const s of [-1, 1]) vWheel(g, -2.8, 0.52, s * 0.78, 0.52, 0.28, V, s, false);
   vPlate(g, -4.36, 0.62, 0, -Math.PI / 2, 'TR-1957');
-  KIT.solid(g, 9.4, 2.5, 3.4, 'metal', -0.2, 0); return g;
+  // Collisions : caisse, cabine (plus étroite), et les deux vantaux ouverts ; la rampe basse reste franchissable.
+  KIT.solid(g, 6.65, 2.56, 3.4, 'metal', -0.95, 0); KIT.solid(g, 3.0, 2.36, 2.75, 'metal', 4.05, 0);
+  for (const s of [-1, 1]) { const p = new THREE.Vector3(-4.3, 0, s * 1.95).applyMatrix4(g.matrixWorld); colliderBox(p.x, p.z, 0.1, 1.25, ry + s * 0.15, 2.9, 'metal'); }
+  return g;
 }
 
 
@@ -6700,12 +6788,12 @@ function updatePlayer(dt) {
   INPUT.jumpPressed = false;
   P.vel.y -= GRAVITY * dt;
   P.pos.x += P.vel.x * dt; P.pos.z += P.vel.z * dt; P.pos.y += P.vel.y * dt;
-  collideCircle(P.pos, P_RADIUS, pBlocked);
+  collideCircle(P.pos, P_RADIUS, pBlockedP);
   collideProps(P.pos, P_RADIUS, P.pos.y, 0.3);
   const ground = propSupport(P.pos, P_RADIUS, P.pos.y, 0.3);
   if (P.pos.y <= ground) { if (!P.onGround && P.vel.y < -3) { P.land = Math.min(1, -P.vel.y / 9); stepSound(1.4); } P.pos.y = ground; P.vel.y = 0; P.onGround = true; } else if (P.pos.y > ground + 0.05) P.onGround = false;
   // Filet de sécurité : jamais hors des tranchées.
-  if (!isTrench(tileOf(P.pos.x), tileOf(P.pos.z))) { const s = G.lastSafe || P.pos; P.pos.x = s.x; P.pos.z = s.z; } else G.lastSafe = P.pos.clone();
+  if (!playerTile(tileOf(P.pos.x), tileOf(P.pos.z))) { const s = G.lastSafe || P.pos; P.pos.x = s.x; P.pos.z = s.z; } else G.lastSafe = P.pos.clone();
 
   // Pas et balancement.
   const hv = Math.hypot(P.vel.x, P.vel.z);
@@ -7231,7 +7319,7 @@ const G = {
     this.flowT -= dt;
     if (this.flowT <= 0) {
       this.flowT = 0.25;
-      const src = []; for (const [, p] of this.players) if (!p.down && !p.dead && p.pos && !(p.zb > this.time)) src.push([tileOf(p.pos.x), tileOf(p.pos.z)]);
+      const src = []; for (const [, p] of this.players) if (!p.down && !p.dead && p.pos && !(p.zb > this.time)) src.push(flowTile(p.pos.x, p.pos.z));
       if (src.length) computeFlow(src);
     }
     for (const z of [...ZOMBIES]) if (!z.remote) z.think(dt, this);
@@ -8002,28 +8090,40 @@ function buildCraterProps() {
   mesh(boxG(0.7, 0.3, 0.6), MATS.char, -0.1, 0.6, 0, 0, body); // habitacle
   const cowl = mesh(new THREE.CylinderGeometry(0.5, 0.56, 0.7, 14), MATS.iron, 2.55, 0, 0, 0, body); cowl.rotation.z = Math.PI / 2;
   for (const [a, l] of [[0.3, 1.25], [0.3 + Math.PI, 0.55]]) { const b = mesh(boxG(0.06, l, 0.16), rawPost(), 2.95, Math.cos(a) * l * 0.5, Math.sin(a) * l * 0.5, 0, body); b.rotation.x = a; } // hélice (une pale cassée)
-  // Ailes arrachées à l'impact : l'inférieure gît à plat dans la neige (on marche dessus),
-  // la moitié de l'aile supérieure est restée appuyée contre la paroi est du cratère.
-  { const w = new THREE.Group(); w.position.set(45.0, fy(45.0, 36.2) - 0.12, 36.2); w.rotation.order = "YXZ"; w.rotation.y = 0.35; w.rotation.x = -0.125; // couchée dans la pente R.scene.add(w);
-    mesh(boxG(1.35, 0.08, 8.2), fabric, 0, 0, 0, 0, w, false);
-    for (const z of [-3.2, 3.2]) { const r = mesh(new THREE.PlaneGeometry(0.9, 0.9), roundel, 0, 0.05, z, 0, w, false); r.rotation.x = -Math.PI / 2; } }
+  // Ailes arrachées à l'impact : un tronçon de l'inférieure, cassé à l'emplanture, gît dans la pente au sud de l'épave
+  // (on marche dessus) ; la moitié de l'aile supérieure est restée appuyée contre la paroi est du cratère.
+  { const L = 4.6, cx = 45.3, cz = 35.6, yaw = -0.13, dx = Math.sin(yaw), dz = Math.cos(yaw); // envergure dans le sens de la pente, emplanture côté épave
+    // (une aile entière, 8,2 m, ne peut pas épouser le fond en cuvette : le tronçon prend les pentes du sol réel, à 4 cm près)
+    const sp = (fy(cx + dx * L / 2, cz + dz * L / 2) - fy(cx - dx * L / 2, cz - dz * L / 2)) / L, sc = (fy(cx + dz * 0.6, cz - dx * 0.6) - fy(cx - dz * 0.6, cz + dx * 0.6)) / 1.2;
+    const w = new THREE.Group(); w.position.set(cx, fy(cx, cz) + 0.035, cz); w.rotation.order = "YXZ"; w.rotation.set(-Math.atan(sp), yaw, Math.atan(sc)); R.scene.add(w);
+    mesh(boxG(1.35, 0.08, L), fabric, 0, 0, 0, 0, w, false);
+    const r = mesh(new THREE.PlaneGeometry(0.9, 0.9), roundel, 0, 0.05, L / 2 - 0.9, 0, w, false); r.rotation.x = -Math.PI / 2;
+    for (const x of [-0.35, 0.3]) mesh(boxG(0.06, 0.05, 0.42), rawPost(), x, 0, -L / 2 - 0.13, 0, w, false); } // longerons rompus à l'emplanture
   { const w = new THREE.Group(); w.position.set(53.25, 0, 30.3); R.scene.add(w);
-    const p = mesh(boxG(4.4, 0.1, 1.4), fabric, 0, 0, 0, 0, w); p.rotation.set(0, Math.PI / 2, 1.15); p.position.set(0.2, 0.95, 0);
-    const r = mesh(new THREE.PlaneGeometry(0.9, 0.9), roundel, 0, 0, 0, 0, w); r.position.set(0.14, 1.2, 1.1); r.rotation.set(0, -Math.PI / 2 + 0.42, 0);
-    for (const z of [-1.4, 1.4]) mesh(boxG(0.06, 1.4, 0.06), rawPost(), 0.45, 0.7, z, 0, w);
-    collider(52.55, 28.1, 54, 32.5, 1.9, 'wood'); } // plaquée contre la paroi : aucun recoin où rester coincé
+    // Envergure le long de la paroi, corde inclinée de 66° : bord bas dans la neige, bord haut contre la paroi (x 54).
+    const p = mesh(boxG(4.4, 0.1, 1.4), fabric, 0, 0, 0, 0, w); p.rotation.order = 'ZYX'; p.rotation.set(0, Math.PI / 2, 1.15); p.position.set(0.45, 0.68, 0);
+    const r = mesh(new THREE.PlaneGeometry(0.9, 0.9), roundel, 0, 0, 0, 0, w); r.rotation.order = 'ZYX'; r.rotation.set(0, -Math.PI / 2, -0.42); r.position.set(0.39, 0.71, 1.1); // cocarde sur l'extrados
+    collider(53.3, 28.1, 54, 32.5, 1.4, 'wood'); } // de l'aile à la paroi, trop haut pour y grimper
   mesh(boxG(0.95, 0.9, 0.06), fabric, -3.25, 0.5, 0, 0, body); // dérive
   mesh(boxG(0.8, 0.06, 2.4), fabric, -3.2, 0.12, 0, 0, body); // empennage
   const wheel = mesh(new THREE.TorusGeometry(0.34, 0.08, 8, 18), MATS.iron, 0, 0, 0, 0, g); wheel.position.set(3.4, 0.1, 1.9); wheel.rotation.x = Math.PI / 2 - 0.2; // roue arrachée
-  // Obstacles (boîtes le long du fuselage et de l'aile basse, en coordonnées du monde).
+  // Obstacles (boîtes le long du fuselage, en coordonnées du monde).
   g.updateMatrixWorld(true);
   // Un seul bloc convexe (fuselage, moteur, dérive) : les infectés en font le tour sans se coincer.
-  collider(45.4 - 3.45, 31.6 - 0.55, 45.4 + 3.05, 31.6 + 0.55, 1.5 + fy(45.4, 31.6), 'wood');
+  // De sous le nez planté (fond − 0,3) jusqu'au-dessus de l'habitacle et de l'hélice ; la dérive monte plus haut :
+  // depuis la queue, où le sol remonte, on ne grimpe plus sur l'épave. Ces deux boîtes laissent passer les tirs (noRay) :
+  // les balles butent sur des boîtes qui suivent la coque mesurée (queue et dérive, fuselage effilé, habitacle, avant calciné), à 15 cm près.
+  { const fh = fy(45.4, 31.6), y0 = fh - 0.3;
+    MAP.props.push({ x0: 45.4 - 3.45, x1: 45.4 + 3.05, z0: 31.6 - 0.55, z1: 31.6 + 0.55, y0, y1: fh + 1.5, mat: 'wood', noRay: true },
+      { x0: 45.4 - 3.45, x1: 45.4 - 2.65, z0: 31.6 - 0.55, z1: 31.6 + 0.55, y0, y1: fh + 2.05, mat: 'wood', noRay: true });
+    for (const [x0, x1, z0, z1, h] of [[41.95, 42.75, 31.45, 31.85, 2.05], [42.75, 43.9, 31.4, 31.85, 1.32], [43.9, 45.0, 31.3, 31.95, 1.2],
+      [45.0, 45.75, 31.25, 31.95, 1.42], [45.75, 47.0, 31.1, 32.1, 1.02], [47.0, 47.8, 31.1, 32.1, 0.94], [47.8, 48.45, 31.05, 32.15, 0.83]]) collider(x0, z0, x1, z1, fh + h, 'wood', y0); }
   // Le moteur brûle encore.
   const fire = _v1.set(2.45, 0.35, 0).applyMatrix4(body.matrixWorld);
   WORLD.fires.push({ x: fire.x, y: fire.y, z: fire.z, size: 0.9, rate: 0.04, t: 0, smoke: 0.1 });
   // Débris épars.
-  crate(40.4, 26.2, 0.4); crate(51.6, 37.4, -0.3, 0.9); barrel(41.2, 38.2, MATS.rust, true);
+  crate(40.4, 26.2, 0.4); crate(51.6, 37.4, -0.3, 0.9);
+  barrel(42.6, 38.4, MATS.rust, true); // fût couché à l'écart de l'arrivée de la barricade sud (x 40-42) : sa boîte n'y gêne plus les infectés
   // Téléphone de campagne (soutien d'artillerie).
   const s = wallSpot(SPOTS.mortar, 0.42), t = new THREE.Group(); t.position.set(s.x, 0, s.z); t.rotation.y = s.yaw; R.scene.add(t);
   mesh(boxG(0.8, 0.55, 0.55), MATS.crate, 0, 0.275, 0.05, 0, t); colliderBox(s.x, s.z, 0.8, 0.6, s.yaw, 0.55, 'wood');
@@ -8220,8 +8320,13 @@ function secretSpots() {
   const rnd = mulberry32(h), out = [], zones = new Set();
   const clear = (x, z) => { const cx = tcx(x), cz = tcx(z); for (const b of MAP.props) if (!b.off && b.x0 < cx + 0.6 && b.x1 > cx - 0.6 && b.z0 < cz + 0.6 && b.z1 > cz - 0.6) return false; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const t = tType(x + dx, z + dz); if (t === T_RAMP || t === T_DOOR) return false; } return true; };
   const cand = []; for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) { const i = ti(x, z); if (MAP.type[i] === T_FLOOR && clear(x, z) && Math.hypot(x - SPOTS.start[0], z - SPOTS.start[1]) > 4) cand.push(i); }
+  // Carreaux que le joueur peut atteindre depuis le départ (portes comptées ouvertes, murs fins et barreaux respectés) :
+  // un disque tiré ailleurs (cellule à barreaux sans porte du Filon) est sauté, sans changer les tirages des autres cartes.
+  const reach = new Uint8Array(MAP_W * MAP_D), q = [ti(SPOTS.start[0], SPOTS.start[1])]; reach[q[0]] = 1;
+  while (q.length) { const i = q.pop(), x = i % MAP_W, z = (i - x) / MAP_W; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = x + dx, b = z + dz; if (!inMap(a, b)) continue; const j = ti(a, b), t = MAP.type[j]; if (reach[j] || (t !== T_FLOOR && t !== T_DOOR) || edgeBlocked(x, z, a, b)) continue; reach[j] = 1; q.push(j); } }
   for (let tries = 0; tries < 400 && out.length < 3 && cand.length; tries++) {
     const i = cand[(rnd() * cand.length) | 0], zn = MAP.zone[i];
+    if (!reach[i]) continue;
     if (zones.has(zn) && tries < 300) continue; zones.add(zn); out.push(i);
   }
   return out;
@@ -9870,7 +9975,7 @@ setInterval(() => {
   while (el > 1e-3) { const dt = Math.min(0.05, el); G.update(dt); el -= dt; }
 }, 250);
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'playing' && !NET.active) pauseGame(); });
-window.SP = { PHOTO_SETS, KIT, meterize, ZREAL, GORE, buildGunModel, buildKnife, buildGrenadeModel, clipViewmodel, GM, PHOTO, MATS, GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
+window.SP = { PHOTO_SETS, KIT, meterize, ZREAL, GORE, collideCircle, collideProps, collideEdges, pBlocked, pBlockedP, playerTile, isTrench, solidAt, groundAt, tileOf, inMap, buildGunModel, buildKnife, buildGrenadeModel, clipViewmodel, GM, PHOTO, MATS, GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
   sim(sec, dt = 0.05) { for (let t = 0; t < sec; t += dt) { if (G.mode === 'playing' || (G.mode === 'paused' && NET.active)) { G.update(dt); if (G.mode === 'playing') updatePlayer(dt); NET.clientTick(dt); } updateFX(dt, performance.now() / 1000 + t); } } };
 
 
@@ -9945,7 +10050,7 @@ MAPS.poste7 = {
       { perk: 'reload', x: 15, z: 25, wall: 'e' },
       { perk: 'rof', x: 31, z: 26, wall: 'e' },
       { perk: 'mule', x: 19, z: 15, wall: 'w' },
-      { perk: 'deadshot', x: 28, z: 4, wall: 'n' },
+      { perk: 'deadshot', x: 28, z: 5, wall: 'e' }, // fond de l'alvéole 2, dégagé de la banquette et de la mitrailleuse
     ],
     power: { x: 5, z: 26, wall: 'w' },
     generator: { x: 14.6, z: 53.4, ry: 0 },
@@ -10137,8 +10242,9 @@ const CITE = (() => {
   const X = (lx) => (lx + OX) * TILE, CX = (lx) => (lx + OX) * TILE + TILE / 2; // bord et centre d'un carreau local
   return { OX, OZ, X, CX, T: (lx, lz) => [lx + OX, lz + OZ] };
 })();
-// Emplacements d'atterrissage des atouts (mètres, orientation de la façade).
-const CITE_PADS = [[11, 18.2, 0], [24, 16.5, Math.PI], [36.5, 34.5, Math.PI / 2], [13.5, 5.5, 0], [30, 38.5, 0], [8.2, 25.4, -Math.PI / 2], [4.2, 32, Math.PI], [32.5, 11.5, Math.PI], [26.5, 35, 0]]
+// Emplacements d'atterrissage des atouts (mètres, orientation de la façade) : tous sur le sol des joueurs, à découvert, face au passage,
+// à plus de 1,6 m de l'arrivée des barricades.
+const CITE_PADS = [[11, 18.2, 0], [24, 16.5, Math.PI], [36.5, 35.3, -Math.PI / 2], [13.5, 5.5, 0], [24, 36.3, Math.PI], [8.2, 24.5, 0], [7.2, 29.4, Math.PI], [35, 23.5, Math.PI], [26.5, 35, 0]]
   .map(([lx, lz, yaw]) => ({ x: CITE.X(lx), z: CITE.X(lz), yaw }));
 const CITE_STATE = { landed: [], heads: [], pop: 1954, lastPop: -1, dropT: 0, dropRound: 0, anims: [] };
 
@@ -10238,7 +10344,7 @@ MAPS.cite = {
     H(7, 24, 25, 'bunkerIn'); H(7, 27, 29, 'bunkerIn'); H(7, 31, 32, 'bunkerIn'); V(28, 3, 6, 'bunkerIn');
     // Station-service.
     H(24, 10, 15, 'stucco'); V(16, 24, 28, 'stucco'); V(10, 24, 25, 'stucco'); V(10, 27, 28, 'stucco'); V(10, 25, 25, 'stuccoWin'); V(10, 27, 27, 'stuccoWin'); H(24, 12, 12, 'stuccoWin'); H(24, 14, 14, 'stuccoWin');
-    V(10, 29, 29, 'stucco'); V(10, 31, 32, 'stucco'); H(33, 10, 11, 'stucco'); H(33, 13, 15, 'stucco'); V(16, 29, 32, 'stucco');
+    V(10, 29, 32, 'stucco'); H(33, 10, 11, 'stucco'); H(33, 13, 15, 'stucco'); V(16, 29, 32, 'stucco');
     H(29, 10, 12, 'stucco'); H(29, 14, 15, 'stucco');
 
     // Passages.
@@ -10254,10 +10360,10 @@ MAPS.cite = {
   spots: (() => {
     const T = CITE.T;
     return {
-      start: T(20, 18), startYaw: -Math.PI / 2,
-      coopStarts: [T(20, 18), T(20, 19), T(22, 18), T(22, 19)],
+      start: T(20, 19), startYaw: -Math.PI / 2, // (sur la chaussée, à l'écart du car)
+      coopStarts: [T(20, 19), T(20, 20), T(22, 19), T(22, 20)],
       wallBuys: [
-        { weapon: 'bolt', ...xz(T(17, 15)), wall: 'n' },
+        { weapon: 'bolt', ...xz(T(14, 15)), wall: 'n' }, // (sur le bardage, entre la fenêtre et la porte de garage)
         { weapon: 'shotgun', ...xz(T(14, 10)), wall: 'e' },
         { weapon: 'smg', ...xz(T(22, 24)), wall: 'w' },
         { weapon: 'carbine', ...xz(T(24, 9)), wall: 'w' },
@@ -10269,7 +10375,8 @@ MAPS.cite = {
       generator: { x: CITE.X(26) + 0.6, z: CITE.X(4) + 1.2, ry: Math.PI / 2 },
       box: [{ ...xz(T(12, 22)), wall: 's' }, { ...xz(T(4, 13)), wall: 'w' }, { ...xz(T(32, 5)), wall: 'e' }, { ...xz(T(22, 29)), wall: 'w' }, { ...xz(T(15, 27)), wall: 'e' }],
       bench: { ...xz(T(15, 31)), wall: 'e' },
-      groundSpawns: [T(5, 15), T(14, 16), T(31, 22), T(37, 18), T(37, 23), T(6, 2), T(16, 4), T(21, 35), T(33, 35), T(4, 27), T(26, 16)].map(([x, z]) => [x, z]),
+      // Sorties de terre (± 0,6 m autour du centre du carreau) : à l'écart de tout objet.
+      groundSpawns: [T(5, 15), T(15, 16), T(31, 22), T(38, 18), T(37, 23), T(6, 2), T(16, 4), T(21, 36), T(32, 33), T(4, 28), T(26, 16)].map(([x, z]) => [x, z]),
     };
     function xz([x, z]) { return { x, z }; }
   })(),
@@ -10342,7 +10449,7 @@ function citeLandPerk(key, padIdx, animate) {
   const face = [Math.sin(pad.yaw), Math.cos(pad.yaw)];
   p.group.position.set(pad.x, animate ? 48 : 0, pad.z); p.group.rotation.y = pad.yaw; p.group.visible = true;
   p.pos.set(pad.x, 1, pad.z); p.face = face;
-  if (p.col) { const c = Math.abs(Math.cos(pad.yaw)), s = Math.abs(Math.sin(pad.yaw)), hw = (0.92 * c + 0.66 * s) / 2, hd = (0.92 * s + 0.66 * c) / 2; Object.assign(p.col, { x0: pad.x - hw, x1: pad.x + hw, z0: pad.z - hd, z1: pad.z + hd, off: !!animate }); }
+  if (p.col) { propBox(p.col, pad.x, pad.z, 0.92, 0.66, pad.yaw); p.col.off = !!animate; } // (même boîte que perkMachine, 06_props.js)
   if (animate) { CITE_STATE.anims.push({ p, t: 0 }); Sfx.shellWhistle?.(_v1.set(pad.x, 0, pad.z), 1.2); }
 }
 function citeHost(dt) {
@@ -10353,7 +10460,7 @@ function citeHost(dt) {
     if (CITE_STATE.dropT > (G.round === 1 ? 6 : 4)) {
       CITE_STATE.dropT = 0; CITE_STATE.dropRound = G.round;
       const left = WORLD.perks.filter((p) => !p.landed).map((p) => p.key), key = left.includes('revive') ? 'revive' : pick(left);
-      const used = new Set(CITE_STATE.landed.map(([, i]) => i)), free = CITE_PADS.map((_, i) => i).filter((i) => !used.has(i));
+      const used = new Set(CITE_STATE.landed.map(([, i]) => i)), free = CITE_PADS.map((_, i) => i).filter((i) => !used.has(i) && MAP.type[ti(tileOf(CITE_PADS[i].x), tileOf(CITE_PADS[i].z))] === T_FLOOR); // (jamais hors du sol des joueurs)
       // Emplacement libre, de préférence dans une zone déjà ouverte.
       const open = free.filter((i) => { const pd = CITE_PADS[i], t = ti(tileOf(pd.x), tileOf(pd.z)); return MAP.zoneActive[MAP.zone[t]]; });
       G.emit('pdrop', { k: key, p: pick(open.length ? open : free) });
@@ -10487,10 +10594,10 @@ function citeDecor() {
   kGable(X(17), X(23), X(22), X(29), 3.35, 1.7, shingleG, 0.45, fv(['siding', 0xa6dbb8]));
   kChimney(X(6) + 1, X(9), 3.35, 4.0, fmat('brick', 0xffffff)); kChimney(X(30) + 1, X(29), 3.35, 4.0, fmat('brick', 0xffffff));
   kAntenna(X(12), X(11), 5.2); kAntenna(X(25), X(27), 5.2);
-  // Porches : auvent en bardeaux sur quatre poteaux en bois peint.
-  const porch = (x0, z0, x1, z1, mat) => { const g = KIT.g(0, 0); KIT.b(g, (x0 + x1) / 2, 2.62, (z0 + z1) / 2, x1 - x0 + 0.6, 0.1, z1 - z0 + 0.5, mat); for (const [a, b] of [[x0 + 0.1, z1 - 0.1], [x1 - 0.1, z1 - 0.1], [x0 + 0.1, z0 + 0.1], [x1 - 0.1, z0 + 0.1]]) KIT.b(g, a, 1.3, b, 0.1, 2.6, 0.1, fmat('boisPeint', 0xeeeae0, { rough: 0.8 })); };
-  porch(X(8), X(15), X(9), X(16), fmat('shingle', 0xb07a62)); porch(X(9), X(6), X(10), X(7), fmat('shingle', 0xb07a62));
-  porch(X(26), X(22), X(27), X(23), fmat('shingle', 0x7c8c9a)); porch(X(28), X(31), X(29), X(32), fmat('shingle', 0x7c8c9a));
+  // Porches : auvent en bardeaux sur quatre poteaux en bois peint ; il déborde côté dehors (s : sens du dehors en z), pas dans la maison.
+  const porch = (x0, z0, x1, z1, mat, s) => { const g = KIT.g(0, 0), za = s > 0 ? z0 : z0 - 0.25, zb = s > 0 ? z1 + 0.25 : z1; KIT.b(g, (x0 + x1) / 2, 2.62, (za + zb) / 2, x1 - x0 + 0.6, 0.1, zb - za, mat); for (const [a, b] of [[x0 + 0.1, z1 - 0.1], [x1 - 0.1, z1 - 0.1], [x0 + 0.1, z0 + 0.1], [x1 - 0.1, z0 + 0.1]]) KIT.b(g, a, 1.3, b, 0.1, 2.6, 0.1, fmat('boisPeint', 0xeeeae0, { rough: 0.8 })); };
+  porch(X(8), X(15), X(9), X(16), fmat('shingle', 0xb07a62), 1); porch(X(9), X(6), X(10), X(7), fmat('shingle', 0xb07a62), -1);
+  porch(X(26), X(22), X(27), X(23), fmat('shingle', 0x7c8c9a), -1); porch(X(28), X(31), X(29), X(32), fmat('shingle', 0x7c8c9a), 1);
   // Portes de garage sectionnelles en bois peint (façade côté rue).
   for (const [x0, x1, z, col, s] of [[X(15), X(20), X(15), 0xf6f2e6, 1], [X(17), X(22), X(23), 0xf6f2e6, -1]]) {
     const g = KIT.g((x0 + x1) / 2, z + s * 0.1); for (let i = 0; i < 4; i++) KIT.b(g, 0, 0.35 + i * 0.55, 0, x1 - x0 - 1.0, 0.5, 0.04, fmat('boisPeint', col, { rough: 0.5 }));
@@ -10503,8 +10610,8 @@ function citeDecor() {
 
   /* ── La rue ── */
   const line = fmat('plain', 0xe0b83a, { rough: 0.8 }), white = fmat('plain', 0xe8e4da, { rough: 0.8 });
-  for (let x = X(2) + 1; x < X(34); x += 3.2) KIT.b(R.scene, x, 0.012, X(19), 1.6, 0.01, 0.14, line, 0, false);
-  for (let i = 0; i < 6; i++) KIT.b(R.scene, X(27) + 0.4 + i * 0.55, 0.012, X(17) + 0.9, 0.3, 0.01, 1.6, white, 0, false); // passage piéton vers l'abri
+  for (let x = X(2) + 1; x < X(34); x += 3.2) if (Math.abs(x - X(28) - 1) > 2.3) KIT.b(R.scene, x, 0.012, X(19), 1.6, 0.01, 0.14, line, 0, false); // (interrompue au passage piéton)
+  for (let i = 0; i < 14; i++) KIT.b(R.scene, X(28) + 1, 0.012, X(17) + 0.3 + i * 0.55, 3.0, 0.01, 0.3, white, 0, false); // passage piéton vers l'abri : toute la chaussée, dans l'axe de l'allée
   const curb = fmat('concrete', 0xb8b2a6, { rough: 0.9 }); // bordures en béton coulé (photo de béton de la carte)
   for (const z of [X(17), X(21)]) KIT.b(R.scene, (X(2) + X(34)) / 2, 0.05, z, X(34) - X(2), 0.1, 0.18, curb, 0, false);
   const lw = kLampPost(X(10), X(16) + 0.35, -Math.PI / 2, L.lampW), le = kLampPost(X(31) + 1, X(21) + 1.65, Math.PI / 2, L.lampE);
@@ -10513,13 +10620,13 @@ function citeDecor() {
   kTrash(X(21), X(16) + 0.6); kTrash(X(3), X(21) + 1.2);
   kStopSign(X(33) + 1.6, X(21) + 1.6, Math.PI);
   kSign(X(2) + 0.5, X(16) + 0.4, Math.PI / 2, ['ZONE D\'ESSAIS', 'ACCÈS INTERDIT'], '#e8d24a', '#1a1a1a');
-  kBench(X(19) + 1, X(22) + 1.3, Math.PI);
+  kBench(X(9) + 1, X(22) + 1.3, Math.PI); // sur la pelouse, dos à la clôture de la station
   for (const [x, z] of [[X(4), X(18)], [X(4) + 0.8, X(19) + 1], [X(38), X(20)], [X(37) + 1, X(22) + 1.5], [X(30), X(17) + 0.4]]) kCone(x, z);
   // Car scolaire brûlé et camion de déménagement renversant ses meubles.
   kBus(X(22) + 0.6, X(17) + 1.9, 0.05, true);
   WORLD.fires.push({ x: X(25), y: 1.4, z: X(17) + 1.9, size: 0.9, rate: 0.05, t: 0, smoke: 0.12, light: L.busFire });
   if (L.busFire) L.busFire.position.set(X(25), 1.8, X(17) + 1.9);
-  kTruck(X(12), X(20) + 0.2, Math.PI + 0.04);
+  kTruck(X(12), X(20) + 0.2, 0.04); // cabine à l'est : vantaux et rampe du côté des meubles tombés
   kSofa(X(5) + 1.5, X(19) + 0.8, 1.9, k.fabricRed); kArmchair(X(7) + 0.6, X(18) + 0.7, -0.6); crate(X(6) + 1.4, X(20) + 0.6, 0.4); crate(X(6) + 1.6, X(20) + 0.5, -0.2, 0.8, 0.55);
   kCar(X(37), X(17) + 1.4, 1.25, 0xc9d9df, true); kCar(X(17) + 1, X(12) + 1, Math.PI / 2, 0xd9636a); kCar(X(19) + 0.4, X(25) + 1, -Math.PI / 2 + 0.03, 0x6fb7c8);
   // Panneau POPULATION (décompte des morts), à l'entrée ouest.
@@ -10530,52 +10637,62 @@ function citeDecor() {
     g.userData.dynamic = true; WORLD.popSign = { canvas: c, tex }; drawPopSign(1954); }
 
   /* ── Maison jaune : intérieur ── */
-  kSofa(X(6) + 1, X(13) + 1.2, Math.PI, k.fabricTeal); kArmchair(X(7) + 0.4, X(11) + 0.9, -0.4); kTV(X(6) + 1, X(10) + 0.55, 0);
-  kTable(X(6) + 1, X(12) + 0.8, 0, 1.1, 0.55, 0.42, k.woodDark); kLamp(X(8) + 1.4, X(14) + 1.4, 0); kRug(X(6) + 1, X(12) + 0.6, 0, 3.2, 2.2, 0x8a3b32);
-  kCounter(X(11) + 1, X(10) + 0.33, 0, 4.2); kFridge(X(14) + 1.4, X(10) + 0.4, 0); kStove(X(9) + 0.5, X(10) + 0.36, 0); kDining(X(11) + 1, X(13), 0);
-  kBed(X(6), X(7) + 1.1, 0); kDresser(X(8) + 1.7, X(9) + 0.8, -Math.PI / 2);
+  // (télé contre le mur plein, hors de l'ouverture vers la chambre ; lampadaire dans le coin, à côté de l'entrée)
+  kSofa(X(6) + 1, X(13) + 1.2, Math.PI, k.fabricTeal); kArmchair(X(7) + 0.4, X(11) + 0.9, -0.4); kTV(X(5) + 1.1, X(10) + 0.4, 0);
+  kTable(X(6) + 1, X(12) + 0.8, 0, 1.1, 0.55, 0.42, k.woodDark); kLamp(X(7) + 1.4, X(14) + 1.5, 0); kRug(X(6) + 1, X(12) + 0.6, 0, 3.2, 2.2, 0x8a3b32);
+  // (comptoir contre la cuisinière, hors de l'ouverture vers la salle de bains ; réfrigérateur à l'écart du fusil à pompe)
+  kCounter(X(10) + 1.1, X(10) + 0.33, 0, 4.2); kFridge(X(13) + 1.5, X(10) + 0.4, 0); kStove(X(9) + 0.5, X(10) + 0.36, 0); kDining(X(11) + 1, X(13), 0);
+  kBed(X(6) + 0.7, X(7) + 1.1, 0); kDresser(X(8) + 1.7, X(9) + 0.8, -Math.PI / 2); // (tête de lit à côté de la fenêtre, pas derrière son rideau)
   { const g = KIT.g(X(13) + 0.4, X(7) + 0.5, 0); KIT.b(g, 0, 0.3, 0, 1.6, 0.6, 0.75, fmat('email', 0xeeeae0, { rough: 0.15 })); KIT.b(g, 0, 0.58, 0, 1.45, 0.05, 0.62, fmat('plain', 0x9ad0e0, { rough: 0.1 })); KIT.solid(g, 1.6, 0.75, 0.6); } // baignoire en fonte émaillée
   for (const p of [[X(15) + 1.2, X(9) + 0.3], [X(18) + 0.6, X(9) + 0.3]]) kShelf(p[0], p[1], 0, 1.4, 1.9);
   kTires(X(19) + 1.4, X(14) + 1.3, 3);
 
-  // Tableaux et plafonniers.
-  kFrame(X(4) + 0.1, 1.6, X(12), Math.PI / 2, 0.8, 0.9, 0); kFrame(X(11), 1.7, X(10) + 0.1, 0, 0.6, 0.8, 1); kFrame(X(6), 1.7, X(7) + 0.1, 0, 0.9, 0.7, 2); kFrame(X(9) - 0.1, 1.6, X(13), -Math.PI / 2, 0.7, 0.9, 3);
-  kFrame(X(22) + 0.1, 1.6, X(25), Math.PI / 2, 0.8, 0.9, 4); kFrame(X(25), 1.7, X(27) - 0.1, Math.PI, 0.9, 0.7, 5); kFrame(X(27) + 0.1, 1.6, X(29), Math.PI / 2, 0.6, 0.8, 6); kFrame(X(30), 1.7, X(23) + 0.1, 0, 0.7, 0.9, 7);
+  // Tableaux (sur du mur plein : loin des ouvertures, des fenêtres et de leurs rideaux, des placards et des armes murales) et plafonniers.
+  kFrame(X(4) + 0.1, 1.6, X(12) + 1, Math.PI / 2, 0.8, 0.9, 0); kFrame(X(12) + 1, 1.7, X(15) - 0.1, Math.PI, 0.6, 0.8, 1); kFrame(X(6) + 0.7, 1.75, X(7) + 0.1, 0, 0.9, 0.7, 2); kFrame(X(9) - 0.1, 1.6, X(14), -Math.PI / 2, 0.7, 0.9, 3);
+  kFrame(X(22) + 0.1, 1.6, X(23) + 1.3, Math.PI / 2, 0.8, 0.9, 4); kFrame(X(25) + 1.5, 1.7, X(27) - 0.1, Math.PI, 0.9, 0.7, 5); kFrame(X(27) + 0.1, 1.6, X(29), Math.PI / 2, 0.6, 0.8, 6); kFrame(X(28) + 0.1, 1.6, X(23) + 1.5, Math.PI / 2, 0.7, 0.9, 7);
   for (const [x, z] of [[X(6) + 1, X(12) + 1], [X(12), X(12) + 1], [X(6) + 1, X(8) + 1], [X(12), X(8) + 1], [X(17) + 1, X(12)], [X(25), X(24) + 1], [X(30) + 1, X(24) + 1], [X(24), X(28) + 1], [X(30), X(28) + 1], [X(19), X(25) + 1]]) kCeilLamp(x, z);
   /* ── Maison verte : intérieur ── */
-  kSofa(X(24), X(22) + 0.6 + 2.8, 0, k.fabricMustard); kTV(X(24), X(26) + 1.4, Math.PI); kArmchair(X(26) + 1.2, X(24) + 1, -Math.PI / 2); kRug(X(24), X(25), 0, 3, 2.4, 0x2f5a6a);
+  kSofa(X(24), X(22) + 0.6 + 2.8, 0, k.fabricMustard); kTV(X(23) + 1.4, X(26) + 1.4, Math.PI); kArmchair(X(26) + 1.2, X(24) + 1, -Math.PI / 2); kRug(X(24), X(25), 0, 3, 2.4, 0x2f5a6a); // (télé hors de l'ouverture vers la chambre)
   kLamp(X(22) + 0.5, X(23) + 0.5, 0);
   kCounter(X(32) + 1.62, X(24) + 1, -Math.PI / 2, 3.6, 0xe6efe6, 0x2f7a6a); kFridge(X(30) + 1, X(23) + 0.42, 0, 0xe8e2d0); kDining(X(30), X(25) + 0.2, Math.PI / 2);
   kBed(X(24), X(30) + 0.9, Math.PI, k.fabricTeal); kDresser(X(22) + 0.3, X(28), Math.PI / 2);
-  kShelf(X(31), X(30) + 1.7, Math.PI, 1.6, 1.9); { const g = KIT.g(X(28) + 1, X(30) + 1.4, Math.PI); KIT.b(g, 0, 0.45, 0, 0.8, 0.9, 0.7, fmat('email', 0xeeeae0, { rough: 0.3 })); KIT.c(g, 0, 0.6, 0.36, 0.22, 0.22, 0.02, k.glass, 16, false).rotation.x = Math.PI / 2; KIT.solid(g, 0.8, 0.7, 0.9, 'metal'); } // machine à laver
+  // Salle de bains verte : étagère entre la porte du jardin et les toilettes, machine à laver contre le mur ouest (porte et fenêtre dégagées).
+  kShelf(X(29) + 1.2, X(30) + 1.7, Math.PI, 1.6, 1.9); { const g = KIT.g(X(27) + 0.6, X(30) + 1.4, Math.PI); KIT.b(g, 0, 0.45, 0, 0.8, 0.9, 0.7, fmat('email', 0xeeeae0, { rough: 0.3 })); KIT.c(g, 0, 0.6, 0.36, 0.22, 0.22, 0.02, k.glass, 16, false).rotation.x = Math.PI / 2; KIT.solid(g, 0.8, 0.7, 0.9, 'metal'); } // machine à laver
   kShelf(X(17) + 0.3, X(26) + 1, Math.PI / 2, 1.4, 1.9); kTires(X(20) + 1.4, X(27) + 1.4, 2);
 
   /* ── Finitions des intérieurs : placards hauts, salles de bains, plantes, bibliothèques ── */
-  kUpperCab(X(11) + 1, X(10) + 0.2, 0, 4.0); kUpperCab(X(33) - 0.2, X(24) + 1, -Math.PI / 2, 3.4, 0xe6efe6);
-  kToilet(X(10) + 0.5, X(7) + 0.35, 0); kSink(X(11) + 1.1, X(7) + 0.25, 0);
-  kToilet(X(30) + 0.5, X(31) - 0.35, Math.PI); kSink(X(31) + 1.0, X(31) - 0.25, Math.PI);
+  // (placards hauts au-dessus du comptoir jaune, sur toute sa longueur, multiple de 0,6 m comme leurs portes ; pas de placards
+  // dans la cuisine verte, dont le comptoir est sous la fenêtre, comme un évier)
+  kUpperCab(X(10) + 1.1, X(10) + 0.2, 0, 4.2);
+  // (miroirs devant le mur ; lavabo vert sur le mur plein entre la fenêtre et l'angle)
+  kToilet(X(10) + 0.5, X(7) + 0.35, 0); kSink(X(11) + 1.1, X(7) + 0.32, 0);
+  kToilet(X(30) + 0.5, X(31) - 0.35, Math.PI); kSink(X(32) + 1.0, X(31) - 0.32, Math.PI);
   kPlant(X(4) + 0.5, X(14) + 1.5, 1.2); kPlant(X(22) + 0.5, X(26) + 1.5, 1.2); kPlant(X(14) + 1.5, X(14) + 1.5, 0.9, 0x3a6a8a); kPlant(X(32) + 1.5, X(26) + 1.5, 0.9, 0x3a6a8a);
-  kBookcase(X(4) + 0.2, X(11), Math.PI / 2, 1.2, 2.0); kBookcase(X(27) - 0.2, X(25), -Math.PI / 2, 1.2, 2.0);
+  kBookcase(X(4) + 0.2, X(10) + 0.8, Math.PI / 2, 1.2, 2.0); kBookcase(X(28) - 0.2, X(24) + 0.8, -Math.PI / 2, 1.2, 2.0); // (contre un mur plein, à l'écart de la fenêtre-barricade et des ouvertures)
   /* ── Jardins ── */
   kSwing(X(5) + 1, X(1) + 1, 0); kGrill(X(13), X(4) + 1, 0); kPicnic(X(16), X(2) + 1, 0.1); kDoghouse(X(19) + 1, X(0) + 1.2, -0.3);
   kClothesline(X(12), X(1) + 0.6, 0); kPool(X(4) + 1, X(5), 1.3);
   kSwing(X(33), X(35) + 1, 0.2); kPool(X(22), X(34) + 1, 1.5); kClothesline(X(26), X(36) + 0.6, 0); kGrill(X(31) + 1, X(32) + 1, 0); kPicnic(X(20) + 1, X(36), Math.PI / 2);
   { const g = KIT.g(X(35), X(31) + 1.4, 0); KIT.b(g, 0, 1.1, 0, 2.2, 2.2, 1.8, fmat('boisPeint', 0x9a6a4a)); KIT.b(g, 0, 2.3, 0, 2.5, 0.12, 2.1, fmat('shingle', 0x55606a)); KIT.solid(g, 2.2, 1.8, 2.3); } // cabanon en planches peintes
-  for (let i = 0; i < 10; i++) kShrub(X(2) + srand(0, 36), X(0) + srand(-0.2, 0.2), srand(0.6, 1), 0x4f7a3a);
+  // Haie le long du grillage nord, côté jardin ; ni dans la brèche de la barricade (x 24–26) ni contre la niche (mêmes tirages qu'avant).
+  for (let i = 0; i < 10; i++) { let x = X(2) + srand(0, 36); const z = X(0) + 0.7 + srand(-0.1, 0.1), s = srand(0.6, 1); if (Math.abs(x - X(8) - 1) < 1.8) x = X(8) + 1 + (x < X(8) + 1 ? -1.8 : 1.8); kShrub(Math.min(x, X(19) - 0.6), z, s, 0x4f7a3a); }
 
   /* ── Abri antiatomique ── */
   { const g = KIT.g(X(28) + 1, X(11) + 1.02, 0);
     const trefoil = textTexture(256, 256, (c) => { c.fillStyle = '#e8c21a'; c.fillRect(0, 0, 256, 256); c.fillStyle = '#111'; c.beginPath(); c.arc(128, 128, 20, 0, TAU); c.fill(); for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + i * TAU / 3; c.beginPath(); c.moveTo(128, 128); c.arc(128, 128, 100, a - 0.52, a + 0.52); c.closePath(); c.fill(); } c.fillStyle = '#e8c21a'; c.beginPath(); c.arc(128, 128, 30, 0, TAU); c.fill(); c.fillStyle = '#111'; c.beginPath(); c.arc(128, 128, 20, 0, TAU); c.fill(); });
     for (const s of [-1.35, 1.35]) mesh(new THREE.PlaneGeometry(0.6, 0.6), new THREE.MeshStandardMaterial({ map: trefoil, roughness: 0.6 }), s, 1.9, 0.02, 0, g, false);
-    const sign = mesh(new THREE.PlaneGeometry(2.6, 0.5), new THREE.MeshStandardMaterial({ map: woodSign(['ABRI ANTIATOMIQUE'], { w: 512, h: 100, bg: '#222', color: '#e8c21a' }), roughness: 0.6 }), 0, 3.0, 0.02, 0, g, false); }
+    // Enseigne sur la face avant du linteau de la porte (le linteau remplit le carreau de la porte de 2,45 à 3,4 m).
+    const sign = mesh(new THREE.PlaneGeometry(2.2, 0.42), new THREE.MeshStandardMaterial({ map: woodSign(['ABRI ANTIATOMIQUE'], { w: 512, h: 100, bg: '#222', color: '#e8c21a' }), roughness: 0.6 }), 0, 3.0, 0.02, 0, KIT.g(X(28) + 1, X(12), 0), false); }
   // Aérations de l'abri sur le toit : conduits en tôle galvanisée.
   for (const [x, z] of [[X(25), X(4)], [X(31), X(8)], [X(27), X(9)]]) { const g = KIT.g(x, z, 0, 3.35), v = fmat('galva', 0x8c9196, { rough: 0.45, metal: 0.8 }); KIT.c(g, 0, 0.6, 0, 0.16, 0.16, 1.2, v, 10); KIT.c(g, 0, 1.25, 0, 0.3, 0.3, 0.1, v, 10); }
-  // Sacs de sable de la Défense civile : toile de jute.
-  { const bags = new Batch(sandbagGeo(), fmat('jute', 0xb8a47e, { rough: 1 })); for (let x = X(24); x < X(28); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); for (let x = X(29) + 0.3; x < X(33); x += 0.6) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); bags.build(); }
+  // Sacs de sable de la Défense civile : toile de jute. Deux rangées le long de la façade, sans entrer dans les murets du porche
+  // (même nombre de sacs qu'avant, un peu plus serrés : le tirage au hasard du décor reste le même).
+  { const bags = new Batch(sandbagGeo(), fmat('jute', 0xb8a47e, { rough: 1 })); for (let x = X(24); x < X(28) - 0.6; x += 0.56) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); for (let x = X(29) + 0.4; x < X(33) - 0.3; x += 0.58) for (let r = 0; r < 3; r++) bags.add(x + (r % 2) * 0.3, 0.1 + r * 0.19, X(11) + 0.4, rand(-0.1, 0.1)); bags.build(); }
   // Dortoir, salle commune, générateur. Couchettes en acier peint, matelas en coutil de coton.
   const ticking = fmat('toile', 0x3d8a86, { rough: 0.95 });
   for (const x of [X(29) + 0.9, X(31) + 0.9]) { const g = KIT.g(x, X(3) + 1.1, 0); for (const y of [0.45, 1.5]) { KIT.b(g, 0, y, 0, 1.0, 0.08, 2.0, k.steel); KIT.b(g, 0, y + 0.1, 0, 0.92, 0.12, 1.9, ticking); } for (const [a, b] of [[-0.48, -0.95], [0.48, -0.95], [-0.48, 0.95], [0.48, 0.95]]) KIT.b(g, a, 1.0, b, 0.05, 2.0, 0.05, k.steel); KIT.solid(g, 1.0, 2.0, 2.0, 'metal'); }
-  kShelf(X(24) + 0.3, X(8) + 1, Math.PI / 2, 1.8, 2.1); kShelf(X(24) + 0.3, X(10), Math.PI / 2, 1.8, 2.1); kTable(X(29), X(8) + 1.2, 0, 2.2, 1.0);
+  kShelf(X(24) + 0.3, X(8) + 1, Math.PI / 2, 1.8, 2.1); kShelf(X(24) + 0.3, X(7) + 1, Math.PI / 2, 1.8, 2.1); kTable(X(29), X(8) + 1.2, 0, 2.2, 1.0); // (2e étagère dans l'angle nord-ouest : la carabine reste dégagée)
+  kChair(X(28) + 0.3, X(8) + 1.2, Math.PI / 2, k.steel); // chaise du mannequin assis au bout de la table
   // Fûts de 200 litres en tôle peinte ; poste radio de la Défense civile en tôle peinte vert olive.
   for (const [x, z] of [[X(32) + 1.4, X(10) + 1.4], [X(32) + 0.7, X(10) + 1.5]]) barrel(x, z, fmat('tole', 0x3a5a7a, { rough: 0.5, metal: 0.4 }));
   { const g = KIT.g(X(29) - 0.4, X(8) + 1.2, 0); KIT.b(g, 0, 0.88, 0, 0.5, 0.28, 0.3, fmat('olive', 0x4a4a3a, { rough: 0.8 })); KIT.b(g, 0.15, 0.95, 0.16, 0.12, 0.1, 0.02, k.screen, 0, false); const lamp = new THREE.MeshBasicMaterial({ color: 0x401010 }); KIT.s(g, -0.15, 1.05, 0.16, 0.03, lamp); WORLD.citeRadio = { pos: new THREE.Vector3(X(29) - 0.4, 1, X(8) + 1.2), lamp }; } // poste radio d'urgence
@@ -10601,7 +10718,7 @@ function citeDecor() {
     colliderBox(X(2) + 1, X(23) + 0.6, 0.3, 0.3, 0, 6, 'concrete'); }
   // Comptoir de la boutique : caisson en bois peint, dessus en stratifié lisse (famille émail), caisse enregistreuse en acier.
   { const g = KIT.g(X(12) + 1, X(26) + 1.2, Math.PI / 2); KIT.b(g, 0, 0.5, 0, 2.6, 1.0, 0.6, fmat('boisPeint', 0xc23b3b, { rough: 0.4 })); KIT.b(g, 0, 1.02, 0, 2.7, 0.05, 0.7, fmat('email', 0xf2eee4, { rough: 0.3 })); KIT.b(g, 0.7, 1.2, 0, 0.4, 0.3, 0.35, k.steel); KIT.solid(g, 2.6, 0.6, 1.05); }
-  kShelf(X(15) + 1.6, X(24) + 1.2, -Math.PI / 2, 1.6, 1.8); kShelf(X(13), X(28) + 1.6, Math.PI, 1.6, 1.8);
+  kShelf(X(15) + 1.6, X(24) + 1.2, -Math.PI / 2, 1.6, 1.8); kShelf(X(12) + 0.6, X(28) + 1.6, Math.PI, 1.6, 1.8); // (2e étagère contre le mur plein, hors de l'ouverture vers l'atelier)
   // Fûts d'huile et d'essence de l'atelier, en tôle peinte.
   for (let i = 0; i < 6; i++) barrel(X(10) + 0.5 + (i % 3) * 0.62, X(32) + 1.4 - Math.floor(i / 3) * 0.6, fmat('tole', [0xc23b3b, 0x2e6a8a, 0xe8c21a][i % 3], { rough: 0.5, metal: 0.4 }));
   kTires(X(15) + 1.3, X(29) + 0.7, 4); kCar(X(12) + 1.4, X(30) + 1.4, Math.PI / 2 + 0.05, 0x3a4a6a);
@@ -10609,7 +10726,8 @@ function citeDecor() {
   /* ── Mannequins : les six marqués d'un foulard rouge, et leurs voisins ── */
   const scarf = stdMat({ color: 0xc81e1e, roughness: 0.8, map: TEX.cloth.map });
   WORLD.citeHeads = [];
-  const quest = [[X(9) + 1.2, X(15) + 1.2, 0, 'stand'], [X(6) + 0.2, X(13) + 1.3, Math.PI, 'sit', 0.08], [X(32) + 0.9, X(25) + 1.2, -Math.PI / 2, 'point'], [X(29) + 0.9, X(3) + 0.8, Math.PI / 2, 'sit', 1.05], [X(34), X(36), -0.4, 'wave'], [X(13) + 0.2, X(26) + 1.2, Math.PI / 2, 'stand']];
+  // (n°4 assis sur le matelas de la couchette du haut, jambes pendantes ; n°6, le vendeur, tourné vers son comptoir)
+  const quest = [[X(9) + 1.2, X(15) + 1.2, 0, 'stand'], [X(6) + 0.2, X(13) + 1.3, Math.PI, 'sit', 0.08], [X(32) + 0.9, X(25) + 1.2, -Math.PI / 2, 'point'], [X(29) + 1.05, X(3) + 0.8, Math.PI / 2, 'sit', 1.23], [X(34), X(36), -0.4, 'wave'], [X(13) + 0.2, X(26) + 1.2, -Math.PI / 2, 'stand']];
   quest.forEach(([x, z, ry, pose, y = 0], i) => {
     const m = kMannequin(x, z, ry, { pose, y, cloth: [0x3a5a8a, 0x8a3a5a, 0x3a7a5a, 0x7a6a3a, 0x5a3a7a, 0x2a2a2a][i] });
     const hp = m.head.getWorldPosition(new THREE.Vector3());
@@ -10618,9 +10736,10 @@ function citeDecor() {
     MAP.props.push(col);
     WORLD.citeHeads.push({ head: m.head, col, pos: hp, shot: false });
   });
-  // Mannequins de décor (têtes fusionnées avec le reste).
-  for (const [x, z, ry, pose, y = 0, cloth] of [[X(4) + 1, X(22) + 0.6, 0.4, 'stand', 0, 0x8a3a5a], [X(5) + 1, X(22) + 1.4, -0.3, 'wave', 0, 0x3a5a8a], [X(26) + 1.2, X(8) + 1.4, 0, 'sit', 0.35], [X(10) + 1, X(12) + 0.2, 0, 'sit', 0.05, 0x7a6a3a], [X(12) + 1, X(13) + 1.7, Math.PI, 'sit', 0.05],
-    [X(24) + 1.4, X(23) + 0.9, Math.PI + 0.2, 'sit', 0.08, 0x3a7a5a], [X(3) + 1, X(33) + 1, 1.2, 'stand'], [X(29), X(36) + 1, 2.2, 'point', 0, 0x7a6a3a], [X(7) + 1.6, X(25) + 1.4, -1.2, 'stand', 0, 0x3a5a8a], [X(38), X(24) + 1.5, 2.8, 'stand'], [X(36) + 1, X(14) + 1, -2, 'wave', 0, 0x5a3a7a], [X(20) + 1.2, X(13), -Math.PI / 2, 'stand', 0, 0x2a2a2a]])
+  // Mannequins de décor (têtes fusionnées avec le reste). Les assis sont sur un siège : chaise au bout de la table de l'abri,
+  // deux chaises de la salle à manger jaune, coussin du canapé vert ; celui qui salue est sur la pelouse, à côté de la porte de la station.
+  for (const [x, z, ry, pose, y = 0, cloth] of [[X(4) + 1, X(22) + 0.6, 0.4, 'stand', 0, 0x8a3a5a], [X(6) + 1.4, X(22) + 1.2, -0.3, 'wave', 0, 0x3a5a8a], [X(28) + 0.3, X(8) + 1.2, Math.PI / 2, 'sit', 0.05], [X(11) + 0.55, X(13) - 0.7, 0, 'sit', 0.05, 0x7a6a3a], [X(11) + 1.45, X(13) + 0.7, Math.PI, 'sit', 0.05],
+    [X(24) + 0.5, X(23) + 1.3, 0, 'sit', 0.08, 0x3a7a5a], [X(3) + 1, X(33) + 1, 1.2, 'stand'], [X(29), X(36) + 1, 2.2, 'point', 0, 0x7a6a3a], [X(7) + 1.6, X(25) + 1.4, -1.2, 'stand', 0, 0x3a5a8a], [X(38), X(24) + 1.5, 2.8, 'stand'], [X(36) + 1, X(14) + 1, -2, 'wave', 0, 0x5a3a7a], [X(20) + 1.2, X(13), -Math.PI / 2, 'stand', 0, 0x2a2a2a]])
     { const m = kMannequin(x, z, ry, { pose, y, cloth }); m.head.userData.dynamic = false; }
 
   /* ── Au loin : désert, mesas, château d'eau, tour d'essai, gradins, pylônes, champignon atomique ── */
@@ -10782,7 +10901,7 @@ MAPS.penitencier = {
     F(35, 8, 46, 16, 2, 'mess', 1);
     F(18, 0, 42, 4, 3, 'yard'); F(40, 5, 40, 6, 3, 'yard');
     F(10, 15, 19, 21, 4, 'infirm', 1);
-    F(25, 15, 37, 21, 5, 'office', 1);
+    F(25, 15, 34, 16, 5, 'office', 1); F(25, 17, 37, 21, 5, 'office', 1); // (le coin 35-37 × 15-16 est au réfectoire)
     F(18, 23, 44, 29, 6, 'dock'); F(45, 18, 45, 29, 6, 'dock');
     // Murs épais : ouest et est du bloc, rangée sud (vers l'infirmerie et la direction).
     B(9, 9, 9, 13); B(34, 9, 34, 13); B(10, 14, 33, 14);
@@ -10802,6 +10921,7 @@ MAPS.penitencier = {
     V(30, 15, 17, 'officeIn'); V(30, 19, 21, 'officeIn'); H(19, 31, 33, 'officeIn'); H(19, 35, 37, 'officeIn');
     V(16, 15, 16, 'infirmIn'); H(19, 10, 11, 'infirmIn'); H(19, 13, 15, 'infirmIn');
     H(10, 36, 37, 'stone'); H(10, 39, 45, 'stone'); // passe-plats de la cuisine du réfectoire
+    V(35, 15, 16, 'stone'); H(17, 35, 38, 'stone'); // réfectoire | direction : mur plein (on ne passe que par les portes), fermé aussi devant la fenêtre-barricade (38, 17)
     // Barricades : fenêtres (bloc, douches, réfectoire, infirmerie, direction), brèches de la cour, accès depuis l'eau.
     for (const [x, z] of [[16, 8], [22, 8], [28, 8], [1, 10], [1, 12], [5, 8], [47, 10], [47, 14], [37, 7], [38, 17], [9, 17], [9, 20], [15, 22], [24, 18], [38, 19]]) Rp(x, z, 'window');
     Rp(22, 14, 'window', 'n');
@@ -10815,11 +10935,11 @@ MAPS.penitencier = {
       coopStarts: [T(20, 11), T(22, 11), T(20, 12), T(22, 12)],
       wallBuys: [
         { weapon: 'bolt', ...xz(T(19, 9)), wall: 'n' }, { weapon: 'shotgun', ...xz(T(2, 11)), wall: 'w' },
-        { weapon: 'smg', ...xz(T(46, 12)), wall: 'e' }, { weapon: 'carbine', ...xz(T(30, 0)), wall: 'n' }, { weapon: 'revolver', ...xz(T(25, 16)), wall: 'w' },
+        { weapon: 'smg', ...xz(T(46, 13)), wall: 'e' } /* pan de mur plein, entre la fenêtre (46,12) et la barricade (47,14) */, { weapon: 'carbine', ...xz(T(30, 0)), wall: 'n' }, { weapon: 'revolver', ...xz(T(25, 16)), wall: 'w' },
       ],
       perks: [
         { perk: 'revive', ...xz(T(12, 9)), wall: 'n' }, { perk: 'armor', ...xz(T(41, 16)), wall: 's' }, { perk: 'sprint', ...xz(T(18, 3)), wall: 'w' },
-        { perk: 'reload', ...xz(T(19, 18)), wall: 'e' }, { perk: 'rof', ...xz(T(44, 23)), wall: 'e' },
+        { perk: 'reload', ...xz(T(19, 18)), wall: 'e' }, { perk: 'rof', ...xz(T(43, 23)), wall: 'n' } /* contre la rambarde nord du quai */,
         { perk: 'mule', ...xz(T(17, 13)), wall: 's' }, { perk: 'cherry', ...xz(T(8, 9)), wall: 'e' },
       ],
       power: { ...xz(T(37, 20)), wall: 'e' },
@@ -11124,7 +11244,7 @@ function penDecor() {
 
   /* ── Infirmerie ── */
   for (let i = 0; i < 3; i++) { const g = KIT.g(X(11) + 1.1 + i * 2.4, X(20) + 1.1, 0); KIT.b(g, 0, 0.55, 0, 0.9, 0.08, 1.9, steel); KIT.b(g, 0, 0.64, 0, 0.86, 0.12, 1.85, sheet); KIT.b(g, 0, 0.72, -0.7, 0.6, 0.1, 0.3, sheet); KIT.b(g, 0, 0.8, -0.95, 0.9, 0.9, 0.04, steel); for (const [a, b] of [[-0.42, -0.9], [0.42, -0.9], [-0.42, 0.9], [0.42, 0.9]]) KIT.b(g, a, 0.27, b, 0.04, 0.55, 0.04, steel); KIT.solid(g, 0.9, 1.9, 0.9, 'metal'); }
-  for (let i = 0; i < 2; i++) { const g = KIT.g(X(11) + 2.3 + i * 2.4, X(20) + 1.1, 0); KIT.b(g, 0, 1.0, 0, 0.03, 1.9, 1.7, sheet); } // paravents
+  for (let i = 0; i < 2; i++) { const g = KIT.g(X(11) + 2.3 + i * 2.4, X(20) + 1.1, 0); KIT.b(g, 0, 1.0, 0, 0.03, 1.9, 1.7, sheet); for (const s of [-1, 1]) { KIT.b(g, 0, 0.99, s * 0.87, 0.04, 1.98, 0.04, steel); KIT.b(g, 0, 0.02, s * 0.87, 0.4, 0.04, 0.05, steel); } } // paravents : toile tendue sur deux montants d'acier à patins
   { const g = KIT.g(X(17), X(16) + 1, 0); KIT.c(g, 0, 1.0, 0, 0.02, 0.02, 2.0, steel, 6); KIT.s(g, 0, 2.05, 0, 0.3, KIT.m(0xe8e8e2), 1, 0.4, 1); KIT.glow(g, 0, 1.95, 0, 0xe8fff4, 1.1, 0.35); }
   kShelf(X(10) + 0.3, X(16), Math.PI / 2, 1.6, 2); kTable(X(18) + 0.2, X(17) + 1, Math.PI / 2, 1.6, 0.8, 0.9, steel);
 
@@ -11132,15 +11252,16 @@ function penDecor() {
   kRug(X(27) + 1, X(18), 0, 5, 3.4, 0x5a1e1e);
   kTable(X(27) + 1, X(17) + 1, 0, 2.2, 1.0, 0.78, k.woodDark);
   // Fauteuil du directeur : assise et dossier de cuir, pieds de chêne (kChair met une seule matière partout, pieds compris).
-  { const g = KIT.g(X(27) + 1, X(16) + 1.4, 0), cuir = fmat('cuir', 0x9b2e2a, { rough: 0.95 }); KIT.b(g, 0, 0.45, 0, 0.44, 0.05, 0.44, cuir); KIT.b(g, 0, 0.72, -0.2, 0.44, 0.5, 0.04, cuir);
+  // (derrière le bureau, face à la porte nord, l'assise glissée sous le plateau)
+  { const g = KIT.g(X(27) + 1, X(17) + 1.9, Math.PI), cuir = fmat('cuir', 0x9b2e2a, { rough: 0.95 }); KIT.b(g, 0, 0.45, 0, 0.44, 0.05, 0.44, cuir); KIT.b(g, 0, 0.72, -0.2, 0.44, 0.5, 0.04, cuir);
     for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) KIT.b(g, a * 0.19, 0.22, b * 0.19, 0.04, 0.44, 0.04, k.woodDark); }
   { const g = KIT.g(X(28), X(17) + 1.1, 0); KIT.b(g, 0, 0.84, 0, 0.4, 0.14, 0.3, dark); } // machine à écrire
   for (let i = 0; i < 3; i++) kShelf(X(25) + 0.3, X(19) + i * 1.8, Math.PI / 2, 1.6, 2.2, true);
-  { const g = KIT.g(X(29) + 1.4, X(15) + 0.5, 0); KIT.b(g, 0, 0.6, 0, 0.9, 1.2, 0.7, fmat('fonte', 0x2a2e30, { rough: 0.4, metal: 0.7 })); KIT.c(g, 0.1, 0.75, 0.36, 0.12, 0.12, 0.03, k.chrome, 16).rotation.x = Math.PI / 2; KIT.solid(g, 0.9, 0.7, 1.2, 'metal'); } // coffre-fort
+  { const g = KIT.g(X(28) + 0.6, X(15) + 0.5, 0); /* contre le mur nord, à l'écart de la porte (x 68-70) */ KIT.b(g, 0, 0.6, 0, 0.9, 1.2, 0.7, fmat('fonte', 0x2a2e30, { rough: 0.4, metal: 0.7 })); KIT.c(g, 0.1, 0.75, 0.36, 0.12, 0.12, 0.03, k.chrome, 16).rotation.x = Math.PI / 2; KIT.solid(g, 0.9, 0.7, 1.2, 'metal'); } // coffre-fort
   kFrame(X(25) + 0.1, 2.2, X(16) + 1, Math.PI / 2, 0.8, 1.0, 1); kFrame(X(27) + 1, 2.3, X(15) + 0.1, 0, 1.0, 0.8, 3);
   { const mapTex = textTexture(512, 320, (c) => { c.fillStyle = '#d8ceb0'; c.fillRect(0, 0, 512, 320); c.fillStyle = '#6a8aa0'; c.fillRect(0, 0, 512, 320); c.fillStyle = '#c8bc98'; c.beginPath(); c.ellipse(256, 160, 180, 100, 0.1, 0, TAU); c.fill(); c.fillStyle = '#6a5a4a'; for (let i = 0; i < 7; i++) c.fillRect(150 + i * 34, 120 + (i % 3) * 30, 26, 18); c.fillStyle = '#2a2a2a'; c.font = font(30); c.fillText('LE ROCHER — PLAN DU PÉNITENCIER', 60, 40); });
     mesh(new THREE.PlaneGeometry(2.2, 1.4), new THREE.MeshStandardMaterial({ map: mapTex, roughness: 0.9 }), X(30) - 0.1, 2.1, X(20) + 1, -Math.PI / 2, R.scene, false); }
-  for (let i = 0; i < 4; i++) kShelf(X(32) + i * 1.7, X(21) + 1.7, Math.PI, 1.5, 2.2, false);
+  for (let i = 0; i < 4; i++) kShelf(X(32) + 1.75 + i * 1.7, X(21) + 1.7, Math.PI, 1.5, 2.2, false); // (à 1 m de la porte des quais, x 72-74)
 
   /* ── Quais : pilotis, bittes d'amarrage, bateau, grue, lampadaires ── */
   { const pil = new Batch(new THREE.CylinderGeometry(0.18, 0.2, 1, 8), fmat('boisBrut', 0x4a3a2a)); /* pieux ronds créosotés : bois brut, pas les planches du quai */
@@ -11151,7 +11272,7 @@ function penDecor() {
   for (const x of [X(24), X(32), X(40)]) { const g = KIT.g(x, X(30) - 0.35, 0); KIT.c(g, 0, 0.3, 0, 0.16, 0.2, 0.6, dark, 10); KIT.c(g, 0, 0.62, 0, 0.22, 0.2, 0.08, dark, 10); colliderBox(x, X(30) - 0.35, 0.45, 0.45, 0, 0.7, 'metal'); }
   for (const [x, z] of [[X(20), X(24) + 0.8], [X(20) + 0.9, X(24) + 0.7], [X(34), X(28) + 1.2], [X(42), X(24) + 1]]) crate(x, z, rand(-0.3, 0.3));
   barrel(X(28), X(24) + 0.6, MATS.rust); barrel(X(28) + 0.7, X(24) + 0.5, MATS.olive); barrel(X(36), X(29) + 1.3, MATS.rust, true);
-  for (const [x, z, ry] of [[X(19) + 0.2, X(28), Math.PI / 2], [X(44) + 1.8, X(26), -Math.PI / 2]]) { const b = mesh(new THREE.TorusGeometry(0.32, 0.08, 8, 20), fmat('toile', 0xe8601a, { rough: 0.6 }), x, 1.2, z, ry, R.scene, false); } /* bouées : liège gainé de toile peinte */
+  for (const [x, z, ry] of [[X(18) + 0.2, X(28) + 1, Math.PI / 2], [X(46) - 0.2, X(27) + 1, -Math.PI / 2]]) { const b = mesh(new THREE.TorusGeometry(0.32, 0.08, 8, 20), fmat('toile', 0xe8601a, { rough: 0.6 }), x, 1.2, z, ry, R.scene, false); } /* bouées : liège gainé de toile peinte, pendues aux rambardes ouest du quai et est du chemin de ronde, entre deux poteaux */
   // Vedette amarrée au sud.
   { const g = KIT.g(X(33), X(32) + 0.6, 0.06, -0.55), hullM = fmat('boisPeint', 0x2e3a44, { rough: 0.5 }), deck = fmat('planks', 0x9a8466); /* coque bordée en bois peint gris marine ; pont : planches du quai */ g.userData.dynamic = true; WORLD.penBoat = { g, home: g.position.clone(), dock: new THREE.Vector3(X(33), 1, X(30) - 0.6) };
     const hull = new THREE.CylinderGeometry(1.4, 1.1, 10, 16, 1, false, 0, Math.PI); hull.rotateZ(Math.PI / 2); hull.rotateX(Math.PI / 2); hull.scale(1, 0.7, 1);
@@ -11164,10 +11285,12 @@ function penDecor() {
   kSign(X(18) + 0.4, X(23) + 0.4, Math.PI / 2, ['ACCOSTAGE', 'INTERDIT'], '#b83a2a', '#f2eee4');
 
   /* ── Cour de promenade : gradins, lignes, projecteur ── */
-  { const steps = fmat('concrete', 0xa8a49c); // gradins en trois tronçons : les brèches nord de la cour restent dégagées
-    for (const [a, b] of [[X(20), X(24) - 0.3], [X(25) + 0.3, X(34) - 0.3], [X(35) + 0.3, X(39)]]) {
-      for (let i = 0; i < 3; i++) KIT.b(R.scene, (a + b) / 2, 0.22 + i * 0.4, X(0) + 0.35 + i * 0.6, b - a, 0.44 + i * 0.8, 0.6, steps);
-      collider(a, X(0), b, X(0) + 1.8, 1.5, 'concrete');
+  { const steps = fmat('concrete', 0xa8a49c); // gradins en quatre tronçons : les brèches nord de la cour et l'arme murale (carabine, x 70-72) restent dégagées
+    for (const [a, b] of [[X(20), X(24) - 0.3], [X(25) + 0.3, X(30) - 0.3], [X(31) + 0.3, X(34) - 0.3], [X(35) + 0.3, X(39)]]) {
+      for (let i = 0; i < 3; i++) KIT.b(R.scene, (a + b) / 2, 0.22 + i * 0.4, X(0) + 1.55 - i * 0.6, b - a, 0.44 + i * 0.8, 0.6, steps); // la marche la plus haute contre le mur
+      // Une boîte par marche ; la deuxième compte 1,5 m (et non 1,24) : sauté de la première, on monte au plus à 1,48 m (pieds à 1,18 m
+      // plus la marche de 0,3 m), on ne se perche donc pas hors de portée des infectés (ils frappent jusqu'à 1,2 m de dénivelé).
+      collider(a, X(0) + 1.25, b, X(0) + 1.85, 0.44, 'concrete'); collider(a, X(0) + 0.65, b, X(0) + 1.25, 1.5, 'concrete'); collider(a, X(0), b, X(0) + 0.65, 2.04, 'concrete');
     } }
   { const line = fmat('plain', 0xe8e4da); for (const [x0, z0, x1, z1] of [[X(26), X(4), X(33), X(2)], [X(33), X(2), X(29), X(1) + 1.2]]) { const len = Math.hypot(x1 - x0, z1 - z0); KIT.b(R.scene, (x0 + x1) / 2, 0.012, (z0 + z1) / 2, len, 0.01, 0.08, line, -Math.atan2(z1 - z0, x1 - x0), false); } }
   kBench(X(36), X(4) + 1, Math.PI); kBench(X(24), X(4) + 1, Math.PI);
@@ -11199,7 +11322,11 @@ function penDecor() {
 function penFar(beamMat) {
   const k = kitMats(), rock = fmat('rock', 0x5a5e58);
   { const parts = [], r = mulberry32(3);
-    for (let i = 0; i < 90; i++) { const a = r() * TAU, rx = 60 + r() * 14, rz = 34 + r() * 10, x = 60 + Math.cos(a) * rx, z = 28 + Math.sin(a) * rz; const s = 1 + r() * 2.6; const g = new THREE.DodecahedronGeometry(s, 0); g.scale(1, 0.6 + r() * 0.5, 1); g.rotateY(r() * TAU); g.translate(x, surfH(x, z) + s * 0.2, z); parts.push(g.index ? g.toNonIndexed() : g); }
+    // Un rocher dont l'emprise touche un carreau praticable (quais, chemin de ronde, accès des infectés) est enfoncé sous le plancher.
+    const nearFloor = (x, z, s) => { for (let tz = tileOf(z - s); tz <= tileOf(z + s); tz++) for (let tx = tileOf(x - s); tx <= tileOf(x + s); tx++) if (inMap(tx, tz) && MAP.edge[ti(tx, tz)] === 0 && Math.hypot(clamp(x, tx * TILE, tx * TILE + TILE) - x, clamp(z, tz * TILE, tz * TILE + TILE) - z) < s) return true; return false; };
+    for (let i = 0; i < 90; i++) { const a = r() * TAU, rx = 60 + r() * 14, rz = 34 + r() * 10, x = 60 + Math.cos(a) * rx, z = 28 + Math.sin(a) * rz; const s = 1 + r() * 2.6, sy = 0.6 + r() * 0.5, ry = r() * TAU; /* (tirages dans le même ordre qu'avant) */
+      const y = nearFloor(x, z, s) ? Math.min(surfH(x, z) + s * 0.2, -0.1 - s * sy) : surfH(x, z) + s * 0.2;
+      const g = new THREE.DodecahedronGeometry(s, 0); g.scale(1, sy, 1); g.rotateY(ry); g.translate(x, y, z); parts.push(g.index ? g.toNonIndexed() : g); }
     mesh(mergeGeometries(parts), rock, 0, 0, 0, 0, R.scene, true); }
   // Phare sur son îlot.
   { const g = KIT.g(190, 140, 0, -1), white = fmat('plaster', 0xe8e4da); const isl = mesh(new THREE.CylinderGeometry(14, 22, 5, 14), rock, 0, 0, 0, 0, g);
@@ -11235,13 +11362,14 @@ function penDetails() {
   // Lampes grillagées le long des couloirs et sur les façades.
   const caged = (x, y, z, ry, col = 0xffe2b0) => { const g = KIT.g(x, z, ry, y); KIT.b(g, 0, 0, 0, 0.2, 0.06, 0.08, dark); KIT.s(g, 0, -0.08, 0.06, 0.07, KM.bulb, 1, 1.2, 1); for (let i = 0; i < 4; i++) { const b = KIT.b(g, -0.06 + (i % 2) * 0.12, -0.08, 0.02 + (i > 1 ? 0.08 : 0), 0.01, 0.18, 0.01, dark, 0, false); } KIT.glow(g, 0, -0.08, 0.08, col, 0.9, 0.7); };
   for (let x = X(12); x < X(34); x += 4) { caged(x, 2.7, X(10) + 0.12, 0); caged(x + 2, 2.7, X(13) - 0.12, Math.PI); }
-  for (let x = X(19); x < X(46); x += 6) caged(x, 3.2, X(23) - 0.12, Math.PI, 0xffb070);
+  // Quais : sur les façades sud de l'infirmerie et de la direction (z 54), tournées vers les quais ; ni sur les fenêtres ni sur la porte (x 72-74).
+  for (const x of [X(16) + 1, X(19), X(26), X(29), X(34), X(37)]) caged(x, 3.2, X(22) + 0.12, 0, 0xffb070);
   // Numéros peints au-dessus des cellules.
   { const atlas = textTexture(512, 256, (c) => { c.fillStyle = 'rgba(0,0,0,0)'; c.clearRect(0, 0, 512, 256); c.font = font(52); c.textAlign = 'center'; c.textBaseline = 'middle'; for (let i = 0; i < 32; i++) { const cx = (i % 8) * 64 + 32, cy = ((i / 8) | 0) * 64 + 32; c.fillStyle = '#e8e2c8'; c.fillText(String(i + 1).padStart(2, '0'), cx, cy); } }, { repeat: false });
     const mat = new THREE.MeshStandardMaterial({ map: atlas, transparent: true, roughness: 0.8, depthWrite: false }); let n = 0;
     for (let x = 11; x <= 32; x++) for (const [z, ry] of [[X(10) + 0.13, 0], [X(13) - 0.13, Math.PI]]) { if (n >= 32) break; const geo = new THREE.PlaneGeometry(0.42, 0.42), uv = geo.attributes.uv, i = n++; for (let j = 0; j < uv.count; j++) { uv.setX(j, ((i % 8) + uv.getX(j)) / 8); uv.setY(j, 1 - (((i / 8) | 0) + 1 - uv.getY(j)) / 4); } mesh(geo, mat, X(x) + 1, 3.25, z, ry, R.scene, false); } }
-  // Panneaux d'avertissement et gyrophares sur l'enceinte.
-  for (const [x, z, ry, lines] of [[X(20), X(23) - 0.05, Math.PI, ['ZONE INTERDITE', 'LES GARDES TIRENT']], [X(36), X(-0.5) + 0.05, 0, ['DÉFENSE D\'APPROCHER', 'DU MUR']], [X(46) - 0.05, X(14), -Math.PI / 2, ['DIRECTION', 'ACCÈS RÉSERVÉ']]]) mesh(new THREE.PlaneGeometry(1.5, 0.6), new THREE.MeshStandardMaterial({ map: woodSign(lines, { w: 512, h: 200, bg: '#b83a2a', color: '#f2eee4' }), roughness: 0.6 }), x, 2.4, z, ry, R.scene, false);
+  // Panneaux d'avertissement : façade de l'infirmerie face aux quais, mur nord de la cour (au-dessus des gradins), mur du réfectoire qui le sépare de la direction.
+  for (const [x, y, z, ry, lines] of [[X(18) + 1, 2.4, X(22) + 0.1, 0, ['ZONE INTERDITE', 'LES GARDES TIRENT']], [X(36), 3.0, X(0) + 0.1, 0, ['DÉFENSE D\'APPROCHER', 'DU MUR']], [X(37), 2.4, X(17) - 0.1, Math.PI, ['DIRECTION', 'ACCÈS RÉSERVÉ']]]) mesh(new THREE.PlaneGeometry(1.5, 0.6), new THREE.MeshStandardMaterial({ map: woodSign(lines, { w: 512, h: 200, bg: '#b83a2a', color: '#f2eee4' }), roughness: 0.6 }), x, y, z, ry, R.scene, false);
 }
 
 
@@ -11302,7 +11430,7 @@ MAPS.filon = {
     { key: 'rail', look: 'rail', h: 1.1, see: true, mat: 'wood' },
   ],
   boundary(x, z) {
-    const st = this.styles[MAP.style[ti(x, z)]], w = (x * 5 + z * 3) % 3 === 0;
+    const st = this.styles[MAP.style[ti(x, z)]], busy = [...this.spots.perks, ...this.spots.wallBuys].some((s) => s.x === x && s.z === z), w = !busy && (x * 5 + z * 3) % 3 === 0; // (pas de fenêtre derrière un atout ou une arme murale)
     if (st === 'saloon') return w ? 'redWin' : 'red'; if (st === 'bank') return w ? 'brickWin' : 'brick'; if (st === 'church') return w ? 'whiteWin' : 'white';
     if (st === 'store' || st === 'jail') return w ? 'plankWin' : 'plank';
     return 'rail';
@@ -11326,7 +11454,8 @@ MAPS.filon = {
     V(11, 16, 16, 'red'); V(12, 16, 16, 'red');
     H(17, 18, 20, 'plankWin'); H(17, 22, 24, 'plankWin'); V(21, 16, 16, 'plank'); V(22, 16, 16, 'plank');
     H(17, 26, 28, 'brickWin'); H(17, 30, 33, 'brickWin'); H(17, 27, 27, 'brick'); H(17, 31, 31, 'brick'); V(29, 16, 16, 'brick'); V(30, 16, 16, 'brick');
-    H(23, 7, 9, 'plankWin'); H(23, 11, 13, 'plankWin'); V(10, 23, 23, 'plank'); V(11, 23, 23, 'plank');
+    H(17, 18, 18, 'plank'); H(17, 20, 20, 'plank'); H(17, 33, 33, 'brick'); // pans pleins : affiches « RECHERCHÉ » et arme murale, pas sur une fenêtre
+    H(23, 7, 9, 'plankWin'); H(23, 11, 13, 'plankWin'); V(10, 23, 23, 'plank'); V(11, 23, 23, 'plank'); H(23, 8, 8, 'plank'); // (pan plein sous l'affiche de la prison)
     H(23, 22, 26, 'whiteWin'); H(23, 28, 32, 'whiteWin'); H(23, 24, 24, 'white'); H(23, 30, 30, 'white'); V(27, 23, 23, 'white'); V(28, 23, 23, 'white');
     // Saloon : scène au fond. Banque : chambre forte. Prison : cellules (le Colosse dort dans la grande).
     H(12, 7, 9, 'inner'); H(12, 11, 16, 'inner');
@@ -11342,13 +11471,16 @@ MAPS.filon = {
     // Barricades : brèches dans le roc (galerie, éboulis), ruelles, fenêtres.
     for (const [x, z] of [[41, 17], [44, 22], [47, 19], [5, 18], [5, 21]]) Rp(x, z, 'gap', x === 41 ? 's' : x === 44 ? 'n' : x === 47 ? 'w' : 'e');
     for (const [x, z, w] of [[17, 16, 's'], [25, 16, 's'], [16, 23, 'n'], [19, 23, 'n'], [34, 16, 's'], [34, 23, 'n']]) Rp(x, z, 'fence', w);
+    // Flancs des ruelles du nord : la clôture automatique ne ferme que le sol contre le roc, pas une barricade entre deux
+    // bâtiments ; sans ces murs, on voyait d'un bâtiment à l'autre par un trou de 2 m et on butait sur un mur invisible.
+    V(17, 16, 16, 'red'); V(18, 16, 16, 'plank'); V(25, 16, 16, 'plank'); V(26, 16, 16, 'brick'); V(34, 16, 16, 'brick');
     for (const [x, z] of [[6, 11], [6, 14], [10, 8], [14, 8], [21, 9], [28, 9], [34, 14], [6, 26], [14, 26], [33, 28], [27, 34], [21, 30]]) Rp(x, z, 'window');
   },
   spots: (() => {
     const T = FIL.T, xz = ([x, z]) => ({ x, z });
     return {
       start: T(42, 19), startYaw: Math.PI / 2,
-      coopStarts: [T(42, 19), T(42, 20), T(44, 19), T(44, 20)],
+      coopStarts: [T(42, 19), T(42, 20), T(45, 19), T(44, 20)], // (n° 3 à côté du wagonnet, pas dedans)
       wallBuys: [
         { weapon: 'bolt', ...xz(T(20, 17)), wall: 'n' }, { weapon: 'shotgun', ...xz(T(7, 13)), wall: 'w' },
         { weapon: 'smg', ...xz(T(39, 18)), wall: 'n' }, { weapon: 'carbine', ...xz(T(22, 28)), wall: 'w' }, { weapon: 'revolver', ...xz(T(13, 25)), wall: 'e' },
@@ -11361,7 +11493,7 @@ MAPS.filon = {
       power: { ...xz(T(33, 11)), wall: 'e' },
       generator: { x: FIL.X(31) + 1, z: FIL.X(10) + 1, ry: 0 },
       box: [{ ...xz(T(12, 9)), wall: 'n' }, { ...xz(T(18, 11)), wall: 'w' }, { ...xz(T(32, 32)), wall: 'e' }, { ...xz(T(45, 21)), wall: 's' }, { ...xz(T(26, 12)), wall: 'w' }],
-      bench: { ...xz(T(27, 32)), wall: 's' },
+      bench: { ...xz(T(22, 32)), wall: 'w' }, // (contre le mur ouest du chœur ; au sud de l'autel, il n'y a pas de mur)
       candy: { ...xz(T(18, 14)), wall: 'w' },
       bank: { ...xz(T(28, 14)), wall: 'n' },
       cage: T(8, 28), giantIdle: T(20, 19),
@@ -11606,7 +11738,7 @@ function filBuildMission() {
     for (let i = 0; i < 2; i++) { const b = mesh(boxG(1.6, 0.14, 0.2), plank, rand(-0.3, 0.3), 0.5 + i * 0.25, rand(-0.3, 0.3), rand(TAU), g); b.rotation.z = rand(-0.5, 0.5); }
     meterize(g); // construit après le monde (remise à zéro de la partie) : UV en mètres des madriers
     const glint = KIT.glow(g, 0, 0.9, 0, 0xffc040, 0.6, 0.5);
-    const col = { x0: p.x - 0.7, x1: p.x + 0.7, z0: p.z - 0.7, z1: p.z + 0.7, y0: 0, y1: 1.1, mat: 'concrete' }; MAP.props.push(col);
+    const col = { x0: p.x - 0.7, x1: p.x + 0.7, z0: p.z - 0.7, z1: p.z + 0.7, y0: 0, y1: 1.1, mat: 'concrete', rad: 0.7 }; MAP.props.push(col); // (tas rond : collision ronde, plus de coins vides)
     const nug = new THREE.Group(); nug.userData.dynamic = true; nug.position.set(p.x, 0.25, p.z); nug.visible = false; R.scene.add(nug);
     for (let i = 0; i < 3; i++) mesh(new THREE.DodecahedronGeometry(rand(0.06, 0.1), 0), gold, rand(-0.08, 0.08), rand(0, 0.08), rand(-0.08, 0.08), rand(TAU), nug, false);
     KIT.glow(nug, 0, 0.05, 0, 0xffc040, 1.2, 0.7);
@@ -11718,26 +11850,26 @@ function filDecor() {
     KIT.b(g, 0, 0.9, 0, 3.6, 0.2, 1.6, boards); for (const s of [-1, 1]) KIT.b(g, 0, 1.2, s * 0.78, 3.6, 0.5, 0.06, boards);
     const hood = mesh(new THREE.CylinderGeometry(0.95, 0.95, 3.4, 16, 1, true, -Math.PI / 2, Math.PI), canvas, 0, 1.4, 0, 0, g); hood.rotation.z = Math.PI / 2;
     for (const [a, b] of [[-1.3, -0.9], [1.3, -0.9], [-1.3, 0.9]]) { const w = KIT.c(g, a, 0.55, b, 0.55, 0.55, 0.1, timber, 14); w.rotation.x = Math.PI / 2; }
-    const wb = KIT.c(g, 1.6, 0.2, 1.4, 0.55, 0.55, 0.1, timber, 14); wb.rotation.z = 1.2; KIT.solid(g, 3.8, 1.8, 2.2, 'wood'); }
+    const wb = KIT.c(g, 1.6, 0.11, 1.4, 0.55, 0.55, 0.1, timber, 14); wb.rotation.z = 0.1; /* (couchée à plat, plus à moitié dans la terre) */ KIT.solid(g, 3.8, 1.8, 2.2, 'wood'); }
   // Tonneaux de chêne brut cerclés de fer. meterUV couche le fil le long du plus grand côté de la pièce, ici le tour (1,8 m
   // contre 0,88 m de haut) : les douelles seraient horizontales. On pose donc les UV en mètres ici, sans échange, douelles debout.
   { const oak = fmat('boisBrut', 0x7a5236), staves = { userData: { mu: true, scale: oak.userData.scale } };
     for (const [x, z] of [[X(8), X(21) + 1.5], [X(26), X(18) + 0.5], [X(33), X(21) + 1.4], [X(33) + 0.8, X(21) + 1.5]]) { const b = barrel(x, z, oak); b.geometry = meterUV(b.geometry, staves, 1, 1, 1, x, z); } }
-  for (const [x, z] of [[X(32) + 0.4, X(18) + 0.6], [X(32) + 1.2, X(18) + 0.4]]) { const g = KIT.g(x, z, rand(TAU)); KIT.b(g, 0, 0.35, 0, 1.0, 0.7, 0.6, fmat('foin', 0xc8a84a, { rough: 1 })); KIT.solid(g, 1.0, 0.6, 0.7); } // bottes de foin
+  for (const [x, z] of [[X(32) + 0.2, X(18) + 0.6], [X(32) + 1.5, X(18) + 0.4]]) { const a = rand(TAU), g = KIT.g(x, z, (a < Math.PI ? 0 : Math.PI / 2) + (a % 0.16) - 0.08); /* (posées presque droites, sans se traverser) */ KIT.b(g, 0, 0.35, 0, 1.0, 0.7, 0.6, fmat('foin', 0xc8a84a, { rough: 1 })); KIT.solid(g, 1.0, 0.6, 0.7); } // bottes de foin
   { const posters = textTexture(512, 256, (c) => { for (let i = 0; i < 2; i++) { const x0 = i * 256; c.fillStyle = '#e8d8b0'; c.fillRect(x0, 0, 256, 256); c.fillStyle = '#2a1a0a'; c.textAlign = 'center'; c.font = font(44); c.fillText('RECHERCHÉ', x0 + 128, 50); c.fillStyle = '#6a5a4a'; c.fillRect(x0 + 68, 70, 120, 110); c.fillStyle = '#2a1a0a'; c.font = font(30, 700); c.fillText(i ? '500 $' : 'MORT OU VIF', x0 + 128, 222); } });
-    for (const [x, z, ry, cell] of [[X(18) + 0.9, X(17) - 0.02, Math.PI, 0], [X(8) + 0.6, X(23) + 0.02, 0, 1], [X(33) + 1.2, X(17) - 0.02, Math.PI, 1]]) { const geo = new THREE.PlaneGeometry(0.6, 0.6), uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, (cell + uv.getX(i)) / 2); mesh(geo, new THREE.MeshStandardMaterial({ map: posters, roughness: 0.95 }), x, 1.6, z, ry, R.scene, false); } }
+    for (const [x, z, ry, cell] of [[X(18) + 0.9, X(17) + 0.1, 0, 0], [X(8) + 0.6, X(23) - 0.1, Math.PI, 1], [X(33) + 1.2, X(17) + 0.1, 0, 1]] /* (sur les façades, côté rue) */) { const geo = new THREE.PlaneGeometry(0.6, 0.6), uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, (cell + uv.getX(i)) / 2); mesh(geo, new THREE.MeshStandardMaterial({ map: posters, roughness: 0.95 }), x, 1.6, z, ry, R.scene, false); } }
   // Éboulis du bout ouest (rochers).
   // UV en mètres sur chaque bloc AVANT la fusion (la géométrie fusionnée perd ses paramètres).
   { const parts = [], rubble = fmat('rock', 0x8a7866); for (let i = 0; i < 26; i++) { const s = srand(0.4, 1.3), g = new THREE.DodecahedronGeometry(s, 0); g.translate(X(5) + srand(-1.5, 1.8), s * 0.5 + srand(0, 1.8), X(16) + srand(0, 16)); parts.push(meterUV(g, rubble, 1, 1, 1, i * 3.7, i * 1.3)); } mesh(mergeGeometries(parts), rubble, 0, 0, 0, 0, R.scene, true); }
 
   /* ── Saloon ── */
   { const g = KIT.g(X(15) + 1.2, X(13) + 1, Math.PI / 2); KIT.b(g, 0, 0.55, 0, 4.2, 1.1, 0.7, walnut); KIT.b(g, 0, 1.12, 0, 4.4, 0.06, 0.8, fmat('meuble', 0x6a3e22)); /* comptoir et dessus de noyer verni (les portes peintes ont leur propre matière) */ KIT.solid(g, 4.2, 0.7, 1.15); }
-  { const g = KIT.g(X(16) + 1.7, X(13) + 1, -Math.PI / 2); KIT.b(g, 0, 1.6, 0, 4.2, 2.4, 0.35, walnut); for (let s = 0; s < 3; s++) for (let i = 0; i < 12; i++) KIT.c(g, -1.9 + i * 0.34, 1.0 + s * 0.6, 0.12, 0.05, 0.05, 0.28, KIT.m([0x3a6a2a, 0x7a3a1a, 0xc8a84a, 0x2a2a4a][(i + s) % 4], { rough: 0.15 }), 8, false); }
+  { const g = KIT.g(X(16) + 1.7, X(13) + 0.6, -Math.PI / 2); KIT.b(g, 0, 1.2, 0, 3.4, 2.4, 0.35, walnut); /* (au sol, et assez court pour laisser la place à l'atout « armor ») */ for (let s = 0; s < 3; s++) for (let i = 0; i < 10; i++) KIT.c(g, -1.5 + i * 0.34, 1.0 + s * 0.6, 0.12, 0.05, 0.05, 0.28, KIT.m([0x3a6a2a, 0x7a3a1a, 0xc8a84a, 0x2a2a4a][(i + s) % 4], { rough: 0.15 }), 8, false); }
   for (let i = 0; i < 4; i++) { const g = KIT.g(X(14) + 0.3, X(12) + 0.8 + i * 1.1, 0); KIT.c(g, 0, 0.35, 0, 0.18, 0.18, 0.05, walnut, 10); KIT.c(g, 0, 0.18, 0, 0.03, 0.03, 0.36, iron, 6); }
   for (const [x, z] of [[X(8) + 1, X(13) + 1], [X(10) + 1, X(15)], [X(12) + 0.5, X(13)]]) { kTable(x, z, 0, 1.1, 1.1, 0.78, walnutLight); for (let a = 0; a < 3; a++) { const r = a * 2.1 + 0.4; kChair(x + Math.cos(r) * 0.85, z + Math.sin(r) * 0.85, -r - Math.PI / 2, walnut); } }
   { const g = KIT.g(X(7) + 0.5, X(15) + 0.8, Math.PI / 2); KIT.b(g, 0, 0.65, 0, 1.6, 1.3, 0.6, fmat('meuble', 0x2a1a12, { rough: 0.4 })); /* caisse de piano droit en noyer verni ; touches d'ivoire en teinte unie */ KIT.b(g, 0, 0.92, 0.32, 1.4, 0.08, 0.1, fmat('plain', 0xeae4d4)); KIT.solid(g, 1.6, 0.6, 1.3); } // piano
   { const stage = KIT.g(X(12), X(10), 0); KIT.b(stage, 0, 0.08, 0, 8, 0.16, 5.6, fmat('planks', 0x6a4028)); /* plancher de scène : planches de la carte */ const red = fmat('velours', 0x8a1a1a, { rough: 1, side: THREE.DoubleSide }); /* rideaux de velours bordeaux */ for (const s of [-1, 1]) KIT.b(stage, s * 3.3, 1.8, 2.7, 1.6, 3.4, 0.05, red); KIT.b(stage, 0, 3.2, 2.7, 8, 0.5, 0.05, red); }
-  { const ch = KIT.g(X(11) + 1, X(13) + 1, 0, 3.0); KIT.c(ch, 0, 0, 0, 0.9, 0.9, 0.06, iron, 20); for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU; KIT.c(ch, Math.cos(a) * 0.8, 0.12, Math.sin(a) * 0.8, 0.03, 0.03, 0.2, fmat('plain', 0xf2eee0), 6, false); KIT.glow(ch, Math.cos(a) * 0.8, 0.3, Math.sin(a) * 0.8, 0xffb060, 0.5, 0.7); } }
+  { const ch = KIT.g(X(11) + 1, X(13) + 1, 0, 3.0); KIT.c(ch, 0, 0, 0, 0.9, 0.9, 0.06, iron, 20); KIT.c(ch, 0, 0.2, 0, 0.015, 0.015, 0.4, iron, 4, false); /* tige jusqu'au plafond */ for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU; KIT.c(ch, Math.cos(a) * 0.8, 0.12, Math.sin(a) * 0.8, 0.03, 0.03, 0.2, fmat('plain', 0xf2eee0), 6, false); KIT.glow(ch, Math.cos(a) * 0.8, 0.3, Math.sin(a) * 0.8, 0xffb060, 0.5, 0.7); } }
 
   /* ── Magasin général et comptoir de friandises ── */
   // Rayonnages en bois (pas d'étagères d'acier en 1880) ; boîtes de conserve en fer-blanc inchangées.
@@ -11759,7 +11891,7 @@ function filDecor() {
     KIT.solid(g, 5.2, 0.6, 2.2);
     g.updateMatrixWorld(true);
     WORLD.bankDesk = { pos: new THREE.Vector3(s.x, 1, s.z), dep: new THREE.Vector3(-1.2, 0, 0.9).applyMatrix4(g.matrixWorld), wd: new THREE.Vector3(1.2, 0, 0.9).applyMatrix4(g.matrixWorld) }; }
-  { const d = MAP.doors.find((q) => q.label === 'La chambre forte'); if (d) { const g = KIT.g(tcx(d.x) - 1.1, tcx(d.z) - 0.2, 0); const disc = KIT.c(g, 0, 1.3, 0, 1.2, 1.2, 0.3, fmat('acier', 0x5a5e60, { rough: 0.7, metal: 0.8 }), 28); /* acier sombre de coffre-fort, et non plus la tôle ondulée dessinée */ disc.rotation.x = Math.PI / 2; disc.rotation.z = 0.4; for (let i = 0; i < 6; i++) { const sp = KIT.b(g, 0, 1.3, 0.2, 0.08, 1.8, 0.06, MATS.brass); sp.rotation.z = (i / 6) * Math.PI; } } }
+  { const d = MAP.doors.find((q) => q.label === 'La chambre forte'); if (d) { const g = KIT.g(tcx(d.x) - 2.35, tcx(d.z) - 0.75, 0, -0.09); /* (dans la banque, appuyée contre le mur nord, plus à travers le mur du passage) */ KIT.solid(g, 2.4, 0.3, 2.5, 'metal'); const disc = KIT.c(g, 0, 1.3, 0, 1.2, 1.2, 0.3, fmat('acier', 0x5a5e60, { rough: 0.7, metal: 0.8 }), 28); /* acier sombre de coffre-fort, et non plus la tôle ondulée dessinée */ disc.rotation.x = Math.PI / 2; disc.rotation.z = 0.4; for (let i = 0; i < 6; i++) { const sp = KIT.b(g, 0, 1.3, 0.2, 0.08, 1.8, 0.06, MATS.brass); sp.rotation.z = (i / 6) * Math.PI; } } }
   kTable(X(27), X(11) + 0.5, 0, 1.6, 0.8, 0.78, walnut);
   swap(swap(kLamp(X(26) + 0.4, X(10) + 0.4, 0), k.chrome, MATS.brass), k.black, iron); /* lampe à pied en laiton sur socle de fonte, pas le lampadaire chromé des années 1950 */
   WORLD.bulbs = []; for (const x of [X(27), X(29), X(32)]) { const b = hangingLamp(x, 3.0, X(14), MATS.bulbWarm); WORLD.bulbs.push(b.glow); }
@@ -11820,7 +11952,7 @@ function filDetails() {
   const X = FIL.X, walnut = fmat('meuble', 0x4e3526), beam = fmat('planks', 0x5a3e28), gold = fmat('plain', 0xc8a84a, { rough: 0.3, metal: 0.8 }), wax = fmat('plain', 0xf2eee0);
   // Église : charpente apparente, deux lustres à bougies, tapis d'allée, chaire, croix, bénitier, chandeliers.
   { const cx = X(27) + 1, z0 = X(23), z1 = X(34), y = 4.95, tr = new Batch(boxG(0.22, 0.3, 1), beam);
-    for (let z = z0 + 1.6; z < z1; z += 2.4) { tr.add(cx, y - 0.15, z, Math.PI / 2, 0, 0, 1, 1, X(33) - X(22) - 0.2); for (const s of [-1, 1]) { const b = tr.add(cx + s * 5.2, y - 0.75, z, Math.PI / 2, 0, s * 0.85, 1, 1, 1.6); } }
+    for (let z = z0 + 1.6; z < z1; z += 2.4) { tr.add(cx, y - 0.15, z, Math.PI / 2, 0, 0, 1, 1, X(33) - X(22) - 0.2); for (const s of [-1, 1]) { const b = tr.add(cx + s * 10.4, y - 0.75, z, Math.PI / 2, s * 0.85, 0, 1, 1, 1.6); /* contrefiche : du mur latéral à l'entrait */ } }
     tr.add(cx, y - 0.15, (z0 + z1) / 2, 0, 0, 0, 1, 1, z1 - z0 - 0.2); tr.build();
     for (const z of [X(26), X(30)]) { const ch = KIT.g(cx, z, 0, 3.7); KIT.c(ch, 0, 1.0, 0, 0.015, 0.015, 2.0, MATS.iron, 4, false); KIT.c(ch, 0, 0, 0, 0.75, 0.75, 0.05, MATS.iron, 18); for (let i = 0; i < 10; i++) { const a = (i / 10) * TAU; KIT.c(ch, Math.cos(a) * 0.72, 0.1, Math.sin(a) * 0.72, 0.025, 0.025, 0.16, wax, 6, false); KIT.glow(ch, Math.cos(a) * 0.72, 0.26, Math.sin(a) * 0.72, 0xffb050, 0.42, 0.85); } }
     kRug(cx, (X(24) + X(32)) / 2, 0, 1.3, X(32) - X(24), 0x7a1a1a);
@@ -11831,10 +11963,10 @@ function filDetails() {
   }
   // Galerie de mine : filons d'or qui luisent dans la roche, minerai dans le wagonnet, pics et pelles.
   { const goldGlow = new THREE.MeshStandardMaterial({ color: 0x9a7a2a, emissive: 0xd8a030, emissiveIntensity: 0.28, roughness: 0.35, metalness: 0.9 }), vein = new Batch(new THREE.DodecahedronGeometry(0.05, 0), goldGlow, false);
-    for (let i = 0; i < 22; i++) { const x = X(37) + rand(0.4, X(47) - X(37) - 0.4), side = Math.random() < 0.5 ? X(18) - 0.02 : X(22) + 0.02, y = rand(0.8, 2.6), n = 3 + (Math.random() * 3) | 0, a = rand(-0.6, 0.6); for (let j = 0; j < n; j++) vein.add(x + Math.cos(a) * j * 0.07, y + Math.sin(a) * j * 0.07, side, rand(TAU), rand(TAU), 0, rand(0.5, 1), rand(0.5, 1), 0.6); }
+    for (let i = 0; i < 22; i++) { let x = X(37) + rand(0.4, X(47) - X(37) - 0.4); const side = Math.random() < 0.5 ? X(18) - 0.02 : X(22) + 0.02, y = rand(0.8, 2.6), n = 3 + (Math.random() * 3) | 0, a = rand(-0.6, 0.6); const rockAt = (px) => tType(tileOf(px), tileOf(side)) === T_BLOCK; if (!rockAt(x) || !rockAt(x + n * 0.07 * Math.cos(a))) x += x < X(42) ? 2.2 : -2.2; /* (pas devant une brèche : sur la roche) */ for (let j = 0; j < n; j++) vein.add(x + Math.cos(a) * j * 0.07, y + Math.sin(a) * j * 0.07, side, rand(TAU), rand(TAU), 0, rand(0.5, 1), rand(0.5, 1), 0.6); }
     vein.build();
     const cartOre = new Batch(new THREE.DodecahedronGeometry(0.13, 0), goldGlow); for (let i = 0; i < 9; i++) cartOre.add(X(44) + rand(-0.4, 0.4), 1.24, X(19) + 1 + rand(-0.6, 0.6), rand(TAU), rand(TAU)); cartOre.build();
-    for (const [x, ry] of [[X(40) + 0.4, 0.3], [X(45) + 1, -0.4]]) { const t = KIT.g(x, X(22) - 0.35, ry); const h = KIT.b(t, 0, 0.75, 0, 0.05, 1.5, 0.05, fmat('meuble', 0x9a7a5a)); /* manche de frêne poli par les mains */ h.rotation.z = 0.2; const hd = KIT.b(t, 0.15, 1.45, 0, 0.6, 0.06, 0.06, MATS.iron); hd.rotation.z = 0.2; }
+    for (const [x, ry] of [[X(40) + 0.4, 0.3], [X(43) + 1, -0.4]]) { /* (hors de la caisse de ravitaillement et de la brèche sud) */ const t = KIT.g(x, X(22) - 0.35, ry); const h = KIT.b(t, 0, 0.75, 0, 0.05, 1.5, 0.05, fmat('meuble', 0x9a7a5a)); /* manche de frêne poli par les mains */ h.rotation.z = 0.2; const hd = KIT.b(t, 0.15, 1.45, 0, 0.6, 0.06, 0.06, MATS.iron); hd.rotation.z = 0.2; }
   }
   // Cristaux de la caverne : touches de couleur froide le long des parois, hors du jeu.
   { const cm = new THREE.MeshStandardMaterial({ color: 0x6a8aff, emissive: 0x3a5aff, emissiveIntensity: 0.9, roughness: 0.15, metalness: 0.2, transparent: true, opacity: 0.85 }), cr = new Batch(new THREE.OctahedronGeometry(0.3, 0), cm, false), W = MAP_W * TILE, D = MAP_D * TILE, glows = KIT.g(0, 0);
