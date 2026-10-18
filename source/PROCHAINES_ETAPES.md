@@ -2,6 +2,11 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.1.2) : armes murales et caisse de ravitaillement
+
+- **Armes murales** (retour du propriétaire : arme à l'envers de son contour lumineux, contour qui « clignote » selon l'angle comme s'il rentrait dans le mur). L'arme est tournée dans le sens de son contour à la craie, centrée dessus et mise à sa taille ; le contour est posé devant la vraie surface du mur (rayons contre les maillages, décalage de profondeur) et non plus devant la case de la grille ; l'arme passe au-dessus de ce qui est posé devant (`08_weapons.js` mountWallWeapons). Râtelier du Poste 7 déplacé hors de l'arme murale. Vérifié de face et de biais sur les 4 cartes (`dev/armesmur.mjs`).
+- **Caisse de ravitaillement à la BO2** : colonne de lumière qui signale la caisse de loin (jusqu'au plafond à l'intérieur, jusqu'au ciel dehors) ; à l'ouverture, faisceau qui jaillit de la caisse, tenu dans son emprise (l'ancien halo rond traversait le mur et clignotait) ; couvercle sur charnière haute arrière (il ne rentre plus dans le mur) ; les armes montent vite hors de la caisse en défilant, ralentissent, la dernière plane puis redescend lentement si personne ne la prend. Les armes restent toujours dans la longueur de la caisse, en défilant comme à l'arrêt (pivot centré par arme, `11_game.js` boxGun). `dev/caisse.mjs <carte>` filme un tirage en 6 vues.
+
 ## Fait (version 6.1.1) : retours du propriétaire sur le Pénitencier
 
 - Le mur plein ajouté en 6.1 entre le réfectoire et la direction devient une porte payante « Réfectoire ↔ Direction » (1 250, acier ; choix du propriétaire parmi : garder le mur, porte payante, revenir au passage libre). Ajoutée en dernier : les numéros des autres portes (co-op) ne changent pas.

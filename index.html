@@ -737,7 +737,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '6.1.1'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '6.1.2'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -4046,19 +4046,26 @@ function buildInteractables() {
   WORLD.boxSpots = SPOTS.box.map((s, idx) => {
     const w = wallSpot(s, 0.42), g = new THREE.Group(); g.userData.dynamic = true; g.position.set(w.x, 0, w.z); g.rotation.y = w.yaw; R.scene.add(g);
     const base = mesh(boxG(1.5, 0.62, 0.72), MATS.crate, 0, 0.31, 0, 0, g);
-    const lidPivot = new THREE.Group(); lidPivot.position.set(0, 0.62, -0.36); g.add(lidPivot);
-    const lid = mesh(boxG(1.52, 0.1, 0.74), MATS.crate, 0, 0.05, 0.37, 0, lidPivot);
+    // Charnière sur l'arête haute arrière : couvercle ouvert, il reste au-dessus de la caisse (sans entrer dans le mur derrière).
+    const lidPivot = new THREE.Group(); lidPivot.position.set(0, 0.72, -0.36); g.add(lidPivot);
+    const lid = mesh(boxG(1.52, 0.1, 0.74), MATS.crate, 0, -0.05, 0.37, 0, lidPivot);
     const label = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.34), new THREE.MeshStandardMaterial({ map: woodSign(['RAVITAILLEMENT', '950 · ARME ALÉATOIRE'], { w: 512, h: 160, bg: '#3d3022', color: '#e8dfc6' }), roughness: 0.9 }));
     label.position.set(0, 0.34, 0.365); g.add(label);
     for (const o of [-0.68, 0.68]) mesh(boxG(0.06, 0.64, 0.76), MATS.iron, o, 0.32, 0, 0, g);
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.sprites.glow, color: 0x7fffd0, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
-    glow.scale.set(1.6, 1.6, 1); glow.position.set(0, 1.0, 0); g.add(glow);
+    // Lumière à la BO2 : faisceau qui jaillit de la caisse ouverte (deux plans croisés, dans l'emprise de la caisse : il ne
+    // traverse jamais le mur), fond lumineux, et colonne de lumière qui signale la caisse de loin (jusqu'au plafond à l'intérieur).
+    const bfx = boxFxMats(), shaft = new THREE.Group(); shaft.position.set(0, 0.62, 0); g.add(shaft);
+    for (const [w, ry] of [[1.36, 0], [0.6, Math.PI / 2]]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.7).translate(0, 0.85, 0), bfx.shaft); p.rotation.y = ry; p.renderOrder = 5; shaft.add(p); }
+    const inner = new THREE.Mesh(new THREE.PlaneGeometry(1.36, 0.6), bfx.inner); inner.rotation.x = -Math.PI / 2; inner.position.set(0, 0.6, 0); inner.renderOrder = 5; g.add(inner);
+    const tx = tileOf(w.x), tz = tileOf(w.z), roofed = inMap(tx, tz) && MAP.roof[ti(tx, tz)], ph = roofed ? Math.max(1, roomCeil(tx, tz) - 0.62) : 26;
+    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, ph, 16, 1, true).translate(0, ph / 2 + 0.62, 0), bfx.pillar.clone()); pillar.renderOrder = 5; pillar.visible = false; g.add(pillar);
+    shaft.visible = inner.visible = false;
     // Fusée éclairante verte plantée à côté (signale la caisse active).
     const flare = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 8), MATS.rust, 0.85, 0.25, 0.1, 0, g);
     const beacon = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.sprites.glow, color: 0x6dffb0, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
     beacon.scale.set(0.9, 0.9, 1); beacon.position.set(0.85, 0.55, 0.1); g.add(beacon);
     colliderBox(w.x, w.z, 1.5, 0.72, w.yaw, 0.7, 'wood');
-    return { idx, pos: new THREE.Vector3(w.x, 0.9, w.z), face: w.face, group: g, lid: lidPivot, glow, beacon, flare, yaw: w.yaw, label };
+    return { idx, pos: new THREE.Vector3(w.x, 0.9, w.z), face: w.face, group: g, lid: lidPivot, shaft, inner, pillar, lightK: 0, beacon, flare, yaw: w.yaw, label };
   });
   // Établi d'armurier.
   { const s = SPOTS.bench, w = wallSpot(s, 0.5), g = new THREE.Group(); g.userData.dynamic = true; g.position.set(w.x, 0, w.z); g.rotation.y = w.yaw; R.scene.add(g);
@@ -4107,6 +4114,22 @@ function buildInteractables() {
     WORLD.generator = { group: g, fly, exhaust: new THREE.Vector3(-1.0, 2.9, -0.35).applyMatrix4(g.matrixWorld) };
     WORLD.spin.push({ obj: fly, axis: 'y', speed: 0, key: 'gen' });
   }
+}
+
+// Matières de la lumière de la caisse (partagées entre ses emplacements ; l'opacité du faisceau et du fond est commune, une
+// seule caisse étant ouverte à la fois ; chaque colonne a la sienne).
+let BOX_FX = null;
+function boxFxMats() {
+  if (BOX_FX) return BOX_FX;
+  const grad = (w, h, f) => textTexture(w, h, (x) => { const im = x.createImageData(w, h); for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const a = f(i / (w - 1), 1 - j / (h - 1)), k = (j * w + i) * 4; im.data[k] = im.data[k + 1] = im.data[k + 2] = 255; im.data[k + 3] = Math.round(255 * clamp(a, 0, 1)); } x.putImageData(im, 0, 0); });
+  const mat = (map, color) => new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  // u : en travers, v : de bas (0) en haut (1).
+  BOX_FX = {
+    shaft: mat(grad(32, 128, (u, v) => Math.pow(Math.sin(Math.PI * u), 1.6) * Math.pow(1 - v, 1.8)), 0xc8f6ff),
+    inner: mat(grad(64, 32, (u, v) => Math.pow(Math.sin(Math.PI * u) * Math.sin(Math.PI * v), 0.6)), 0xa8f0ff),
+    pillar: mat(grad(32, 128, (u, v) => (0.55 + 0.45 * Math.sin(Math.PI * u)) * Math.pow(1 - v, 0.7) * Math.min(1, v * 12 + 0.3)), 0x8fe4ff),
+  };
+  return BOX_FX;
 }
 
 /* ─── Mobilier et détails ─── */
@@ -4164,7 +4187,7 @@ function buildProps() {
     mesh(boxG(0.3, 0.06, 0.02), MATS.olive, 0, 0.15, -0.1, 0, gun); }
   // Périscope, râtelier, casques et caisses de munitions.
   mesh(boxG(0.14, 1.2, 0.1), MATS.olive, 40, 2.1, 12.1);
-  { const rack = new THREE.Group(); rack.position.set(35, 0, 15.75); R.scene.add(rack);
+  { const rack = new THREE.Group(); rack.position.set(28, 0, 15.75); R.scene.add(rack); // (à l'écart de l'arme murale du fusil à verrou, x 35)
     mesh(boxG(1.4, 0.08, 0.2), rawPost(), 0, 0.3, 0, 0, rack); mesh(boxG(1.4, 0.08, 0.2), rawPost(), 0, 1.2, 0, 0, rack);
     for (let k = 0; k < 4; k++) { const r = mesh(boxG(0.05, 1.2, 0.07), rawPost(), -0.5 + k * 0.33, 0.75, -0.08, 0, rack); r.rotation.z = rand(-0.08, 0.08); } }
   for (const [x, z] of [[20, 12.4], [37, 15.6], [57, 13], [48, 15.6]]) { const h = mesh(new THREE.SphereGeometry(0.17, 12, 8, 0, TAU, 0, Math.PI / 2), MATS.olive, x, 0.03, z, rand(TAU)); h.rotation.x = rand(-0.4, 0.4); }
@@ -5175,15 +5198,42 @@ function gunShow(key, up = false, slot = 'box') {
   o.rotation.set(0, Math.PI / 2, 0); o.position.set(0, 0, 0); return o;
 }
 
-// Accroche les armes réelles au-dessus des silhouettes à la craie.
+// Accroche les armes réelles sur les silhouettes à la craie.
 function mountWallWeapons() {
+  // Surface visible du mur (mur fin, maçonnerie, paroi de tranchée) : le groupe y est posé, le contour 3 cm devant et l'arme
+  // devant le contour ; avant, le contour était dans la surface d'un mur fin et scintillait selon l'angle de vue.
+  R.scene.updateMatrixWorld(true);
+  const solids = []; R.scene.traverse((o) => { if (o.isMesh && o.visible && !o.isSprite && o.material && !o.material.transparent && !o.material.isMeshBasicMaterial) solids.push(o); });
+  const rc = new THREE.Raycaster(); rc.far = 1.6;
   for (const wb of WORLD.wallBuys) {
-    const w = WEAPONS[wb.weapon];
-    const chalk = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.75), new THREE.MeshBasicMaterial({ map: chalkOutline(CHALK[wb.weapon], w.name, w.cost), transparent: true, depthWrite: false, opacity: 0.85 }));
-    chalk.position.set(0, -0.05, 0.02); wb.group.add(chalk);
-    const m = buildGunModel(wb.weapon, false, false).root;
-    m.rotation.y = Math.PI / 2; m.position.set(0.25, 0.05, 0.08); m.scale.setScalar(1.05); wb.group.add(m);
-    for (const o of [-0.5, 0.4]) { const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.1, 6), MATS.iron); peg.rotation.x = Math.PI / 2; peg.position.set(o, 0.0, 0.05); wb.group.add(peg); }
+    const w = WEAPONS[wb.weapon], g = wb.group, d = wb.face, P0 = g.position.clone();
+    let best = null; // rayon depuis la pièce vers le mur, au centre et aux deux bouts du contour : la surface la plus avancée
+    for (const a of [-0.55, 0, 0.55]) for (const y of [-0.1, 0.15]) {
+      const o = new THREE.Vector3(P0.x - d[0] * 0.8 + d[1] * a, P0.y + y, P0.z - d[1] * 0.8 - d[0] * a); rc.set(o, new THREE.Vector3(d[0], 0, d[1]));
+      const h = rc.intersectObjects(solids, false)[0]; if (h && h.distance > 0.35 && (best === null || h.distance < best)) best = h.distance; // (plus de 45 cm devant le mur : un objet, pas le mur)
+    }
+    if (best !== null) g.position.set(P0.x - d[0] * (0.8 - best), P0.y, P0.z - d[1] * (0.8 - best));
+    // Ce qui est posé devant (banquette de tir, parapet, meuble) ne doit cacher ni l'arme ni son prix : on remonte au besoin.
+    const fy = groundAt(g.position.x - d[0] * 0.5, g.position.z - d[1] * 0.5); let top = fy;
+    for (const a of [-0.5, 0, 0.5]) for (const k of [0.12, 0.35, 0.6, 0.9]) {
+      rc.set(new THREE.Vector3(g.position.x - d[0] * k + d[1] * a, fy + 2.4, g.position.z - d[1] * k - d[0] * a), new THREE.Vector3(0, -1, 0));
+      const h = rc.intersectObjects(solids, false)[0]; if (h && h.point.y < fy + 1.5) top = Math.max(top, h.point.y);
+    }
+    g.position.y = clamp(Math.max(g.position.y, top + 0.55), g.position.y, fy + 2.3);
+    g.updateMatrixWorld(true);
+    // Contour à la craie (au-dessus du mur dans l'ordre de profondeur, sans écrire la profondeur).
+    const chalk = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.75), new THREE.MeshBasicMaterial({ map: chalkOutline(CHALK[wb.weapon], w.name, w.cost), transparent: true, depthWrite: false, opacity: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    chalk.position.set(0, -0.05, 0.03); g.add(chalk);
+    // Arme : canon du côté du canon dessiné (+x), à la taille du contour et centrée dessus.
+    const m = buildGunModel(wb.weapon, false, false).root; m.rotation.y = -Math.PI / 2; g.add(m); g.updateMatrixWorld(true);
+    const prof = CHALK[wb.weapon], px = prof.map((p) => p[0]), py = prof.map((p) => p[1]);
+    const cx = (u) => ((40 + u * 432) / 512 - 0.5) * 1.5, cy = (v) => (0.5 - (36 + v * 146) / 256) * 0.75 - 0.05; // profil → plan du contour (chalkOutline, 512 × 256)
+    const ox0 = cx(Math.min(...px)), ox1 = cx(Math.max(...px)), oy0 = cy(Math.max(...py)), oy1 = cy(Math.min(...py));
+    const bb = new THREE.Box3().setFromObject(m), inv = new THREE.Matrix4().copy(g.matrixWorld).invert(); bb.applyMatrix4(inv);
+    const k = clamp(0.82 * (ox1 - ox0) / Math.max(0.05, bb.max.x - bb.min.x), 0.5, 1.6); m.scale.setScalar(k); // (un peu plus petite que son contour : la craie l'entoure)
+    m.position.set((ox0 + ox1) / 2 - ((bb.min.x + bb.max.x) / 2) * k, (oy0 + oy1) / 2 - ((bb.min.y + bb.max.y) / 2) * k, 0.03 + 0.01 - bb.min.z * k);
+    // Deux chevilles plantées dans le mur, sous l'arme.
+    for (const o of [ox0 + (ox1 - ox0) * 0.2, ox0 + (ox1 - ox0) * 0.75]) { const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.14, 6), MATS.iron); peg.rotation.x = Math.PI / 2; peg.position.set(o, m.position.y + bb.min.y * k - 0.005, 0.0); g.add(peg); }
   }
 }
 
@@ -7713,14 +7763,35 @@ const G = {
   updateBoxBench(dt) {
     const bx = this.box, spot = WORLD.boxSpots[bx.loc];
     bx.visT = (bx.visT || 0) + dt;
-    for (const s of WORLD.boxSpots) { const active = s === spot && bx.state !== 'moving'; s.beacon.material.opacity = active ? 0.7 + Math.sin(this.time * 6) * 0.3 : 0; s.glow.material.opacity = active && bx.state !== 'idle' ? 0.35 : active ? 0.1 : 0; if (active && Math.random() < dt * 10) FX.glow.spawn(s.group.position.x + s.face[0] * -0.3, 0.6, s.group.position.z + s.face[1] * -0.3, rand(-0.2, 0.2), rand(0.4, 1.2), rand(-0.2, 0.2), 1, 0.05, 0.4, 1, 0.7, 1, -0.3, 0.2); }
-    // Couvercle.
+    // Caisse à la BO2 : colonne de lumière qui la signale de loin ; couvercle qui s'ouvre et faisceau qui jaillit de l'intérieur ;
+    // l'arme monte en défilant, ralentit, plane, puis redescend lentement dans la caisse si personne ne la prend.
     const open = bx.state === 'rolling' || bx.state === 'offer';
-    spot.lid.rotation.x = damp(spot.lid.rotation.x, open ? -1.6 : 0, 7, dt);
+    for (const s of WORLD.boxSpots) {
+      const active = s === spot && bx.state !== 'moving';
+      s.beacon.material.opacity = active ? 0.7 + Math.sin(this.time * 6) * 0.3 : 0;
+      const pm = s.pillar.material; pm.opacity = damp(pm.opacity, active ? (open ? 0.1 : 0.32 + Math.sin(this.time * 1.7) * 0.06) : 0, 3, dt); s.pillar.visible = pm.opacity > 0.004;
+      if (s !== spot) { s.lightK = 0; s.shaft.visible = s.inner.visible = false; }
+    }
+    spot.lid.rotation.x = damp(spot.lid.rotation.x, open ? -1.45 : 0, 6, dt);
+    const lidK = clamp(-spot.lid.rotation.x / 1.2, 0, 1), want = bx.state === 'rolling' ? 1 : bx.state === 'offer' ? 0.4 + 0.45 * (bx.clientT / (bx.offerT || 9)) : 0;
+    spot.lightK = damp(spot.lightK, want, 5, dt);
+    const L = spot.lightK * lidK, fl = 0.9 + 0.1 * Math.sin(this.time * 23) * Math.sin(this.time * 7.3);
+    BOX_FX.shaft.opacity = 0.6 * L * fl; BOX_FX.inner.opacity = 0.95 * L; spot.shaft.visible = spot.inner.visible = L > 0.01; spot.shaft.scale.y = 0.55 + 0.45 * L;
+    if (L > 0.05 && Math.random() < dt * 30 * L) { const g = spot.group, a = rand(-0.6, 0.6); FX.glow.spawn(g.position.x - spot.face[1] * a, rand(0.65, 0.9), g.position.z + spot.face[0] * a, rand(-0.05, 0.05), rand(0.5, 1.1), rand(-0.05, 0.05), rand(0.4, 0.9), 0.04, 0.75, 0.95, 1, 0.9, -0.3, 0.3); } // poussières lumineuses qui montent dans le faisceau
     if (bx.display) {
       const dp = bx.display;
-      if (bx.state === 'rolling') { dp.cycleT -= dt; if (dp.cycleT <= 0) { dp.cycleT = lerp(0.08, 0.35, 1 - bx.clientT / 4.2); setBoxDisplay(bx.empty && bx.clientT < 0.6 ? 'skull' : pick(Object.keys(WEAPONS).filter((k) => k !== 'pistol'))); } bx.clientT = Math.max(0, (bx.clientT ?? 4.2) - dt); dp.obj.position.y = lerp(0.7, 1.35, 1 - bx.clientT / 4.2); }
-      if (dp.obj) { dp.obj.rotation.y = bx.state === 'offer' ? Math.sin(this.time) * 0.3 : 0; if (bx.state === 'offer') dp.obj.position.y = 1.35 + Math.sin(this.time * 2) * 0.03 - Math.max(0, 3 - bx.clientT) * 0.12; if (bx.state === 'offer') bx.clientT = Math.max(0, bx.clientT - dt); }
+      if (bx.state === 'rolling') {
+        dp.cycleT -= dt; const p = 1 - bx.clientT / 4.2;
+        if (dp.cycleT <= 0) { dp.cycleT = lerp(0.07, 0.42, p * p); setBoxDisplay(bx.empty && bx.clientT < 0.6 ? 'skull' : pick(Object.keys(WEAPONS).filter((k) => k !== 'pistol'))); }
+        bx.clientT = Math.max(0, (bx.clientT ?? 4.2) - dt);
+        const e = 1 - Math.pow(1 - clamp(p / 0.55, 0, 1), 3); // sort vite de la caisse, puis plane en défilant
+        dp.obj.position.y = lerp(0.4, 1.3, e) + Math.sin(this.time * 9) * 0.015;
+        if (!dp.obj.isSprite) dp.obj.rotation.set(0, 0, Math.sin(this.time * 11) * 0.04);
+      } else if (bx.state === 'offer') {
+        bx.clientT = Math.max(0, bx.clientT - dt); const q = 1 - bx.clientT / (bx.offerT || 9);
+        dp.obj.position.y = 1.3 - 0.72 * q * q + Math.sin(this.time * 2) * 0.025; // redescend lentement dans la caisse
+        if (!dp.obj.isSprite) dp.obj.rotation.set(0, Math.sin(this.time * 0.9) * 0.15, Math.sin(this.time * 1.3) * 0.03); // toujours dans la longueur de la caisse
+      }
     }
     if (bx.state === 'moving') { bx.clientT = (bx.clientT || 0) + dt; spot.group.position.y = Math.max(0, (bx.clientT - 1) * 6); if (Math.random() < dt * 30) fxSnowBurst(_v1.set(spot.group.position.x, spot.group.position.y + 0.3, spot.group.position.z), 2); }
     // Établi.
@@ -7763,9 +7834,17 @@ function setBoxDisplay(key) {
   if (bx.display?.obj) bx.display.obj.removeFromParent(); // retiré de là où il est vraiment, même si la caisse a changé de place
   let obj;
   if (key === 'skull') { obj = new THREE.Sprite(new THREE.SpriteMaterial({ map: dropTexture('instakill'), color: 0x9fe8ff, depthWrite: false })); obj.scale.set(0.6, 0.6, 1); }
-  else obj = gunShow(key, false, 'box');
-  obj.position.set(0, 0.8, 0); spot.group.add(obj);
+  else obj = boxGun(key);
+  obj.position.set(0, 0.8, 0); obj.rotation.set(0, 0, 0); spot.group.add(obj);
   bx.display = Object.assign(bx.display || { cycleT: 0 }, { obj, key });
+}
+// Arme de la caisse : dans la longueur de la caisse (axe x du groupe), centrée sur sa propre longueur ; pivot gardé par arme.
+const BOX_PIV = new Map();
+function boxGun(key) {
+  let piv = BOX_PIV.get(key); if (piv) return piv;
+  const o = gunShow(key, false, 'box'); o.removeFromParent(); o.position.set(0, 0, 0); o.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(o); o.position.set(-(b.min.x + b.max.x) / 2, -(b.min.y + b.max.y) / 2, -(b.min.z + b.max.z) / 2);
+  piv = new THREE.Group(); piv.add(o); BOX_PIV.set(key, piv); return piv;
 }
 function clearBoxDisplay() { const bx = G.box; if (bx.display?.obj) bx.display.obj.removeFromParent(); bx.display = null; }
 function applyBoxState(d) {
@@ -7776,7 +7855,7 @@ function applyBoxState(d) {
   if (d.buyer !== undefined) bx.buyer = d.buyer; if (d.key !== undefined) bx.key = d.key; if (d.empty !== undefined) bx.empty = d.empty; if (d.next !== undefined) bx.next = d.next; if (d.uses !== undefined) bx.uses = d.uses;
   const spot = WORLD.boxSpots[bx.loc];
   if (d.state === 'rolling') { bx.display = { cycleT: 0 }; setBoxDisplay('bolt'); Sfx.musicBox(spot.group.position); }
-  else if (d.state === 'offer') { setBoxDisplay(bx.key); bx.clientT = d.t; }
+  else if (d.state === 'offer') { setBoxDisplay(bx.key); bx.clientT = d.t; bx.offerT = d.t; }
   else if (d.state === 'moving') { if (bx.display?.obj) setBoxDisplay('skull'); Sfx.eerie(spot.group.position); UI.message('LA CAISSE SE DÉPLACE', 'Points remboursés. Cherchez la fusée verte.'); bx.clientT = 0; }
   else if (d.state === 'closing' || d.state === 'idle') clearBoxDisplay();
 }
