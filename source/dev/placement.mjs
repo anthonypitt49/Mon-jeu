@@ -545,6 +545,7 @@ function pageAudit(opt) {
     const seenAt = (ix, iz) => { for (let a = -1; a <= 1; a++) for (let c = -1; c <= 1; c++) if ((colMask.get((ix + a) * NZ + iz + c) || 0) & lv) return true; return false; };
     for (let ix = Math.max(0, ixOf(b.x0)); ix <= Math.min(NX - 1, ixOf(b.x1)); ix++) for (let iz = Math.max(0, izOf(b.z0)); iz <= Math.min(NZ - 1, izOf(b.z1)); iz++) {
       const x = X0 + (ix + 0.5) * V, z = Z0 + (iz + 0.5) * V; if (x < b.x0 || x > b.x1 || z < b.z0 || z > b.z1 || !walkable(tileOf(x), tileOf(z))) continue;
+      if (b.rb ? rotDist(b.rb, x, z) > 0 : b.rad ? Math.hypot(x - (b.x0 + b.x1) / 2, z - (b.z0 + b.z1) / 2) > b.rad : false) continue; // (forme réelle : hors des coins de l'enveloppe)
       tot++; if (!seenAt(ix, iz)) inv++;
     }
     b.walk = r2(tot * V * V); b.inv = r2(inv * V * V);
