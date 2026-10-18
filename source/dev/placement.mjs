@@ -505,7 +505,7 @@ function pageAudit(opt) {
 
   /* ─── Boîtes de collision ─── */
   // (forme réelle des boîtes, 03_map.js : b.rot = boîte tournée { cx, cz, hw, hd, c, s }, b.rad = cylindre debout ; rb = emprise tournée)
-  const props = MAP.props.map((b, i) => ({ ...b, i, rb: b.rot ? { x: b.rot.cx, z: b.rot.cz, w: b.rot.hw * 2, d: b.rot.hd * 2, ry: Math.atan2(b.rot.s, b.rot.c) } : null })).filter((b) => !b.off);
+  const props = MAP.props.map((b, i) => ({ ...b, i, rb: b.rot ? { x: b.rot.cx, z: b.rot.cz, w: b.rot.hw * 2, d: b.rot.hd * 2, ry: Math.atan2(b.rot.s, b.rot.c) } : null })).filter((b) => !b.off && b.tag !== 'porte'); // (battants des portes fermées : l'audit suppose les portes ouvertes)
   // Distance d'un point à l'emprise réelle d'une boîte tournée { x, z, w, d, ry } (w le long du x local, comme colliderBox).
   const rotDist = (rb, x, z) => { const c = Math.cos(rb.ry), s = Math.sin(rb.ry), dx = x - rb.x, dz = z - rb.z, lx = c * dx - s * dz, lz = s * dx + c * dz; return Math.hypot(Math.max(Math.abs(lx) - rb.w / 2, 0), Math.max(Math.abs(lz) - rb.d / 2, 0)); };
   const blocksPlayer = (b) => b.y1 > 0.3 && (b.y0 || 0) <= 1.6;
