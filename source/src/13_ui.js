@@ -260,6 +260,7 @@ function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&a
 
 /* ─── Transitions d'état ─── */
 function beginGame(opts) {
+  loaderShow('start'); setTimeout(loaderHide, 1100); // carton de la carte : couvre la mise en place (plein écran, souris verrouillée)
   Sfx.init();
   $('joinPanel').classList.add('hidden'); $('lobby').classList.add('hidden');
   G.start(opts);

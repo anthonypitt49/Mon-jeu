@@ -37,35 +37,41 @@ function applyQuality() {
   r.shadowMap.enabled = Q.shadows; L.moon.castShadow = Q.shadows;
   if (Q.shadows) { L.moon.shadow.mapSize.set(Q.shadowSize, Q.shadowSize); L.moon.shadow.map?.dispose(); L.moon.shadow.map = null; }
   L.torch.castShadow = Q.flashShadow;
-  R.dynScale = 1; buildComposer(); resize(); aoStart(); photoStart(); zrealStart();
+  R.dynScale = 1; buildComposer(); resize(); const loads = [aoStart(), photoStart(), zrealStart()];
   if (R.snow) { R.scene.remove(R.snow); R.snow.geometry.dispose(); } buildSnow();
   R.scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => (m.needsUpdate = true)); });
+  // Nouveaux réglages : tout se recompile et se recharge sous l'écran de chargement, pas sur l'accueil.
+  (async () => { loaderShow('quality'); await loaderWait(loads, 30000, 0.1, 0.8); await warmUp(); loaderHide(); })();
 }
 
-const step = (label) => new Promise((res) => { const l = $('loadingLine'); if (l && !window.__spReady) l.querySelector('span').textContent = label; setTimeout(res, 16); });
+const step = (label, p) => new Promise((res) => { const l = $('loadingLine'); if (l && !window.__spReady) l.querySelector('span').textContent = label; loaderStep(label, p); setTimeout(res, 16); });
 async function init() {
   try {
-    await step('GÉNÉRATION DU SECTEUR…');
+    window.__spBoot = true; chooseMap(); loaderShow('boot'); // (le moteur 3D est chargé : le garde-fou de la page ne crie plus)
+    await step('GÉNÉRATION DU SECTEUR…', 0.04);
     buildMap();
     initRenderer();
-    await step('PEINTURE DES MATIÈRES…');
+    await step('PEINTURE DES MATIÈRES…', 0.12);
     buildTextures(); gunMaterials();
-    await step(M.loading || 'CONSTRUCTION DU SECTEUR…');
+    await step(M.loading || 'CONSTRUCTION DU SECTEUR…', 0.2);
     buildLights(); buildSky(); buildWorld();
-    await step('LEVÉE DES MORTS…');
-    initFX(); buildZombieAssets(); mountWallWeapons(); if (!/nomerge/.test(location.search)) mergeStatic(); buildSnow(); photoStart(); aoStart(); zrealStart();
+    await step('LEVÉE DES MORTS…', 0.3);
+    initFX(); buildZombieAssets(); mountWallWeapons(); if (!/nomerge/.test(location.search)) mergeStatic(); buildSnow();
+    const loads = [photoStart(), aoStart(), zrealStart()]; // (photos, ombrage d'ambiance, infectés réalistes : attendus plus bas)
     bindInput(); UI.init(); initBoard();
     NET.detect().then(() => UI.netStatus());
     G.reset();
     spawnMenuZombies();
-    await step('PRÉCHAUFFAGE DES SHADERS…');
-    try { R.renderer.compile(R.scene, R.camera); R.renderer.compile(R.viewScene, R.viewCam); } catch { /* compilation paresseuse */ }
+    // Accueil seulement une fois tout chargé et préchauffé (voir 13c_loader.js).
+    await loaderWait(loads);
+    await warmUp();
     window.__spReady = true;
     $('loadingLine').classList.add('hidden');
     $('soloButton').disabled = false; $('joinButton').disabled = false; $('mapButton').disabled = false;
     checkVersion();
     autoJoin();
     requestAnimationFrame(frame);
+    loaderHide();
   } catch (err) {
     console.error(err);
     window.__spFail && window.__spFail('Impossible de démarrer le jeu sur cet appareil (WebGL 2 requis). Détail : ' + (err?.message || err));
@@ -110,5 +116,5 @@ setInterval(() => {
   while (el > 1e-3) { const dt = Math.min(0.05, el); G.update(dt); el -= dt; }
 }, 250);
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'playing' && !NET.active) pauseGame(); });
-window.SP = { PHOTO_SETS, KIT, meterize, ZREAL, GORE, collideCircle, collideProps, collideEdges, pBlocked, pBlockedP, playerTile, isTrench, solidAt, groundAt, tileOf, inMap, buildGunModel, buildKnife, buildGrenadeModel, clipViewmodel, GM, PHOTO, MATS, GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
+window.SP = { warmUp, boxGun: (k) => boxGun(k), PHOTO_SETS, KIT, meterize, ZREAL, GORE, collideCircle, collideProps, collideEdges, pBlocked, pBlockedP, playerTile, isTrench, solidAt, groundAt, tileOf, inMap, buildGunModel, buildKnife, buildGrenadeModel, clipViewmodel, GM, PHOTO, MATS, GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
   sim(sec, dt = 0.05) { for (let t = 0; t < sec; t += dt) { if (G.mode === 'playing' || (G.mode === 'paused' && NET.active)) { G.update(dt); if (G.mode === 'playing') updatePlayer(dt); NET.clientTick(dt); } updateFX(dt, performance.now() / 1000 + t); } } };

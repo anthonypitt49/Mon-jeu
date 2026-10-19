@@ -129,6 +129,7 @@ async function photoStart() {
         (tex[key] ||= {})[m] = t; PHOTO.files++;
       }));
     }
+    PHOTO.total = jobs.length; // (barre de l'écran de chargement)
     const env = man.env ? photoEnv(base, man.env).catch((e) => { PHOTO.err = 'env: ' + (e?.message || e); }) : null; // échec isolé : on garde le ciel calculé
     await Promise.all(jobs);
     // Envoi à la carte graphique une texture par image, puis une matière par image : pas d'à-coup en pleine partie

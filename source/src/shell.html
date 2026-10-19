@@ -122,6 +122,28 @@ h1 em { display: block; color: transparent; font-style: inherit; -webkit-text-st
 .map-art { position: absolute !important; inset: 0; width: 100%; height: 100%; opacity: .95; }
 .control-strip { grid-column: 1 / -1; align-self: end; margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px clamp(12px, 2.4vw, 34px); padding-top: 15px; border-top: 1px solid var(--line); color: #a9c1ca; font-size: .76rem; }
 .control-strip b { display: inline-block; margin-right: 6px; color: #effbff; font: .74rem var(--f-mono); letter-spacing: .04em; }
+/* Écran de chargement : photo de la carte (lent zoom), nom, barre ; fondu à la fin. Couleurs de la carte en attendant la photo. */
+.loader { position: absolute; inset: 0; z-index: 100; overflow: hidden; background: radial-gradient(120% 90% at 70% 35%, var(--c1, #4f6a80) 0%, var(--c0, #0b1219) 55%, #04080c 100%); opacity: 1; transition: opacity .6s ease; }
+.loader.done { opacity: 0; pointer-events: none; }
+.loader.gone { display: none; }
+.loader.start { pointer-events: none; }
+.loader-img { position: absolute; inset: -2%; background-size: cover; background-position: center; opacity: 0; transition: opacity .8s ease; animation: loaderZoom 24s ease-out forwards; }
+.loader-img.ready { opacity: 1; }
+.loader::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, #04080cf0 0%, #04080cb0 38%, #04080c10 75%), linear-gradient(0deg, #04080ce0 0%, transparent 45%); }
+@keyframes loaderZoom { from { transform: scale(1); } to { transform: scale(1.07); } }
+.loader-copy { position: absolute; z-index: 1; left: clamp(24px, 7vw, 108px); bottom: clamp(40px, 12vh, 120px); max-width: min(560px, 86vw); }
+.loader-eyebrow { margin: 0 0 10px; color: var(--frost); font: 700 .78rem var(--f-body); letter-spacing: .28em; }
+.loader h2 { margin: 0; font: 900 clamp(2.6rem, 7vw, 5rem)/.92 "Big Shoulders Display", Impact, sans-serif; letter-spacing: .02em; color: #f2f6f8; text-shadow: 0 4px 30px #000a; }
+.loader-sub { margin: 10px 0 0; color: var(--mist); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: .86rem; }
+.loader-desc { margin: 14px 0 0; color: #d6e2e8; font-size: 1rem; min-height: 1.3em; }
+.loader-bar { margin-top: 26px; width: min(360px, 76vw); height: 3px; background: #ffffff1c; overflow: hidden; }
+.loader-bar i { display: block; height: 100%; background: var(--frost); box-shadow: 0 0 12px var(--frost); transform-origin: left; transform: scaleX(0); transition: transform .35s ease; }
+.loader-step { margin: 12px 0 0; color: var(--mist); font-size: .76rem; letter-spacing: .16em; font-weight: 700; }
+.loader.error .loader-step { color: var(--blood); letter-spacing: .02em; font-weight: 600; font-size: .9rem; }
+.loader-tip { position: absolute; z-index: 1; right: clamp(24px, 6vw, 90px); bottom: clamp(40px, 12vh, 120px); max-width: 340px; margin: 0; color: #c3d3db; font-size: .9rem; line-height: 1.45; text-align: right; }
+.loader-tip:not(:empty)::before { content: "ASTUCE"; display: block; margin-bottom: 6px; color: var(--frost); font-size: .7rem; font-weight: 800; letter-spacing: .24em; }
+.loader.start .loader-bar, .loader.start .loader-step { display: none; }
+@media (max-width: 760px) { .loader-tip { display: none; } }
 .loading-line { display: flex; align-items: center; gap: 10px; margin-top: 18px; color: var(--mist); font-size: .8rem; letter-spacing: .14em; font-weight: 700; }
 .loading-line i { width: 120px; height: 3px; background: #ffffff18; overflow: hidden; position: relative; }
 .loading-line i::after { content: ""; position: absolute; inset: 0; width: 40%; background: var(--frost); animation: load 1.1s ease-in-out infinite; }
@@ -414,6 +436,19 @@ body.touch .control-strip { display: none; }
 </head>
 <body>
 <main class="game-shell" id="shell">
+  <!-- Écran de chargement (13c_loader.js) : photo de la carte, nom, progression ; l'accueil n'apparaît qu'une fois tout prêt. -->
+  <div id="loader" class="loader boot" aria-live="polite">
+    <div class="loader-img" id="loaderImg"></div>
+    <div class="loader-copy">
+      <p class="loader-eyebrow" id="loaderEyebrow">CHARGEMENT</p>
+      <h2 id="loaderName">SNOWFALL PROTOCOL</h2>
+      <p class="loader-sub" id="loaderSub"></p>
+      <p class="loader-desc" id="loaderDesc"></p>
+      <div class="loader-bar"><i id="loaderFill"></i></div>
+      <p class="loader-step" id="loaderStep">CHARGEMENT DU MOTEUR 3D…</p>
+    </div>
+    <p class="loader-tip" id="loaderTip"></p>
+  </div>
   <canvas id="game" aria-label="Jeu Snowfall Protocol"></canvas>
 
   <div id="screenfx" aria-hidden="true">
@@ -624,12 +659,14 @@ body.touch .control-strip { display: none; }
 <script>
 // Garde-fou : si le moteur 3D ne se charge pas (hors ligne, CDN bloqué), on le dit clairement.
 window.__spFail = function (msg) {
-  var l = document.getElementById('loadingLine');
+  var l = document.getElementById('loadingLine'), ld = document.getElementById('loader'), st = document.getElementById('loaderStep');
   if (!l || window.__spReady) return;
-  l.className = 'loading-line error';
-  l.querySelector('span').textContent = msg || "Le moteur 3D n'a pas pu être chargé. Vérifiez votre connexion Internet puis rechargez la page.";
+  msg = msg || "Le moteur 3D n'a pas pu être chargé. Vérifiez votre connexion Internet puis rechargez la page.";
+  l.className = 'loading-line error'; l.querySelector('span').textContent = msg;
+  if (ld && st) { ld.classList.add('error'); st.textContent = msg; }
 };
-setTimeout(function () { if (!window.__spReady) window.__spFail(); }, 25000);
+// (moteur 3D chargé : __spBoot ; le chargement peut alors durer plus longtemps sans fausse alerte)
+setTimeout(function () { if (!window.__spReady && !window.__spBoot) window.__spFail(); }, 25000);
 </script>
 <script type="importmap">
 { "imports": {
