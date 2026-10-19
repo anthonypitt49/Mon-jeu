@@ -2,6 +2,15 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.1.4) : les sols du Poste 7
+
+Demande du propriétaire : « des mottes de terre et/ou de neige non réalistes sur le sol, de plus celui-ci manque un peu de neige étant donné que c'est l'hiver ; à voir sur les autres cartes ».
+
+- **Mottes** : c'étaient des semis de polyèdres à 12 faces (`05c_detail.js`, sorte « clod ») : blancs partout (« neige »), bruns et serrés au Cratère (jusqu'à 2,2 fois leur taille). Retirés du Poste 7. Essais écartés à l'œil : mottes arrondies coiffées de neige (des boules de neige), puis texturées de terre (des galets). À la place, le fond du Cratère est bosselé (terre retournée, ±5 cm, à l'œil seulement : le jeu garde `M.floorH`). La sorte « clod » est maintenant une bosse arrondie et enfoncée (le Filon en sème encore, petites, dans la rue et la mine : elles s'y fondent).
+- **Neige** (`05_world.js` buildTrenches, couleur des sommets lue par photoBlend) : la neige couvre le sol ; boue sous le caillebotis des boyaux (distance à l'axe du caillebotis le plus proche, deux rangées dans le boyau de soutien), plaques piétinées dans la cour du dépôt, terre retournée et neige mêlées au Cratère, plus de neige contre les parois. Tout est calculé à partir de la position (champs continus), donc identique aux sommets partagés par deux carreaux : plus de lisière droite aux croisements. Normales du sol tirées de sa forme exacte (plus de couture d'éclairage entre carreaux).
+- **Autres cartes** : Cité et Pénitencier n'ont que de petits cailloux et éclats (pas de motte) ; Filon vérifié à l'œil (rue, mine).
+- Pas fait (possible plus tard) : congères en relief au pied des parois.
+
 ## Fait (version 6.1.3) : contour des armes murales et caisse verte (retours du propriétaire sur la 6.1.2)
 
 - **Contour des armes murales** : il était dessiné à la main (profil générique) et l'arme le cachait presque entièrement. Il est maintenant calculé depuis la vraie silhouette de chaque arme : triangles du modèle projetés sur le mur, forme élargie de 4 cm, bord suivi (tracé de Moore) et dessiné en pointillés lumineux ; nom et prix dessous (`08_weapons.js` gunOutline). Taille des armes inchangée (`WALL_LEN`). Une saillie du mur devant le prix (cimaise du Filon) fait remonter l'ensemble. Vérifié sur les 4 cartes, de face et de biais (`dev/armesmur.mjs`, `DIST=` pour s'approcher).
@@ -31,7 +40,7 @@ Demande du propriétaire : « Cherche toi-même les murs invisibles et les objet
 - **Par carte** : Cité (télé, machine à laver, comptoir, atterrissages des atouts, départ hors du car, sorties de terre, mannequins assis sur un siège, tableaux, lavabos, enseigne de l'abri…), Poste 7 (épave du biplan, Œil de lynx, affiche, caisse, brancard), Pénitencier (gradins, carabine, mur réfectoire/direction, coffre-fort, étagères, bouées, lampes, panneaux, rochers), Filon (flancs des ruelles, disque secret atteignable, établi, coffre, wagonnet, lustre, bouteilles, fenêtres derrière les atouts, affiches, charpente, filons d'or…), trousse commune (balançoires en A, fauteuils et lits sur pieds, arbustes, camion, mannequins, fûts, caisses empilées).
 - **Leçon de méthode** : les workflows à plusieurs agents ont consommé la limite d'usage et perdu leur travail à chaque coupure (branches locales non poussées, reprise qui refaisait tout). Pour une étape longue : une correction à la fois, poussée aussitôt, et un fichier de reprise dans le dépôt.
 
-Ensuite, dans l'ordre demandé par le propriétaire : les sols (mottes de terre et de neige peu réalistes au Poste 7, pas assez de neige pour un hiver ; regarder aussi les autres cartes), puis la résolution et la qualité d'image ; les infectés plus tard (mâchoire, animations capturées, Colosse et avatars).
+Ensuite, dans l'ordre demandé par le propriétaire : les sols (faits en 6.1.4), puis la résolution et la qualité d'image ; les infectés plus tard (mâchoire, animations capturées, Colosse et avatars).
 
 ## Fait (version 6.0) : des infectés réalistes, un type par époque, et du gore
 
