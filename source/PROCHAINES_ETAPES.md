@@ -4,6 +4,8 @@ Note de passation entre sessions de travail : où en est le projet et ce qui vie
 
 ## Fait (version 6.3) : l'esthétique du Pénitencier
 
+Mise en ligne le 19 octobre 2026 : `main` (GitHub Pages, vérifié : version.json et GAME_VERSION à 6.3) et l'Artifact du jeu avec salon co-op (version 26, page seule).
+
 Demande du propriétaire : « passe à l'esthétique du Pénitencier maintenant ». Suivi détaillé, constat de départ et pièges : `source/ESTHETIQUE_PENITENCIER.md`.
 
 - **Taches** (toutes les cartes de plain-pied) : flaques, taches d'eau, moisissure et terre peintes au pixel avec un contour irrégulier ; les anciennes, faites de dégradés ronds empilés, étaient noires au centre et faisaient des trous dans les sols et les murs (douches surtout). Nouveau : taches au plafond (`M.decals.ceil`).

@@ -10,9 +10,13 @@ Vues rapprochées : `'[[x,z,cap,inclinaison],…]'` en mètres. Préfixes : `ava
 
 Pièges trouvés :
 - photo.mjs posait la caméra et dessinait aussitôt ; l'éclairage intérieur (hémisphère, lumière de rebond qui éclaire les
-  plafonds) se règle en ~2 s en jeu, les photos sortaient donc avec des plafonds noirs. Il laisse maintenant 3 s.
-- Ces 3 s font aussi souffler le soldat : la buée (fxBreath) n'est jamais effacée par l'outil (pas de mise à jour des effets)
-  et s'empilait devant l'objectif ; au 4e point, le rendu logiciel ne s'en sortait plus. photo.mjs coupe le souffle.
+  plafonds) se règle en ~2 s en jeu, les photos sortaient donc avec des plafonds noirs. L'outil pose maintenant directement
+  l'état atteint en jeu (intensité de l'hémisphère et de l'éclairage d'ambiance, rebond intérieur) avant chaque vue.
+- photo.mjs tombait au 3e ou 4e point (« Target page, context or browser has been closed ») : le noyau tuait le rendu du
+  navigateur, à court de mémoire (5 Go, journal du noyau : oom-kill). Ce n'est pas une fuite du jeu (sonde : tas JavaScript
+  stable à 77 Mo en se téléportant et en dessinant 5 min) mais le rendu logiciel en 1280 × 720 plus les copies d'image.
+  La page est maintenant en 640 × 360, la taille de chaque vue dans la planche : même résultat, 4 points en 1 min.
+- La buée du souffle (fxBreath) n'est pas effacée par l'outil (pas de mise à jour des effets) : photo.mjs coupe le souffle.
 - Les plafonds noirs n'étaient pas qu'un défaut de photo : en jeu aussi, un plafond de béton sombre n'est éclairé que par le
   rebond (couleur basse de l'hémisphère) ; il faut un plafond clair et un rebond suffisant.
 - Les taches empilées (dégradés radiaux superposés) deviennent opaques au centre : on peint maintenant au pixel.
