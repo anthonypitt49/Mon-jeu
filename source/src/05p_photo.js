@@ -115,7 +115,7 @@ async function photoStart() {
       const mo = await (await fetch('assets/objets/manifest.json', { cache: 'force-cache' })).json();
       for (const k of objSets) if (mo[k]) man['objets/' + k] = { ...mo[k], dir: 'assets/objets/', file: k };
     }
-    const aniso = Math.min(8, R.renderer.capabilities.getMaxAnisotropy());
+    const aniso = Math.min(Q.aniso || 8, R.renderer.capabilities.getMaxAnisotropy());
     // Décodage des JPEG hors du fil principal (createImageBitmap) ; Safari, qui ignore le retournement demandé, garde le chargeur classique.
     const safari = /Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg/.test(navigator.userAgent);
     const bmp = typeof createImageBitmap === 'function' && !safari ? new THREE.ImageBitmapLoader().setOptions({ imageOrientation: 'flipY', premultiplyAlpha: 'none', colorSpaceConversion: 'none' }) : null;

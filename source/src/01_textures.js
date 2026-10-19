@@ -6,7 +6,7 @@ function toTex(canvas, { srgb = true, repeat = true, aniso = true } = {}) {
   const t = new THREE.CanvasTexture(canvas);
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  if (aniso) t.anisotropy = 8;
+  if (aniso) t.anisotropy = R.renderer ? Math.min(Q.aniso || 8, R.renderer.capabilities.getMaxAnisotropy()) : 8; // (filtrage des sols vus de biais)
   t.needsUpdate = true;
   return t;
 }

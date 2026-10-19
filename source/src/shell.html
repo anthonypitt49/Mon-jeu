@@ -559,6 +559,8 @@ body.touch .control-strip { display: none; }
       <div class="settings-grid">
         <div class="set-row"><label for="optDiff">DIFFICULTÉ</label><select id="optDiff"><option value="0">Recrue — 6 coups</option><option value="1">Régulier — 4 coups</option><option value="2">Vétéran — 3 coups</option><option value="3">Cauchemar — 3 coups, hordes</option></select></div>
         <div class="set-row"><label for="optQuality">GRAPHISMES</label><select id="optQuality"><option value="0">Bas — performance</option><option value="1">Moyen</option><option value="2">Élevé</option><option value="3">Ultra</option></select></div>
+        <div class="set-row"><label for="optRes">RÉSOLUTION</label><select id="optRes"><option value="auto">Automatique — baisse si le jeu ralentit</option><option value="full">Toujours pleine — plus net</option></select></div>
+        <div class="set-row check"><label for="optGrain">GRAIN DE FILM</label><input type="checkbox" id="optGrain"></div>
         <div class="set-row"><label for="optSens">SENSIBILITÉ</label><input type="range" id="optSens" min="0.3" max="2.5" step="0.1"><output id="optSensV"></output></div>
         <div class="set-row"><label for="optFov">CHAMP DE VISION</label><input type="range" id="optFov" min="60" max="100" step="1"><output id="optFovV"></output></div>
         <div class="set-row"><label for="optVol">VOLUME GÉNÉRAL</label><input type="range" id="optVol" min="0" max="1" step="0.05"><output id="optVolV"></output></div>
@@ -571,6 +573,7 @@ body.touch .control-strip { display: none; }
         </div></details>
         <div class="set-row check"><label for="optInvert">INVERSER L'AXE VERTICAL</label><input type="checkbox" id="optInvert"></div>
         <div class="set-row check"><label for="optFps">AFFICHER LES IMAGES/S</label><input type="checkbox" id="optFps"></div>
+        <p class="set-hint" id="optDiag"></p>
       </div>
       <button id="settingsClose" class="btn">Terminé</button>
     </div>

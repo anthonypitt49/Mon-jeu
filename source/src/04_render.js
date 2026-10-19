@@ -67,7 +67,7 @@ function buildEnvironment() {
 function buildComposer() {
   const renderer = R.renderer;
   if (R.composer) { R.composer.dispose?.(); R.composer = null; }
-  if (!Q.bloom && !Q.grain) return;
+  if (!Q.bloom && !Q.grain && !Q.smaa) return;
   const c = R.composer = new EffectComposer(renderer);
   // Ombrage d'ambiance (N8AO, qualité élevée et ultra) : assombrit coins, recoins et pieds des murs ; il dessine aussi la scène.
   R.ao = null;
@@ -86,7 +86,7 @@ function buildComposer() {
     hp.needsUpdate = true;
   } else R.bloom = null;
   R.final = new ShaderPass({
-    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uGrain: { value: Q.grain ? 1 : 0 }, uVig: { value: 0.75 }, uDamage: { value: 0 }, uAberr: { value: 0 }, uTint: { value: new THREE.Vector3(...(M.env.tint || [1, 1, 1])) } },
+    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uGrain: { value: Q.grain && settings.grain ? 1 : 0 }, uVig: { value: 0.75 }, uDamage: { value: 0 }, uAberr: { value: 0 }, uTint: { value: new THREE.Vector3(...(M.env.tint || [1, 1, 1])) } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uGrain, uVig, uDamage, uAberr; uniform vec3 uTint; varying vec2 vUv;
       void main(){
@@ -100,13 +100,20 @@ function buildComposer() {
         col *= mix(1.0, v, uVig);
         col = mix(col, col * vec3(1.5, 0.35, 0.3) + vec3(0.06, 0.0, 0.0), uDamage * smoothstep(0.15, 0.75, length(c) * 1.5));
         float g = fract(sin(dot(vUv * vec2(1733.0, 977.0) + fract(uTime) * 91.0, vec2(12.9898, 78.233))) * 43758.5453);
-        col += (g - 0.5) * uGrain * (0.015 + 0.05 * (1.0 - smoothstep(0.0, 0.4, l)));
+        col += (g - 0.5) * uGrain * (0.008 + 0.02 * (1.0 - smoothstep(0.0, 0.4, l))); // grain de film léger (il brouillait les nuits)
         gl_FragColor = vec4(max(col, 0.0), 1.0);
       }`,
   });
   c.addPass(R.final);
   c.addPass(new OutputPass());
+  // Anticrénelage (SMAA), sur l'image finale : la chaîne d'effets passe par des images intermédiaires, que l'anticrénelage
+  // du navigateur ne lisse pas (les bords étaient en escalier en moyen, élevé et ultra).
+  if (Q.smaa) c.addPass(new SMAAPass());
   resize();
+}
+// Nom de la carte graphique (diagnostic des Options) : « ANGLE (NVIDIA, NVIDIA GeForce …, Direct3D11 …) » → « NVIDIA GeForce … ».
+function gpuName() {
+  try { const gl = R.renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'); let n = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); const m = /ANGLE \(([^,]+),\s*([^,(]+?)(?:\s*\(0x[0-9a-f]+\))?\s*(?:Direct3D|,|\))/i.exec(n); if (m) n = m[2].trim(); return n.slice(0, 80); } catch { return 'inconnue'; }
 }
 function resize() {
   const w = innerWidth, h = innerHeight, pr = Math.min(devicePixelRatio || 1, Q.pr) * (R.dynScale || 1);
@@ -130,7 +137,9 @@ function dynamicResolution(dt) {
   R.dynCd = Math.max(0, (R.dynCd || 0) - dt);
   if (G.mode !== 'playing' || R.dynCd > 0) { R.lowT = 0; R.highT = 0; return; }
   const s = R.dynScale || 1, now = performance.now();
-  if (R.fpsAvg < 40) { R.lowT += dt; R.highT = 0; if (R.lowT > 3 && s > 0.56) { R.dynScale = Math.max(0.55, s * 0.85); R.lowT = 0; R.dynCd = 4; R.lastDown = now; resize(); } }
+  if (settings.res === 'full') { if (s !== 1) { R.dynScale = 1; resize(); } return; } // (réglage : toujours la pleine définition)
+  const lo = Q.dynMin || 0.55; // (plancher : en élevé, l'image ne descend plus sous 75 %, elle devenait floue à 55 %)
+  if (R.fpsAvg < 40) { R.lowT += dt; R.highT = 0; if (R.lowT > 4 && s > lo + 0.01) { R.dynScale = Math.max(lo, s * 0.88); R.lowT = 0; R.dynCd = 4; R.lastDown = now; resize(); } }
   else if (R.fpsAvg > 58) { R.highT += dt; R.lowT = 0; if (R.highT > 10 && s < 1 && now - (R.lastDown || 0) > 45000) { R.dynScale = Math.min(1, s * 1.1); R.highT = 0; R.dynCd = 4; resize(); } }
   else { R.lowT = 0; R.highT = 0; }
 }

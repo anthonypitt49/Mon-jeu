@@ -4,6 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /* Snowfall Protocol — tout le jeu tient dans ce fichier.
@@ -68,7 +69,7 @@ const store = {
 };
 const defaultQuality = IS_TOUCH ? 0 : 2;
 // Volumes : volume général, puis par famille de sons (armes, infectés, ambiance) et musique.
-const settings = Object.assign({ quality: defaultQuality, sens: 1, fov: 78, volume: 0.8, volWeapons: 1, volZombies: 1, volAmb: 1, music: 0.5, invertY: false, showFps: false, name: '', diff: 1 }, store.get('settings', {}));
+const settings = Object.assign({ quality: defaultQuality, sens: 1, fov: 78, volume: 0.8, volWeapons: 1, volZombies: 1, volAmb: 1, music: 0.5, invertY: false, showFps: false, name: '', diff: 1, res: 'auto', grain: true }, store.get('settings', {}));
 // Difficulté : points de vie du soldat, coup d'un infecté, résistance, nombre et cadence d'arrivée des infectés.
 // « early » avance (ou recule) d'autant de manches l'arrivée des coureurs et des infectés spéciaux.
 const DIFFS = [
@@ -80,10 +81,10 @@ const DIFFS = [
 const DIFF = () => DIFFS[typeof G !== 'undefined' && G.diff != null ? G.diff : clamp(settings.diff | 0, 0, 3)];
 const saveSettings = () => store.set('settings', settings);
 const QUALITY = [
-  { name: 'bas', pr: 0.75, shadows: false, shadowSize: 0, bloom: false, snow: 1800, flashShadow: false, texSize: 256, grain: false, decals: 30 },
-  { name: 'moyen', pr: 1, shadows: true, shadowSize: 1024, bloom: false, snow: 3500, flashShadow: false, texSize: 512, grain: true, decals: 60 },
-  { name: 'eleve', pr: 1.25, shadows: true, shadowSize: 2048, bloom: true, snow: 6000, flashShadow: true, texSize: 512, grain: true, decals: 90, ao: 'half' },
-  { name: 'ultra', pr: 2, shadows: true, shadowSize: 4096, bloom: true, snow: 9000, flashShadow: true, texSize: 1024, grain: true, decals: 140, ao: 'full' },
+  { name: 'bas', pr: 0.75, shadows: false, shadowSize: 0, bloom: false, snow: 1800, flashShadow: false, texSize: 256, grain: false, decals: 30, dynMin: 0.55, aniso: 4 },
+  { name: 'moyen', pr: 1, shadows: true, shadowSize: 1024, bloom: false, snow: 3500, flashShadow: false, texSize: 512, grain: true, decals: 60, smaa: true, dynMin: 0.6, aniso: 8 },
+  { name: 'eleve', pr: 1.25, shadows: true, shadowSize: 2048, bloom: true, snow: 6000, flashShadow: true, texSize: 512, grain: true, decals: 90, ao: 'half', smaa: true, dynMin: 0.75, aniso: 16 },
+  { name: 'ultra', pr: 2, shadows: true, shadowSize: 4096, bloom: true, snow: 9000, flashShadow: true, texSize: 1024, grain: true, decals: 140, ao: 'full', smaa: true, dynMin: 0.75, aniso: 16 },
 ];
 let Q = QUALITY[clamp(settings.quality | 0, 0, 3)];
 

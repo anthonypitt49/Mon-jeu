@@ -119,7 +119,12 @@ const UI = {
     bind('optMusic', 'music', pct, vol);
     $('optInvert').checked = settings.invertY; $('optInvert').onchange = (e) => { settings.invertY = e.target.checked; saveSettings(); };
     $('optFps').checked = settings.showFps; $('optFps').onchange = (e) => { settings.showFps = e.target.checked; saveSettings(); $('fps').classList.toggle('hidden', !settings.showFps); };
-    q.onchange = () => { settings.quality = +q.value; saveSettings(); applyQuality(); };
+    q.onchange = () => { settings.quality = +q.value; saveSettings(); applyQuality(); diag(); };
+    // Image : résolution (automatique ou toujours pleine), grain de film, et ce que la machine affiche vraiment.
+    const diag = () => { const c = R.renderer.domElement; $('optDiag').textContent = `Carte graphique : ${gpuName()} · image ${c.width} × ${c.height} (${Math.round((R.dynScale || 1) * 100)} %) · ${Math.round(R.fpsAvg || 0)} images/s`; };
+    const rs = $('optRes'); rs.value = settings.res; rs.onchange = () => { settings.res = rs.value; saveSettings(); R.dynScale = 1; resize(); diag(); };
+    $('optGrain').checked = settings.grain; $('optGrain').onchange = (e) => { settings.grain = e.target.checked; saveSettings(); if (R.final) R.final.uniforms.uGrain.value = Q.grain && settings.grain ? 1 : 0; };
+    diag();
   },
 
   enterGame() {
