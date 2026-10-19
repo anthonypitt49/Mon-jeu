@@ -1,6 +1,6 @@
 // Armes murales : chaque arme d'une carte photographiée de face et de biais (gauche, droite), pour vérifier qu'elle est dans
 // le sens de son contour à la craie et que le contour ne clignote pas selon l'angle (il doit rester devant le mur).
-// Usage : node armesmur.mjs <carte> [qualité=2] ; images dans shots/armesmur_<carte>_<n>.jpg (une par arme). Affiche ERRORS n.
+// Usage : node armesmur.mjs <carte> [qualité=2] (env DIST=1.8 : distance au mur en m) ; images dans shots/armesmur_<carte>_<n>.jpg (une par arme). Affiche ERRORS n.
 import { chromium } from 'playwright';
 import path from 'path';
 import fs from 'fs';
@@ -17,14 +17,14 @@ await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?nozr
 await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
 await page.waitForTimeout(q >= 1 ? 25000 : 1000); // photos
 await page.evaluate(() => document.getElementById('soloButton').click()); await page.waitForTimeout(1500);
-const urls = await page.evaluate(() => {
+const urls = await page.evaluate((DIST) => {
   const { G, P, R, WORLD } = SP; P.hp = P.maxHp = 1e9; G.toSpawn = 0; for (const z of [...SP.ZOMBIES]) z.destroy();
   const out = [];
   for (const wb of WORLD.wallBuys) {
     const g = wb.group.position, d = wb.face, cw = 640, ch = 360, mc = document.createElement('canvas'); mc.width = cw * 3; mc.height = ch; const c2 = mc.getContext('2d');
-    // d pointe vers le mur ; le joueur se tient à 1,8 m devant, de face puis décalé de 1,4 m de chaque côté.
+    // d pointe vers le mur ; le joueur se tient à DIST devant, de face puis décalé de 1,4 m de chaque côté.
     [-1.4, 0, 1.4].forEach((k, n) => {
-      P.pos.set(g.x - d[0] * 1.8 + d[1] * k, 0, g.z - d[1] * 1.8 - d[0] * k); P.vel.set(0, 0, 0);
+      P.pos.set(g.x - d[0] * DIST + d[1] * k * DIST / 1.8, 0, g.z - d[1] * DIST - d[0] * k * DIST / 1.8); P.vel.set(0, 0, 0);
       const dx = g.x - P.pos.x, dz = g.z - P.pos.z; P.yaw = Math.atan2(-dx, -dz); P.pitch = Math.atan2(g.y - 1.65, Math.hypot(dx, dz)); SP.updatePlayer(0.016); P.pos.y = 0;
       P.yaw = Math.atan2(-dx, -dz); P.pitch = Math.atan2(g.y - 1.65, Math.hypot(dx, dz));
       for (let i = 0; i < 3; i++) SP.renderFrame(0.016);
@@ -34,7 +34,7 @@ const urls = await page.evaluate(() => {
     out.push(mc.toDataURL('image/jpeg', 0.85));
   }
   return out;
-});
+}, +(process.env.DIST || 1.8));
 fs.mkdirSync(path.join(dir, 'shots'), { recursive: true });
 urls.forEach((u, i) => fs.writeFileSync(path.join(dir, 'shots', `armesmur_${id}_${i}.jpg`), Buffer.from(u.split(',')[1], 'base64')));
 for (const e of errors) console.log('[pageerror]', e);

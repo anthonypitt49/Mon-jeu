@@ -240,14 +240,6 @@ function perkSign(name, color, cost) {
     x.shadowBlur = 0; x.fillStyle = '#e8f6ff'; x.font = font(40, 700); x.fillText(cost + ' PTS', w / 2, h * 0.78);
   });
 }
-function chalkOutline(profile, label, cost) {
-  return textTexture(512, 256, (x, w, h) => {
-    x.strokeStyle = 'rgba(245,245,240,.85)'; x.lineWidth = 5; x.lineJoin = 'round'; x.setLineDash([14, 4, 6, 3]);
-    x.beginPath(); profile.forEach(([px, py], i) => { const X = 40 + px * (w - 80), Y = 36 + py * (h - 110); i ? x.lineTo(X, Y) : x.moveTo(X, Y); }); x.closePath(); x.stroke();
-    x.setLineDash([]); x.fillStyle = 'rgba(245,245,240,.85)'; x.textAlign = 'center'; x.font = font(38, 800);
-    x.fillText(`${label} · ${cost}`, w / 2, h - 26);
-  });
-}
 function tableMapTexture() {
   return textTexture(1024, 768, (x, w, h) => {
     x.fillStyle = '#d9cfb4'; x.fillRect(0, 0, w, h);

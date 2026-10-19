@@ -30,15 +30,8 @@ const WALL_WEAPONS = ['bolt', 'shotgun', 'smg', 'carbine'];
 function wstat(key, upgraded) { const w = WEAPONS[key]; return upgraded ? Object.assign({}, w, w.up) : w; }
 function ammoCost(key, upgraded) { return upgraded ? 4500 : Math.round((WEAPONS[key].cost || 0) / 2); }
 
-// Silhouettes à la craie (profil normalisé) pour les armes murales.
-const CHALK = {
-  bolt: [[0, 0.55], [0.22, 0.45], [0.35, 0.47], [0.4, 0.42], [1, 0.4], [1, 0.46], [0.5, 0.5], [0.42, 0.62], [0.36, 0.55], [0.22, 0.62], [0, 0.75]],
-  shotgun: [[0, 0.5], [0.25, 0.42], [0.36, 0.44], [1, 0.42], [1, 0.52], [0.72, 0.52], [0.72, 0.58], [0.5, 0.58], [0.5, 0.52], [0.36, 0.55], [0.25, 0.6], [0, 0.78]],
-  smg: [[0.05, 0.45], [0.3, 0.42], [0.85, 0.42], [0.85, 0.5], [0.52, 0.5], [0.52, 0.9], [0.44, 0.9], [0.44, 0.5], [0.3, 0.55], [0.3, 0.7], [0.22, 0.7], [0.18, 0.52], [0.05, 0.6]],
-  carbine: [[0, 0.52], [0.25, 0.44], [0.38, 0.45], [0.95, 0.42], [0.95, 0.5], [0.55, 0.52], [0.52, 0.7], [0.45, 0.7], [0.42, 0.55], [0.25, 0.6], [0, 0.75]],
-  raygun: [[0.2, 0.45], [0.75, 0.42], [0.8, 0.5], [0.5, 0.55], [0.45, 0.62], [0.38, 0.9], [0.26, 0.88], [0.28, 0.6], [0.2, 0.55]],
-  revolver: [[0.25, 0.42], [0.8, 0.42], [0.8, 0.5], [0.52, 0.5], [0.5, 0.58], [0.42, 0.6], [0.4, 0.66], [0.36, 0.9], [0.24, 0.88], [0.27, 0.62], [0.25, 0.52]],
-};
+// Longueur des armes murales (m), comme avant (leur taille sur le mur ne change pas).
+const WALL_LEN = { bolt: 1.04, shotgun: 1.04, smg: 0.83, carbine: 0.99, raygun: 0.62, revolver: 0.57 };
 
 /* ─── Matériaux d'armes : voir gunMaterials() (08b_gunmodels.js) ─── */
 const GM = {};
@@ -192,18 +185,78 @@ function mountWallWeapons() {
     }
     g.position.y = clamp(Math.max(g.position.y, top + 0.55), g.position.y, fy + 2.3);
     g.updateMatrixWorld(true);
-    // Contour à la craie (au-dessus du mur dans l'ordre de profondeur, sans écrire la profondeur).
-    const chalk = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.75), new THREE.MeshBasicMaterial({ map: chalkOutline(CHALK[wb.weapon], w.name, w.cost), transparent: true, depthWrite: false, opacity: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-    chalk.position.set(0, -0.05, 0.03); g.add(chalk);
-    // Arme : canon du côté du canon dessiné (+x), à la taille du contour et centrée dessus.
+    // Arme à sa taille d'exposition, centrée sur le groupe, canon vers +x, posée 4 cm devant le mur.
     const m = buildGunModel(wb.weapon, false, false).root; m.rotation.y = -Math.PI / 2; g.add(m); g.updateMatrixWorld(true);
-    const prof = CHALK[wb.weapon], px = prof.map((p) => p[0]), py = prof.map((p) => p[1]);
-    const cx = (u) => ((40 + u * 432) / 512 - 0.5) * 1.5, cy = (v) => (0.5 - (36 + v * 146) / 256) * 0.75 - 0.05; // profil → plan du contour (chalkOutline, 512 × 256)
-    const ox0 = cx(Math.min(...px)), ox1 = cx(Math.max(...px)), oy0 = cy(Math.max(...py)), oy1 = cy(Math.min(...py));
-    const bb = new THREE.Box3().setFromObject(m), inv = new THREE.Matrix4().copy(g.matrixWorld).invert(); bb.applyMatrix4(inv);
-    const k = clamp(0.82 * (ox1 - ox0) / Math.max(0.05, bb.max.x - bb.min.x), 0.5, 1.6); m.scale.setScalar(k); // (un peu plus petite que son contour : la craie l'entoure)
-    m.position.set((ox0 + ox1) / 2 - ((bb.min.x + bb.max.x) / 2) * k, (oy0 + oy1) / 2 - ((bb.min.y + bb.max.y) / 2) * k, 0.03 + 0.01 - bb.min.z * k);
+    const inv = new THREE.Matrix4().copy(g.matrixWorld).invert(), bb = new THREE.Box3().setFromObject(m).applyMatrix4(inv);
+    const k = clamp((WALL_LEN[wb.weapon] || 0.9) / Math.max(0.05, bb.max.x - bb.min.x), 0.4, 2.5); m.scale.setScalar(k);
+    m.position.set(-((bb.min.x + bb.max.x) / 2) * k, -((bb.min.y + bb.max.y) / 2) * k, 0.04 - bb.min.z * k); g.updateMatrixWorld(true);
+    // Contour lumineux qui fait le tour de l'arme en suivant sa forme, prix dessous (au-dessus du mur dans l'ordre de
+    // profondeur, sans écrire la profondeur).
+    const ol = gunOutline(m, inv, w.name, w.cost);
+    const chalk = new THREE.Mesh(new THREE.PlaneGeometry(ol.w, ol.h), new THREE.MeshBasicMaterial({ map: ol.tex, transparent: true, depthWrite: false, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    chalk.position.set(ol.x, ol.y, 0.03); g.add(chalk);
+    // Saillie du mur sous l'arme (cimaise, lambris épais) devant le contour ou le prix : on remonte le tout au-dessus.
+    let lift = 0; const bot = ol.y - ol.h / 2, o = new THREE.Vector3(), q = new THREE.Vector3();
+    for (let y = bot; y < 0; y += 0.02) for (const a of [-0.4, 0, 0.4]) {
+      g.localToWorld(o.set(ol.x + a * ol.w, y, 0.8)); g.localToWorld(q.set(ol.x + a * ol.w, y, 0)); rc.set(o, q.sub(o).normalize());
+      const h = rc.intersectObjects(solids, false)[0], p = h ? 0.8 - h.distance : 0; if (p > 0.028 && p < 0.35) lift = Math.max(lift, y + 0.025 - bot);
+    }
+    if (lift > 0) { g.position.y = Math.min(g.position.y + lift, fy + 2.3); g.updateMatrixWorld(true); }
+    const ox0 = (bb.min.x - (bb.min.x + bb.max.x) / 2) * k, ox1 = -ox0, gy0 = -((bb.max.y - bb.min.y) / 2) * k;
     // Deux chevilles plantées dans le mur, sous l'arme.
-    for (const o of [ox0 + (ox1 - ox0) * 0.2, ox0 + (ox1 - ox0) * 0.75]) { const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.14, 6), MATS.iron); peg.rotation.x = Math.PI / 2; peg.position.set(o, m.position.y + bb.min.y * k - 0.005, 0.0); g.add(peg); }
+    for (const o of [ox0 + (ox1 - ox0) * 0.2, ox0 + (ox1 - ox0) * 0.75]) { const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.14, 6), MATS.iron); peg.rotation.x = Math.PI / 2; peg.position.set(o, gy0 - 0.005, 0.0); g.add(peg); }
   }
+}
+
+// Contour d'une arme murale : silhouette de l'arme vue de face (ses triangles projetés sur le plan du mur), élargie de GAP ;
+// on suit le bord de cette forme (tracé de Moore) et on le dessine en pointillés lumineux, nom et prix dessous.
+// Rend { tex, w, h, x, y } : texture et plan (m) à placer dans le repère du groupe.
+function gunOutline(m, inv, label, cost) {
+  const PPM = 400, GAP = 0.04, MARG = GAP + 0.04, LH = 0.17, tri = [], M4 = new THREE.Matrix4(), v = new THREE.Vector3();
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  m.traverse((o) => {
+    const pa = o.isMesh && o.geometry?.attributes?.position; if (!pa) return;
+    M4.multiplyMatrices(inv, o.matrixWorld); const ix = o.geometry.index, n = ix ? ix.count : pa.count, xy = new Float32Array(pa.count * 2);
+    for (let i = 0; i < pa.count; i++) { v.fromBufferAttribute(pa, i).applyMatrix4(M4); xy[i * 2] = v.x; xy[i * 2 + 1] = v.y; x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
+    for (let i = 0; i + 2 < n; i += 3) for (const q of [i, i + 1, i + 2]) { const a = ix ? ix.getX(q) : q; tri.push(xy[a * 2], xy[a * 2 + 1]); }
+  });
+  const fnt = font(44, 800), txt = `${label} · ${cost}`, meas = makeCanvas(8, 8).getContext('2d'); meas.font = fnt;
+  const W = Math.ceil(Math.max((x1 - x0 + 2 * MARG) * PPM, meas.measureText(txt).width + 24)), HO = Math.ceil((y1 - y0 + 2 * MARG) * PPM), H = HO + Math.ceil(LH * PPM);
+  const ox = (x0 + x1) / 2 - W / PPM / 2, oy = y1 + MARG, P = (x, y) => [(x - ox) * PPM, (oy - y) * PPM];
+  // Silhouette élargie : chaque triangle rempli (tous remis dans le même sens) et tracé d'un trait de 2 × GAP aux joints ronds.
+  const mc = makeCanvas(W, HO), mx = mc.getContext('2d'); mx.fillStyle = mx.strokeStyle = '#fff'; mx.lineWidth = 2 * GAP * PPM; mx.lineJoin = 'round'; mx.beginPath();
+  for (let i = 0; i < tri.length; i += 6) {
+    let [ax, ay] = P(tri[i], tri[i + 1]), [bx, by] = P(tri[i + 2], tri[i + 3]), [cx, cy] = P(tri[i + 4], tri[i + 5]);
+    if ((bx - ax) * (cy - ay) - (by - ay) * (cx - ax) < 0) [bx, by, cx, cy] = [cx, cy, bx, by];
+    mx.moveTo(ax, ay); mx.lineTo(bx, by); mx.lineTo(cx, cy); mx.closePath();
+  }
+  mx.fill(); mx.stroke();
+  const al = mx.getImageData(0, 0, W, HO).data, B = new Uint8Array(W * HO); for (let i = 0; i < W * HO; i++) B[i] = al[i * 4 + 3] > 127 ? 1 : 0;
+  // Bords extérieurs de chaque morceau (une arme d'un seul tenant n'en a qu'un) ; chaque morceau suivi est ensuite effacé.
+  const DX = [-1, -1, 0, 1, 1, 1, 0, -1], DY = [0, -1, -1, -1, 0, 1, 1, 1], dirOf = (dx, dy) => { for (let d = 0; d < 8; d++) if (DX[d] === dx && DY[d] === dy) return d; return 0; };
+  const loops = [];
+  for (let y = 1; y < HO - 1; y++) for (let x = 1; x < W - 1; x++) {
+    if (!B[y * W + x]) continue;
+    const pts = [[x, y]]; let px = x, py = y, bx = x - 1, by = y;
+    while (pts.length < 40000) {
+      const d0 = dirOf(bx - px, by - py); let moved = false;
+      for (let k = 1; k <= 8; k++) { const d = (d0 + k) % 8, nx = px + DX[d], ny = py + DY[d]; if (B[ny * W + nx]) { const pd = (d0 + k - 1) % 8; bx = px + DX[pd]; by = py + DY[pd]; px = nx; py = ny; moved = true; break; } }
+      if (!moved || (px === x && py === y)) break;
+      pts.push([px, py]);
+    }
+    if (pts.length > 20) loops.push(pts);
+    const st = [y * W + x]; B[y * W + x] = 0; // efface le morceau (remplissage par diffusion)
+    while (st.length) { const i = st.pop(), cx = i % W, cy = (i / W) | 0; for (let d = 0; d < 8; d += 2) { const j = (cy + DY[d]) * W + cx + DX[d]; if (B[j]) { B[j] = 0; st.push(j); } } }
+  }
+  const tex = textTexture(W, H, (c) => {
+    c.lineJoin = c.lineCap = 'round'; c.strokeStyle = 'rgba(248,248,240,.95)'; c.lineWidth = 0.011 * PPM; c.setLineDash([16, 5, 7, 4]);
+    c.shadowColor = 'rgba(225,240,255,.9)'; c.shadowBlur = 9;
+    for (const L of loops) {
+      const n = L.length, R = 4; c.beginPath(); // trait lissé (moyenne glissante sur ±4 pixels du bord)
+      for (let i = 0; i < n; i += 2) { let sx = 0, sy = 0; for (let k = -R; k <= R; k++) { const q = L[(i + k + n) % n]; sx += q[0]; sy += q[1]; } i ? c.lineTo(sx / (2 * R + 1), sy / (2 * R + 1)) : c.moveTo(sx / (2 * R + 1), sy / (2 * R + 1)); }
+      c.closePath(); c.stroke(); c.stroke();
+    }
+    c.setLineDash([]); c.shadowBlur = 6; c.fillStyle = 'rgba(245,245,240,.92)'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = fnt; c.fillText(txt, W / 2, HO + LH * PPM * 0.45);
+  });
+  return { tex, w: W / PPM, h: H / PPM, x: ox + W / PPM / 2, y: oy - H / PPM / 2 };
 }
