@@ -180,7 +180,7 @@ function penDecor() {
       collider(a, X(0) + 1.25, b, X(0) + 1.85, 0.44, 'concrete'); collider(a, X(0) + 0.65, b, X(0) + 1.25, 1.5, 'concrete'); collider(a, X(0), b, X(0) + 0.65, 2.04, 'concrete');
     } }
   // Terrain de balle au mur peint au sol (rectangle, ligne médiane, lignes de service, rond central), peinture écaillée.
-  { const tex = textTexture(256, 32, (c) => { c.clearRect(0, 0, 256, 32); for (let x = 0; x < 256; x += 2) { const n = tfbm(x / 64, 1.3, 4, 3); if (n < 0.4) continue; c.fillStyle = `rgba(226,222,208,${clamp((n - 0.4) * 3.2, 0, 0.8)})`; c.fillRect(x, 5 + rng() * 3, 2, 22 - rng() * 5); } });
+  { const tex = textTexture(256, 32, (c) => { c.clearRect(0, 0, 256, 32); for (let x = 0; x < 256; x += 2) { const n = tfbm(x / 32, 1.3, 8, 3); if (n < 0.47) continue; c.fillStyle = `rgba(214,210,196,${clamp((n - 0.47) * 2.4, 0, 0.55)})`; c.fillRect(x, 5 + rng() * 3, 2, 22 - rng() * 5); } });
     const paint = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, roughness: 0.85 });
     const strip = (x0, z0, x1, z1) => { const L = Math.hypot(x1 - x0, z1 - z0), g = new THREE.PlaneGeometry(L, 0.1), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * L / 2 + rng()); const m = mesh(g, paint, (x0 + x1) / 2, 0.012, (z0 + z1) / 2, 0, R.scene, false); m.rotation.set(-Math.PI / 2, 0, Math.atan2(-(z1 - z0), x1 - x0)); m.renderOrder = 2; };
     const a = 61, b = 79, c = 13.8, d = 18.8; strip(a, c, b, c); strip(a, d, b, d); strip(a, c, a, d); strip(b, c, b, d); strip(70, c, 70, d); strip(64.5, c, 64.5, d); strip(75.5, c, 75.5, d);
@@ -218,7 +218,7 @@ function penFar(beamMat) {
     const nearFloor = (x, z, s) => { for (let tz = tileOf(z - s); tz <= tileOf(z + s); tz++) for (let tx = tileOf(x - s); tx <= tileOf(x + s); tx++) if (inMap(tx, tz) && MAP.edge[ti(tx, tz)] === 0 && Math.hypot(clamp(x, tx * TILE, tx * TILE + TILE) - x, clamp(z, tz * TILE, tz * TILE + TILE) - z) < s) return true; return false; };
     for (let i = 0; i < 90; i++) { const a = r() * TAU, rx = 60 + r() * 14, rz = 34 + r() * 10, x = 60 + Math.cos(a) * rx, z = 28 + Math.sin(a) * rz; const s = 1 + r() * 2.6, sy = 0.6 + r() * 0.5, ry = r() * TAU; /* (tirages dans le même ordre qu'avant) */
       const y = nearFloor(x, z, s) ? Math.min(surfH(x, z) + s * 0.2, -0.1 - s * sy) : surfH(x, z) + s * 0.2;
-      const g = boulderGeo(s, i * 1.7); g.scale(1, sy, 1); g.rotateY(ry); g.translate(x, y, z); parts.push(g); } /* (rochers arrondis : les polyèdres à grosses facettes faisaient carton-pâte) */
+      const g = boulderGeo(s, i * 1.7, 4, true); g.scale(1, sy, 1); g.rotateY(ry); g.translate(x, y, z); parts.push(g); } /* (rochers bosselés et irréguliers : les dodécaèdres réguliers faisaient carton-pâte) */
     mesh(mergeGeometries(parts), rock, 0, 0, 0, 0, R.scene, true); }
   // Phare sur son îlot.
   { const g = KIT.g(190, 140, 0, -1), white = fmat('plaster', 0xe8e4da); const isl = mesh(new THREE.CylinderGeometry(14, 22, 5, 14), rock, 0, 0, 0, 0, g);

@@ -52,7 +52,7 @@ for (let k = 0; k < pts.length; k++) {
     const yaws = [0, Math.PI / 2, Math.PI, -Math.PI / 2], names = ['N', 'O', 'S', 'E'];
     yaws.forEach((yaw, i) => { yaw = yaw;
       const px = close ? tx : tx * 2 + 1, pz = close ? tz : tz * 2 + 1; if (close) yaw = cyaw + [0, 0.5, -0.5, Math.PI][i];
-      SP.G.mode = 'playing'; P.pos.set(px, 0, pz); P.vel.set(0, 0, 0); P.yaw = yaw; P.pitch = close ? cpitch : 0.05; for (let f = 0; f < 60; f++) { SP.updatePlayer(0.05); P.pos.set(px, P.pos.y, pz); P.vel.set(0, 0, 0); } /* 3 s : l'éclairage intérieur/extérieur (hémisphère, rebond) se pose comme en jeu */ SP.updatePlayer(0.016);
+      SP.G.mode = 'playing'; P.pos.set(px, 0, pz); P.vel.set(0, 0, 0); P.yaw = yaw; P.pitch = close ? cpitch : 0.05; for (let f = 0; f < 6; f++) { SP.updatePlayer(0.5); P.pos.set(px, P.pos.y, pz); P.vel.set(0, 0, 0); } /* 3 s : l'éclairage intérieur/extérieur (hémisphère, rebond) se pose comme en jeu (60 petits pas faisaient tomber le navigateur au 4e point) */ SP.updatePlayer(0.016);
       SP.renderFrame(1); c2.drawImage(R.renderer.domElement, (i % 2) * cw, ((i / 2) | 0) * ch, cw, ch);
       c2.fillStyle = '#000a'; c2.fillRect((i % 2) * cw, ((i / 2) | 0) * ch, 120, 22); c2.fillStyle = '#ff0'; c2.font = '15px monospace'; c2.fillText(`${tx},${tz} ${names[i]}`, (i % 2) * cw + 5, ((i / 2) | 0) * ch + 16);
     });

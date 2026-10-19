@@ -65,7 +65,7 @@ const PHOTO_SETS = {
     acier: { ft: 1, set: 'objets/acier', detail: true }, // étagères et coffres neufs : rugosité seule sur la couleur du jeu
   },
   penitencier: {
-    stone: { ft: 1, set: 'stone' }, rock: { ft: 1, set: 'rock' }, slab: { ft: 1, set: 'floor' }, tileWall: { ft: 1, set: 'tiles' },
+    stone: { ft: 1, set: 'stone', detile: true }, rock: { ft: 1, set: 'rock' }, slab: { ft: 1, set: 'floor' }, tileWall: { ft: 1, set: 'tiles' },
     planks: { ft: 1, set: 'pier' }, westPlank: { ft: 1, set: 'panel' }, parquet: { ft: 1, set: 'parquet' }, plaster: { ft: 1, set: 'plaster' },
     cellPaint: { ft: 1, set: 'paint', detail: true, ns: 1.2 }, concrete: { ft: 1, set: 'concrete' },
     ...OBJ_PHOTO,
@@ -167,6 +167,24 @@ function photoJitter(m) {
   m.customProgramCacheKey = () => key + '|jit';
 }
 
+// Grands murs (detile) : la photo est lue deux fois, la seconde décalée d'un peu moins d'une demi-largeur, et les deux
+// lectures alternent tous les quelques mètres le long du mur ; les assises restent alignées (décalage horizontal seul),
+// mais les mêmes pierres ne reviennent plus tous les 3 m.
+function photoDetile(m) {
+  if (m.userData.detile) return; m.userData.detile = 1;
+  const prev = m.onBeforeCompile, key = m.customProgramCacheKey?.() || '';
+  const mixT = (s, uv) => `mix(texture2D( ${s}, ${uv} ), texture2D( ${s}, ${uv} + vec2(0.437, 0.0) ), dtK)`;
+  m.onBeforeCompile = (sh, r) => {
+    if (prev) prev.call(m, sh, r);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nfloat dtWeight(vec2 uv) { float a = uv.x * 2.1 + sin(uv.y * 0.9 + uv.x * 0.7) * 1.2; return smoothstep(0.3, 0.7, 0.5 + 0.5 * sin(a)); }')
+      .replace('#include <map_fragment>', `#ifdef USE_MAP\n  float dtK = dtWeight(vMapUv);\n  diffuseColor *= ${mixT('map', 'vMapUv')};\n#else\n  float dtK = 0.0;\n#endif`)
+      .replace('texture2D( normalMap, vNormalMapUv )', mixT('normalMap', 'vNormalMapUv'))
+      .replace('texture2D( roughnessMap, vRoughnessMapUv )', mixT('roughnessMap', 'vRoughnessMapUv'));
+  };
+  m.customProgramCacheKey = () => key + '|detile';
+}
+
 // Une texture recadrée pour une matière : même image (et même copie en mémoire vidéo), répétition propre.
 function photoTex(t, rx, ry, rot) {
   const c = t.clone(); c.repeat.set(rx, ry); if (rot) { c.rotation = Math.PI / 2; c.center.set(0.5, 0.5); } c.needsUpdate = true; return c;
@@ -230,6 +248,7 @@ async function photoFlat(key, s, man, tex) {
     if (nrm) { m.normalMap = nrm; m.normalScale.set(s.ns || 1, s.ns || 1); }
     // gloss (émail, laque, cuir ciré) : la rugosité de la matière reste la même en moyenne, la photo y met ses variations.
     if (rgh) { m.roughnessMap = rgh; m.roughness = s.gloss ? clamp(m.roughness / (e.rm || 0.6), 0.02, 1) : 1; }
+    if (s.detile && map) photoDetile(m);
     m.needsUpdate = true;
   }
   return true;

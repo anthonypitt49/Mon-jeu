@@ -8,8 +8,13 @@ Outil : `dev/photo.mjs penitencier 2 <préfixe> '[[26,16],[10,16],[45,17],[35,7]
 (carreaux : bloc cellulaire, douches, réfectoire, cour, infirmerie, direction, quais, chemin de ronde ; 4 vues par point).
 Vues rapprochées : `'[[x,z,cap,inclinaison],…]'` en mètres. Préfixes : `avant_` (état de départ), `apres_` (après chaque zone).
 
-Piège trouvé : photo.mjs posait la caméra et dessinait aussitôt ; l'éclairage intérieur (hémisphère, lumière de rebond qui
-éclaire les plafonds) se règle en ~2 s en jeu, les photos sortaient donc avec des plafonds noirs. Il laisse maintenant 3 s.
+Pièges trouvés :
+- photo.mjs posait la caméra et dessinait aussitôt ; l'éclairage intérieur (hémisphère, lumière de rebond qui éclaire les
+  plafonds) se règle en ~2 s en jeu, les photos sortaient donc avec des plafonds noirs. Il laisse maintenant 3 s (6 pas de
+  0,5 s : 60 pas de 0,05 s faisaient tomber le navigateur au 4e point).
+- Les plafonds noirs n'étaient pas qu'un défaut de photo : en jeu aussi, un plafond de béton sombre n'est éclairé que par le
+  rebond (couleur basse de l'hémisphère) ; il faut un plafond clair et un rebond suffisant.
+- Les taches empilées (dégradés radiaux superposés) deviennent opaques au centre : on peint maintenant au pixel.
 
 ## Constat de départ (tournée `esth_`, 6.2.1)
 
@@ -34,6 +39,8 @@ Piège trouvé : photo.mjs posait la caméra et dessinait aussitôt ; l'éclaira
 3. [x] Réfectoire : poutres, 6 suspensions émaillées, gobelets, marmites, tableau du menu. Infirmerie : cloisons en faïence vert
    d'eau à hauteur d'appui, armoire à pharmacie vitrée, lavabo, chariot, croix rouge. Direction : lampe de bureau, lumière
    déplacée vers le passage des archives. Vérifié : tournée `v2_`.
-4. [ ] Extérieurs : terrain de balle au mur usé à la place des deux traits blancs ; teinte des murs de pierre qui varie sur
-   une dizaine de mètres (M.macro) ; rochers du rivage arrondis (boulderGeo).
+4. [x] Extérieurs : terrain de balle au mur à la peinture écaillée à la place des deux traits blancs ; murs de pierre :
+   photo lue deux fois avec un décalage horizontal, les deux lectures alternant tous les quelques mètres (photoDetile,
+   `detile: true` dans PHOTO_SETS) et teinte qui varie sur une dizaine de mètres (M.macro) ; rochers du rivage fracturés et
+   irréguliers (boulderGeo, faces cassées, photo projetée face par face). Vérifié : tournées `ext_`, `ext2_`.
 5. [ ] Vérifications (gels.mjs, verif_carte.sh) et version en ligne.

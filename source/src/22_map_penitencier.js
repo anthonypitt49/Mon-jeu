@@ -52,7 +52,7 @@ MAPS.penitencier = {
     ceil: { corridor: [['stain', 0.12, 1.4]], cell: [['stain', 0.15, 1]], shower: [['stain', 0.22, 1.2], ['mold', 0.15, 1]], mess: [['stain', 0.12, 1.6]], infirm: [['stain', 0.1, 1.2]], office: [['stain', 0.05, 1]] } },
   scatter: [{ kind: 'pebble', styles: ['yard'], n: 2, color: 0x6a6a66 }, { kind: 'paper', styles: ['corridor', 'office', 'mess', 'cell'], n: 0.3, color: 0xd8d4c8 }, { kind: 'chip', styles: ['corridor', 'yard', 'cell'], n: 0.8, color: 0x8a8a84 }, { kind: 'rock', ground: [0.5, 8], n: 0.15, color: 0x5a5e58, shadow: true }, { kind: 'tuft', styles: ['yard'], n: 1.2, color: 0x4a5a3a }],
   details: { fascia: ['concrete', 0x7a7a74], plinth: ['concrete', 0x5e605c], crown: ['concrete', 0x6a6e68] },
-  macro: { stone: 0.4 }, // (murs de pierre : la photo se répète tous les 3 m, une teinte qui varie sur une dizaine de mètres la masque)
+  macro: { stone: 0.55 }, // (murs de pierre : la photo se répète tous les 3 m, une teinte qui varie sur une dizaine de mètres la masque)
   blockH: () => 5.0, blockMat: () => 'concrete',
   walls: [
     { key: 'stone', h: 5.0, out: ['stone', 0xc8c4bc], in: ['cellPaint', 0xffffff], wire: true, mat: 'concrete' },

@@ -78,17 +78,24 @@ function scatterMesh(sp, geo, mat, pts, s0, s1, base, jit) {
   }
 }
 
-// Rocher arrondi : icosaèdre subdivisé bosselé par un bruit (les sommets confondus bougent ensemble : pas de fente),
-// normales lissées, dessous aplati ; UV projetées en mètres (scale : mètres par répétition de la texture).
-function boulderGeo(s, seed = 0, scale = 4) {
-  let g = new THREE.IcosahedronGeometry(1, 2); g.deleteAttribute('normal'); g.deleteAttribute('uv'); g = mergeVertices(g);
-  const p = g.attributes.position, uv = new Float32Array(p.count * 2);
+// Rocher : icosaèdre subdivisé bosselé par un bruit (les sommets confondus bougent ensemble : pas de fente), dessous aplati ;
+// UV projetées en mètres (scale : mètres par répétition de la texture). facet : faces cassées (roche fracturée du rivage),
+// sinon normales lissées (galet).
+function boulderGeo(s, seed = 0, scale = 4, facet = false) {
+  let g = new THREE.IcosahedronGeometry(1, facet ? 1 : 2); g.deleteAttribute('normal'); g.deleteAttribute('uv'); g = mergeVertices(g);
+  const p = g.attributes.position, amp = facet ? 0.8 : 0.55;
   for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = fbm(x * 1.4 + z * 0.9 + seed, y * 1.5 - z * 1.1 + seed * 0.37, 4), k = s * (0.74 + n * 0.55);
-    const X = x * k, Y = Math.max(y, -0.4) * k, Z = z * k; p.setXYZ(i, X, Y, Z);
-    uv[i * 2] = (X * 0.8 + Z * 0.6) / scale + seed * 0.13; uv[i * 2 + 1] = (Y + (X * 0.6 - Z * 0.8) * 0.4) / scale;
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = fbm(x * 1.9 + z * 1.2 + seed, y * 2.0 - z * 1.4 + seed * 0.37, 4), k = s * (0.62 + n * amp);
+    p.setXYZ(i, x * k, Math.max(y, -0.4) * k, z * k);
   }
-  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.computeVertexNormals(); return g;
+  if (facet) g = g.toNonIndexed(); g.computeVertexNormals();
+  // Projection plane sur l'axe dominant de la normale (par face en mode facet) : la photo n'est étirée nulle part.
+  const P = g.attributes.position, N = g.attributes.normal, uv = new Float32Array(P.count * 2);
+  for (let i = 0; i < P.count; i++) {
+    const ax = Math.abs(N.getX(i)), ay = Math.abs(N.getY(i)), az = Math.abs(N.getZ(i)), [a, b] = ay > ax && ay > az ? [P.getX(i), P.getZ(i)] : ax > az ? [P.getZ(i), P.getY(i)] : [P.getX(i), P.getY(i)];
+    uv[i * 2] = a / scale + seed * 0.13; uv[i * 2 + 1] = b / scale;
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); return g;
 }
 
 /* ─── Salissures ─── */
