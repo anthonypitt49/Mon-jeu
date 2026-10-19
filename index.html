@@ -737,7 +737,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '6.1.2'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '6.1.3'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -987,14 +987,6 @@ function perkSign(name, color, cost) {
     x.shadowColor = color; x.shadowBlur = 30; x.fillStyle = color; x.textAlign = 'center'; x.textBaseline = 'middle';
     let fs = 88; x.font = font(fs); while (fs > 40 && x.measureText(name).width > w - 64) { fs -= 4; x.font = font(fs); } x.fillText(name, w / 2, h * 0.44);
     x.shadowBlur = 0; x.fillStyle = '#e8f6ff'; x.font = font(40, 700); x.fillText(cost + ' PTS', w / 2, h * 0.78);
-  });
-}
-function chalkOutline(profile, label, cost) {
-  return textTexture(512, 256, (x, w, h) => {
-    x.strokeStyle = 'rgba(245,245,240,.85)'; x.lineWidth = 5; x.lineJoin = 'round'; x.setLineDash([14, 4, 6, 3]);
-    x.beginPath(); profile.forEach(([px, py], i) => { const X = 40 + px * (w - 80), Y = 36 + py * (h - 110); i ? x.lineTo(X, Y) : x.moveTo(X, Y); }); x.closePath(); x.stroke();
-    x.setLineDash([]); x.fillStyle = 'rgba(245,245,240,.85)'; x.textAlign = 'center'; x.font = font(38, 800);
-    x.fillText(`${label} · ${cost}`, w / 2, h - 26);
   });
 }
 function tableMapTexture() {
@@ -2099,6 +2091,7 @@ function buildLights() {
   pl('muzzle', 0xffc27a, 0, 12, 0, -50, 0);
   pl('blast', 0xffa050, 0, 26, 0, -50, 0);
   pl('flare', 0xffe2d6, 0, 140, 0, -50, 0);
+  pl('box', 0x6dffb0, 0, 3.5, 0, -50, 0); // lumière verte de la caisse de ravitaillement (updateBoxBench)
   // Lampes de carte : jamais au-dessus du plafond de la pièce (elles n'éclaireraient que le toit).
   M.lights((name, color, intensity, dist, x, y, z) => {
     if (M.flat) { const tx = tileOf(x), tz = tileOf(z); if (inMap(tx, tz) && MAP.roof[ti(tx, tz)] && MAP.type[ti(tx, tz)] !== T_SOLID) y = Math.min(y, roomCeil(tx, tz) - 0.3); }
@@ -4045,27 +4038,25 @@ function buildInteractables() {
   // Caisses de ravitaillement (emplacements possibles).
   WORLD.boxSpots = SPOTS.box.map((s, idx) => {
     const w = wallSpot(s, 0.42), g = new THREE.Group(); g.userData.dynamic = true; g.position.set(w.x, 0, w.z); g.rotation.y = w.yaw; R.scene.add(g);
-    const base = mesh(boxG(1.5, 0.62, 0.72), MATS.crate, 0, 0.31, 0, 0, g);
+    // Caisse creuse (fond et quatre parois de 5 cm) : la lumière vient de l'intérieur et l'arme en sort vraiment.
+    for (const [bw, bh, bd, x, y, z] of [[1.5, 0.05, 0.72, 0, 0.025, 0], [1.5, 0.62, 0.05, 0, 0.31, 0.335], [1.5, 0.62, 0.05, 0, 0.31, -0.335], [0.05, 0.62, 0.62, -0.725, 0.31, 0], [0.05, 0.62, 0.62, 0.725, 0.31, 0]]) mesh(boxG(bw, bh, bd), MATS.crate, x, y, z, 0, g);
     // Charnière sur l'arête haute arrière : couvercle ouvert, il reste au-dessus de la caisse (sans entrer dans le mur derrière).
     const lidPivot = new THREE.Group(); lidPivot.position.set(0, 0.72, -0.36); g.add(lidPivot);
     const lid = mesh(boxG(1.52, 0.1, 0.74), MATS.crate, 0, -0.05, 0.37, 0, lidPivot);
     const label = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.34), new THREE.MeshStandardMaterial({ map: woodSign(['RAVITAILLEMENT', '950 · ARME ALÉATOIRE'], { w: 512, h: 160, bg: '#3d3022', color: '#e8dfc6' }), roughness: 0.9 }));
     label.position.set(0, 0.34, 0.365); g.add(label);
-    for (const o of [-0.68, 0.68]) mesh(boxG(0.06, 0.64, 0.76), MATS.iron, o, 0.32, 0, 0, g);
-    // Lumière à la BO2 : faisceau qui jaillit de la caisse ouverte (deux plans croisés, dans l'emprise de la caisse : il ne
-    // traverse jamais le mur), fond lumineux, et colonne de lumière qui signale la caisse de loin (jusqu'au plafond à l'intérieur).
-    const bfx = boxFxMats(), shaft = new THREE.Group(); shaft.position.set(0, 0.62, 0); g.add(shaft);
-    for (const [w, ry] of [[1.36, 0], [0.6, Math.PI / 2]]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.7).translate(0, 0.85, 0), bfx.shaft); p.rotation.y = ry; p.renderOrder = 5; shaft.add(p); }
-    const inner = new THREE.Mesh(new THREE.PlaneGeometry(1.36, 0.6), bfx.inner); inner.rotation.x = -Math.PI / 2; inner.position.set(0, 0.6, 0); inner.renderOrder = 5; g.add(inner);
-    const tx = tileOf(w.x), tz = tileOf(w.z), roofed = inMap(tx, tz) && MAP.roof[ti(tx, tz)], ph = roofed ? Math.max(1, roomCeil(tx, tz) - 0.62) : 26;
-    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, ph, 16, 1, true).translate(0, ph / 2 + 0.62, 0), bfx.pillar.clone()); pillar.renderOrder = 5; pillar.visible = false; g.add(pillar);
-    shaft.visible = inner.visible = false;
-    // Fusée éclairante verte plantée à côté (signale la caisse active).
-    const flare = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 8), MATS.rust, 0.85, 0.25, 0.1, 0, g);
-    const beacon = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.sprites.glow, color: 0x6dffb0, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
-    beacon.scale.set(0.9, 0.9, 1); beacon.position.set(0.85, 0.55, 0.1); g.add(beacon);
+    for (const o of [-0.68, 0.68]) for (const z of [-0.37, 0.37]) mesh(boxG(0.06, 0.64, 0.02), MATS.iron, o, 0.32, z, 0, g); // ferrures, devant et derrière
+    // Lumière verte de l'intérieur : fond lumineux (vu par la fente du couvercle entrouvert, plein feu une fois ouvert) et
+    // fuite de lumière par la fente (devant et sur les côtés, à la hauteur de la fente, voir updateBoxBench).
+    const bfx = boxFxMats();
+    const inner = new THREE.Mesh(new THREE.PlaneGeometry(1.38, 0.6), bfx.core); inner.rotation.x = -Math.PI / 2; inner.position.set(0, 0.15, 0); inner.renderOrder = 5; g.add(inner);
+    const leak = new THREE.Group(); leak.position.y = 0.62; g.add(leak);
+    { const f = new THREE.Mesh(new THREE.PlaneGeometry(1.44, 1).translate(0, 0.5, 0), bfx.leak); f.position.z = 0.362; leak.add(f);
+      for (const x of [-0.752, 0.752]) { const t = new THREE.BufferGeometry(); t.setAttribute('position', new THREE.Float32BufferAttribute([x, 0, -0.36, x, 0, 0.36, x, 1, 0.36], 3)); t.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1], 2)); leak.add(new THREE.Mesh(t, bfx.leak)); } }
+    for (const o of leak.children) o.renderOrder = 5;
+    inner.visible = leak.visible = false;
     colliderBox(w.x, w.z, 1.5, 0.72, w.yaw, 0.7, 'wood');
-    return { idx, pos: new THREE.Vector3(w.x, 0.9, w.z), face: w.face, group: g, lid: lidPivot, shaft, inner, pillar, lightK: 0, beacon, flare, yaw: w.yaw, label };
+    return { idx, pos: new THREE.Vector3(w.x, 0.9, w.z), face: w.face, group: g, lid: lidPivot, inner, leak, lightK: 0, leakK: 0, yaw: w.yaw, label };
   });
   // Établi d'armurier.
   { const s = SPOTS.bench, w = wallSpot(s, 0.5), g = new THREE.Group(); g.userData.dynamic = true; g.position.set(w.x, 0, w.z); g.rotation.y = w.yaw; R.scene.add(g);
@@ -4116,19 +4107,30 @@ function buildInteractables() {
   }
 }
 
-// Matières de la lumière de la caisse (partagées entre ses emplacements ; l'opacité du faisceau et du fond est commune, une
-// seule caisse étant ouverte à la fois ; chaque colonne a la sienne).
+// Lumière de la caisse, à la BO2 mais verte : matières partagées entre ses emplacements (une seule caisse ouverte à la fois)
+// et rayons qui montent de la caisse ouverte (un seul jeu, accroché à la caisse active). Les rayons sont des plans tournés
+// vers le joueur autour de leur axe vertical, assez courts pour envelopper l'arme sans monter au plafond.
 let BOX_FX = null;
 function boxFxMats() {
   if (BOX_FX) return BOX_FX;
   const grad = (w, h, f) => textTexture(w, h, (x) => { const im = x.createImageData(w, h); for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const a = f(i / (w - 1), 1 - j / (h - 1)), k = (j * w + i) * 4; im.data[k] = im.data[k + 1] = im.data[k + 2] = 255; im.data[k + 3] = Math.round(255 * clamp(a, 0, 1)); } x.putImageData(im, 0, 0); });
-  const mat = (map, color) => new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  const mat = (map, color) => new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
   // u : en travers, v : de bas (0) en haut (1).
+  const rayTex = grad(64, 128, (u, v) => Math.pow(Math.sin(Math.PI * u), 1.3) * Math.pow(1 - v, 1.6) * Math.min(1, 0.4 + v * 6) * (0.62 + 0.38 * Math.sin(u * 23) * Math.sin(u * 9 + 1.3)));
   BOX_FX = {
-    shaft: mat(grad(32, 128, (u, v) => Math.pow(Math.sin(Math.PI * u), 1.6) * Math.pow(1 - v, 1.8)), 0xc8f6ff),
-    inner: mat(grad(64, 32, (u, v) => Math.pow(Math.sin(Math.PI * u) * Math.sin(Math.PI * v), 0.6)), 0xa8f0ff),
-    pillar: mat(grad(32, 128, (u, v) => (0.55 + 0.45 * Math.sin(Math.PI * u)) * Math.pow(1 - v, 0.7) * Math.min(1, v * 12 + 0.3)), 0x8fe4ff),
+    core: mat(grad(64, 32, (u, v) => Math.pow(Math.sin(Math.PI * u) * Math.sin(Math.PI * v), 0.9)), 0x8dffb8),
+    leak: mat(grad(64, 16, (u, v) => Math.pow(Math.sin(Math.PI * u), 0.25) * (0.3 + 0.7 * (1 - v))), 0x6dffb0),
+    rays: new THREE.Group(),
   };
+  for (let i = 0, N = 9; i < N; i++) {
+    const b = rand(0.06, 0.11), t = rand(0.15, 0.24), H = rand(0.55, 0.95), geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute([-b, 0, 0, b, 0, 0, t, H, 0, -t, H, 0], 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2)); geo.setIndex([0, 1, 2, 0, 2, 3]);
+    const r = new THREE.Mesh(geo, mat(rayTex, i % 3 ? 0x7dffb0 : 0xb8ffd0)); r.position.set(lerp(-0.56, 0.56, (i + 0.5) / N) + rand(-0.04, 0.04), 0.6, rand(-0.08, 0.1)); r.renderOrder = 6;
+    r.userData = { w: rand(1.2, 2.6), ph: rand(0, TAU) }; BOX_FX.rays.add(r);
+  }
+  // Halo à l'ouverture (tourné vers le joueur, comme les rayons ; sa moitié basse est cachée par les parois de la caisse).
+  const halo = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.7), mat(grad(64, 32, (u, v) => { const r = Math.hypot((u - 0.5) * 2, (v - 0.5) * 2); return Math.pow(Math.max(0, 1 - r * r), 2); }), 0x7dffb0));
+  halo.position.set(0, 0.66, 0.05); halo.renderOrder = 6; halo.userData = { halo: true }; BOX_FX.rays.add(halo);
   return BOX_FX;
 }
 
@@ -5059,15 +5061,8 @@ const WALL_WEAPONS = ['bolt', 'shotgun', 'smg', 'carbine'];
 function wstat(key, upgraded) { const w = WEAPONS[key]; return upgraded ? Object.assign({}, w, w.up) : w; }
 function ammoCost(key, upgraded) { return upgraded ? 4500 : Math.round((WEAPONS[key].cost || 0) / 2); }
 
-// Silhouettes à la craie (profil normalisé) pour les armes murales.
-const CHALK = {
-  bolt: [[0, 0.55], [0.22, 0.45], [0.35, 0.47], [0.4, 0.42], [1, 0.4], [1, 0.46], [0.5, 0.5], [0.42, 0.62], [0.36, 0.55], [0.22, 0.62], [0, 0.75]],
-  shotgun: [[0, 0.5], [0.25, 0.42], [0.36, 0.44], [1, 0.42], [1, 0.52], [0.72, 0.52], [0.72, 0.58], [0.5, 0.58], [0.5, 0.52], [0.36, 0.55], [0.25, 0.6], [0, 0.78]],
-  smg: [[0.05, 0.45], [0.3, 0.42], [0.85, 0.42], [0.85, 0.5], [0.52, 0.5], [0.52, 0.9], [0.44, 0.9], [0.44, 0.5], [0.3, 0.55], [0.3, 0.7], [0.22, 0.7], [0.18, 0.52], [0.05, 0.6]],
-  carbine: [[0, 0.52], [0.25, 0.44], [0.38, 0.45], [0.95, 0.42], [0.95, 0.5], [0.55, 0.52], [0.52, 0.7], [0.45, 0.7], [0.42, 0.55], [0.25, 0.6], [0, 0.75]],
-  raygun: [[0.2, 0.45], [0.75, 0.42], [0.8, 0.5], [0.5, 0.55], [0.45, 0.62], [0.38, 0.9], [0.26, 0.88], [0.28, 0.6], [0.2, 0.55]],
-  revolver: [[0.25, 0.42], [0.8, 0.42], [0.8, 0.5], [0.52, 0.5], [0.5, 0.58], [0.42, 0.6], [0.4, 0.66], [0.36, 0.9], [0.24, 0.88], [0.27, 0.62], [0.25, 0.52]],
-};
+// Longueur des armes murales (m), comme avant (leur taille sur le mur ne change pas).
+const WALL_LEN = { bolt: 1.04, shotgun: 1.04, smg: 0.83, carbine: 0.99, raygun: 0.62, revolver: 0.57 };
 
 /* ─── Matériaux d'armes : voir gunMaterials() (08b_gunmodels.js) ─── */
 const GM = {};
@@ -5221,20 +5216,80 @@ function mountWallWeapons() {
     }
     g.position.y = clamp(Math.max(g.position.y, top + 0.55), g.position.y, fy + 2.3);
     g.updateMatrixWorld(true);
-    // Contour à la craie (au-dessus du mur dans l'ordre de profondeur, sans écrire la profondeur).
-    const chalk = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.75), new THREE.MeshBasicMaterial({ map: chalkOutline(CHALK[wb.weapon], w.name, w.cost), transparent: true, depthWrite: false, opacity: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-    chalk.position.set(0, -0.05, 0.03); g.add(chalk);
-    // Arme : canon du côté du canon dessiné (+x), à la taille du contour et centrée dessus.
+    // Arme à sa taille d'exposition, centrée sur le groupe, canon vers +x, posée 4 cm devant le mur.
     const m = buildGunModel(wb.weapon, false, false).root; m.rotation.y = -Math.PI / 2; g.add(m); g.updateMatrixWorld(true);
-    const prof = CHALK[wb.weapon], px = prof.map((p) => p[0]), py = prof.map((p) => p[1]);
-    const cx = (u) => ((40 + u * 432) / 512 - 0.5) * 1.5, cy = (v) => (0.5 - (36 + v * 146) / 256) * 0.75 - 0.05; // profil → plan du contour (chalkOutline, 512 × 256)
-    const ox0 = cx(Math.min(...px)), ox1 = cx(Math.max(...px)), oy0 = cy(Math.max(...py)), oy1 = cy(Math.min(...py));
-    const bb = new THREE.Box3().setFromObject(m), inv = new THREE.Matrix4().copy(g.matrixWorld).invert(); bb.applyMatrix4(inv);
-    const k = clamp(0.82 * (ox1 - ox0) / Math.max(0.05, bb.max.x - bb.min.x), 0.5, 1.6); m.scale.setScalar(k); // (un peu plus petite que son contour : la craie l'entoure)
-    m.position.set((ox0 + ox1) / 2 - ((bb.min.x + bb.max.x) / 2) * k, (oy0 + oy1) / 2 - ((bb.min.y + bb.max.y) / 2) * k, 0.03 + 0.01 - bb.min.z * k);
+    const inv = new THREE.Matrix4().copy(g.matrixWorld).invert(), bb = new THREE.Box3().setFromObject(m).applyMatrix4(inv);
+    const k = clamp((WALL_LEN[wb.weapon] || 0.9) / Math.max(0.05, bb.max.x - bb.min.x), 0.4, 2.5); m.scale.setScalar(k);
+    m.position.set(-((bb.min.x + bb.max.x) / 2) * k, -((bb.min.y + bb.max.y) / 2) * k, 0.04 - bb.min.z * k); g.updateMatrixWorld(true);
+    // Contour lumineux qui fait le tour de l'arme en suivant sa forme, prix dessous (au-dessus du mur dans l'ordre de
+    // profondeur, sans écrire la profondeur).
+    const ol = gunOutline(m, inv, w.name, w.cost);
+    const chalk = new THREE.Mesh(new THREE.PlaneGeometry(ol.w, ol.h), new THREE.MeshBasicMaterial({ map: ol.tex, transparent: true, depthWrite: false, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    chalk.position.set(ol.x, ol.y, 0.03); g.add(chalk);
+    // Saillie du mur sous l'arme (cimaise, lambris épais) devant le contour ou le prix : on remonte le tout au-dessus.
+    let lift = 0; const bot = ol.y - ol.h / 2, o = new THREE.Vector3(), q = new THREE.Vector3();
+    for (let y = bot; y < 0; y += 0.02) for (const a of [-0.4, 0, 0.4]) {
+      g.localToWorld(o.set(ol.x + a * ol.w, y, 0.8)); g.localToWorld(q.set(ol.x + a * ol.w, y, 0)); rc.set(o, q.sub(o).normalize());
+      const h = rc.intersectObjects(solids, false)[0], p = h ? 0.8 - h.distance : 0; if (p > 0.028 && p < 0.35) lift = Math.max(lift, y + 0.025 - bot);
+    }
+    if (lift > 0) { g.position.y = Math.min(g.position.y + lift, fy + 2.3); g.updateMatrixWorld(true); }
+    const ox0 = (bb.min.x - (bb.min.x + bb.max.x) / 2) * k, ox1 = -ox0, gy0 = -((bb.max.y - bb.min.y) / 2) * k;
     // Deux chevilles plantées dans le mur, sous l'arme.
-    for (const o of [ox0 + (ox1 - ox0) * 0.2, ox0 + (ox1 - ox0) * 0.75]) { const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.14, 6), MATS.iron); peg.rotation.x = Math.PI / 2; peg.position.set(o, m.position.y + bb.min.y * k - 0.005, 0.0); g.add(peg); }
+    for (const o of [ox0 + (ox1 - ox0) * 0.2, ox0 + (ox1 - ox0) * 0.75]) { const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.14, 6), MATS.iron); peg.rotation.x = Math.PI / 2; peg.position.set(o, gy0 - 0.005, 0.0); g.add(peg); }
   }
+}
+
+// Contour d'une arme murale : silhouette de l'arme vue de face (ses triangles projetés sur le plan du mur), élargie de GAP ;
+// on suit le bord de cette forme (tracé de Moore) et on le dessine en pointillés lumineux, nom et prix dessous.
+// Rend { tex, w, h, x, y } : texture et plan (m) à placer dans le repère du groupe.
+function gunOutline(m, inv, label, cost) {
+  const PPM = 400, GAP = 0.04, MARG = GAP + 0.04, LH = 0.17, tri = [], M4 = new THREE.Matrix4(), v = new THREE.Vector3();
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  m.traverse((o) => {
+    const pa = o.isMesh && o.geometry?.attributes?.position; if (!pa) return;
+    M4.multiplyMatrices(inv, o.matrixWorld); const ix = o.geometry.index, n = ix ? ix.count : pa.count, xy = new Float32Array(pa.count * 2);
+    for (let i = 0; i < pa.count; i++) { v.fromBufferAttribute(pa, i).applyMatrix4(M4); xy[i * 2] = v.x; xy[i * 2 + 1] = v.y; x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
+    for (let i = 0; i + 2 < n; i += 3) for (const q of [i, i + 1, i + 2]) { const a = ix ? ix.getX(q) : q; tri.push(xy[a * 2], xy[a * 2 + 1]); }
+  });
+  const fnt = font(44, 800), txt = `${label} · ${cost}`, meas = makeCanvas(8, 8).getContext('2d'); meas.font = fnt;
+  const W = Math.ceil(Math.max((x1 - x0 + 2 * MARG) * PPM, meas.measureText(txt).width + 24)), HO = Math.ceil((y1 - y0 + 2 * MARG) * PPM), H = HO + Math.ceil(LH * PPM);
+  const ox = (x0 + x1) / 2 - W / PPM / 2, oy = y1 + MARG, P = (x, y) => [(x - ox) * PPM, (oy - y) * PPM];
+  // Silhouette élargie : chaque triangle rempli (tous remis dans le même sens) et tracé d'un trait de 2 × GAP aux joints ronds.
+  const mc = makeCanvas(W, HO), mx = mc.getContext('2d'); mx.fillStyle = mx.strokeStyle = '#fff'; mx.lineWidth = 2 * GAP * PPM; mx.lineJoin = 'round'; mx.beginPath();
+  for (let i = 0; i < tri.length; i += 6) {
+    let [ax, ay] = P(tri[i], tri[i + 1]), [bx, by] = P(tri[i + 2], tri[i + 3]), [cx, cy] = P(tri[i + 4], tri[i + 5]);
+    if ((bx - ax) * (cy - ay) - (by - ay) * (cx - ax) < 0) [bx, by, cx, cy] = [cx, cy, bx, by];
+    mx.moveTo(ax, ay); mx.lineTo(bx, by); mx.lineTo(cx, cy); mx.closePath();
+  }
+  mx.fill(); mx.stroke();
+  const al = mx.getImageData(0, 0, W, HO).data, B = new Uint8Array(W * HO); for (let i = 0; i < W * HO; i++) B[i] = al[i * 4 + 3] > 127 ? 1 : 0;
+  // Bords extérieurs de chaque morceau (une arme d'un seul tenant n'en a qu'un) ; chaque morceau suivi est ensuite effacé.
+  const DX = [-1, -1, 0, 1, 1, 1, 0, -1], DY = [0, -1, -1, -1, 0, 1, 1, 1], dirOf = (dx, dy) => { for (let d = 0; d < 8; d++) if (DX[d] === dx && DY[d] === dy) return d; return 0; };
+  const loops = [];
+  for (let y = 1; y < HO - 1; y++) for (let x = 1; x < W - 1; x++) {
+    if (!B[y * W + x]) continue;
+    const pts = [[x, y]]; let px = x, py = y, bx = x - 1, by = y;
+    while (pts.length < 40000) {
+      const d0 = dirOf(bx - px, by - py); let moved = false;
+      for (let k = 1; k <= 8; k++) { const d = (d0 + k) % 8, nx = px + DX[d], ny = py + DY[d]; if (B[ny * W + nx]) { const pd = (d0 + k - 1) % 8; bx = px + DX[pd]; by = py + DY[pd]; px = nx; py = ny; moved = true; break; } }
+      if (!moved || (px === x && py === y)) break;
+      pts.push([px, py]);
+    }
+    if (pts.length > 20) loops.push(pts);
+    const st = [y * W + x]; B[y * W + x] = 0; // efface le morceau (remplissage par diffusion)
+    while (st.length) { const i = st.pop(), cx = i % W, cy = (i / W) | 0; for (let d = 0; d < 8; d += 2) { const j = (cy + DY[d]) * W + cx + DX[d]; if (B[j]) { B[j] = 0; st.push(j); } } }
+  }
+  const tex = textTexture(W, H, (c) => {
+    c.lineJoin = c.lineCap = 'round'; c.strokeStyle = 'rgba(248,248,240,.95)'; c.lineWidth = 0.011 * PPM; c.setLineDash([16, 5, 7, 4]);
+    c.shadowColor = 'rgba(225,240,255,.9)'; c.shadowBlur = 9;
+    for (const L of loops) {
+      const n = L.length, R = 4; c.beginPath(); // trait lissé (moyenne glissante sur ±4 pixels du bord)
+      for (let i = 0; i < n; i += 2) { let sx = 0, sy = 0; for (let k = -R; k <= R; k++) { const q = L[(i + k + n) % n]; sx += q[0]; sy += q[1]; } i ? c.lineTo(sx / (2 * R + 1), sy / (2 * R + 1)) : c.moveTo(sx / (2 * R + 1), sy / (2 * R + 1)); }
+      c.closePath(); c.stroke(); c.stroke();
+    }
+    c.setLineDash([]); c.shadowBlur = 6; c.fillStyle = 'rgba(245,245,240,.92)'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = fnt; c.fillText(txt, W / 2, HO + LH * PPM * 0.45);
+  });
+  return { tex, w: W / PPM, h: H / PPM, x: ox + W / PPM / 2, y: oy - H / PPM / 2 };
 }
 
 
@@ -7763,21 +7818,29 @@ const G = {
   updateBoxBench(dt) {
     const bx = this.box, spot = WORLD.boxSpots[bx.loc];
     bx.visT = (bx.visT || 0) + dt;
-    // Caisse à la BO2 : colonne de lumière qui la signale de loin ; couvercle qui s'ouvre et faisceau qui jaillit de l'intérieur ;
-    // l'arme monte en défilant, ralentit, plane, puis redescend lentement dans la caisse si personne ne la prend.
-    const open = bx.state === 'rolling' || bx.state === 'offer';
-    for (const s of WORLD.boxSpots) {
-      const active = s === spot && bx.state !== 'moving';
-      s.beacon.material.opacity = active ? 0.7 + Math.sin(this.time * 6) * 0.3 : 0;
-      const pm = s.pillar.material; pm.opacity = damp(pm.opacity, active ? (open ? 0.1 : 0.32 + Math.sin(this.time * 1.7) * 0.06) : 0, 3, dt); s.pillar.visible = pm.opacity > 0.004;
-      if (s !== spot) { s.lightK = 0; s.shaft.visible = s.inner.visible = false; }
-    }
-    spot.lid.rotation.x = damp(spot.lid.rotation.x, open ? -1.45 : 0, 6, dt);
-    const lidK = clamp(-spot.lid.rotation.x / 1.2, 0, 1), want = bx.state === 'rolling' ? 1 : bx.state === 'offer' ? 0.4 + 0.45 * (bx.clientT / (bx.offerT || 9)) : 0;
-    spot.lightK = damp(spot.lightK, want, 5, dt);
-    const L = spot.lightK * lidK, fl = 0.9 + 0.1 * Math.sin(this.time * 23) * Math.sin(this.time * 7.3);
-    BOX_FX.shaft.opacity = 0.6 * L * fl; BOX_FX.inner.opacity = 0.95 * L; spot.shaft.visible = spot.inner.visible = L > 0.01; spot.shaft.scale.y = 0.55 + 0.45 * L;
-    if (L > 0.05 && Math.random() < dt * 30 * L) { const g = spot.group, a = rand(-0.6, 0.6); FX.glow.spawn(g.position.x - spot.face[1] * a, rand(0.65, 0.9), g.position.z + spot.face[0] * a, rand(-0.05, 0.05), rand(0.5, 1.1), rand(-0.05, 0.05), rand(0.4, 0.9), 0.04, 0.75, 0.95, 1, 0.9, -0.3, 0.3); } // poussières lumineuses qui montent dans le faisceau
+    // Caisse à la BO2, en vert : au repos, couvercle entrouvert et lueur verte qui filtre par la fente ; à l'ouverture, fond
+    // lumineux, rayons courts qui montent autour de l'arme et lumière verte qui l'éclaire (forte seulement couvercle grand
+    // ouvert) ; l'arme monte en défilant, ralentit, plane, puis redescend lentement dans la caisse si personne ne la prend.
+    const open = bx.state === 'rolling' || bx.state === 'offer', live = bx.state !== 'moving', t = this.time;
+    for (const s of WORLD.boxSpots) if (s !== spot) { s.lightK = s.leakK = 0; s.inner.visible = s.leak.visible = false; }
+    spot.lid.rotation.x = damp(spot.lid.rotation.x, open ? -1.45 : live ? -0.06 : 0, open ? 6 : 4, dt);
+    const lidA = -spot.lid.rotation.x, u = clamp((lidA - 0.85) / 0.55, 0, 1), lidK = u * u * (3 - 2 * u);
+    spot.lightK = damp(spot.lightK, bx.state === 'rolling' ? 1 : bx.state === 'offer' ? 0.45 + 0.4 * (bx.clientT / (bx.offerT || 9)) : 0, 5, dt);
+    spot.leakK = damp(spot.leakK, live && !open ? 1 : 0, 3, dt);
+    const L = spot.lightK * lidK, fl = 0.9 + 0.1 * Math.sin(t * 23) * Math.sin(t * 7.3), lk = spot.leakK * (0.8 + 0.2 * Math.sin(t * 1.6));
+    // Fente du couvercle entrouvert (74 cm × sinus de l'angle, devant ; en coin sur les côtés).
+    spot.leak.visible = lk > 0.01 && lidA < 0.3; spot.leak.scale.y = Math.max(0.001, 0.74 * Math.sin(lidA));
+    BOX_FX.leak.opacity = 0.85 * lk; BOX_FX.core.opacity = Math.max(0.35 * lk, 0.75 * L * fl); spot.inner.visible = BOX_FX.core.opacity > 0.01;
+    const rays = BOX_FX.rays;
+    if (L > 0.01) {
+      if (rays.parent !== spot.group) spot.group.add(rays);
+      rays.visible = true; R.camera.getWorldPosition(_v1); spot.group.worldToLocal(_v1);
+      for (const r of rays.children) { const q = r.userData; r.rotation.y = Math.atan2(_v1.x - r.position.x, _v1.z - r.position.z); if (q.halo) { r.material.opacity = 0.5 * L * fl; continue; } r.material.opacity = L * clamp(0.3 + 0.16 * Math.sin(t * q.w + q.ph) + 0.08 * Math.sin(t * q.w * 2.7 + q.ph * 2), 0, 1); r.scale.y = 0.7 + 0.3 * L; }
+    } else rays.visible = false;
+    const PL = R.lights.box, I = 0.3 * lk + 1.3 * L * fl; // (lumière fixe de la scène : jamais ajoutée ni retirée en jeu)
+    if (PL) { PL.intensity = live ? I : 0; if (I > 0) spot.group.localToWorld(PL.position.set(0, lerp(0.42, 0.95, Math.min(1, L * 1.5)), 0.12 * L)); }
+    if (L > 0.05 && Math.random() < dt * 26 * L) { spot.group.localToWorld(_v1.set(rand(-0.6, 0.6), rand(0.5, 0.8), rand(-0.2, 0.2))); FX.glow.spawn(_v1.x, _v1.y, _v1.z, rand(-0.05, 0.05), rand(0.4, 0.9), rand(-0.05, 0.05), rand(0.4, 0.9), 0.035, 0.6, 1, 0.75, 0.9, -0.3, 0.3); } // poussières lumineuses qui montent de la caisse
+    if (lk > 0.3 && Math.random() < dt * 1.2) { spot.group.localToWorld(_v1.set(rand(-0.6, 0.6), 0.65, 0.4)); FX.glow.spawn(_v1.x, _v1.y, _v1.z, rand(-0.02, 0.02), rand(0.08, 0.2), rand(-0.02, 0.02), rand(0.8, 1.4), 0.025, 0.5, 1, 0.7, 0.6, 0, 0.2); } // quelques-unes s'échappent de la fente
     if (bx.display) {
       const dp = bx.display;
       if (bx.state === 'rolling') {
@@ -7856,7 +7919,7 @@ function applyBoxState(d) {
   const spot = WORLD.boxSpots[bx.loc];
   if (d.state === 'rolling') { bx.display = { cycleT: 0 }; setBoxDisplay('bolt'); Sfx.musicBox(spot.group.position); }
   else if (d.state === 'offer') { setBoxDisplay(bx.key); bx.clientT = d.t; bx.offerT = d.t; }
-  else if (d.state === 'moving') { if (bx.display?.obj) setBoxDisplay('skull'); Sfx.eerie(spot.group.position); UI.message('LA CAISSE SE DÉPLACE', 'Points remboursés. Cherchez la fusée verte.'); bx.clientT = 0; }
+  else if (d.state === 'moving') { if (bx.display?.obj) setBoxDisplay('skull'); Sfx.eerie(spot.group.position); UI.message('LA CAISSE SE DÉPLACE', 'Points remboursés. Cherchez la lueur verte.'); bx.clientT = 0; }
   else if (d.state === 'closing' || d.state === 'idle') clearBoxDisplay();
 }
 function placeBox(loc) {
