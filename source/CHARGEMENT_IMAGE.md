@@ -14,8 +14,15 @@ Outil : `dev/gels.mjs <carte> [qualité] [secondes]` compte, phase par phase (ch
 
 ## Plan
 
-1. [ ] Écran de chargement plein écran (image de la carte, nom, barre de progression, étapes) qui ne laisse place au menu qu'une fois tout prêt : photos posées, infectés réalistes chargés, ombrage d'ambiance, textures envoyées, shaders préchauffés.
-2. [ ] Préchauffage : armes en main (toutes, améliorées comprises), couteau, grenade, bouteille d'atout, chaque infecté réaliste, effets (explosion, caisse ouverte…) dessinés une fois sous l'écran de chargement. Objectif mesuré : 0 shader tardif au menu et en partie.
-3. [ ] Lancement de la partie : carton de la carte (image + nom) pendant la mise en place.
+1. [x] (commit 782fcc8) Écran de chargement plein écran (image de la carte, nom, barre de progression, étapes) qui ne laisse place au menu qu'une fois tout prêt : photos posées, infectés réalistes chargés, ombrage d'ambiance, textures envoyées, shaders préchauffés.
+2. [x] (commit 782fcc8, mesuré : 0 shader tardif sur Poste 7 en élevé, chargement 91 shaders) Préchauffage : armes en main (toutes, améliorées comprises), couteau, grenade, bouteille d'atout, chaque infecté réaliste, effets (explosion, caisse ouverte…) dessinés une fois sous l'écran de chargement. Objectif mesuré : 0 shader tardif au menu et en partie.
+3. [ ] Lancement de la partie : carton de la carte (image + nom) pendant la mise en place. Fait (13_ui.js beginGame) ; reste les photos des cartes (assets/cartes/<carte>.jpg) et la vérification à l'œil, puis gels.mjs sur les 3 autres cartes.
 4. [ ] Qualité d'image en « élevé » : anticrénelage, résolution dynamique moins agressive (et réglable), filtrage des textures, diagnostic (carte graphique, résolution, images/s).
 5. [ ] Version 6.2 en ligne.
+
+## Pièges trouvés (à ne pas refaire)
+
+- three.js met le texte de `material.onBeforeCompile` dans la clé de chaque shader : un espion posé sur `Material.prototype.onBeforeCompile` après le préchauffage force lui-même des recompilations (fausses « compilations tardives »). gels.mjs ne le pose qu'avec MATS=1, avant init().
+- Avec la chaîne d'effets d'image (élevé), la scène est dessinée dans une image intermédiaire : variante de shader sans mappage des tons. Le préchauffage compile dans `R.composer.readBuffer`.
+- Ne jamais rendre visibles des lumières cachées pendant le préchauffage : leur nombre entre dans chaque shader.
+- Dans le conteneur, les photos mettent ~60 s (réseau et rendu lents) : l'attente est plafonnée à 90 s.
