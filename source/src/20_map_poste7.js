@@ -109,7 +109,8 @@ MAPS.poste7 = {
   },
   roofPosts: [[14, 30], [24, 30], [14, 34], [24, 34], [67, 37], [11, 51.5], [17, 51.5]],
   decor() { buildProps(); buildCraterProps(); buildOutside(); buildQuestProps(); buildRobot(); buildPoste7Extras(); },
-  scatter: [{ kind: 'clod', styles: [0, 3, 4], n: 1.2, color: 0xe8eef4 }, { kind: 'chip', styles: [0, 4], n: 0.6, color: 0x4a3a2a }, { kind: 'clod', styles: [4], n: 7, color: 0x5a4a3a, scale: [0.8, 2.2] }, { kind: 'rock', ground: [1.2, 12], n: 0.2, color: 0x6a6a66, shadow: true, snow: 1 }],
+  // (plus de mottes à facettes, blanches ni brunes : la neige est dans le sol et le fond du Cratère est bosselé, voir buildTrenches)
+  scatter: [{ kind: 'chip', styles: [0, 4], n: 0.6, color: 0x4a3a2a }, { kind: 'rock', ground: [1.2, 12], n: 0.2, color: 0x6a6a66, shadow: true, snow: 1 }],
   // Fond du Cratère en cuvette (≈ 1 m au centre), à niveau le long des parois et des passages.
   floorH(x, z) { const d = Math.hypot(x - 46, z - 32); if (d >= 7.4) return 0; const k = 1 - d / 7.4; return -1.05 * k * k * (3 - 2 * k) + (fbm(x * 0.7, z * 0.7, 2) - 0.5) * 0.12 * k; },
   anim(dt, time) { robotAnim(dt, time); },

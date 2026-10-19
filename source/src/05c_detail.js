@@ -23,7 +23,13 @@ function scatterGeo(kind) {
     const s = new THREE.IcosahedronGeometry(0.16, 0); s.scale(1, 0.6, 1); s.translate(0, 0.18, 0); parts.push(tint(ni(s), 1, 0.7));
     return mergeGeometries(parts);
   }
-  if (kind === 'pebble' || kind === 'rock' || kind === 'clod') { const g = new THREE.DodecahedronGeometry(kind === 'rock' ? 0.22 : kind === 'clod' ? 0.12 : 0.05, 0); g.scale(1, kind === 'clod' ? 0.55 : 0.6, 1.2); g.translate(0, kind === 'rock' ? 0.05 : 0.01, 0); return tint(ni(g), 1.05, 0.75); }
+  if (kind === 'clod') { // motte de terre gelée : bosse arrondie, irrégulière, à moitié enfoncée (plus de polyèdre à facettes)
+    const g = new THREE.SphereGeometry(0.12, 12, 8), p = g.attributes.position, sd = rand(100);
+    for (let i = 0; i < p.count; i++) { _v1.fromBufferAttribute(p, i); const k = 1 + (fbm(_v1.x * 11 + sd, _v1.z * 11 + _v1.y * 9, 3) - 0.5) * 0.8; p.setXYZ(i, _v1.x * k * 1.15, Math.max(_v1.y * k * 0.55, -0.02) - 0.02, _v1.z * k); }
+    const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 0.8, uv.getY(i) * 0.3); // ≈ mètres (texture de terre du sol)
+    g.computeVertexNormals(); return tint(g, 1.05, 0.72);
+  }
+  if (kind === 'pebble' || kind === 'rock') { const g = new THREE.DodecahedronGeometry(kind === 'rock' ? 0.22 : 0.05, 0); g.scale(1, 0.6, 1.2); g.translate(0, kind === 'rock' ? 0.05 : 0.01, 0); return tint(ni(g), 1.05, 0.75); }
   if (kind === 'leaf' || kind === 'paper' || kind === 'straw') {
     const [w, d] = kind === 'leaf' ? [0.07, 0.05] : kind === 'paper' ? [0.21, 0.29] : [0.5, 0.012];
     const g = new THREE.PlaneGeometry(w, d, 2, 1); g.rotateX(-Math.PI / 2); const p = g.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, 0.006 + Math.abs(p.getX(i)) * (kind === 'paper' ? 0.15 : 0.3) * (kind === 'straw' ? 0 : 1));
@@ -34,12 +40,12 @@ function scatterGeo(kind) {
   throw new Error('semis inconnu : ' + kind);
 }
 // spec : { kind, color, n (par carreau), styles: [...] (sol praticable) | ground: [e0, e1] (terrain, distance au jeu en carreaux),
-//          scale: [min, max], jitter (variation de teinte), shadow }
+//          scale: [min, max], jitter (variation de teinte), shadow, mat (matière du jeu à reprendre, ex. 'earth' : sa photo) }
 function scatterAll(list) {
   if (!list || !list.length) return;
   const T = TILE, W = MAP_W * T, D = MAP_D * T, styles = M.styles || [];
   for (const sp of list) {
-    const geo = scatterGeo(sp.kind), mat = KM['scat' + sp.kind + sp.color] ||= stdMat({ color: 0xffffff, roughness: sp.kind === 'paper' ? 0.8 : 0.95, vertexColors: true, side: sp.kind === 'tuft' || sp.kind === 'leaf' || sp.kind === 'paper' ? THREE.DoubleSide : THREE.FrontSide }, sp.snow || 0);
+    const geo = scatterGeo(sp.kind), mat = sp.mat ? MATS[sp.mat] : KM['scat' + sp.kind + sp.color] ||= stdMat({ color: 0xffffff, roughness: sp.kind === 'paper' ? 0.8 : 0.95, vertexColors: true, side: sp.kind === 'tuft' || sp.kind === 'leaf' || sp.kind === 'paper' ? THREE.DoubleSide : THREE.FrontSide }, sp.snow || 0);
     const pts = [], base = new THREE.Color(sp.color), [s0, s1] = sp.scale || [0.8, 1.25], jit = sp.jitter ?? 0.18;
     const add = (x, y, z) => pts.push([x, y, z]);
     if (sp.styles) for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) {
@@ -63,7 +69,7 @@ function scatterMesh(sp, geo, mat, pts, s0, s1, base, jit) {
   {
     const im = new THREE.InstancedMesh(geo, mat, pts.length), c = new THREE.Color();
     pts.forEach(([x, y, z], i) => {
-      const s = rand(s0, s1); _e1.set(sp.kind === 'rock' || sp.kind === 'pebble' || sp.kind === 'clod' || sp.kind === 'chip' ? rand(-0.3, 0.3) : 0, rand(TAU), 0, 'YXZ'); _q1.setFromEuler(_e1);
+      const s = rand(s0, s1); _e1.set(sp.kind === 'clod' ? rand(-0.08, 0.08) : sp.kind === 'rock' || sp.kind === 'pebble' || sp.kind === 'chip' ? rand(-0.3, 0.3) : 0, rand(TAU), 0, 'YXZ'); _q1.setFromEuler(_e1);
       im.setMatrixAt(i, _m1.compose(_v1.set(x, y, z), _q1, _v2.set(s, s * (sp.kind === 'tuft' ? rand(0.8, 1.4) : 1), s)));
       const v = 1 + rand(-jit, jit); c.copy(base).multiplyScalar(v); if (sp.hue) c.offsetHSL(rand(-sp.hue, sp.hue), 0, 0); im.setColorAt(i, c);
     });
