@@ -7,8 +7,8 @@ Le jeu en ligne est **un seul fichier**, `index.html`, à la racine du dépôt. 
 | Dossier ou fichier | Rôle |
 |---|---|
 | `src/shell.html` | La page : menus, interface, styles. |
-| `src/00_core.js` … `src/99_start.js` | Le jeu, découpé en 40 parties assemblées dans l'ordre de leur numéro (moteur, textures, son, cartes, infectés, armes, co-op…). Le numéro de version est `GAME_VERSION` dans `src/00_core.js`. |
-| `build.mjs` | Assemble `shell.html` et les 40 parties en un seul fichier. |
+| `src/00_core.js` … `src/99_start.js` | Le jeu, découpé en 41 parties assemblées dans l'ordre de leur numéro (moteur, textures, son, cartes, infectés, armes, co-op…). Le numéro de version est `GAME_VERSION` dans `src/00_core.js`. |
+| `build.mjs` | Assemble `shell.html` et les 41 parties en un seul fichier. |
 | `dev/` | Les tests automatiques : un navigateur sans écran joue des parties, seul ou à plusieurs, et vérifie que tout se passe bien. |
 | `dev/runall.sh` | La batterie complète (environ 2 heures). |
 | `dev/armes.mjs` | Planche de contrôle des armes (profil, trois quarts, en main, en visée) dans `dev/shots/`, pour dessiner ou retoucher une arme (`src/08b_gunmodels.js`). |
@@ -19,6 +19,9 @@ Le jeu en ligne est **un seul fichier**, `index.html`, à la racine du dépôt. 
 | `dev/zviewer/` | Visionneuse d'un modèle GLB (face, trois-quarts, dos, visage) : `node zviewer/shot.mjs zombies/p7_a.glb zviewer/out/p7_a`. |
 | `dev/matieres.mjs` | Échantillons des matières d'objets (un cube et un cylindre par famille, avec la vraie matière du jeu) sous l'éclairage d'une carte : `node matieres.mjs cite 2 [foin,marbre]`. Plus fiable que les vues d'objets pour juger une photo : la caméra n'est jamais ramenée dans la zone jouable. |
 | `dev/photo.mjs` | Visite d'une carte en textures photo (`node photo.mjs cite 2` → captures dans `dev/shots/`) ; avec `CHECK=1`, vérifie seulement que chaque matière prévue a reçu sa photo (dans `runall.sh`). `dev/photoperf.mjs <carte>` mesure le coût des photos et de l'ombrage. |
+| `dev/gels.mjs` | Gels et à-coups : compte, phase par phase (chargement, menu, début de partie, puis une partie scriptée), les shaders compilés, les textures envoyées à la carte graphique et les tâches longues : `node gels.mjs poste7 2` doit finir par `TARDIFS 0` (aucun shader compilé après l'écran de chargement). `MATS=1` nomme les matières et leurs paramètres. |
+| `dev/chargement.mjs`, `dev/cartes.mjs` | L'écran de chargement à l'œil (chargement, accueil, carton de lancement, jeu) ; photos des cartes de cet écran (`../assets/cartes/<carte>.jpg`), prises en ultra : `CAM='s,0,0' OUT=0 node cartes.mjs filon`. |
+| `dev/caisse.mjs`, `dev/armesmur.mjs` | Un tirage de la caisse de ravitaillement filmé en 8 vues ; chaque arme murale photographiée de face et de biais (`DIST=` pour s'approcher). |
 | `tools/fetch_sounds.py` | Cherche sur Freesound (CC0) 4 candidats par son et fabrique une page d'écoute, dans `../assets/sounds/candidats/` (non publié). Clé : variable d'environnement `FREESOUND_API_KEY`. |
 | `tools/keep_sounds.py` | Prépare les sons choisis à l'oreille (mono, découpés en prises, volume normalisé, OGG et MP3 pour Safari et les iPhone) dans `../assets/sounds/`, avec `manifest.json` et `CREDITS.md`. `--mp3` refait seulement les MP3. |
 | `tools/make_icons.mjs` | Dessine les icônes de l'écran d'accueil (`../assets/icons/`) pour l'appli web décrite par `../manifest.webmanifest` : ajouté à l'écran d'accueil, le jeu s'ouvre en plein écran (seule façon sur iPhone). |

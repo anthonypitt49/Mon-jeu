@@ -122,6 +122,28 @@ h1 em { display: block; color: transparent; font-style: inherit; -webkit-text-st
 .map-art { position: absolute !important; inset: 0; width: 100%; height: 100%; opacity: .95; }
 .control-strip { grid-column: 1 / -1; align-self: end; margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px clamp(12px, 2.4vw, 34px); padding-top: 15px; border-top: 1px solid var(--line); color: #a9c1ca; font-size: .76rem; }
 .control-strip b { display: inline-block; margin-right: 6px; color: #effbff; font: .74rem var(--f-mono); letter-spacing: .04em; }
+/* Écran de chargement : photo de la carte (lent zoom), nom, barre ; fondu à la fin. Couleurs de la carte en attendant la photo. */
+.loader { position: absolute; inset: 0; z-index: 100; overflow: hidden; background: radial-gradient(120% 90% at 70% 35%, var(--c1, #4f6a80) 0%, var(--c0, #0b1219) 55%, #04080c 100%); opacity: 1; transition: opacity .6s ease; }
+.loader.done { opacity: 0; pointer-events: none; }
+.loader.gone { display: none; }
+.loader.start { pointer-events: none; }
+.loader-img { position: absolute; inset: -2%; background-size: cover; background-position: center; opacity: 0; transition: opacity .8s ease; animation: loaderZoom 24s ease-out forwards; }
+.loader-img.ready { opacity: 1; }
+.loader::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, #04080cf0 0%, #04080cb0 38%, #04080c10 75%), linear-gradient(0deg, #04080ce0 0%, transparent 45%); }
+@keyframes loaderZoom { from { transform: scale(1); } to { transform: scale(1.07); } }
+.loader-copy { position: absolute; z-index: 1; left: clamp(24px, 7vw, 108px); bottom: clamp(40px, 12vh, 120px); max-width: min(560px, 86vw); }
+.loader-eyebrow { margin: 0 0 10px; color: var(--frost); font: 700 .78rem var(--f-body); letter-spacing: .28em; }
+.loader h2 { margin: 0; font: 900 clamp(2.6rem, 7vw, 5rem)/.92 "Big Shoulders Display", Impact, sans-serif; letter-spacing: .02em; color: #f2f6f8; text-shadow: 0 4px 30px #000a; }
+.loader-sub { margin: 10px 0 0; color: var(--mist); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: .86rem; }
+.loader-desc { margin: 14px 0 0; color: #d6e2e8; font-size: 1rem; min-height: 1.3em; }
+.loader-bar { margin-top: 26px; width: min(360px, 76vw); height: 3px; background: #ffffff1c; overflow: hidden; }
+.loader-bar i { display: block; height: 100%; background: var(--frost); box-shadow: 0 0 12px var(--frost); transform-origin: left; transform: scaleX(0); transition: transform .35s ease; }
+.loader-step { margin: 12px 0 0; color: var(--mist); font-size: .76rem; letter-spacing: .16em; font-weight: 700; }
+.loader.error .loader-step { color: var(--blood); letter-spacing: .02em; font-weight: 600; font-size: .9rem; }
+.loader-tip { position: absolute; z-index: 1; right: clamp(24px, 6vw, 90px); bottom: clamp(40px, 12vh, 120px); max-width: 340px; margin: 0; color: #c3d3db; font-size: .9rem; line-height: 1.45; text-align: right; }
+.loader-tip:not(:empty)::before { content: "ASTUCE"; display: block; margin-bottom: 6px; color: var(--frost); font-size: .7rem; font-weight: 800; letter-spacing: .24em; }
+.loader.start .loader-bar, .loader.start .loader-step { display: none; }
+@media (max-width: 760px) { .loader-tip { display: none; } }
 .loading-line { display: flex; align-items: center; gap: 10px; margin-top: 18px; color: var(--mist); font-size: .8rem; letter-spacing: .14em; font-weight: 700; }
 .loading-line i { width: 120px; height: 3px; background: #ffffff18; overflow: hidden; position: relative; }
 .loading-line i::after { content: ""; position: absolute; inset: 0; width: 40%; background: var(--frost); animation: load 1.1s ease-in-out infinite; }
@@ -414,6 +436,19 @@ body.touch .control-strip { display: none; }
 </head>
 <body>
 <main class="game-shell" id="shell">
+  <!-- Écran de chargement (13c_loader.js) : photo de la carte, nom, progression ; l'accueil n'apparaît qu'une fois tout prêt. -->
+  <div id="loader" class="loader boot" aria-live="polite">
+    <div class="loader-img" id="loaderImg"></div>
+    <div class="loader-copy">
+      <p class="loader-eyebrow" id="loaderEyebrow">CHARGEMENT</p>
+      <h2 id="loaderName">SNOWFALL PROTOCOL</h2>
+      <p class="loader-sub" id="loaderSub"></p>
+      <p class="loader-desc" id="loaderDesc"></p>
+      <div class="loader-bar"><i id="loaderFill"></i></div>
+      <p class="loader-step" id="loaderStep">CHARGEMENT DU MOTEUR 3D…</p>
+    </div>
+    <p class="loader-tip" id="loaderTip"></p>
+  </div>
   <canvas id="game" aria-label="Jeu Snowfall Protocol"></canvas>
 
   <div id="screenfx" aria-hidden="true">
@@ -524,6 +559,8 @@ body.touch .control-strip { display: none; }
       <div class="settings-grid">
         <div class="set-row"><label for="optDiff">DIFFICULTÉ</label><select id="optDiff"><option value="0">Recrue — 6 coups</option><option value="1">Régulier — 4 coups</option><option value="2">Vétéran — 3 coups</option><option value="3">Cauchemar — 3 coups, hordes</option></select></div>
         <div class="set-row"><label for="optQuality">GRAPHISMES</label><select id="optQuality"><option value="0">Bas — performance</option><option value="1">Moyen</option><option value="2">Élevé</option><option value="3">Ultra</option></select></div>
+        <div class="set-row"><label for="optRes">RÉSOLUTION</label><select id="optRes"><option value="auto">Automatique — baisse si le jeu ralentit</option><option value="full">Toujours pleine — plus net</option></select></div>
+        <div class="set-row check"><label for="optGrain">GRAIN DE FILM</label><input type="checkbox" id="optGrain"></div>
         <div class="set-row"><label for="optSens">SENSIBILITÉ</label><input type="range" id="optSens" min="0.3" max="2.5" step="0.1"><output id="optSensV"></output></div>
         <div class="set-row"><label for="optFov">CHAMP DE VISION</label><input type="range" id="optFov" min="60" max="100" step="1"><output id="optFovV"></output></div>
         <div class="set-row"><label for="optVol">VOLUME GÉNÉRAL</label><input type="range" id="optVol" min="0" max="1" step="0.05"><output id="optVolV"></output></div>
@@ -536,6 +573,7 @@ body.touch .control-strip { display: none; }
         </div></details>
         <div class="set-row check"><label for="optInvert">INVERSER L'AXE VERTICAL</label><input type="checkbox" id="optInvert"></div>
         <div class="set-row check"><label for="optFps">AFFICHER LES IMAGES/S</label><input type="checkbox" id="optFps"></div>
+        <p class="set-hint" id="optDiag"></p>
       </div>
       <button id="settingsClose" class="btn">Terminé</button>
     </div>
@@ -624,12 +662,14 @@ body.touch .control-strip { display: none; }
 <script>
 // Garde-fou : si le moteur 3D ne se charge pas (hors ligne, CDN bloqué), on le dit clairement.
 window.__spFail = function (msg) {
-  var l = document.getElementById('loadingLine');
+  var l = document.getElementById('loadingLine'), ld = document.getElementById('loader'), st = document.getElementById('loaderStep');
   if (!l || window.__spReady) return;
-  l.className = 'loading-line error';
-  l.querySelector('span').textContent = msg || "Le moteur 3D n'a pas pu être chargé. Vérifiez votre connexion Internet puis rechargez la page.";
+  msg = msg || "Le moteur 3D n'a pas pu être chargé. Vérifiez votre connexion Internet puis rechargez la page.";
+  l.className = 'loading-line error'; l.querySelector('span').textContent = msg;
+  if (ld && st) { ld.classList.add('error'); st.textContent = msg; }
 };
-setTimeout(function () { if (!window.__spReady) window.__spFail(); }, 25000);
+// (moteur 3D chargé : __spBoot ; le chargement peut alors durer plus longtemps sans fausse alerte)
+setTimeout(function () { if (!window.__spReady && !window.__spBoot) window.__spFail(); }, 25000);
 </script>
 <script type="importmap">
 { "imports": {
@@ -648,6 +688,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /* Snowfall Protocol — tout le jeu tient dans ce fichier.
@@ -712,7 +753,7 @@ const store = {
 };
 const defaultQuality = IS_TOUCH ? 0 : 2;
 // Volumes : volume général, puis par famille de sons (armes, infectés, ambiance) et musique.
-const settings = Object.assign({ quality: defaultQuality, sens: 1, fov: 78, volume: 0.8, volWeapons: 1, volZombies: 1, volAmb: 1, music: 0.5, invertY: false, showFps: false, name: '', diff: 1 }, store.get('settings', {}));
+const settings = Object.assign({ quality: defaultQuality, sens: 1, fov: 78, volume: 0.8, volWeapons: 1, volZombies: 1, volAmb: 1, music: 0.5, invertY: false, showFps: false, name: '', diff: 1, res: 'auto', grain: true }, store.get('settings', {}));
 // Difficulté : points de vie du soldat, coup d'un infecté, résistance, nombre et cadence d'arrivée des infectés.
 // « early » avance (ou recule) d'autant de manches l'arrivée des coureurs et des infectés spéciaux.
 const DIFFS = [
@@ -724,10 +765,10 @@ const DIFFS = [
 const DIFF = () => DIFFS[typeof G !== 'undefined' && G.diff != null ? G.diff : clamp(settings.diff | 0, 0, 3)];
 const saveSettings = () => store.set('settings', settings);
 const QUALITY = [
-  { name: 'bas', pr: 0.75, shadows: false, shadowSize: 0, bloom: false, snow: 1800, flashShadow: false, texSize: 256, grain: false, decals: 30 },
-  { name: 'moyen', pr: 1, shadows: true, shadowSize: 1024, bloom: false, snow: 3500, flashShadow: false, texSize: 512, grain: true, decals: 60 },
-  { name: 'eleve', pr: 1.25, shadows: true, shadowSize: 2048, bloom: true, snow: 6000, flashShadow: true, texSize: 512, grain: true, decals: 90, ao: 'half' },
-  { name: 'ultra', pr: 2, shadows: true, shadowSize: 4096, bloom: true, snow: 9000, flashShadow: true, texSize: 1024, grain: true, decals: 140, ao: 'full' },
+  { name: 'bas', pr: 0.75, shadows: false, shadowSize: 0, bloom: false, snow: 1800, flashShadow: false, texSize: 256, grain: false, decals: 30, dynMin: 0.55, aniso: 4 },
+  { name: 'moyen', pr: 1, shadows: true, shadowSize: 1024, bloom: false, snow: 3500, flashShadow: false, texSize: 512, grain: true, decals: 60, smaa: true, dynMin: 0.6, aniso: 8 },
+  { name: 'eleve', pr: 1.25, shadows: true, shadowSize: 2048, bloom: true, snow: 6000, flashShadow: true, texSize: 512, grain: true, decals: 90, ao: 'half', smaa: true, dynMin: 0.75, aniso: 16 },
+  { name: 'ultra', pr: 2, shadows: true, shadowSize: 4096, bloom: true, snow: 9000, flashShadow: true, texSize: 1024, grain: true, decals: 140, ao: 'full', smaa: true, dynMin: 0.75, aniso: 16 },
 ];
 let Q = QUALITY[clamp(settings.quality | 0, 0, 3)];
 
@@ -737,7 +778,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '6.1.4'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '6.2'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -755,7 +796,7 @@ function toTex(canvas, { srgb = true, repeat = true, aniso = true } = {}) {
   const t = new THREE.CanvasTexture(canvas);
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  if (aniso) t.anisotropy = 8;
+  if (aniso) t.anisotropy = R.renderer ? Math.min(Q.aniso || 8, R.renderer.capabilities.getMaxAnisotropy()) : 8; // (filtrage des sols vus de biais)
   t.needsUpdate = true;
   return t;
 }
@@ -2002,7 +2043,7 @@ function buildEnvironment() {
 function buildComposer() {
   const renderer = R.renderer;
   if (R.composer) { R.composer.dispose?.(); R.composer = null; }
-  if (!Q.bloom && !Q.grain) return;
+  if (!Q.bloom && !Q.grain && !Q.smaa) return;
   const c = R.composer = new EffectComposer(renderer);
   // Ombrage d'ambiance (N8AO, qualité élevée et ultra) : assombrit coins, recoins et pieds des murs ; il dessine aussi la scène.
   R.ao = null;
@@ -2021,7 +2062,7 @@ function buildComposer() {
     hp.needsUpdate = true;
   } else R.bloom = null;
   R.final = new ShaderPass({
-    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uGrain: { value: Q.grain ? 1 : 0 }, uVig: { value: 0.75 }, uDamage: { value: 0 }, uAberr: { value: 0 }, uTint: { value: new THREE.Vector3(...(M.env.tint || [1, 1, 1])) } },
+    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uGrain: { value: Q.grain && settings.grain ? 1 : 0 }, uVig: { value: 0.75 }, uDamage: { value: 0 }, uAberr: { value: 0 }, uTint: { value: new THREE.Vector3(...(M.env.tint || [1, 1, 1])) } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uGrain, uVig, uDamage, uAberr; uniform vec3 uTint; varying vec2 vUv;
       void main(){
@@ -2035,13 +2076,20 @@ function buildComposer() {
         col *= mix(1.0, v, uVig);
         col = mix(col, col * vec3(1.5, 0.35, 0.3) + vec3(0.06, 0.0, 0.0), uDamage * smoothstep(0.15, 0.75, length(c) * 1.5));
         float g = fract(sin(dot(vUv * vec2(1733.0, 977.0) + fract(uTime) * 91.0, vec2(12.9898, 78.233))) * 43758.5453);
-        col += (g - 0.5) * uGrain * (0.015 + 0.05 * (1.0 - smoothstep(0.0, 0.4, l)));
+        col += (g - 0.5) * uGrain * (0.008 + 0.02 * (1.0 - smoothstep(0.0, 0.4, l))); // grain de film léger (il brouillait les nuits)
         gl_FragColor = vec4(max(col, 0.0), 1.0);
       }`,
   });
   c.addPass(R.final);
   c.addPass(new OutputPass());
+  // Anticrénelage (SMAA), sur l'image finale : la chaîne d'effets passe par des images intermédiaires, que l'anticrénelage
+  // du navigateur ne lisse pas (les bords étaient en escalier en moyen, élevé et ultra).
+  if (Q.smaa) c.addPass(new SMAAPass());
   resize();
+}
+// Nom de la carte graphique (diagnostic des Options) : « ANGLE (NVIDIA, NVIDIA GeForce …, Direct3D11 …) » → « NVIDIA GeForce … ».
+function gpuName() {
+  try { const gl = R.renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'); let n = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); const m = /ANGLE \(([^,]+),\s*([^,(]+?)(?:\s*\(0x[0-9a-f]+\))?\s*(?:Direct3D|,|\))/i.exec(n); if (m) n = m[2].trim(); return n.slice(0, 80); } catch { return 'inconnue'; }
 }
 function resize() {
   const w = innerWidth, h = innerHeight, pr = Math.min(devicePixelRatio || 1, Q.pr) * (R.dynScale || 1);
@@ -2065,7 +2113,9 @@ function dynamicResolution(dt) {
   R.dynCd = Math.max(0, (R.dynCd || 0) - dt);
   if (G.mode !== 'playing' || R.dynCd > 0) { R.lowT = 0; R.highT = 0; return; }
   const s = R.dynScale || 1, now = performance.now();
-  if (R.fpsAvg < 40) { R.lowT += dt; R.highT = 0; if (R.lowT > 3 && s > 0.56) { R.dynScale = Math.max(0.55, s * 0.85); R.lowT = 0; R.dynCd = 4; R.lastDown = now; resize(); } }
+  if (settings.res === 'full') { if (s !== 1) { R.dynScale = 1; resize(); } return; } // (réglage : toujours la pleine définition)
+  const lo = Q.dynMin || 0.55; // (plancher : en élevé, l'image ne descend plus sous 75 %, elle devenait floue à 55 %)
+  if (R.fpsAvg < 40) { R.lowT += dt; R.highT = 0; if (R.lowT > 4 && s > lo + 0.01) { R.dynScale = Math.max(lo, s * 0.88); R.lowT = 0; R.dynCd = 4; R.lastDown = now; resize(); } }
   else if (R.fpsAvg > 58) { R.highT += dt; R.lowT = 0; if (R.highT > 10 && s < 1 && now - (R.lastDown || 0) > 45000) { R.dynScale = Math.min(1, s * 1.1); R.highT = 0; R.dynCd = 4; resize(); } }
   else { R.lowT = 0; R.highT = 0; }
 }
@@ -3820,7 +3870,7 @@ async function photoStart() {
       const mo = await (await fetch('assets/objets/manifest.json', { cache: 'force-cache' })).json();
       for (const k of objSets) if (mo[k]) man['objets/' + k] = { ...mo[k], dir: 'assets/objets/', file: k };
     }
-    const aniso = Math.min(8, R.renderer.capabilities.getMaxAnisotropy());
+    const aniso = Math.min(Q.aniso || 8, R.renderer.capabilities.getMaxAnisotropy());
     // Décodage des JPEG hors du fil principal (createImageBitmap) ; Safari, qui ignore le retournement demandé, garde le chargeur classique.
     const safari = /Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg/.test(navigator.userAgent);
     const bmp = typeof createImageBitmap === 'function' && !safari ? new THREE.ImageBitmapLoader().setOptions({ imageOrientation: 'flipY', premultiplyAlpha: 'none', colorSpaceConversion: 'none' }) : null;
@@ -3834,6 +3884,7 @@ async function photoStart() {
         (tex[key] ||= {})[m] = t; PHOTO.files++;
       }));
     }
+    PHOTO.total = jobs.length; // (barre de l'écran de chargement)
     const env = man.env ? photoEnv(base, man.env).catch((e) => { PHOTO.err = 'env: ' + (e?.message || e); }) : null; // échec isolé : on garde le ciel calculé
     await Promise.all(jobs);
     // Envoi à la carte graphique une texture par image, puis une matière par image : pas d'à-coup en pleine partie
@@ -9757,7 +9808,12 @@ const UI = {
     bind('optMusic', 'music', pct, vol);
     $('optInvert').checked = settings.invertY; $('optInvert').onchange = (e) => { settings.invertY = e.target.checked; saveSettings(); };
     $('optFps').checked = settings.showFps; $('optFps').onchange = (e) => { settings.showFps = e.target.checked; saveSettings(); $('fps').classList.toggle('hidden', !settings.showFps); };
-    q.onchange = () => { settings.quality = +q.value; saveSettings(); applyQuality(); };
+    q.onchange = () => { settings.quality = +q.value; saveSettings(); applyQuality(); diag(); };
+    // Image : résolution (automatique ou toujours pleine), grain de film, et ce que la machine affiche vraiment.
+    const diag = () => { const c = R.renderer.domElement; $('optDiag').textContent = `Carte graphique : ${gpuName()} · image ${c.width} × ${c.height} (${Math.round((R.dynScale || 1) * 100)} %) · ${Math.round(R.fpsAvg || 0)} images/s`; };
+    const rs = $('optRes'); rs.value = settings.res; rs.onchange = () => { settings.res = rs.value; saveSettings(); R.dynScale = 1; resize(); diag(); };
+    $('optGrain').checked = settings.grain; $('optGrain').onchange = (e) => { settings.grain = e.target.checked; saveSettings(); if (R.final) R.final.uniforms.uGrain.value = Q.grain && settings.grain ? 1 : 0; };
+    diag();
   },
 
   enterGame() {
@@ -9898,6 +9954,9 @@ function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&a
 
 /* ─── Transitions d'état ─── */
 function beginGame(opts) {
+  // Carton de la carte : couvre la mise en place (plein écran, souris verrouillée, premières images) ; au moins 1 s et 3 images.
+  loaderShow('start'); const f0 = R.frames || 0, t0 = performance.now();
+  const wait = () => { const dt = performance.now() - t0; if (((R.frames || 0) - f0 >= 3 && dt >= 1000) || dt > 6000) loaderHide(); else setTimeout(wait, 50); }; wait();
   Sfx.init();
   $('joinPanel').classList.add('hidden'); $('lobby').classList.add('hidden');
   G.start(opts);
@@ -10044,6 +10103,132 @@ function initBoard() {
 }
 
 
+// ───────────────────────── 13C_LOADER ─────────────────────────
+/* ═══════════════════ ÉCRAN DE CHARGEMENT ET PRÉCHAUFFAGE ═══════════════════
+   L'accueil ne s'affiche qu'une fois tout prêt : monde construit, photos des matières posées, infectés réalistes chargés,
+   textures envoyées à la carte graphique et shaders compilés. Avant, ces travaux tombaient sur l'accueil et sur le début
+   de partie (première arme en main, première grenade, premier infecté d'un modèle…) : chaque shader compilé à ce moment-là
+   fige l'image de quelques dizaines à quelques centaines de millisecondes (mesure : source/dev/gels.mjs).
+   Le préchauffage dessine une fois, sous l'écran de chargement, tout ce que la partie montrera plus tard. */
+
+const LOADER = { shown: false, p: 0, hideT: 0 };
+const LOADER_TIPS = [
+  'Tirez dans la tête : un infecté tombe plus vite et rapporte plus.',
+  'Reclouer une fenêtre rapporte des points et retient les infectés.',
+  'Sans courant, pas d\'atouts ni d\'établi : cherchez les pièces du générateur.',
+  'La caisse de ravitaillement donne une arme au hasard ; elle change parfois de place.',
+  'Le couteau ne manque jamais de munitions.',
+  'En co-op, Q (ou PING) signale un infecté, un objet ou un endroit à vos camarades.',
+  'À terre, un camarade peut vous relever en maintenant E près de vous.',
+];
+// Écran de la carte : sa photo (assets/cartes/<carte>.jpg, sinon ses couleurs), son nom, la barre de progression.
+// mode 'boot' : démarrage de la page ; 'start' : lancement d'une partie (court carton) ; 'quality' : réglages graphiques.
+function loaderShow(mode = 'boot') {
+  const el = $('loader'); if (!el) return;
+  clearTimeout(LOADER.hideT); LOADER.shown = true; LOADER.p = 0;
+  el.className = 'loader ' + mode;
+  const [c0, c1] = M.card || ['#0b1219', '#4f6a80'];
+  el.style.setProperty('--c0', c0); el.style.setProperty('--c1', c1);
+  const img = $('loaderImg');
+  if (!img.dataset.map || img.dataset.map !== MAP_ID) {
+    img.dataset.map = MAP_ID; img.classList.remove('ready');
+    const im = new Image(); im.onload = () => { img.style.backgroundImage = `url("${im.src}")`; img.classList.add('ready'); }; im.src = `assets/cartes/${MAP_ID}.jpg`;
+  }
+  $('loaderEyebrow').textContent = mode === 'start' ? 'DÉPLOIEMENT' : mode === 'quality' ? 'RÉGLAGES GRAPHIQUES' : 'CHARGEMENT';
+  $('loaderName').textContent = M.name; $('loaderSub').textContent = M.sub || '';
+  $('loaderDesc').textContent = mode === 'start' ? (M.intro || []).slice(1).join(' — ') : M.info?.tagline?.replace(/<[^>]+>/g, '') || '';
+  $('loaderTip').textContent = mode === 'boot' ? LOADER_TIPS[(Math.random() * LOADER_TIPS.length) | 0] : '';
+  loaderStep(mode === 'start' ? 'MISE EN PLACE…' : 'GÉNÉRATION DU SECTEUR…', 0);
+}
+function loaderStep(label, p) {
+  if (!LOADER.shown) return;
+  if (label) $('loaderStep').textContent = label;
+  if (p != null) { LOADER.p = Math.max(LOADER.p, clamp(p, 0, 1)); $('loaderFill').style.transform = `scaleX(${LOADER.p.toFixed(3)})`; }
+}
+function loaderHide() {
+  const el = $('loader'); if (!el || !LOADER.shown) return;
+  LOADER.shown = false; loaderStep(null, 1); el.classList.add('done');
+  LOADER.hideT = setTimeout(() => el.classList.add('gone'), 700);
+}
+const nextFrame = () => new Promise((res) => { const t = setTimeout(res, 100); requestAnimationFrame(() => { clearTimeout(t); res(); }); });
+
+// Chargements en arrière-plan (photos, infectés réalistes, ombrage d'ambiance) : on les attend, plafonnés à `limit` ms
+// (connexion lente : l'accueil s'ouvre quand même, le reste arrive ensuite comme avant).
+async function loaderWait(jobs, limit = 90000, p0 = 0.35, p1 = 0.82) {
+  const t0 = performance.now(); let done = false; Promise.allSettled(jobs).then(() => (done = true));
+  while (!done && performance.now() - t0 < limit) {
+    const ph = PHOTO.total ? PHOTO.files / PHOTO.total : PHOTO.state === 'loading' ? 0 : 1, zr = ZREAL.state === 'loading' ? 0 : 1;
+    loaderStep(PHOTO.state === 'loading' ? `TEXTURES PHOTO… ${PHOTO.files}/${PHOTO.total || '…'}` : ZREAL.state === 'loading' ? 'LEVÉE DES MORTS…' : 'OMBRAGE D\'AMBIANCE…', lerp(p0, p1, ph * 0.75 + zr * 0.25));
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
+
+// Préchauffage : tout ce que la partie dessinera plus tard (armes en main, couteau, grenade, chaque modèle d'infecté,
+// infecté gelé, yeux, moignons, objets ramassables, armes de la caisse et sa lumière, objets cachés du décor) est dessiné
+// une fois maintenant, devant la caméra et sous l'écran de chargement, puis rangé. Les armes en main restent en cache
+// (setViewmodel les reprend : changer d'arme ne construit plus rien).
+async function warmUp() {
+  const r = R.renderer, scene = R.scene, vs = R.viewScene, flipped = [], temp = [];
+  if (G.mode === 'menu') updateMenu(0, 0);
+  R.camera.updateMatrixWorld(true);
+  const cam = R.camera, fwd = cam.getWorldDirection(new THREE.Vector3());
+  const g = new THREE.Group(); g.position.copy(cam.position).addScaledVector(fwd, 4); g.lookAt(cam.position); scene.add(g);
+  const put = (o, x, y, z = 0) => { o.position.set(x, y, z); g.add(o); temp.push(o); return o; };
+  // Monde : infectés (un par modèle, plus un gelé), yeux, moignon, grenade lancée, objets ramassables.
+  if (ZREAL.state === 'on') {
+    const tpls = [...new Set([...ZREAL.list, ZREAL.brute, ZREAL.boss].filter(Boolean))];
+    tpls.forEach((t, i) => put(zrealInstance(t).root, (i - tpls.length / 2) * 0.7, -1.2));
+    const zf = zrealInstance(tpls[0]); zf.mesh.material = ZMAT_FROZEN; put(zf.root, 2.2, -1.2);
+  }
+  put(new THREE.Mesh(ZEYE_GEO, new THREE.MeshBasicMaterial({ color: 0xffb040 })), 0, 0.5);
+  if (GORE.capGeo) put(new THREE.Mesh(GORE.capGeo, GORE.capMat), 0.3, 0.5);
+  put(buildGrenadeModel(false), -0.3, 0.5);
+  for (const type of Object.keys(DROP_TYPES)) put(new THREE.Sprite(new THREE.SpriteMaterial({ map: dropTexture(type), depthWrite: false, transparent: true })), rand(-1, 1), 0.8);
+  put(new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.sprites.glow, color: 0x3dff7a, blending: THREE.AdditiveBlending, depthWrite: false })), 0, 1);
+  // Caisse : chaque arme qu'elle peut montrer (gardée en cache par boxGun) et ses rayons verts.
+  if (typeof boxGun === 'function') for (const k of Object.keys(WEAPONS)) put(boxGun(k), rand(-1, 1), rand(0, 1));
+  if (BOX_FX?.rays) { BOX_FX.rays.visible = true; put(BOX_FX.rays, 0, -0.5); }
+  // Arme en main : toutes, normales et améliorées, avec leur éclair de bouche ; couteau et grenade en main.
+  const vg = new THREE.Group(); vg.position.set(0, -0.15, -0.7); vs.add(vg);
+  const holders = [];
+  for (const k of Object.keys(WEAPONS)) for (const up of [false, true]) {
+    const p = (VM.cache[k + (up ? '+' : '')] ||= viewmodelParts(k, up)); if (p.holder.parent) continue;
+    p.flash.visible = p.flashSide.visible = true; vg.add(p.holder); holders.push(p);
+  }
+  if (!VM.knife) { VM.knife = buildKnife(); VM.knife.visible = false; R.viewScene.add(VM.knife); VM.nade = buildGrenadeModel(true); VM.nade.visible = false; R.viewScene.add(VM.nade); } // (cachés hors usage, comme dans setViewmodel)
+  const kv = [VM.knife.visible, VM.nade.visible]; VM.knife.visible = VM.nade.visible = true;
+  // Objets cachés du décor (lueurs, effets, objets de quête…) : rendus visibles le temps du préchauffage. Jamais les lumières :
+  // leur nombre entre dans chaque shader, en allumer une compilerait tout pour un éclairage que le jeu n'aura pas.
+  for (const root of [scene, vs]) root.traverse((o) => { if (!o.visible && !o.isLight && !o.isCamera) { o.visible = true; flipped.push(o); } });
+  // Textures envoyées à la carte graphique (une par une, entre deux images : la page reste animée).
+  const texs = new Set(), keys = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'alphaMap', 'emissiveMap', 'aoMap', 'bumpMap'];
+  for (const root of [scene, vs]) root.traverse((o) => { for (const m of [].concat(o.material || [])) { for (const k of keys) if (m[k]?.isTexture) texs.add(m[k]); for (const u of Object.values(m.uniforms || {})) if (u?.value?.isTexture) texs.add(u.value); } });
+  let n = 0; const tl = [...texs];
+  for (const t of tl) { if (t.image || t.isRenderTargetTexture) try { r.initTexture(t); } catch { /* texture sans image prête */ } if (++n % 12 === 0) { loaderStep(`TEXTURES… ${n}/${tl.length}`, lerp(0.82, 0.9, n / tl.length)); await nextFrame(); } }
+  // Shaders : compilation en parallèle quand le navigateur le permet (KHR_parallel_shader_compile), puis deux images
+  // dessinées pour tout le reste (ombres, passes d'image).
+  loaderStep('PRÉPARATION DES EFFETS…', 0.9);
+  // (Avec la chaîne d'effets d'image, la scène est dessinée dans une image intermédiaire et non à l'écran : three.js en tire
+  // une autre variante de shader, sans mappage des tons. On compile donc dans la même cible que le vrai rendu.)
+  const rt = R.composer ? R.composer.readBuffer : null, prevRt = r.getRenderTarget(); r.setRenderTarget(rt);
+  try { await r.compileAsync(scene, cam); await r.compileAsync(vs, R.viewCam); } catch { try { r.compile(scene, cam); r.compile(vs, R.viewCam); } catch { /* compilation paresseuse */ } }
+  r.setRenderTarget(prevRt);
+  // Ombres : le cadre de la lune est élargi à toute la carte le temps de ces images, pour que chaque objet qui porte une
+  // ombre ait sa variante d'ombre compilée (sinon elle l'était quand la caméra du menu passait près de lui).
+  const moon = R.lights.moon, sc = Q.shadows && moon.shadow?.camera, bak = sc && { l: sc.left, r: sc.right, t: sc.top, b: sc.bottom, f: sc.far, p: moon.position.clone(), q: moon.target.position.clone() };
+  if (sc) { const e = (Math.max(MAP_W, MAP_D) / 2 + 30) * TILE, cx = (MAP_W * TILE) / 2, cz = (MAP_D * TILE) / 2; Object.assign(sc, { left: -e, right: e, top: e, bottom: -e, far: 600 }); sc.updateProjectionMatrix(); moon.target.position.set(cx, 0, cz); moon.position.set(cx + MOON_DIR.x * 250, MOON_DIR.y * 250, cz + MOON_DIR.z * 250); }
+  for (let i = 0; i < 2; i++) { renderFrame(performance.now() / 1000); loaderStep(null, 0.95 + i * 0.02); await nextFrame(); }
+  if (sc) { Object.assign(sc, { left: bak.l, right: bak.r, top: bak.t, bottom: bak.b, far: bak.f }); sc.updateProjectionMatrix(); moon.position.copy(bak.p); moon.target.position.copy(bak.q); }
+  // Rangement.
+  for (const o of flipped) o.visible = false;
+  for (const o of temp) o.removeFromParent();
+  if (BOX_FX?.rays) BOX_FX.rays.visible = false;
+  for (const p of holders) { p.flash.visible = p.flashSide.visible = false; vg.remove(p.holder); }
+  vs.remove(vg); [VM.knife.visible, VM.nade.visible] = kv;
+  g.removeFromParent();
+}
+
+
 // ───────────────────────── MAIN ─────────────────────────
 /* ═══════════════════ DÉMARRAGE ET BOUCLE PRINCIPALE ═══════════════════ */
 
@@ -10084,35 +10269,41 @@ function applyQuality() {
   r.shadowMap.enabled = Q.shadows; L.moon.castShadow = Q.shadows;
   if (Q.shadows) { L.moon.shadow.mapSize.set(Q.shadowSize, Q.shadowSize); L.moon.shadow.map?.dispose(); L.moon.shadow.map = null; }
   L.torch.castShadow = Q.flashShadow;
-  R.dynScale = 1; buildComposer(); resize(); aoStart(); photoStart(); zrealStart();
+  R.dynScale = 1; buildComposer(); resize(); const loads = [aoStart(), photoStart(), zrealStart()];
   if (R.snow) { R.scene.remove(R.snow); R.snow.geometry.dispose(); } buildSnow();
   R.scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => (m.needsUpdate = true)); });
+  // Nouveaux réglages : tout se recompile et se recharge sous l'écran de chargement, pas sur l'accueil.
+  (async () => { loaderShow('quality'); await loaderWait(loads, 30000, 0.1, 0.8); await warmUp(); loaderHide(); })();
 }
 
-const step = (label) => new Promise((res) => { const l = $('loadingLine'); if (l && !window.__spReady) l.querySelector('span').textContent = label; setTimeout(res, 16); });
+const step = (label, p) => new Promise((res) => { const l = $('loadingLine'); if (l && !window.__spReady) l.querySelector('span').textContent = label; loaderStep(label, p); setTimeout(res, 16); });
 async function init() {
   try {
-    await step('GÉNÉRATION DU SECTEUR…');
+    window.__spBoot = true; chooseMap(); loaderShow('boot'); // (le moteur 3D est chargé : le garde-fou de la page ne crie plus)
+    await step('GÉNÉRATION DU SECTEUR…', 0.04);
     buildMap();
     initRenderer();
-    await step('PEINTURE DES MATIÈRES…');
+    await step('PEINTURE DES MATIÈRES…', 0.12);
     buildTextures(); gunMaterials();
-    await step(M.loading || 'CONSTRUCTION DU SECTEUR…');
+    await step(M.loading || 'CONSTRUCTION DU SECTEUR…', 0.2);
     buildLights(); buildSky(); buildWorld();
-    await step('LEVÉE DES MORTS…');
-    initFX(); buildZombieAssets(); mountWallWeapons(); if (!/nomerge/.test(location.search)) mergeStatic(); buildSnow(); photoStart(); aoStart(); zrealStart();
+    await step('LEVÉE DES MORTS…', 0.3);
+    initFX(); buildZombieAssets(); mountWallWeapons(); if (!/nomerge/.test(location.search)) mergeStatic(); buildSnow();
+    const loads = [photoStart(), aoStart(), zrealStart()]; // (photos, ombrage d'ambiance, infectés réalistes : attendus plus bas)
     bindInput(); UI.init(); initBoard();
     NET.detect().then(() => UI.netStatus());
     G.reset();
     spawnMenuZombies();
-    await step('PRÉCHAUFFAGE DES SHADERS…');
-    try { R.renderer.compile(R.scene, R.camera); R.renderer.compile(R.viewScene, R.viewCam); } catch { /* compilation paresseuse */ }
+    // Accueil seulement une fois tout chargé et préchauffé (voir 13c_loader.js).
+    await loaderWait(loads);
+    await warmUp();
     window.__spReady = true;
     $('loadingLine').classList.add('hidden');
     $('soloButton').disabled = false; $('joinButton').disabled = false; $('mapButton').disabled = false;
     checkVersion();
     autoJoin();
     requestAnimationFrame(frame);
+    loaderHide();
   } catch (err) {
     console.error(err);
     window.__spFail && window.__spFail('Impossible de démarrer le jeu sur cet appareil (WebGL 2 requis). Détail : ' + (err?.message || err));
@@ -10145,7 +10336,7 @@ function frame(now) {
   Sfx.tickAmbience(dt, time);
   UI.tick(dt);
   dynamicResolution(dt);
-  renderFrame(time);
+  renderFrame(time); R.frames = (R.frames || 0) + 1; // (images dessinées : le carton de lancement en attend quelques-unes)
 }
 addEventListener('beforeunload', () => NET.leave(true));
 // Minuterie réseau indépendante de l'affichage. Onglet de l'hôte en arrière-plan : la partie continue
@@ -10157,7 +10348,7 @@ setInterval(() => {
   while (el > 1e-3) { const dt = Math.min(0.05, el); G.update(dt); el -= dt; }
 }, 250);
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'playing' && !NET.active) pauseGame(); });
-window.SP = { PHOTO_SETS, KIT, meterize, ZREAL, GORE, collideCircle, collideProps, collideEdges, pBlocked, pBlockedP, playerTile, isTrench, solidAt, groundAt, tileOf, inMap, buildGunModel, buildKnife, buildGrenadeModel, clipViewmodel, GM, PHOTO, MATS, GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
+window.SP = { warmUp, spots: () => SPOTS, boxGun: (k) => boxGun(k), menuAt: (t) => { menuCam.t = t; updateMenu(0, t); }, PHOTO_SETS, KIT, meterize, ZREAL, GORE, collideCircle, collideProps, collideEdges, pBlocked, pBlockedP, playerTile, isTrench, solidAt, groundAt, tileOf, inMap, buildGunModel, buildKnife, buildGrenadeModel, clipViewmodel, GM, PHOTO, MATS, GLOWB, SECRET, Sfx, tip, tipsTick, FX, PWR, pwrParts, RELAYS, RELAY, joinFailText, INTERACT_CUR: () => INTERACT.cur, ROBOT: () => ROBOT, rayWorld, FIL: () => FIL_STATE, PEN: () => PEN_STATE, CITE: () => CITE_STATE, M: () => M, MAP_ID: () => MAP_ID, MAPW: () => MAP_W, MAPS, FLOWD: (x, z) => (inMap(x, z) ? FLOW.dist[ti(x, z)] : -9), TCLASS: (x, z) => tClass(x, z), SUPPORT_T: () => [SUPPORT.t, SUPPORT.owner], Zombie, RTC, RELAY, WORLD, boxSpots: () => WORLD.boxSpots, PINGS, SPEC, THREE, pingNow: () => { pingCd = 0; doPing(); }, BOARD, QUEST, TRAPS, TUBE_SPOTS, spawnTestZombie: (x, z, kind = 'walker') => new Zombie({ x, z, y: 0, kind, hp: 1e6, state: 'move', round: 1, yaw: Math.PI / 2 }), G, P, R, NET, ZOMBIES, MAP, WEAPONS, FX, UI, INPUT, PROJ, WEATHER, beginGame, grantWeapon, settings, updatePlayer, renderFrame, throwGrenade, knife, tryReload, switchWeapon, pauseGame, resumeGame, backToMenu, applyQuality,
   sim(sec, dt = 0.05) { for (let t = 0; t < sec; t += dt) { if (G.mode === 'playing' || (G.mode === 'paused' && NET.active)) { G.update(dt); if (G.mode === 'playing') updatePlayer(dt); NET.clientTick(dt); } updateFX(dt, performance.now() / 1000 + t); } } };
 
 

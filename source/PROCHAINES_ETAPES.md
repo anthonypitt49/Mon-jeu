@@ -2,6 +2,17 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.2) : plus de gels au chargement, écran de chargement, image plus nette
+
+Demande du propriétaire (joue surtout sur ordinateur, en qualité « élevé ») : « le jeu gèle beaucoup, surtout en début de partie ou à la page d'accueil » ; son idée : un écran de chargement au début, et un petit écran avec une image de la carte au lancement de la partie. Puis la résolution et la qualité d'image. Suivi détaillé : `source/CHARGEMENT_IMAGE.md`.
+
+- **Cause des gels, mesurée** (`dev/gels.mjs`) : une fois l'accueil affiché, le jeu compilait encore 40 shaders (photos des matières posées pendant le menu, éclairage d'ambiance, infectés réalistes) et envoyait 306 textures dont 113 grandes ; puis 5 shaders au lancement (arme en main) et 2 ou 3 au premier usage de la grenade, du couteau, de la caisse, d'un changement d'arme, d'un atout. Sur Windows, chaque shader compilé fige l'image de 20 à 300 ms.
+- **Écran de chargement** (`13c_loader.js`, `shell.html`) : photo de la carte (`assets/cartes/`), nom, barre et étapes, astuce ; l'accueil n'apparaît qu'une fois photos, infectés réalistes et ombrage d'ambiance chargés (au plus 90 s), textures envoyées et shaders préchauffés. Le même écran revient au changement de réglage graphique. Carton de la carte au lancement d'une partie (au moins 1 s et 3 images dessinées).
+- **Préchauffage** : armes en main (toutes, améliorées comprises, gardées en cache), couteau, grenade, un infecté de chaque modèle et un gelé, yeux, moignons, objets ramassables, armes et lumière de la caisse, objets cachés du décor : dessinés une fois sous l'écran de chargement, ombres de toute la carte comprises, compilés dans la même cible que la chaîne d'effets. Résultat : 0 shader compilé après le chargement sur les 4 cartes (contre 45 à 54), en partie scriptée comprise.
+- **Image** (élevé) : anticrénelage SMAA (aucun lissage effectif avant en moyen, élevé et ultra) ; grain de film allégé et désactivable ; résolution dynamique : plancher 75 % au lieu de 55 %, option « toujours pleine » ; filtrage des textures 16× ; les Options affichent la carte graphique, la taille de l'image et les images/s.
+
+Ensuite : avis du propriétaire sur la 6.2 (gels, netteté) ; puis l'esthétique du Pénitencier et les infectés (mâchoire, animations capturées, Colosse et avatars).
+
 ## Fait (version 6.1.4) : les sols du Poste 7
 
 Demande du propriétaire : « des mottes de terre et/ou de neige non réalistes sur le sol, de plus celui-ci manque un peu de neige étant donné que c'est l'hiver ; à voir sur les autres cartes ».

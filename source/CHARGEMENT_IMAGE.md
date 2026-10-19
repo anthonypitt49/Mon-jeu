@@ -17,8 +17,8 @@ Outil : `dev/gels.mjs <carte> [qualité] [secondes]` compte, phase par phase (ch
 1. [x] (commit 782fcc8) Écran de chargement plein écran (image de la carte, nom, barre de progression, étapes) qui ne laisse place au menu qu'une fois tout prêt : photos posées, infectés réalistes chargés, ombrage d'ambiance, textures envoyées, shaders préchauffés.
 2. [x] (commit 782fcc8, mesuré : 0 shader tardif sur Poste 7 en élevé, chargement 91 shaders) Préchauffage : armes en main (toutes, améliorées comprises), couteau, grenade, bouteille d'atout, chaque infecté réaliste, effets (explosion, caisse ouverte…) dessinés une fois sous l'écran de chargement. Objectif mesuré : 0 shader tardif au menu et en partie.
 3. [x] (commit ca76bb3) Lancement de la partie : carton de la carte (photo, nom, lieu et date) au moins 1 s et 3 images ; photos des cartes dans assets/cartes (dev/cartes.mjs) ; vérifié à l'œil (dev/chargement.mjs) ; gels.mjs : 0 shader tardif sur les 4 cartes (élevé).
-4. [ ] Qualité d'image en « élevé » : anticrénelage, résolution dynamique moins agressive (et réglable), filtrage des textures, diagnostic (carte graphique, résolution, images/s).
-5. [ ] Version 6.2 en ligne.
+4. [x] (commit fc2f9b4) Qualité d'image en « élevé » : anticrénelage, résolution dynamique moins agressive (et réglable), filtrage des textures, diagnostic (carte graphique, résolution, images/s).
+5. [x] Version 6.2 en ligne.
 
 ## Pièges trouvés (à ne pas refaire)
 
