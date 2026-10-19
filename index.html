@@ -449,6 +449,11 @@ body.touch .control-strip { display: none; }
     </div>
     <p class="loader-tip" id="loaderTip"></p>
   </div>
+  <script>
+  // Image de l'écran de chargement posée tout de suite (avant le moteur 3D) : commune à l'ouverture, celle de la carte
+  // après un choix de carte (13c_loader.js reprend la même règle).
+  (function () { try { var id = sessionStorage.getItem('sp_loadMap'), nm = sessionStorage.getItem('sp_loadMapName'), key = id && /^[a-z0-9]+$/.test(id) ? id : 'accueil', el = document.getElementById('loaderImg'); el.dataset.map = key; el.style.backgroundImage = 'url("assets/cartes/' + key + '.jpg")'; el.classList.add('ready'); if (key !== 'accueil' && nm) document.getElementById('loaderName').textContent = nm; } catch (e) { /* image posée par le jeu */ } })();
+  </script>
   <canvas id="game" aria-label="Jeu Snowfall Protocol"></canvas>
 
   <div id="screenfx" aria-hidden="true">
@@ -778,7 +783,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '6.2'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '6.2.1'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -10018,8 +10023,11 @@ function switchMap(id, extra = {}) {
   const hp = new URLSearchParams(); hp.set('carte', id); for (const [k, v] of Object.entries(extra)) hp.set(k, v);
   $('maps').classList.add('hidden'); $('soloButton').disabled = true; $('joinButton').disabled = true; $('mapButton').disabled = true;
   const l = $('loadingLine'); l.classList.remove('hidden'); l.querySelector('span').textContent = `CHARGEMENT : ${MAPS[id].name}…`;
+  try { sessionStorage.setItem('sp_loadMap', id); sessionStorage.setItem('sp_loadMapName', MAPS[id].name); } catch { /* sans stockage : image commune */ } // (l'écran de chargement montrera cette carte, dès l'ouverture de la page)
   location.hash = hp.toString();
-  setTimeout(() => location.reload(), 60);
+  // Photo de la carte chargée avant de recharger la page (au plus 1,2 s) : l'écran de chargement la trouve en cache.
+  let gone = false; const go = () => { if (!gone) { gone = true; location.reload(); } }, im = new Image();
+  im.onload = im.onerror = () => setTimeout(go, 30); im.src = `assets/cartes/${id}.jpg`; setTimeout(go, 1200);
 }
 // Après un changement de carte demandé par l'hôte : on rejoint tout seul la partie.
 function autoJoin() {
@@ -10111,7 +10119,9 @@ function initBoard() {
    fige l'image de quelques dizaines à quelques centaines de millisecondes (mesure : source/dev/gels.mjs).
    Le préchauffage dessine une fois, sous l'écran de chargement, tout ce que la partie montrera plus tard. */
 
-const LOADER = { shown: false, p: 0, hideT: 0 };
+// À l'ouverture de la page : image commune (assets/cartes/accueil.jpg) ; après un choix de carte (switchMap, qui laisse la
+// carte choisie dans sessionStorage), au lancement d'une partie et aux réglages : l'image de la carte.
+const LOADER = { shown: false, p: 0, hideT: 0, mapBoot: (() => { try { const v = sessionStorage.getItem('sp_loadMap'); sessionStorage.removeItem('sp_loadMap'); sessionStorage.removeItem('sp_loadMapName'); return v; } catch { return null; } })() };
 const LOADER_TIPS = [
   'Tirez dans la tête : un infecté tombe plus vite et rapporte plus.',
   'Reclouer une fenêtre rapporte des points et retient les infectés.',
@@ -10129,14 +10139,14 @@ function loaderShow(mode = 'boot') {
   el.className = 'loader ' + mode;
   const [c0, c1] = M.card || ['#0b1219', '#4f6a80'];
   el.style.setProperty('--c0', c0); el.style.setProperty('--c1', c1);
-  const img = $('loaderImg');
-  if (!img.dataset.map || img.dataset.map !== MAP_ID) {
-    img.dataset.map = MAP_ID; img.classList.remove('ready');
-    const im = new Image(); im.onload = () => { img.style.backgroundImage = `url("${im.src}")`; img.classList.add('ready'); }; im.src = `assets/cartes/${MAP_ID}.jpg`;
-  }
+  const common = mode === 'boot' && LOADER.mapBoot !== MAP_ID, key = common ? 'accueil' : MAP_ID, img = $('loaderImg');
+  el.classList.toggle('common', common); if (common) new Image().src = `assets/cartes/${MAP_ID}.jpg`; // (préchargée pour le carton de lancement)
+  // (Image posée directement : le navigateur l'affiche dès qu'elle est là, sans attendre le fil principal, souvent occupé
+  // à ce moment ; celle de l'ouverture l'est déjà par la page, avant le moteur 3D : shell.html.)
+  if (img.dataset.map !== key) { img.dataset.map = key; img.style.backgroundImage = `url("assets/cartes/${key}.jpg")`; img.classList.add('ready'); }
   $('loaderEyebrow').textContent = mode === 'start' ? 'DÉPLOIEMENT' : mode === 'quality' ? 'RÉGLAGES GRAPHIQUES' : 'CHARGEMENT';
-  $('loaderName').textContent = M.name; $('loaderSub').textContent = M.sub || '';
-  $('loaderDesc').textContent = mode === 'start' ? (M.intro || []).slice(1).join(' — ') : M.info?.tagline?.replace(/<[^>]+>/g, '') || '';
+  $('loaderName').textContent = common ? 'SNOWFALL PROTOCOL' : M.name; $('loaderSub').textContent = common ? `Carte : ${M.name}` : M.sub || '';
+  $('loaderDesc').textContent = common ? 'Survivez aux infectés, seul ou jusqu\'à quatre en coopération.' : mode === 'start' ? (M.intro || []).slice(1).join(' — ') : M.info?.tagline?.replace(/<[^>]+>/g, '') || '';
   $('loaderTip').textContent = mode === 'boot' ? LOADER_TIPS[(Math.random() * LOADER_TIPS.length) | 0] : '';
   loaderStep(mode === 'start' ? 'MISE EN PLACE…' : 'GÉNÉRATION DU SECTEUR…', 0);
 }

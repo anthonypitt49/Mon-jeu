@@ -449,6 +449,11 @@ body.touch .control-strip { display: none; }
     </div>
     <p class="loader-tip" id="loaderTip"></p>
   </div>
+  <script>
+  // Image de l'écran de chargement posée tout de suite (avant le moteur 3D) : commune à l'ouverture, celle de la carte
+  // après un choix de carte (13c_loader.js reprend la même règle).
+  (function () { try { var id = sessionStorage.getItem('sp_loadMap'), nm = sessionStorage.getItem('sp_loadMapName'), key = id && /^[a-z0-9]+$/.test(id) ? id : 'accueil', el = document.getElementById('loaderImg'); el.dataset.map = key; el.style.backgroundImage = 'url("assets/cartes/' + key + '.jpg")'; el.classList.add('ready'); if (key !== 'accueil' && nm) document.getElementById('loaderName').textContent = nm; } catch (e) { /* image posée par le jeu */ } })();
+  </script>
   <canvas id="game" aria-label="Jeu Snowfall Protocol"></canvas>
 
   <div id="screenfx" aria-hidden="true">

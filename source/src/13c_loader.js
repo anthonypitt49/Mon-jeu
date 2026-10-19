@@ -5,7 +5,9 @@
    fige l'image de quelques dizaines à quelques centaines de millisecondes (mesure : source/dev/gels.mjs).
    Le préchauffage dessine une fois, sous l'écran de chargement, tout ce que la partie montrera plus tard. */
 
-const LOADER = { shown: false, p: 0, hideT: 0 };
+// À l'ouverture de la page : image commune (assets/cartes/accueil.jpg) ; après un choix de carte (switchMap, qui laisse la
+// carte choisie dans sessionStorage), au lancement d'une partie et aux réglages : l'image de la carte.
+const LOADER = { shown: false, p: 0, hideT: 0, mapBoot: (() => { try { const v = sessionStorage.getItem('sp_loadMap'); sessionStorage.removeItem('sp_loadMap'); sessionStorage.removeItem('sp_loadMapName'); return v; } catch { return null; } })() };
 const LOADER_TIPS = [
   'Tirez dans la tête : un infecté tombe plus vite et rapporte plus.',
   'Reclouer une fenêtre rapporte des points et retient les infectés.',
@@ -23,14 +25,14 @@ function loaderShow(mode = 'boot') {
   el.className = 'loader ' + mode;
   const [c0, c1] = M.card || ['#0b1219', '#4f6a80'];
   el.style.setProperty('--c0', c0); el.style.setProperty('--c1', c1);
-  const img = $('loaderImg');
-  if (!img.dataset.map || img.dataset.map !== MAP_ID) {
-    img.dataset.map = MAP_ID; img.classList.remove('ready');
-    const im = new Image(); im.onload = () => { img.style.backgroundImage = `url("${im.src}")`; img.classList.add('ready'); }; im.src = `assets/cartes/${MAP_ID}.jpg`;
-  }
+  const common = mode === 'boot' && LOADER.mapBoot !== MAP_ID, key = common ? 'accueil' : MAP_ID, img = $('loaderImg');
+  el.classList.toggle('common', common); if (common) new Image().src = `assets/cartes/${MAP_ID}.jpg`; // (préchargée pour le carton de lancement)
+  // (Image posée directement : le navigateur l'affiche dès qu'elle est là, sans attendre le fil principal, souvent occupé
+  // à ce moment ; celle de l'ouverture l'est déjà par la page, avant le moteur 3D : shell.html.)
+  if (img.dataset.map !== key) { img.dataset.map = key; img.style.backgroundImage = `url("assets/cartes/${key}.jpg")`; img.classList.add('ready'); }
   $('loaderEyebrow').textContent = mode === 'start' ? 'DÉPLOIEMENT' : mode === 'quality' ? 'RÉGLAGES GRAPHIQUES' : 'CHARGEMENT';
-  $('loaderName').textContent = M.name; $('loaderSub').textContent = M.sub || '';
-  $('loaderDesc').textContent = mode === 'start' ? (M.intro || []).slice(1).join(' — ') : M.info?.tagline?.replace(/<[^>]+>/g, '') || '';
+  $('loaderName').textContent = common ? 'SNOWFALL PROTOCOL' : M.name; $('loaderSub').textContent = common ? `Carte : ${M.name}` : M.sub || '';
+  $('loaderDesc').textContent = common ? 'Survivez aux infectés, seul ou jusqu\'à quatre en coopération.' : mode === 'start' ? (M.intro || []).slice(1).join(' — ') : M.info?.tagline?.replace(/<[^>]+>/g, '') || '';
   $('loaderTip').textContent = mode === 'boot' ? LOADER_TIPS[(Math.random() * LOADER_TIPS.length) | 0] : '';
   loaderStep(mode === 'start' ? 'MISE EN PLACE…' : 'GÉNÉRATION DU SECTEUR…', 0);
 }

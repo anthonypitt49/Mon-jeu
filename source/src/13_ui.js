@@ -329,8 +329,11 @@ function switchMap(id, extra = {}) {
   const hp = new URLSearchParams(); hp.set('carte', id); for (const [k, v] of Object.entries(extra)) hp.set(k, v);
   $('maps').classList.add('hidden'); $('soloButton').disabled = true; $('joinButton').disabled = true; $('mapButton').disabled = true;
   const l = $('loadingLine'); l.classList.remove('hidden'); l.querySelector('span').textContent = `CHARGEMENT : ${MAPS[id].name}…`;
+  try { sessionStorage.setItem('sp_loadMap', id); sessionStorage.setItem('sp_loadMapName', MAPS[id].name); } catch { /* sans stockage : image commune */ } // (l'écran de chargement montrera cette carte, dès l'ouverture de la page)
   location.hash = hp.toString();
-  setTimeout(() => location.reload(), 60);
+  // Photo de la carte chargée avant de recharger la page (au plus 1,2 s) : l'écran de chargement la trouve en cache.
+  let gone = false; const go = () => { if (!gone) { gone = true; location.reload(); } }, im = new Image();
+  im.onload = im.onerror = () => setTimeout(go, 30); im.src = `assets/cartes/${id}.jpg`; setTimeout(go, 1200);
 }
 // Après un changement de carte demandé par l'hôte : on rejoint tout seul la partie.
 function autoJoin() {

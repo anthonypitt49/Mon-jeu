@@ -2,6 +2,13 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.2.1) : image commune à l'ouverture
+
+Retour du propriétaire : à l'ouverture, l'écran de chargement montrait le Pénitencier (dernière carte choisie) ; il veut une image commune pour la première page (par exemple une image générée par IA de zombie gore qui va avec le jeu), et l'image de la carte quand on en choisit une.
+
+- `assets/cartes/accueil.jpg` : générée par IA (pollinations.ai, modèle Sana, gratuit : une image toutes les 45 s, ~970 px de large) parmi 10 essais ; soldat infecté casqué au visage pourri, yeux luisants, nuit bleutée ; recadrée par `source/tools/accueil_image.py` (sujet à droite pour le texte, bande du logo du service coupée, bord fondu). Crédits : `assets/cartes/CREDITS.md`.
+- Ouverture de la page : cette image, « SNOWFALL PROTOCOL » et la carte en petit, posée par la page avant même le moteur 3D. Choix d'une carte (switchMap) : la carte est notée dans sessionStorage et sa photo préchargée avant le rechargement ; l'écran montre alors sa photo et son nom. Lancement d'une partie et réglages graphiques : la photo de la carte (posée directement, sans attendre le fil principal).
+
 ## Fait (version 6.2) : plus de gels au chargement, écran de chargement, image plus nette
 
 Demande du propriétaire (joue surtout sur ordinateur, en qualité « élevé ») : « le jeu gèle beaucoup, surtout en début de partie ou à la page d'accueil » ; son idée : un écran de chargement au début, et un petit écran avec une image de la carte au lancement de la partie. Puis la résolution et la qualité d'image. Suivi détaillé : `source/CHARGEMENT_IMAGE.md`.
