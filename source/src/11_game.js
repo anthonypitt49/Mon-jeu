@@ -489,21 +489,29 @@ const G = {
   updateBoxBench(dt) {
     const bx = this.box, spot = WORLD.boxSpots[bx.loc];
     bx.visT = (bx.visT || 0) + dt;
-    // Caisse à la BO2 : colonne de lumière qui la signale de loin ; couvercle qui s'ouvre et faisceau qui jaillit de l'intérieur ;
-    // l'arme monte en défilant, ralentit, plane, puis redescend lentement dans la caisse si personne ne la prend.
-    const open = bx.state === 'rolling' || bx.state === 'offer';
-    for (const s of WORLD.boxSpots) {
-      const active = s === spot && bx.state !== 'moving';
-      s.beacon.material.opacity = active ? 0.7 + Math.sin(this.time * 6) * 0.3 : 0;
-      const pm = s.pillar.material; pm.opacity = damp(pm.opacity, active ? (open ? 0.1 : 0.32 + Math.sin(this.time * 1.7) * 0.06) : 0, 3, dt); s.pillar.visible = pm.opacity > 0.004;
-      if (s !== spot) { s.lightK = 0; s.shaft.visible = s.inner.visible = false; }
-    }
-    spot.lid.rotation.x = damp(spot.lid.rotation.x, open ? -1.45 : 0, 6, dt);
-    const lidK = clamp(-spot.lid.rotation.x / 1.2, 0, 1), want = bx.state === 'rolling' ? 1 : bx.state === 'offer' ? 0.4 + 0.45 * (bx.clientT / (bx.offerT || 9)) : 0;
-    spot.lightK = damp(spot.lightK, want, 5, dt);
-    const L = spot.lightK * lidK, fl = 0.9 + 0.1 * Math.sin(this.time * 23) * Math.sin(this.time * 7.3);
-    BOX_FX.shaft.opacity = 0.6 * L * fl; BOX_FX.inner.opacity = 0.95 * L; spot.shaft.visible = spot.inner.visible = L > 0.01; spot.shaft.scale.y = 0.55 + 0.45 * L;
-    if (L > 0.05 && Math.random() < dt * 30 * L) { const g = spot.group, a = rand(-0.6, 0.6); FX.glow.spawn(g.position.x - spot.face[1] * a, rand(0.65, 0.9), g.position.z + spot.face[0] * a, rand(-0.05, 0.05), rand(0.5, 1.1), rand(-0.05, 0.05), rand(0.4, 0.9), 0.04, 0.75, 0.95, 1, 0.9, -0.3, 0.3); } // poussières lumineuses qui montent dans le faisceau
+    // Caisse à la BO2, en vert : au repos, couvercle entrouvert et lueur verte qui filtre par la fente ; à l'ouverture, fond
+    // lumineux, rayons courts qui montent autour de l'arme et lumière verte qui l'éclaire (forte seulement couvercle grand
+    // ouvert) ; l'arme monte en défilant, ralentit, plane, puis redescend lentement dans la caisse si personne ne la prend.
+    const open = bx.state === 'rolling' || bx.state === 'offer', live = bx.state !== 'moving', t = this.time;
+    for (const s of WORLD.boxSpots) if (s !== spot) { s.lightK = s.leakK = 0; s.inner.visible = s.leak.visible = false; }
+    spot.lid.rotation.x = damp(spot.lid.rotation.x, open ? -1.45 : live ? -0.06 : 0, open ? 6 : 4, dt);
+    const lidA = -spot.lid.rotation.x, u = clamp((lidA - 0.85) / 0.55, 0, 1), lidK = u * u * (3 - 2 * u);
+    spot.lightK = damp(spot.lightK, bx.state === 'rolling' ? 1 : bx.state === 'offer' ? 0.45 + 0.4 * (bx.clientT / (bx.offerT || 9)) : 0, 5, dt);
+    spot.leakK = damp(spot.leakK, live && !open ? 1 : 0, 3, dt);
+    const L = spot.lightK * lidK, fl = 0.9 + 0.1 * Math.sin(t * 23) * Math.sin(t * 7.3), lk = spot.leakK * (0.8 + 0.2 * Math.sin(t * 1.6));
+    // Fente du couvercle entrouvert (74 cm × sinus de l'angle, devant ; en coin sur les côtés).
+    spot.leak.visible = lk > 0.01 && lidA < 0.3; spot.leak.scale.y = Math.max(0.001, 0.74 * Math.sin(lidA));
+    BOX_FX.leak.opacity = 0.85 * lk; BOX_FX.core.opacity = Math.max(0.35 * lk, 0.75 * L * fl); spot.inner.visible = BOX_FX.core.opacity > 0.01;
+    const rays = BOX_FX.rays;
+    if (L > 0.01) {
+      if (rays.parent !== spot.group) spot.group.add(rays);
+      rays.visible = true; R.camera.getWorldPosition(_v1); spot.group.worldToLocal(_v1);
+      for (const r of rays.children) { const q = r.userData; r.rotation.y = Math.atan2(_v1.x - r.position.x, _v1.z - r.position.z); if (q.halo) { r.material.opacity = 0.5 * L * fl; continue; } r.material.opacity = L * clamp(0.3 + 0.16 * Math.sin(t * q.w + q.ph) + 0.08 * Math.sin(t * q.w * 2.7 + q.ph * 2), 0, 1); r.scale.y = 0.7 + 0.3 * L; }
+    } else rays.visible = false;
+    const PL = R.lights.box, I = 0.3 * lk + 1.3 * L * fl; // (lumière fixe de la scène : jamais ajoutée ni retirée en jeu)
+    if (PL) { PL.intensity = live ? I : 0; if (I > 0) spot.group.localToWorld(PL.position.set(0, lerp(0.42, 0.95, Math.min(1, L * 1.5)), 0.12 * L)); }
+    if (L > 0.05 && Math.random() < dt * 26 * L) { spot.group.localToWorld(_v1.set(rand(-0.6, 0.6), rand(0.5, 0.8), rand(-0.2, 0.2))); FX.glow.spawn(_v1.x, _v1.y, _v1.z, rand(-0.05, 0.05), rand(0.4, 0.9), rand(-0.05, 0.05), rand(0.4, 0.9), 0.035, 0.6, 1, 0.75, 0.9, -0.3, 0.3); } // poussières lumineuses qui montent de la caisse
+    if (lk > 0.3 && Math.random() < dt * 1.2) { spot.group.localToWorld(_v1.set(rand(-0.6, 0.6), 0.65, 0.4)); FX.glow.spawn(_v1.x, _v1.y, _v1.z, rand(-0.02, 0.02), rand(0.08, 0.2), rand(-0.02, 0.02), rand(0.8, 1.4), 0.025, 0.5, 1, 0.7, 0.6, 0, 0.2); } // quelques-unes s'échappent de la fente
     if (bx.display) {
       const dp = bx.display;
       if (bx.state === 'rolling') {
@@ -582,7 +590,7 @@ function applyBoxState(d) {
   const spot = WORLD.boxSpots[bx.loc];
   if (d.state === 'rolling') { bx.display = { cycleT: 0 }; setBoxDisplay('bolt'); Sfx.musicBox(spot.group.position); }
   else if (d.state === 'offer') { setBoxDisplay(bx.key); bx.clientT = d.t; bx.offerT = d.t; }
-  else if (d.state === 'moving') { if (bx.display?.obj) setBoxDisplay('skull'); Sfx.eerie(spot.group.position); UI.message('LA CAISSE SE DÉPLACE', 'Points remboursés. Cherchez la fusée verte.'); bx.clientT = 0; }
+  else if (d.state === 'moving') { if (bx.display?.obj) setBoxDisplay('skull'); Sfx.eerie(spot.group.position); UI.message('LA CAISSE SE DÉPLACE', 'Points remboursés. Cherchez la lueur verte.'); bx.clientT = 0; }
   else if (d.state === 'closing' || d.state === 'idle') clearBoxDisplay();
 }
 function placeBox(loc) {

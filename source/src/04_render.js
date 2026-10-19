@@ -156,6 +156,7 @@ function buildLights() {
   pl('muzzle', 0xffc27a, 0, 12, 0, -50, 0);
   pl('blast', 0xffa050, 0, 26, 0, -50, 0);
   pl('flare', 0xffe2d6, 0, 140, 0, -50, 0);
+  pl('box', 0x6dffb0, 0, 3.5, 0, -50, 0); // lumière verte de la caisse de ravitaillement (updateBoxBench)
   // Lampes de carte : jamais au-dessus du plafond de la pièce (elles n'éclaireraient que le toit).
   M.lights((name, color, intensity, dist, x, y, z) => {
     if (M.flat) { const tx = tileOf(x), tz = tileOf(z); if (inMap(tx, tz) && MAP.roof[ti(tx, tz)] && MAP.type[ti(tx, tz)] !== T_SOLID) y = Math.min(y, roomCeil(tx, tz) - 0.3); }

@@ -54,27 +54,25 @@ function buildInteractables() {
   // Caisses de ravitaillement (emplacements possibles).
   WORLD.boxSpots = SPOTS.box.map((s, idx) => {
     const w = wallSpot(s, 0.42), g = new THREE.Group(); g.userData.dynamic = true; g.position.set(w.x, 0, w.z); g.rotation.y = w.yaw; R.scene.add(g);
-    const base = mesh(boxG(1.5, 0.62, 0.72), MATS.crate, 0, 0.31, 0, 0, g);
+    // Caisse creuse (fond et quatre parois de 5 cm) : la lumière vient de l'intérieur et l'arme en sort vraiment.
+    for (const [bw, bh, bd, x, y, z] of [[1.5, 0.05, 0.72, 0, 0.025, 0], [1.5, 0.62, 0.05, 0, 0.31, 0.335], [1.5, 0.62, 0.05, 0, 0.31, -0.335], [0.05, 0.62, 0.62, -0.725, 0.31, 0], [0.05, 0.62, 0.62, 0.725, 0.31, 0]]) mesh(boxG(bw, bh, bd), MATS.crate, x, y, z, 0, g);
     // Charnière sur l'arête haute arrière : couvercle ouvert, il reste au-dessus de la caisse (sans entrer dans le mur derrière).
     const lidPivot = new THREE.Group(); lidPivot.position.set(0, 0.72, -0.36); g.add(lidPivot);
     const lid = mesh(boxG(1.52, 0.1, 0.74), MATS.crate, 0, -0.05, 0.37, 0, lidPivot);
     const label = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.34), new THREE.MeshStandardMaterial({ map: woodSign(['RAVITAILLEMENT', '950 · ARME ALÉATOIRE'], { w: 512, h: 160, bg: '#3d3022', color: '#e8dfc6' }), roughness: 0.9 }));
     label.position.set(0, 0.34, 0.365); g.add(label);
-    for (const o of [-0.68, 0.68]) mesh(boxG(0.06, 0.64, 0.76), MATS.iron, o, 0.32, 0, 0, g);
-    // Lumière à la BO2 : faisceau qui jaillit de la caisse ouverte (deux plans croisés, dans l'emprise de la caisse : il ne
-    // traverse jamais le mur), fond lumineux, et colonne de lumière qui signale la caisse de loin (jusqu'au plafond à l'intérieur).
-    const bfx = boxFxMats(), shaft = new THREE.Group(); shaft.position.set(0, 0.62, 0); g.add(shaft);
-    for (const [w, ry] of [[1.36, 0], [0.6, Math.PI / 2]]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.7).translate(0, 0.85, 0), bfx.shaft); p.rotation.y = ry; p.renderOrder = 5; shaft.add(p); }
-    const inner = new THREE.Mesh(new THREE.PlaneGeometry(1.36, 0.6), bfx.inner); inner.rotation.x = -Math.PI / 2; inner.position.set(0, 0.6, 0); inner.renderOrder = 5; g.add(inner);
-    const tx = tileOf(w.x), tz = tileOf(w.z), roofed = inMap(tx, tz) && MAP.roof[ti(tx, tz)], ph = roofed ? Math.max(1, roomCeil(tx, tz) - 0.62) : 26;
-    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, ph, 16, 1, true).translate(0, ph / 2 + 0.62, 0), bfx.pillar.clone()); pillar.renderOrder = 5; pillar.visible = false; g.add(pillar);
-    shaft.visible = inner.visible = false;
-    // Fusée éclairante verte plantée à côté (signale la caisse active).
-    const flare = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 8), MATS.rust, 0.85, 0.25, 0.1, 0, g);
-    const beacon = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.sprites.glow, color: 0x6dffb0, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
-    beacon.scale.set(0.9, 0.9, 1); beacon.position.set(0.85, 0.55, 0.1); g.add(beacon);
+    for (const o of [-0.68, 0.68]) for (const z of [-0.37, 0.37]) mesh(boxG(0.06, 0.64, 0.02), MATS.iron, o, 0.32, z, 0, g); // ferrures, devant et derrière
+    // Lumière verte de l'intérieur : fond lumineux (vu par la fente du couvercle entrouvert, plein feu une fois ouvert) et
+    // fuite de lumière par la fente (devant et sur les côtés, à la hauteur de la fente, voir updateBoxBench).
+    const bfx = boxFxMats();
+    const inner = new THREE.Mesh(new THREE.PlaneGeometry(1.38, 0.6), bfx.core); inner.rotation.x = -Math.PI / 2; inner.position.set(0, 0.15, 0); inner.renderOrder = 5; g.add(inner);
+    const leak = new THREE.Group(); leak.position.y = 0.62; g.add(leak);
+    { const f = new THREE.Mesh(new THREE.PlaneGeometry(1.44, 1).translate(0, 0.5, 0), bfx.leak); f.position.z = 0.362; leak.add(f);
+      for (const x of [-0.752, 0.752]) { const t = new THREE.BufferGeometry(); t.setAttribute('position', new THREE.Float32BufferAttribute([x, 0, -0.36, x, 0, 0.36, x, 1, 0.36], 3)); t.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1], 2)); leak.add(new THREE.Mesh(t, bfx.leak)); } }
+    for (const o of leak.children) o.renderOrder = 5;
+    inner.visible = leak.visible = false;
     colliderBox(w.x, w.z, 1.5, 0.72, w.yaw, 0.7, 'wood');
-    return { idx, pos: new THREE.Vector3(w.x, 0.9, w.z), face: w.face, group: g, lid: lidPivot, shaft, inner, pillar, lightK: 0, beacon, flare, yaw: w.yaw, label };
+    return { idx, pos: new THREE.Vector3(w.x, 0.9, w.z), face: w.face, group: g, lid: lidPivot, inner, leak, lightK: 0, leakK: 0, yaw: w.yaw, label };
   });
   // Établi d'armurier.
   { const s = SPOTS.bench, w = wallSpot(s, 0.5), g = new THREE.Group(); g.userData.dynamic = true; g.position.set(w.x, 0, w.z); g.rotation.y = w.yaw; R.scene.add(g);
@@ -125,19 +123,30 @@ function buildInteractables() {
   }
 }
 
-// Matières de la lumière de la caisse (partagées entre ses emplacements ; l'opacité du faisceau et du fond est commune, une
-// seule caisse étant ouverte à la fois ; chaque colonne a la sienne).
+// Lumière de la caisse, à la BO2 mais verte : matières partagées entre ses emplacements (une seule caisse ouverte à la fois)
+// et rayons qui montent de la caisse ouverte (un seul jeu, accroché à la caisse active). Les rayons sont des plans tournés
+// vers le joueur autour de leur axe vertical, assez courts pour envelopper l'arme sans monter au plafond.
 let BOX_FX = null;
 function boxFxMats() {
   if (BOX_FX) return BOX_FX;
   const grad = (w, h, f) => textTexture(w, h, (x) => { const im = x.createImageData(w, h); for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const a = f(i / (w - 1), 1 - j / (h - 1)), k = (j * w + i) * 4; im.data[k] = im.data[k + 1] = im.data[k + 2] = 255; im.data[k + 3] = Math.round(255 * clamp(a, 0, 1)); } x.putImageData(im, 0, 0); });
-  const mat = (map, color) => new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  const mat = (map, color) => new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
   // u : en travers, v : de bas (0) en haut (1).
+  const rayTex = grad(64, 128, (u, v) => Math.pow(Math.sin(Math.PI * u), 1.3) * Math.pow(1 - v, 1.6) * Math.min(1, 0.4 + v * 6) * (0.62 + 0.38 * Math.sin(u * 23) * Math.sin(u * 9 + 1.3)));
   BOX_FX = {
-    shaft: mat(grad(32, 128, (u, v) => Math.pow(Math.sin(Math.PI * u), 1.6) * Math.pow(1 - v, 1.8)), 0xc8f6ff),
-    inner: mat(grad(64, 32, (u, v) => Math.pow(Math.sin(Math.PI * u) * Math.sin(Math.PI * v), 0.6)), 0xa8f0ff),
-    pillar: mat(grad(32, 128, (u, v) => (0.55 + 0.45 * Math.sin(Math.PI * u)) * Math.pow(1 - v, 0.7) * Math.min(1, v * 12 + 0.3)), 0x8fe4ff),
+    core: mat(grad(64, 32, (u, v) => Math.pow(Math.sin(Math.PI * u) * Math.sin(Math.PI * v), 0.9)), 0x8dffb8),
+    leak: mat(grad(64, 16, (u, v) => Math.pow(Math.sin(Math.PI * u), 0.25) * (0.3 + 0.7 * (1 - v))), 0x6dffb0),
+    rays: new THREE.Group(),
   };
+  for (let i = 0, N = 9; i < N; i++) {
+    const b = rand(0.06, 0.11), t = rand(0.15, 0.24), H = rand(0.55, 0.95), geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute([-b, 0, 0, b, 0, 0, t, H, 0, -t, H, 0], 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2)); geo.setIndex([0, 1, 2, 0, 2, 3]);
+    const r = new THREE.Mesh(geo, mat(rayTex, i % 3 ? 0x7dffb0 : 0xb8ffd0)); r.position.set(lerp(-0.56, 0.56, (i + 0.5) / N) + rand(-0.04, 0.04), 0.6, rand(-0.08, 0.1)); r.renderOrder = 6;
+    r.userData = { w: rand(1.2, 2.6), ph: rand(0, TAU) }; BOX_FX.rays.add(r);
+  }
+  // Halo à l'ouverture (tourné vers le joueur, comme les rayons ; sa moitié basse est cachée par les parois de la caisse).
+  const halo = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.7), mat(grad(64, 32, (u, v) => { const r = Math.hypot((u - 0.5) * 2, (v - 0.5) * 2); return Math.pow(Math.max(0, 1 - r * r), 2); }), 0x7dffb0));
+  halo.position.set(0, 0.66, 0.05); halo.renderOrder = 6; halo.userData = { halo: true }; BOX_FX.rays.add(halo);
   return BOX_FX;
 }
 
