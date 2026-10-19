@@ -2,6 +2,19 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.3) : l'esthétique du Pénitencier
+
+Demande du propriétaire : « passe à l'esthétique du Pénitencier maintenant ». Suivi détaillé, constat de départ et pièges : `source/ESTHETIQUE_PENITENCIER.md`.
+
+- **Taches** (toutes les cartes de plain-pied) : flaques, taches d'eau, moisissure et terre peintes au pixel avec un contour irrégulier ; les anciennes, faites de dégradés ronds empilés, étaient noires au centre et faisaient des trous dans les sols et les murs (douches surtout). Nouveau : taches au plafond (`M.decals.ceil`).
+- **Plafonds** : enduits clairs au lieu du béton sombre, rebond de lumière intérieur relevé : ils ne sortent plus noirs. `dev/photo.mjs` laisse maintenant l'éclairage intérieur se poser avant chaque photo (il photographiait des plafonds plus noirs qu'en jeu).
+- **Douches** : faïence jusqu'à 1,9 m, enduit au-dessus, baguette (murs fins `K.up`, murs épais `wallIn`/`wallUp`, fenêtres barricadées comprises) ; collecteur au mur, 10 colonnes avec robinet à croisillon, col et pomme en laiton, placées hors des fenêtres, de l'arme et de l'atout ; coulures de rouille, sol mouillé, bondes en fonte ajourée, bancs à lattes, patère à serviettes, lampe-cage et une lumière propre (« shower »).
+- **Réfectoire** : poutres, suspensions émaillées au-dessus des tables, gobelets, marmites, tableau du menu. **Infirmerie** : cloisons en faïence vert d'eau à hauteur d'appui, armoire à pharmacie vitrée, lavabo, chariot à instruments, croix rouge. **Direction** : lampe de bureau, lumière rapprochée des archives.
+- **Extérieurs** : terrain de balle au mur à la peinture écaillée (à la place de deux traits blancs) ; murs de pierre sans répétition visible (photo lue deux fois en alternance, `photoDetile` ; teinte qui varie sur une dizaine de mètres, `M.macro`) ; rochers du rivage fracturés (`boulderGeo`).
+- Vérifié : tournées photo avant/après, `dev/gels.mjs penitencier 2` (0 shader tardif, 0 erreur), `dev/verif_carte.sh penitencier`.
+
+Ensuite : avis du propriétaire sur le Pénitencier ; puis les infectés (mâchoire, animations capturées, Colosse et avatars).
+
 ## Fait (version 6.2.1) : image commune à l'ouverture
 
 Retour du propriétaire : à l'ouverture, l'écran de chargement montrait le Pénitencier (dernière carte choisie) ; il veut une image commune pour la première page (par exemple une image générée par IA de zombie gore qui va avec le jeu), et l'image de la carte quand on en choisit une.

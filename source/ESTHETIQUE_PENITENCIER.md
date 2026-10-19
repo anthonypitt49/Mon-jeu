@@ -10,8 +10,9 @@ Vues rapprochées : `'[[x,z,cap,inclinaison],…]'` en mètres. Préfixes : `ava
 
 Pièges trouvés :
 - photo.mjs posait la caméra et dessinait aussitôt ; l'éclairage intérieur (hémisphère, lumière de rebond qui éclaire les
-  plafonds) se règle en ~2 s en jeu, les photos sortaient donc avec des plafonds noirs. Il laisse maintenant 3 s (6 pas de
-  0,5 s : 60 pas de 0,05 s faisaient tomber le navigateur au 4e point).
+  plafonds) se règle en ~2 s en jeu, les photos sortaient donc avec des plafonds noirs. Il laisse maintenant 3 s.
+- Ces 3 s font aussi souffler le soldat : la buée (fxBreath) n'est jamais effacée par l'outil (pas de mise à jour des effets)
+  et s'empilait devant l'objectif ; au 4e point, le rendu logiciel ne s'en sortait plus. photo.mjs coupe le souffle.
 - Les plafonds noirs n'étaient pas qu'un défaut de photo : en jeu aussi, un plafond de béton sombre n'est éclairé que par le
   rebond (couleur basse de l'hémisphère) ; il faut un plafond clair et un rebond suffisant.
 - Les taches empilées (dégradés radiaux superposés) deviennent opaques au centre : on peint maintenant au pixel.
@@ -43,4 +44,6 @@ Pièges trouvés :
    photo lue deux fois avec un décalage horizontal, les deux lectures alternant tous les quelques mètres (photoDetile,
    `detile: true` dans PHOTO_SETS) et teinte qui varie sur une dizaine de mètres (M.macro) ; rochers du rivage fracturés et
    irréguliers (boulderGeo, faces cassées, photo projetée face par face). Vérifié : tournées `ext_`, `ext2_`.
-5. [ ] Vérifications (gels.mjs, verif_carte.sh) et version en ligne.
+5. [x] Vérifications : `gels.mjs penitencier 2` → 0 shader tardif, 0 erreur ; `verif_carte.sh penitencier` → 0 mur invisible,
+   placement sans constat moyen ni grave (colliers des conduites dans le mur : voulu), partie, courant, mission sans erreur,
+   25 entrées sur 25. Version 6.3 en ligne.
