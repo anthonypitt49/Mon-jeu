@@ -166,7 +166,9 @@ class QB {
     const s = this.mat.userData.scale || 2, alongX = Math.abs(x1 - x0) > Math.abs(z1 - z0);
     const U = (x, z) => (alongX ? x : z) / s * (alongX ? (nz > 0 ? 1 : -1) : (nx < 0 ? 1 : -1));
     const a0 = ao ? 0.62 + 0.38 * smooth(clamp(y0 / 1.2, 0, 1)) : 1, a1 = ao ? 0.62 + 0.38 * smooth(clamp(y1 / 1.2, 0, 1)) : 1;
-    this.quad([[x0, y0, z0], [x1, y0, z1], [x1, y1, z1], [x0, y1, z0]], [nx, 0, nz], [[U(x0, z0), y0 / s], [U(x1, z1), y0 / s], [U(x1, z1), y1 / s], [U(x0, z0), y1 / s]], [a0, a0, a1, a1]);
+    // M.macro { texture: amplitude } : variation de teinte à grande échelle (une dizaine de mètres) qui casse la répétition du motif.
+    const mk = M.macro?.[this.mat.userData.ftex], t = mk ? (x, y, z) => 1 + mk * (fbm(x * 0.09 + z * 0.07 + 3, y * 0.12 + (z - x) * 0.05, 3) - 0.5) * 2 : () => 1;
+    this.quad([[x0, y0, z0], [x1, y0, z1], [x1, y1, z1], [x0, y1, z0]], [nx, 0, nz], [[U(x0, z0), y0 / s], [U(x1, z1), y0 / s], [U(x1, z1), y1 / s], [U(x0, z0), y1 / s]], [a0 * t(x0, y0, z0), a0 * t(x1, y0, z1), a1 * t(x1, y1, z1), a1 * t(x0, y1, z0)]);
   }
   // Pan horizontal (sol, plafond, dessus de mur).
   flat(x0, z0, x1, z1, y, up = 1, C) {
@@ -216,12 +218,13 @@ function buildFlatWorld() {
     const mat = fv(st.block || 'concrete'), q = qb(mat);
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const a = x + dx, b = z + dz; if (inMap(a, b) && MAP.type[ti(a, b)] === T_BLOCK) continue;
-      const inside = roofAt(a, b), fmatIn = inside && st.blockIn ? fv(st.blockIn) : mat;
+      // (une pièce peut imposer son revêtement aux murs épais qui la bordent : wallIn, et wallUp comme K.up des murs fins)
+      const inside = roofAt(a, b), room = inside ? sd(ti(a, b)) : {}, fmatIn = room.wallIn ? fv(room.wallIn) : inside && st.blockIn ? fv(st.blockIn) : mat;
       const y0 = inMap(a, b) && MAP.type[ti(a, b)] === T_SOLID ? Math.min(0, surfH(tcx(a), tcx(b))) - 0.3 : 0;
-      const top = inside ? Math.min(h, roomCeil(a, b)) : h;
+      const top = inside ? Math.min(h, roomCeil(a, b)) : h, U = room.wallUp, uy = U ? U.y : top;
       if (st.rough) { roughFace(qb(fmatIn), x, z, dx, dz, y0, h, st.rough); continue; }
-      if (dx) { const X = dx > 0 ? x0 + T : x0; qb(fmatIn).wall(X, z0, X, z0 + T, y0, top, dx, 0); if (top < h) q.wall(X, z0, X, z0 + T, top, h, dx, 0, false); }
-      else { const Z = dz > 0 ? z0 + T : z0; qb(fmatIn).wall(x0, Z, x0 + T, Z, y0, top, 0, dz); if (top < h) q.wall(x0, Z, x0 + T, Z, top, h, 0, dz, false); }
+      if (dx) { const X = dx > 0 ? x0 + T : x0; qb(fmatIn).wall(X, z0, X, z0 + T, y0, uy, dx, 0); if (U) { qb(fv(U.mat)).wall(X, z0, X, z0 + T, uy, top, dx, 0, false); if (U.cap) qbBox(qb(fv(U.cap)), Math.min(X, X + dx * 0.014), uy - 0.025, z0, Math.max(X, X + dx * 0.014), uy + 0.025, z0 + T); } if (top < h) q.wall(X, z0, X, z0 + T, top, h, dx, 0, false); }
+      else { const Z = dz > 0 ? z0 + T : z0; qb(fmatIn).wall(x0, Z, x0 + T, Z, y0, uy, 0, dz); if (U) { qb(fv(U.mat)).wall(x0, Z, x0 + T, Z, uy, top, 0, dz, false); if (U.cap) qbBox(qb(fv(U.cap)), x0, uy - 0.025, Math.min(Z, Z + dz * 0.014), x0 + T, uy + 0.025, Math.max(Z, Z + dz * 0.014)); } if (top < h) q.wall(x0, Z, x0 + T, Z, top, h, 0, dz, false); }
     }
     if (st.rough) roughTop(qb(fv(st.blockTop || st.block || 'concrete')), x, z, h, st.rough); else qb(fv(st.blockTop || st.block || 'concrete')).flat(x0, z0, x0 + T, z0 + T, h, 1);
   }
@@ -267,14 +270,23 @@ function flatSolidWall(K, X0, Z0, X1, Z1, bit, ax, az, bx, bz, roofA, roofB) {
   const pieces = win ? [[0, win.s0, y0, h], [win.s1, 2, y0, h], [win.s0, win.s1, y0, win.y0], [win.s0, win.s1, win.y1, h]] : [[0, 2, y0, h]];
   // Plinthes côté pièce couverte.
   if (M.baseboard) { const bb = qb(fv(M.baseboard)); for (const [side, roofed] of [[-1, roofA], [1, roofB]]) { if (!roofed) continue; const o = E + 0.012; if (bit === 0) bb.wall(X0 + side * o, Z0, X0 + side * o, Z0 + 2, 0, 0.11, side, 0, false); else bb.wall(X0, Z0 + side * o, X0 + 2, Z0 + side * o, 0, 0.11, 0, side, false); } }
+  // Faïence à mi-hauteur (K.up = { y, mat, cap }) : côté pièce couverte, enduit au-dessus de y et baguette au raccord.
+  const up = K.up ? fv(K.up.mat) : null, uy = K.up ? K.up.y : 0, cap = K.up?.cap ? qb(fv(K.up.cap)) : null;
+  const pan = (m, roofed, py0, py1, f) => {
+    if (!up || !roofed) return f(qb(m), py0, py1);
+    if (py1 <= uy) return f(qb(m), py0, py1); if (py0 >= uy) return f(qb(up), py0, py1);
+    f(qb(m), py0, uy); f(qb(up), uy, py1); if (cap) f(cap, uy - 0.025, uy + 0.025, 0.014);
+  };
   for (const [s0, s1, py0, py1] of pieces) {
     const a0 = s0 === 0 ? -E : s0, a1 = s1 === 2 ? 2 + E : s1;
     if (bit === 0) { // mur nord-sud en x = X0
       const za = Z0 + a0, zb = Z0 + a1;
-      qb(mA).wall(X0 - E, za, X0 - E, zb, py0, py1, -1, 0, py0 < 0.1); qb(mB).wall(X0 + E, za, X0 + E, zb, py0, py1, 1, 0, py0 < 0.1);
+      pan(mA, roofA, py0, py1, (q, y0, y1, o) => (o ? qbBox(q, X0 - E - o, y0, za, X0 - E, y1, zb) : q.wall(X0 - E, za, X0 - E, zb, y0, y1, -1, 0, y0 < 0.1)));
+      pan(mB, roofB, py0, py1, (q, y0, y1, o) => (o ? qbBox(q, X0 + E, y0, za, X0 + E + o, y1, zb) : q.wall(X0 + E, za, X0 + E, zb, y0, y1, 1, 0, y0 < 0.1)));
     } else {
       const xa = X0 + a0, xb = X0 + a1;
-      qb(mA).wall(xa, Z0 - E, xb, Z0 - E, py0, py1, 0, -1, py0 < 0.1); qb(mB).wall(xa, Z0 + E, xb, Z0 + E, py0, py1, 0, 1, py0 < 0.1);
+      pan(mA, roofA, py0, py1, (q, y0, y1, o) => (o ? qbBox(q, xa, y0, Z0 - E - o, xb, y1, Z0 - E) : q.wall(xa, Z0 - E, xb, Z0 - E, y0, y1, 0, -1, y0 < 0.1)));
+      pan(mB, roofB, py0, py1, (q, y0, y1, o) => (o ? qbBox(q, xa, y0, Z0 + E, xb, y1, Z0 + E + o) : q.wall(xa, Z0 + E, xb, Z0 + E, y0, y1, 0, 1, y0 < 0.1)));
     }
   }
   // Bouts : un mur fin qui s'arrête sans se prolonger ni faire d'angle (contre un pilier T_BLOCK, au bord d'une ouverture)
@@ -538,10 +550,16 @@ function buildFlatRamps() {
       const inRoof = MAP.roof[ti(nx, nz)], mIn = inRoof ? matIn : matOut;
       const o0 = 0.15, o1 = 1.85, y0 = SILL_H, y1 = 2.25;
       // Pièces du mur (vues de l'intérieur et de l'extérieur) sur la ligne du bord intérieur.
+      const U = inRoof && K && K.up, uy = U ? U.y : 0; // faïence à mi-hauteur du mur voisin (K.up), comme dans flatSolidWall
       const seg = (a0, a1, py0, py1) => {
         const A = (a) => [ix + px * (a - 1), iz + pz * (a - 1)];
-        const [xa, za] = A(a0), [xb, zb] = A(a1);
-        qb(mIn).wall(xa - dx * E, za - dz * E, xb - dx * E, zb - dz * E, py0, py1, -dx, -dz, py0 < 0.1);
+        const [xa, za] = A(a0), [xb, zb] = A(a1), inner = (m, y0, y1) => qb(m).wall(xa - dx * E, za - dz * E, xb - dx * E, zb - dz * E, y0, y1, -dx, -dz, y0 < 0.1);
+        if (!U || py1 <= uy) inner(mIn, py0, py1); else if (py0 >= uy) inner(fv(U.mat), py0, py1);
+        else {
+          inner(mIn, py0, uy); inner(fv(U.mat), uy, py1);
+          const c0 = -dx * E, c1 = -dx * (E + 0.014), d0 = -dz * E, d1 = -dz * (E + 0.014); // baguette en saillie côté pièce
+          if (U.cap) qbBox(qb(fv(U.cap)), Math.min(xa, xb) + Math.min(c0, c1), uy - 0.025, Math.min(za, zb) + Math.min(d0, d1), Math.max(xa, xb) + Math.max(c0, c1), uy + 0.025, Math.max(za, zb) + Math.max(d0, d1));
+        }
         qb(matOut).wall(xa + dx * E, za + dz * E, xb + dx * E, zb + dz * E, py0, py1, dx, dz, py0 < 0.1);
       };
       seg(-E, 2 + E, 0, y0); seg(-E, 2 + E, y1, h); seg(-E, o0, y0, y1); seg(o1, 2 + E, y0, y1);

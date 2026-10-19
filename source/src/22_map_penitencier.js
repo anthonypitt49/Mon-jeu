@@ -8,6 +8,8 @@ const PEN = (() => {
   const OX = 5, OZ = 5, X = (lx) => (lx + OX) * TILE;
   return { OX, OZ, X, T: (lx, lz) => [lx + OX, lz + OZ] };
 })();
+// Douches : faïence jusqu'à 1,9 m, enduit peint au-dessus, baguette de faïence au raccord (murs fins et murs épais).
+const PEN_FAIENCE = { y: 1.9, mat: ['plaster', 0xcfcabb], cap: ['email', 0xe2e6e0] };
 const PEN_STATE = { boss: null, bossRounds: new Set(), bossT: 0, parts: [0, 0, 0], partLoc: [0, 0, 0], built: false, shieldRound: {} };
 // Deux cachettes possibles par pièce du bouclier (mètres) ; l'hôte tire au sort en début de partie.
 const PEN_PARTS = [
@@ -38,27 +40,30 @@ MAPS.penitencier = {
   zones: ['Bloc cellulaire', 'Douches', 'Réfectoire', 'Cour de promenade', 'Infirmerie', 'Direction', 'Quais'],
   styles: ['corridor', 'cell', 'shower', 'mess', 'yard', 'infirm', 'office', 'dock', 'wall'],
   styleDefs: [
-    { floor: ['slab', 0x8e8e88], ceil: ['concrete', 0x8a8a84] }, { floor: ['slab', 0x7e7e78], ceil: ['concrete', 0x8a8a84] }, { floor: ['tileWall', 0xc8d4d0], ceil: ['concrete', 0x9a9a94] },
-    { floor: ['slab', 0x9a968e], ceil: ['concrete', 0x8e8a84] }, { floor: ['slab', 0x86847e] }, { floor: ['tileWall', 0xcfe0d6], ceil: ['plaster', 0xdfe6e0] },
+    // Plafonds enduits et chaulés (le béton brut, sombre, sortait noir : seule la lumière renvoyée par le sol les éclaire).
+    { floor: ['slab', 0x8e8e88], ceil: ['plaster', 0xb4b0a4] }, { floor: ['slab', 0x7e7e78], ceil: ['plaster', 0xa8a498] }, { floor: ['tileWall', 0xc8d4d0], ceil: ['plaster', 0xc4c8c0], wallIn: ['tileWall', 0xdfe8e4], wallUp: PEN_FAIENCE },
+    { floor: ['slab', 0x9a968e], ceil: ['plaster', 0xbcb4a4] }, { floor: ['slab', 0x86847e] }, { floor: ['tileWall', 0xcfe0d6], ceil: ['plaster', 0xdfe6e0] },
     { floor: 'parquet', ceil: ['plaster', 0xe6dccb] }, { floor: ['planks', 0x8a7a66] },
     { block: ['stone', 0xb0aca4], blockIn: ['cellPaint', 0xffffff], blockTop: ['concrete', 0x8a8a84] },
   ],
-  roofTex: ['concrete', 0x7a7a74], ceilTex: ['concrete', 0x8a8a84], wallMat: 'concrete', baseboard: null,
+  roofTex: ['concrete', 0x7a7a74], ceilTex: ['plaster', 0xb4b0a4], wallMat: 'concrete', baseboard: null,
   decals: { grime: 0.85, splash: 0.4, under: 0.6, crack: 0.3, stain: 0.25, mold: 0.25, scuff: 0.2, blood: 0.12, graffiti: 0.06, graffitiCell: 'scratch',
-    floor: { corridor: [['leak', 0.12, 1.4], ['crack', 0.18, 1.6], ['dirt', 0.15, 1.2]], cell: [['dirt', 0.3, 1], ['blood', 0.08, 1]], shower: [['leak', 0.4, 1.2], ['mold', 0.2, 1]], mess: [['dirt', 0.25, 1.2], ['stain', 0.1, 1]], yard: [['crack', 0.3, 1.8], ['leak', 0.25, 1.8]], infirm: [['blood', 0.15, 1.2], ['drag', 0.08, 1.6]], office: [['scuff', 0.1, 1]], dock: [['leak', 0.3, 1.6], ['oil', 0.15, 1.4]] } },
+    floor: { corridor: [['leak', 0.12, 1.4], ['crack', 0.18, 1.6], ['dirt', 0.15, 1.2]], cell: [['dirt', 0.3, 1], ['blood', 0.08, 1]], shower: [['leak', 0.3, 1.4], ['dirt', 0.12, 1]], mess: [['dirt', 0.25, 1.2], ['stain', 0.1, 1]], yard: [['crack', 0.3, 1.8], ['leak', 0.25, 1.8]], infirm: [['blood', 0.15, 1.2], ['drag', 0.08, 1.6]], office: [['scuff', 0.1, 1]], dock: [['leak', 0.3, 1.6], ['oil', 0.15, 1.4]] },
+    ceil: { corridor: [['stain', 0.12, 1.4]], cell: [['stain', 0.15, 1]], shower: [['stain', 0.22, 1.2], ['mold', 0.15, 1]], mess: [['stain', 0.12, 1.6]], infirm: [['stain', 0.1, 1.2]], office: [['stain', 0.05, 1]] } },
   scatter: [{ kind: 'pebble', styles: ['yard'], n: 2, color: 0x6a6a66 }, { kind: 'paper', styles: ['corridor', 'office', 'mess', 'cell'], n: 0.3, color: 0xd8d4c8 }, { kind: 'chip', styles: ['corridor', 'yard', 'cell'], n: 0.8, color: 0x8a8a84 }, { kind: 'rock', ground: [0.5, 8], n: 0.15, color: 0x5a5e58, shadow: true }, { kind: 'tuft', styles: ['yard'], n: 1.2, color: 0x4a5a3a }],
   details: { fascia: ['concrete', 0x7a7a74], plinth: ['concrete', 0x5e605c], crown: ['concrete', 0x6a6e68] },
+  macro: { stone: 0.4 }, // (murs de pierre : la photo se répète tous les 3 m, une teinte qui varie sur une dizaine de mètres la masque)
   blockH: () => 5.0, blockMat: () => 'concrete',
   walls: [
     { key: 'stone', h: 5.0, out: ['stone', 0xc8c4bc], in: ['cellPaint', 0xffffff], wire: true, mat: 'concrete' },
     { key: 'stoneWin', look: 'window', h: 5.0, out: ['stone', 0xc8c4bc], in: ['cellPaint', 0xffffff], trim: ['concrete', 0x6a6a64], lit: 0xffc27a, bars: true, mat: 'concrete' },
     { key: 'cellWall', h: 3.0, out: ['cellPaint', 0xffffff], in: ['cellPaint', 0xffffff], mat: 'concrete' },
     { key: 'bars', look: 'bars', h: 3.0, see: true, mat: 'metal' },
-    { key: 'shower', h: 5.0, out: ['stone', 0xb0aca4], in: ['tileWall', 0xdfe8e4], mat: 'concrete' },
+    { key: 'shower', h: 5.0, out: ['stone', 0xb0aca4], in: ['tileWall', 0xdfe8e4], up: PEN_FAIENCE, mat: 'concrete' },
     { key: 'yardWall', h: 5.5, out: ['stone', 0xa6a29a], in: ['stone', 0xa6a29a], wire: true, mat: 'concrete' },
     { key: 'office', h: 5.0, out: ['stone', 0xb0aca4], in: ['westPlank', 0xb89068], mat: 'wood' },
     { key: 'officeIn', h: 4.0, out: ['westPlank', 0xb89068], in: ['westPlank', 0xb89068], mat: 'wood' },
-    { key: 'infirmIn', h: 4.0, out: ['plaster', 0xe0e8e2], in: ['plaster', 0xe0e8e2], mat: 'concrete' },
+    { key: 'infirmIn', h: 4.0, out: ['tileWall', 0xb2d0ca], in: ['tileWall', 0xb2d0ca], up: { y: 1.4, mat: ['plaster', 0xe0e8e2], cap: ['email', 0xe6ece6] }, mat: 'concrete' }, // faïence vert d'eau à hauteur d'appui
     { key: 'rail', look: 'rail', h: 1.1, see: true, mat: 'wood' },
     { key: 'chain', look: 'chain', h: 3.2, see: true, mat: 'metal' },
   ],
@@ -141,7 +146,7 @@ MAPS.penitencier = {
   env: {
     fog: 0x1c2832, fogDensity: 0.017, stormFog: 0.028, exposure: 1.5,
     sky: { zen: [0.008, 0.011, 0.018], disk: [0.8, 0.85, 0.95], diskSize: 0.9994, halo: [0.12, 0.16, 0.22], cloudA: [0.04, 0.05, 0.065], cloudB: [0.14, 0.17, 0.21], stars: 0, ridge: 0.7, glow: [0.26, 0.15, 0.07], cover: 1.35, flash: [0.85, 0.92, 1.0] },
-    sunDir: [0.35, 0.55, 0.76], sunColor: 0xa8bce0, sunI: 1.3, hemi: [0x7a8aa4, 0x2a2a28], bounce: 0x5e605a, hemiOut: 1.35, hemiIn: 0.95, envOut: 0.85, envIn: 0.6,
+    sunDir: [0.35, 0.55, 0.76], sunColor: 0xa8bce0, sunI: 1.3, hemi: [0x7a8aa4, 0x2a2a28], bounce: 0x7a7c74, /* rebond des sols clairs sur les plafonds */ hemiOut: 1.35, hemiIn: 0.95, envOut: 0.85, envIn: 0.6,
     envMap: { low: [0.05, 0.055, 0.06], mid: [0.22, 0.27, 0.34], high: [0.08, 0.1, 0.13], glowDir: [-0.9, 0.05, 0.3], glow: [0.5, 0.3, 0.12] },
     precip: 'rain', snow: 0, tint: [0.9, 1.0, 1.1], frost: false, flares: false, wind: 1.3, flashLight: 1.6,
     flashes: { min: 5, max: 14, a0: -Math.PI, a1: Math.PI, thunder: true, power: 1.6, decay: 3.5, storm: 1 },
@@ -162,13 +167,14 @@ MAPS.penitencier = {
     const X = PEN.X;
     pl('block1', 0xffd89a, 20, 20, X(15), 3.4, X(11)); pl('block2', 0xffd89a, 20, 20, X(27), 3.4, X(11));
     pl('mess', 0xffd8a0, 22, 22, X(40), 3.4, X(12)); pl('yard', 0xdfeaff, 380, 75, X(30), 11, X(-2));
-    pl('infirm', 0xcff0e0, 14, 15, X(14), 3.3, X(18)); pl('warden', 0xffc080, 14, 15, X(27), 3.3, X(18));
-    pl('docks', 0xff9a40, 24, 20, X(31), 4.5, X(26));
+    pl('infirm', 0xcff0e0, 14, 15, X(14), 3.3, X(18)); pl('warden', 0xffc080, 17, 19, X(28) + 1, 3.3, X(18)); /* (direction : près du passage vers les archives, x 70) */
+    pl('docks', 0xff9a40, 24, 20, X(31), 4.5, X(26)); pl('shower', 0xffe4bc, 16, 16, X(5) + 1, 3.4, X(11) + 1); // (douches : lampe-cage du plafond)
   },
   onPower(on) {
     const L = R.lights;
     for (const k of ['block1', 'block2', 'mess', 'infirm']) { L[k].color.set(on ? 0xe6eeff : 0xffd89a); L[k].userData.base = on ? 34 : 20; L[k].intensity = L[k].userData.base; }
     L.yard.intensity = L.yard.userData.base = on ? 520 : 380;
+    L.shower.color.set(on ? 0xe6eeff : 0xffe4bc); L.shower.intensity = L.shower.userData.base = on ? 26 : 16;
   },
   menu(t) {
     const a = t * 0.03 - 0.6, cx = PEN.X(26), cz = PEN.X(14);

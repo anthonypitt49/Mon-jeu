@@ -32,13 +32,45 @@ function penDecor() {
   for (const x of [X(13), X(19), X(25), X(31)]) WORLD.powerLamps.push(hangingLamp(x, 3.6, X(11) + 1, MATS.bulbRed));
   for (const [x, z, ry, lines] of [[X(10) + 0.1, X(11) + 1, Math.PI / 2, ['BLOC B', 'SILENCE']], [X(34) - 0.1, X(11) + 1, -Math.PI / 2, ['RÉFECTOIRE →', 'EN RANG']]]) { const s = mesh(new THREE.PlaneGeometry(1.4, 0.6), new THREE.MeshStandardMaterial({ map: woodSign(lines, { w: 256, h: 110, bg: '#1d2a22', color: '#e8e2c8' }), roughness: 0.7 }), x, 3.1, z, ry, R.scene, false); }
 
-  /* ── Douches ── */
-  { const pipe = new Batch(new THREE.CylinderGeometry(0.035, 0.035, 1, 6), steel), head = new Batch(new THREE.CylinderGeometry(0.08, 0.04, 0.08, 10), steel);
-    for (let i = 0; i < 6; i++) { const z = X(9) + 1 + i * 1.6; pipe.add(X(2) + 0.12, 1.2, z, 0, 0, 0, 1, 2.4, 1); pipe.add(X(2) + 0.3, 2.35, z, 0, 0, Math.PI / 2, 1, 0.4, 1); head.add(X(2) + 0.48, 2.3, z); }
-    for (let i = 0; i < 4; i++) { const x = X(4) + i * 2.2; pipe.add(x, 1.2, X(9) + 0.12, 0, 0, 0, 1, 2.4, 1); pipe.add(x, 2.35, X(9) + 0.3, 0, Math.PI / 2, 0, 1, 0.4, 1); head.add(x, 2.3, X(9) + 0.48); }
-    pipe.build(); head.build();
-    for (let i = 0; i < 4; i++) { const d = mesh(new THREE.CircleGeometry(0.12, 12), dark, X(4) + i * 2.4, 0.012, X(11) + 1, 0, R.scene, false); d.rotation.x = -Math.PI / 2; }
-    kBench(X(6), X(12) + 0.5, 0); kBench(X(6), X(10) + 0.5, Math.PI); }
+  /* ── Douches : collecteur au mur, une colonne par pomme (robinet à croisillon, col de cygne), bondes en fonte ── */
+  // Pièce : x 14-28, z 28-38. Pommes sur les murs nord et sud seulement : le mur ouest porte deux fenêtres et l'arme murale,
+  // la fenêtre nord est en x 20-22, l'établi du bouclier contre le mur sud en x 20-22, l'atout contre le mur est (z 28-30).
+  { const brass = fmat('laiton', 0x9a7a3a, { rough: 0.45, metal: 0.8 }), pipeM = fmat('fonte', 0x5a5e5a, { rough: 0.5, metal: 0.6 }), x0 = X(2), x1 = X(9), z0 = X(9), z1 = X(14), off = EDGE_T + 0.07, yM = 2.45;
+    const pipe = new Batch(new THREE.CylinderGeometry(1, 1, 1, 8), pipeM), joint = new Batch(new THREE.SphereGeometry(1, 8, 6), pipeM), clamp_ = new Batch(boxG(0.05, 0.1, 0.12), dark);
+    const run = (ax, az, bx, bz, y, r) => { const L = Math.hypot(bx - ax, bz - az); pipe.add((ax + bx) / 2, y, (az + bz) / 2, Math.atan2(bx - ax, bz - az), Math.PI / 2, 0, r, L, r); }; // tuyau horizontal de a à b
+    // Collecteur : murs nord, ouest et sud (il passe au-dessus des fenêtres et de l'arme), descente depuis le plafond au nord-est.
+    run(x0 + off, z0 + off, x1 - 1.6, z0 + off, yM, 0.04); run(x0 + off, z0 + off, x0 + off, z1 - off, yM, 0.04); run(x0 + off, z1 - off, x1 - 0.3, z1 - off, yM, 0.04);
+    for (const [x, z] of [[x0 + off, z0 + off], [x0 + off, z1 - off], [x1 - 1.6, z0 + off]]) joint.add(x, yM, z, 0, 0, 0, 0.055, 0.055, 0.055);
+    pipe.add(x1 - 1.6, (yM + 4) / 2, z0 + off, 0, 0, 0, 0.04, 4 - yM, 0.04);
+    { const w = mesh(new THREE.TorusGeometry(0.11, 0.015, 6, 16), MATS.rust, x1 - 1.6, 3.1, z0 + off + 0.09, 0, R.scene, false); KIT.c(R.scene, x1 - 1.6, 3.1, z0 + off + 0.045, 0.02, 0.02, 0.09, dark, 6, false).rotation.x = Math.PI / 2; } // vanne d'arrêt à volant
+    for (let x = x0 + 1; x < x1 - 1; x += 1.6) for (const z of [z0 + EDGE_T + 0.025, z1 - EDGE_T - 0.025]) clamp_.add(x, yM, z);
+    for (let z = z0 + 1; z < z1 - 1; z += 1.6) clamp_.add(x0 + EDGE_T + 0.025, yM, z, Math.PI / 2);
+    const heads = [15.4, 16.9, 18.4, 23.6, 25.1].flatMap((x) => [[x, 1], [x, -1]]); // [x, sens : 1 = mur nord, -1 = mur sud]
+    const q = new QB(decalAtlas());
+    for (const [x, s] of heads) {
+      const zw = s > 0 ? z0 + off : z1 - off, g = KIT.g(x, zw, s > 0 ? 0 : Math.PI);
+      pipe.add(x, (1.05 + yM) / 2, zw, 0, 0, 0, 0.022, yM - 1.05, 0.022); // colonne
+      KIT.c(g, 0, 1.12, 0.05, 0.035, 0.035, 0.1, brass, 10, false).rotation.x = Math.PI / 2; // corps du robinet
+      for (const a of [0, Math.PI / 2]) { const h = KIT.b(g, 0, 1.12, 0.11, 0.16, 0.018, 0.018, brass, 0, false); h.rotation.z = a; } // croisillon
+      const arm = KIT.c(g, 0, 2.2, 0.16, 0.016, 0.016, 0.32, pipeM, 6, false); arm.rotation.x = Math.PI / 2; // col
+      const head = KIT.c(g, 0, 2.16, 0.33, 0.03, 0.075, 0.07, brass, 12, false); head.rotation.x = -0.45; // pomme, inclinée vers la pièce
+      decal(q, 'rust', x, 1.75, s > 0 ? z0 + EDGE_T : z1 - EDGE_T, 0, 0, s, 0.32, 1.1, 0, 0.9); // coulure de rouille sous le col
+      decal(q, 'leak', x + rand(-0.15, 0.15), 0.006, zw + s * 0.65, 0, 1, 0, rand(1.1, 1.5), rand(1.1, 1.5), rand(TAU), 1); // sol mouillé sous la pomme
+    }
+    const m = q.build(false); if (m) { m.renderOrder = 2; m.userData.dynamic = true; }
+    pipe.build(); joint.build(); clamp_.build();
+    // Bondes en fonte ajourée sur l'axe de la pièce.
+    { const grate = textTexture(128, 128, (c) => { c.clearRect(0, 0, 128, 128); c.fillStyle = '#2a2826'; c.beginPath(); c.arc(64, 64, 62, 0, TAU); c.fill(); c.fillStyle = '#060606'; for (let i = 0; i < 4; i++) c.fillRect(30, 30 + i * 18, 68, 8); c.strokeStyle = '#4a4640'; c.lineWidth = 6; c.beginPath(); c.arc(64, 64, 58, 0, TAU); c.stroke(); }, { repeat: false });
+      const gm = new THREE.MeshStandardMaterial({ map: grate, transparent: true, alphaTest: 0.5, roughness: 0.55, metalness: 0.6 });
+      for (let i = 0; i < 4; i++) { const d = mesh(new THREE.CircleGeometry(0.15, 16), gm, X(4) + i * 2.4, 0.01, X(11) + 1, 0, R.scene, false); d.rotation.x = -Math.PI / 2; } }
+    // Bancs à lattes (sans dossier) et patère à serviettes contre le mur est, au sud de la porte du bloc (z 32-34).
+    const slats = fmat('boisBrut', 0x7a5a3e);
+    for (const [bx, bz] of [[X(6), X(12) + 0.5], [X(6), X(10) + 0.5]]) { const b = KIT.g(bx, bz, 0); for (let i = 0; i < 3; i++) KIT.b(b, 0, 0.44, -0.12 + i * 0.12, 2.0, 0.04, 0.1, slats); for (const sx of [-0.85, 0.85]) KIT.b(b, sx, 0.21, 0, 0.06, 0.42, 0.36, dark); KIT.b(b, 0, 0.12, 0, 1.7, 0.04, 0.04, dark); KIT.solid(b, 2.0, 0.4, 0.46, 'wood'); }
+    { const g = KIT.g(x1 - 0.03, X(13), -Math.PI / 2), towel = [fmat('toile', 0xd8d2c2, { rough: 1 }), fmat('toile', 0xa8a294, { rough: 1 })];
+      KIT.b(g, 0, 1.72, 0, 2.4, 0.09, 0.03, fmat('boisPeint', 0x5a5e4a)); for (let i = 0; i < 5; i++) { KIT.c(g, -1.0 + i * 0.5, 1.72, 0.05, 0.012, 0.012, 0.08, brass, 6, false).rotation.x = Math.PI / 2; if (i % 2 === 0 || i === 3) { const t = KIT.b(g, -1.0 + i * 0.5, 1.4, 0.05, 0.34, 0.6, 0.02, towel[i % 2]); t.rotation.z = rand(-0.05, 0.05); } } }
+    // Lampe-cage au plafond, sur la lumière des douches.
+    { const g = KIT.g(X(5) + 1, X(11) + 1, 0, roomCeil(tileOf(X(5) + 1), tileOf(X(11) + 1))); KIT.c(g, 0, -0.2, 0, 0.012, 0.012, 0.4, dark, 6, false); KIT.c(g, 0, -0.42, 0, 0.06, 0.08, 0.06, dark, 10, false); KIT.s(g, 0, -0.52, 0, 0.065, KM.bulb, 1, 1.2, 1);
+      for (let i = 0; i < 4; i++) { const a = (i / 4) * TAU; KIT.b(g, Math.cos(a) * 0.085, -0.53, Math.sin(a) * 0.085, 0.008, 0.18, 0.008, dark, 0, false); } KIT.glow(g, 0, -0.52, 0, 0xffe2b0, 1.2, 0.6); } }
   // Établi de fortune (bouclier).
   { const s = wallSpot(SPOTS.shieldTable, 0.5), g = KIT.g(s.x, s.z, s.yaw); g.userData.dynamic = true;
     KIT.b(g, 0, 0.9, 0, 1.9, 0.1, 0.9, fmat('boisBrut', 0x4e3526)); /* planche brute tachée d'huile */ for (const [a, b] of [[-0.85, -0.38], [0.85, -0.38], [-0.85, 0.38], [0.85, 0.38]]) KIT.b(g, a, 0.45, b, 0.08, 0.9, 0.08, dark);
@@ -71,12 +103,35 @@ function penDecor() {
   for (const [x, z] of [[X(38), X(12)], [X(43), X(12)], [X(38), X(15)], [X(43), X(15)]]) { const g = KIT.g(x, z, 0, 3.4); KIT.c(g, 0, 0.3, 0, 0.012, 0.012, 0.6, dark, 4); KIT.s(g, 0, 0, 0, 0.14, fmat('olive', 0x7a8a6a, { rough: 0.5, metal: 0.5 }), 1, 1.3, 1); } // grenades lacrymogènes (tôle peinte olive)
   { const clock = textTexture(128, 128, (c) => { c.fillStyle = '#e8e4d8'; c.beginPath(); c.arc(64, 64, 60, 0, TAU); c.fill(); c.strokeStyle = '#222'; c.lineWidth = 5; c.stroke(); for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU; c.fillStyle = '#222'; c.fillRect(64 + Math.cos(a) * 48 - 2, 64 + Math.sin(a) * 48 - 2, 4, 4); } c.lineWidth = 4; c.beginPath(); c.moveTo(64, 64); c.lineTo(64, 24); c.moveTo(64, 64); c.lineTo(92, 70); c.stroke(); });
     mesh(new THREE.CircleGeometry(0.4, 24), new THREE.MeshStandardMaterial({ map: clock, roughness: 0.5 }), X(47) - 0.1, 2.8, X(12), -Math.PI / 2, R.scene, false); }
+  // Poutres de béton sous le plafond (de la cloison de la cuisine, z 30, au mur sud, z 44 ; x 88-102, là où la cloison est pleine).
+  { const ch = roomCeil(tileOf(X(42)), tileOf(X(12))), beam = fmat('concrete', 0xa8a498); for (const x of [89.5, 95.5, 101]) KIT.b(R.scene, x, ch - 0.2, (X(10) + X(17)) / 2, 0.32, 0.4, X(17) - X(10) - 2 * EDGE_T, beam); }
+  // Suspensions émaillées au-dessus des tables, gobelets en fer-blanc, marmites sur les fourneaux, tableau du menu.
+  { const ch = roomCeil(tileOf(X(42)), tileOf(X(12))), shade = fmat('email', 0x2e4a3a, { rough: 0.4, side: THREE.DoubleSide }), cups = new Batch(new THREE.CylinderGeometry(0.042, 0.036, 0.1, 10), fmat('galva', 0xb8bcbe, { rough: 0.5, metal: 0.6 }));
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) {
+      const x = X(37) + 1 + c * 9, z = X(11) + 0.5 + r * 3.4, g = KIT.g(x, z, 0, 3.0);
+      KIT.c(g, 0, (ch - 3.0) / 2, 0, 0.008, 0.008, ch - 3.0, dark, 4, false); mesh(new THREE.ConeGeometry(0.26, 0.16, 18, 1, true), shade, 0, -0.02, 0, 0, g, false);
+      KIT.s(g, 0, -0.1, 0, 0.055, KM.bulb); KIT.glow(g, 0, -0.14, 0, 0xffd9a0, 1.1, 0.55);
+      for (let i = 0; i < 6; i++) if (rng() < 0.75) cups.add(x - 2 + i * 0.8 + (rng() - 0.5) * 0.2, 0.81, z + (i % 2 ? 0.3 : -0.3), rng() * TAU);
+    }
+    cups.build();
+    for (const sx of [X(36) + 0.6, X(38) + 0.4]) { const g = KIT.g(sx, X(8) + 0.45, 0); KIT.c(g, 0, 1.12, 0, 0.24, 0.22, 0.32, MATS.iron, 16); KIT.c(g, 0, 1.29, 0, 0.25, 0.25, 0.03, MATS.iron, 16, false); } // marmites de fonte
+    mesh(new THREE.PlaneGeometry(1.4, 0.8), new THREE.MeshStandardMaterial({ map: woodSign(['MENU DU JOUR', 'SOUPE · PAIN · CAFÉ', 'SILENCE AU RÉFECTOIRE'], { w: 512, h: 290, bg: '#1d2a22', color: '#e8e2c8' }), roughness: 0.8 }), X(35) + 0.02, 1.9, X(13), Math.PI / 2, R.scene, false); }
 
   /* ── Infirmerie ── */
   for (let i = 0; i < 3; i++) { const g = KIT.g(X(11) + 1.1 + i * 2.4, X(20) + 1.1, 0); KIT.b(g, 0, 0.55, 0, 0.9, 0.08, 1.9, steel); KIT.b(g, 0, 0.64, 0, 0.86, 0.12, 1.85, sheet); KIT.b(g, 0, 0.72, -0.7, 0.6, 0.1, 0.3, sheet); KIT.b(g, 0, 0.8, -0.95, 0.9, 0.9, 0.04, steel); for (const [a, b] of [[-0.42, -0.9], [0.42, -0.9], [-0.42, 0.9], [0.42, 0.9]]) KIT.b(g, a, 0.27, b, 0.04, 0.55, 0.04, steel); KIT.solid(g, 0.9, 1.9, 0.9, 'metal'); }
   for (let i = 0; i < 2; i++) { const g = KIT.g(X(11) + 2.3 + i * 2.4, X(20) + 1.1, 0); KIT.b(g, 0, 1.0, 0, 0.03, 1.9, 1.7, sheet); for (const s of [-1, 1]) { KIT.b(g, 0, 0.99, s * 0.87, 0.04, 1.98, 0.04, steel); KIT.b(g, 0, 0.02, s * 0.87, 0.4, 0.04, 0.05, steel); } } // paravents : toile tendue sur deux montants d'acier à patins
   { const g = KIT.g(X(17), X(16) + 1, 0); KIT.c(g, 0, 1.0, 0, 0.02, 0.02, 2.0, steel, 6); KIT.s(g, 0, 2.05, 0, 0.3, KIT.m(0xe8e8e2), 1, 0.4, 1); KIT.glow(g, 0, 1.95, 0, 0xe8fff4, 1.1, 0.35); }
   kShelf(X(10) + 0.3, X(16), Math.PI / 2, 1.6, 2); kTable(X(18) + 0.2, X(17) + 1, Math.PI / 2, 1.6, 0.8, 0.9, steel);
+  // Armoire à pharmacie vitrée (mur ouest), lavabo (mur nord, à l'écart de la porte du bloc en x 38-40), chariot à instruments, croix rouge.
+  { const g = KIT.g(X(10) + 0.26, X(18) + 1.1, Math.PI / 2) /* entre la fenêtre (z 44-46) et la cloison de la salle (z 48) */, enamel = fmat('email', 0xeceee8, { rough: 0.35 }), vials = [fmat('email', 0x6a3a1a, { rough: 0.15 }), fmat('email', 0x2a4a7a, { rough: 0.15 }), fmat('email', 0xd8d8d0, { rough: 0.2 })];
+    KIT.b(g, 0, 0.95, 0, 1.0, 1.9, 0.4, enamel); KIT.b(g, 0, 1.15, 0.205, 0.9, 1.3, 0.01, k.glass, 0, false);
+    for (let s = 0; s < 3; s++) { KIT.b(g, 0, 0.62 + s * 0.42, 0.02, 0.92, 0.02, 0.34, enamel, 0, false); for (let i = 0; i < 7; i++) if (rng() < 0.8) KIT.c(g, -0.38 + i * 0.12, 0.7 + s * 0.42, 0.02 + (rng() - 0.5) * 0.12, 0.03, 0.035, 0.14, vials[(rng() * 3) | 0], 8, false); }
+    KIT.solid(g, 1.0, 0.4, 1.9, 'metal'); }
+  kSink(X(15) + 1.5, X(15) + 0.25, 0);
+  { const g = KIT.g(X(15) + 0.4, X(19) + 1.4, 0.3); for (const y of [0.35, 0.85]) KIT.b(g, 0, y, 0, 0.7, 0.03, 0.45, steel); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { KIT.b(g, a * 0.33, 0.45, b * 0.2, 0.025, 0.85, 0.025, steel); KIT.s(g, a * 0.33, 0.04, b * 0.2, 0.035, MATS.iron); }
+    KIT.b(g, -0.12, 0.9, 0, 0.3, 0.04, 0.2, k.chrome, 0.2, false); KIT.c(g, 0.18, 0.92, 0.05, 0.05, 0.05, 0.1, fmat('email', 0x6a3a1a, { rough: 0.15 }), 8, false); KIT.solid(g, 0.7, 0.45, 0.9, 'metal'); }
+  { const cross = textTexture(128, 128, (c) => { c.fillStyle = '#ece8dc'; c.fillRect(0, 0, 128, 128); c.fillStyle = '#b82a22'; c.fillRect(48, 16, 32, 96); c.fillRect(16, 48, 96, 32); });
+    mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshStandardMaterial({ map: cross, roughness: 0.7 }), X(16) + 0.1, 2.4, X(15) + 1, Math.PI / 2, R.scene, false); }
 
   /* ── Direction : bureau du directeur et archives ── */
   kRug(X(27) + 1, X(18), 0, 5, 3.4, 0x5a1e1e);
@@ -86,6 +141,8 @@ function penDecor() {
   { const g = KIT.g(X(27) + 1, X(17) + 1.9, Math.PI), cuir = fmat('cuir', 0x9b2e2a, { rough: 0.95 }); KIT.b(g, 0, 0.45, 0, 0.44, 0.05, 0.44, cuir); KIT.b(g, 0, 0.72, -0.2, 0.44, 0.5, 0.04, cuir);
     for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) KIT.b(g, a * 0.19, 0.22, b * 0.19, 0.04, 0.44, 0.04, k.woodDark); }
   { const g = KIT.g(X(28), X(17) + 1.1, 0); KIT.b(g, 0, 0.84, 0, 0.4, 0.14, 0.3, dark); } // machine à écrire
+  { const g = KIT.g(X(27) + 0.2, X(17) + 0.75, 0.2), brass = fmat('laiton', 0x9a7a3a, { rough: 0.45, metal: 0.8 }); /* lampe de bureau à abat-jour vert */ KIT.c(g, 0, 0.79, 0, 0.08, 0.09, 0.03, brass, 12, false); KIT.c(g, 0, 0.95, 0, 0.012, 0.012, 0.32, brass, 6, false);
+    const sh = KIT.c(g, 0, 1.12, 0.06, 0.07, 0.07, 0.3, new THREE.MeshStandardMaterial({ color: 0x1e5a32, emissive: 0x1e5a32, emissiveIntensity: 0.6, roughness: 0.3 }), 14, false); sh.rotation.z = Math.PI / 2; sh.scale.set(1, 1, 0.6); KIT.glow(g, 0, 1.06, 0.06, 0xffd9a0, 0.7, 0.45); }
   for (let i = 0; i < 3; i++) kShelf(X(25) + 0.3, X(19) + i * 1.8, Math.PI / 2, 1.6, 2.2, true);
   { const g = KIT.g(X(28) + 0.6, X(15) + 0.5, 0); /* contre le mur nord, à l'écart de la porte (x 68-70) */ KIT.b(g, 0, 0.6, 0, 0.9, 1.2, 0.7, fmat('fonte', 0x2a2e30, { rough: 0.4, metal: 0.7 })); KIT.c(g, 0.1, 0.75, 0.36, 0.12, 0.12, 0.03, k.chrome, 16).rotation.x = Math.PI / 2; KIT.solid(g, 0.9, 0.7, 1.2, 'metal'); } // coffre-fort
   kFrame(X(25) + 0.1, 2.2, X(16) + 1, Math.PI / 2, 0.8, 1.0, 1); kFrame(X(27) + 1, 2.3, X(15) + 0.1, 0, 1.0, 0.8, 3);
@@ -122,7 +179,12 @@ function penDecor() {
       // plus la marche de 0,3 m), on ne se perche donc pas hors de portée des infectés (ils frappent jusqu'à 1,2 m de dénivelé).
       collider(a, X(0) + 1.25, b, X(0) + 1.85, 0.44, 'concrete'); collider(a, X(0) + 0.65, b, X(0) + 1.25, 1.5, 'concrete'); collider(a, X(0), b, X(0) + 0.65, 2.04, 'concrete');
     } }
-  { const line = fmat('plain', 0xe8e4da); for (const [x0, z0, x1, z1] of [[X(26), X(4), X(33), X(2)], [X(33), X(2), X(29), X(1) + 1.2]]) { const len = Math.hypot(x1 - x0, z1 - z0); KIT.b(R.scene, (x0 + x1) / 2, 0.012, (z0 + z1) / 2, len, 0.01, 0.08, line, -Math.atan2(z1 - z0, x1 - x0), false); } }
+  // Terrain de balle au mur peint au sol (rectangle, ligne médiane, lignes de service, rond central), peinture écaillée.
+  { const tex = textTexture(256, 32, (c) => { c.clearRect(0, 0, 256, 32); for (let x = 0; x < 256; x += 2) { const n = tfbm(x / 64, 1.3, 4, 3); if (n < 0.4) continue; c.fillStyle = `rgba(226,222,208,${clamp((n - 0.4) * 3.2, 0, 0.8)})`; c.fillRect(x, 5 + rng() * 3, 2, 22 - rng() * 5); } });
+    const paint = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, roughness: 0.85 });
+    const strip = (x0, z0, x1, z1) => { const L = Math.hypot(x1 - x0, z1 - z0), g = new THREE.PlaneGeometry(L, 0.1), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * L / 2 + rng()); const m = mesh(g, paint, (x0 + x1) / 2, 0.012, (z0 + z1) / 2, 0, R.scene, false); m.rotation.set(-Math.PI / 2, 0, Math.atan2(-(z1 - z0), x1 - x0)); m.renderOrder = 2; };
+    const a = 61, b = 79, c = 13.8, d = 18.8; strip(a, c, b, c); strip(a, d, b, d); strip(a, c, a, d); strip(b, c, b, d); strip(70, c, 70, d); strip(64.5, c, 64.5, d); strip(75.5, c, 75.5, d);
+    const ring = mesh(new THREE.RingGeometry(1.45, 1.55, 48), paint, 70, 0.012, (c + d) / 2, 0, R.scene, false); ring.rotation.x = -Math.PI / 2; ring.renderOrder = 2; }
   kBench(X(36), X(4) + 1, Math.PI); kBench(X(24), X(4) + 1, Math.PI);
 
   /* ── Toits : citernes, conduits, cheminée ── */
@@ -156,7 +218,7 @@ function penFar(beamMat) {
     const nearFloor = (x, z, s) => { for (let tz = tileOf(z - s); tz <= tileOf(z + s); tz++) for (let tx = tileOf(x - s); tx <= tileOf(x + s); tx++) if (inMap(tx, tz) && MAP.edge[ti(tx, tz)] === 0 && Math.hypot(clamp(x, tx * TILE, tx * TILE + TILE) - x, clamp(z, tz * TILE, tz * TILE + TILE) - z) < s) return true; return false; };
     for (let i = 0; i < 90; i++) { const a = r() * TAU, rx = 60 + r() * 14, rz = 34 + r() * 10, x = 60 + Math.cos(a) * rx, z = 28 + Math.sin(a) * rz; const s = 1 + r() * 2.6, sy = 0.6 + r() * 0.5, ry = r() * TAU; /* (tirages dans le même ordre qu'avant) */
       const y = nearFloor(x, z, s) ? Math.min(surfH(x, z) + s * 0.2, -0.1 - s * sy) : surfH(x, z) + s * 0.2;
-      const g = new THREE.DodecahedronGeometry(s, 0); g.scale(1, sy, 1); g.rotateY(ry); g.translate(x, y, z); parts.push(g.index ? g.toNonIndexed() : g); }
+      const g = boulderGeo(s, i * 1.7); g.scale(1, sy, 1); g.rotateY(ry); g.translate(x, y, z); parts.push(g); } /* (rochers arrondis : les polyèdres à grosses facettes faisaient carton-pâte) */
     mesh(mergeGeometries(parts), rock, 0, 0, 0, 0, R.scene, true); }
   // Phare sur son îlot.
   { const g = KIT.g(190, 140, 0, -1), white = fmat('plaster', 0xe8e4da); const isl = mesh(new THREE.CylinderGeometry(14, 22, 5, 14), rock, 0, 0, 0, 0, g);

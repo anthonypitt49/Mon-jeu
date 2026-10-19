@@ -78,6 +78,19 @@ function scatterMesh(sp, geo, mat, pts, s0, s1, base, jit) {
   }
 }
 
+// Rocher arrondi : icosaèdre subdivisé bosselé par un bruit (les sommets confondus bougent ensemble : pas de fente),
+// normales lissées, dessous aplati ; UV projetées en mètres (scale : mètres par répétition de la texture).
+function boulderGeo(s, seed = 0, scale = 4) {
+  let g = new THREE.IcosahedronGeometry(1, 2); g.deleteAttribute('normal'); g.deleteAttribute('uv'); g = mergeVertices(g);
+  const p = g.attributes.position, uv = new Float32Array(p.count * 2);
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = fbm(x * 1.4 + z * 0.9 + seed, y * 1.5 - z * 1.1 + seed * 0.37, 4), k = s * (0.74 + n * 0.55);
+    const X = x * k, Y = Math.max(y, -0.4) * k, Z = z * k; p.setXYZ(i, X, Y, Z);
+    uv[i * 2] = (X * 0.8 + Z * 0.6) / scale + seed * 0.13; uv[i * 2 + 1] = (Y + (X * 0.6 - Z * 0.8) * 0.4) / scale;
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.computeVertexNormals(); return g;
+}
+
 /* ─── Salissures ─── */
 const DECAL_CELLS = { grime: 0, stain: 1, crack: 2, soot: 3, mold: 4, rust: 5, oil: 6, splash: 7, scuff: 8, blood: 9, scratch: 10, graffiti: 11, leak: 12, flake: 13, dirt: 14, drag: 15 };
 let _decalAtlas = null;
@@ -86,16 +99,25 @@ function decalAtlas() {
   const S = 1024, C = S / 4, c = makeCanvas(S), x = c.getContext('2d'), r = mulberry32(77);
   const cell = (i, fn) => { x.save(); x.translate((i % 4) * C, ((i / 4) | 0) * C); x.beginPath(); x.rect(0, 0, C, C); x.clip(); fn(x, C, r); x.restore(); };
   const blot = (cx, cy, rad, col, a, n = 26) => { for (let k = 0; k < n; k++) { const ang = r() * TAU, d = r() * rad * 0.6, rr = rad * (0.25 + r() * 0.45); const g = x.createRadialGradient(cx + Math.cos(ang) * d, cy + Math.sin(ang) * d, 0, cx + Math.cos(ang) * d, cy + Math.sin(ang) * d, rr); g.addColorStop(0, `rgba(${col},${a})`); g.addColorStop(1, `rgba(${col},0)`); x.fillStyle = g; x.fillRect(0, 0, C, C); } };
+  // Cellule peinte au pixel : fn(u, v) → [r, g, b, opacité], u et v de 0 à 1 ; contour irrégulier sans empilement de
+  // taches rondes (empilées, elles devenaient noires au centre et faisaient des trous dans le sol et les murs).
+  const pix = (i, fn) => { const X0 = (i % 4) * C, Y0 = ((i / 4) | 0) * C, img = x.createImageData(C, C), d = img.data; // (sans relecture du canevas)
+    for (let py = 0; py < C; py++) for (let px = 0; px < C; px++) { const [cr, cg, cb, ca] = fn(px / C, py / C), o = (py * C + px) * 4; d[o] = cr; d[o + 1] = cg; d[o + 2] = cb; d[o + 3] = clamp(ca, 0, 1) * 255; }
+    x.putImageData(img, X0, Y0); };
+  // Forme commune : distance au centre déformée par le bruit (0 au centre, ~0,8 au bord de la tache), nulle avant le bord de la cellule.
+  const shape = (u, v, seed, warp) => { const rr = Math.hypot(u - 0.5, v - 0.5), n = fbm(u * 4.5 + seed, v * 4.5 + seed * 0.7, 4); return { d: rr * 2 + (n - 0.5) * warp, n, fade: 1 - smooth(clamp((rr - 0.36) / 0.11, 0, 1)) }; };
   // 0 coulures depuis le bas (bande de crasse + traînées verticales)
   cell(0, (x, C) => { const g = x.createLinearGradient(0, C, 0, 0); g.addColorStop(0, 'rgba(30,24,18,.75)'); g.addColorStop(0.35, 'rgba(30,24,18,.3)'); g.addColorStop(1, 'rgba(30,24,18,0)'); x.fillStyle = g; x.fillRect(0, 0, C, C); for (let k = 0; k < 40; k++) { const px = r() * C, h = C * (0.2 + r() * 0.7), w = 1 + r() * 4; const gg = x.createLinearGradient(0, C, 0, C - h); gg.addColorStop(0, 'rgba(25,20,15,.5)'); gg.addColorStop(1, 'rgba(25,20,15,0)'); x.fillStyle = gg; x.fillRect(px, C - h, w, h); } });
-  // 1 tache d'eau : auréole aux bords plus sombres
-  cell(1, (x, C) => { blot(C / 2, C / 2, C * 0.42, '60,50,35', 0.18, 30); x.strokeStyle = 'rgba(70,55,35,.35)'; x.lineWidth = 3; x.beginPath(); for (let a = 0; a <= TAU + 0.01; a += 0.15) { const rr = C * (0.36 + Math.sin(a * 5 + 1) * 0.04 + r() * 0.03); const px = C / 2 + Math.cos(a) * rr, py = C / 2 + Math.sin(a) * rr; a ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); });
+  // 1 tache d'eau : voile ocre léger cerné de laisses brunes (les bords où l'eau a séché)
+  pix(1, (u, v) => { const { d, n, fade } = shape(u, v, 7, 0.6), inside = smooth(clamp((0.8 - d) / 0.08, 0, 1)), ring = Math.exp(-((d - 0.76) ** 2) / 0.0011) + 0.45 * Math.exp(-((d - 0.56) ** 2) / 0.0007);
+    return [104, 84, 56, fade * (inside * (0.07 + 0.05 * n) + ring * 0.3 * (0.55 + 0.45 * n))]; });
   // 2 fissure ramifiée
   cell(2, (x, C) => { x.strokeStyle = 'rgba(20,18,16,.85)'; const crack = (px, py, a, len, w) => { if (len < 6 || w < 0.4) return; x.lineWidth = w; x.beginPath(); x.moveTo(px, py); let cx = px, cy = py; const steps = 6; for (let i = 0; i < steps; i++) { a += (r() - 0.5) * 0.9; cx += Math.cos(a) * len / steps; cy += Math.sin(a) * len / steps; x.lineTo(cx, cy); if (r() < 0.25) crack(cx, cy, a + (r() < 0.5 ? 0.8 : -0.8), len * 0.5, w * 0.6); } x.stroke(); }; crack(C * 0.1, C * 0.5, 0, C * 0.85, 2.6); });
   // 3 suie radiale
   cell(3, (x, C) => blot(C / 2, C / 2, C * 0.5, '12,10,9', 0.35, 34));
   // 4 moisissure : mouchetures vert sombre
-  cell(4, (x, C) => { blot(C / 2, C * 0.4, C * 0.4, '40,52,30', 0.14, 18); for (let k = 0; k < 900; k++) { const a = r() * TAU, d = Math.pow(r(), 0.6) * C * 0.45; x.fillStyle = `rgba(${30 + r() * 20},${45 + r() * 25},${25 + r() * 10},${0.15 + r() * 0.35})`; x.fillRect(C / 2 + Math.cos(a) * d, C * 0.4 + Math.sin(a) * d, 1 + r() * 3, 1 + r() * 3); } });
+  pix(4, (u, v) => { const { d, fade } = shape(u, v, 5, 0.9), m = smooth(clamp((0.85 - d) / 0.3, 0, 1)), sp = fbm(u * 38 + 1, v * 38, 2);
+    return [34, 46, 28, fade * m * (0.07 + 0.08 * fbm(u * 6, v * 6, 2) + (sp > 0.56 ? (sp - 0.56) * 1.6 : 0))]; });
   // 5 coulure de rouille depuis le haut
   cell(5, (x, C) => { for (let k = 0; k < 26; k++) { const px = C * 0.3 + r() * C * 0.4, h = C * (0.3 + r() * 0.65), w = 1 + r() * 5; const g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(120,58,22,.75)'); g.addColorStop(1, 'rgba(120,58,22,0)'); x.fillStyle = g; x.fillRect(px, 0, w, h); } blot(C / 2, C * 0.08, C * 0.2, '110,52,20', 0.4, 10); });
   // 6 tache d'huile
@@ -110,12 +132,13 @@ function decalAtlas() {
   cell(10, (x, C) => { x.strokeStyle = 'rgba(230,226,215,.55)'; x.lineWidth = 2.5; for (let g = 0; g < 6; g++) { const ox = C * 0.08 + (g % 3) * C * 0.3, oy = C * 0.15 + ((g / 3) | 0) * C * 0.42; for (let k = 0; k < 4; k++) { x.beginPath(); x.moveTo(ox + k * 12 + r() * 2, oy); x.lineTo(ox + k * 12 + r() * 3, oy + C * 0.25); x.stroke(); } x.beginPath(); x.moveTo(ox - 6, oy + C * 0.2); x.lineTo(ox + 48, oy + C * 0.05); x.stroke(); } });
   // 11 griffonnages
   cell(11, (x, C) => { x.strokeStyle = 'rgba(25,25,28,.6)'; x.lineWidth = 3; x.lineCap = 'round'; for (let k = 0; k < 5; k++) { x.beginPath(); let px = C * 0.1 + r() * C * 0.2, py = C * (0.2 + k * 0.15); x.moveTo(px, py); for (let i = 0; i < 12; i++) { px += 6 + r() * 14; py += (r() - 0.5) * 16; x.lineTo(px, py); } x.stroke(); } });
-  // 12 fuite : flaque sombre et brillante
-  cell(12, (x, C) => { blot(C / 2, C / 2, C * 0.46, '16,18,20', 0.4, 26); });
+  // 12 fuite : sol mouillé, à peine assombri, bord un peu plus marqué où la crasse s'accumule
+  pix(12, (u, v) => { const { d, n, fade } = shape(u, v, 11, 0.75), m = smooth(clamp((0.82 - d) / 0.14, 0, 1)), rim = m * Math.exp(-((d - 0.72) ** 2) / 0.004);
+    return [26, 25, 22, fade * (m * (0.12 + 0.08 * fbm(u * 16, v * 16, 3)) + rim * 0.14)]; });
   // 13 peinture écaillée
   cell(13, (x, C) => { for (let k = 0; k < 60; k++) { x.fillStyle = `rgba(${60 + r() * 30},${55 + r() * 25},${50 + r() * 20},${0.35 + r() * 0.4})`; x.beginPath(); const px = C / 2 + (r() - 0.5) * C * 0.8, py = C / 2 + (r() - 0.5) * C * 0.8; x.moveTo(px, py); for (let i = 0; i < 5; i++) x.lineTo(px + (r() - 0.5) * 26, py + (r() - 0.5) * 20); x.fill(); } });
   // 14 terre (salissure diffuse)
-  cell(14, (x, C) => blot(C / 2, C / 2, C * 0.48, '50,40,28', 0.16, 40));
+  pix(14, (u, v) => { const { d, fade } = shape(u, v, 3, 0.9), m = smooth(clamp((0.85 - d) / 0.3, 0, 1)); return [52, 42, 30, fade * m * (0.08 + 0.2 * fbm(u * 9 + 2, v * 9, 3))]; });
   // 15 traînée (quelqu'un a été traîné)
   cell(15, (x, C) => { for (let k = 0; k < 10; k++) { x.strokeStyle = `rgba(60,12,8,${0.15 + r() * 0.25})`; x.lineWidth = 4 + r() * 10; x.beginPath(); x.moveTo(C * 0.05, C * (0.4 + r() * 0.2)); x.lineTo(C * 0.95, C * (0.42 + r() * 0.16)); x.stroke(); } });
   const tex = toTex(c, { repeat: false }); tex.premultiplyAlpha = false;
@@ -179,6 +202,11 @@ function flatDecals() {
   if (cfg.floor) for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) {
     if (MAP.type[ti(x, z)] !== T_FLOOR) continue; const list = cfg.floor[styles[MAP.style[ti(x, z)]]]; if (!list) continue;
     for (const [cell, p, size = 1.2] of list) if (Math.random() < p) { const px = x * T + rand(0.4, 1.6), pz = z * T + rand(0.4, 1.6); decal(q, cell, px, groundAt(px, pz) + 0.004, pz, 0, 1, 0, size * rand(0.7, 1.3), size * rand(0.7, 1.3), rand(TAU), 1); }
+  }
+  // Plafonds (M.decals.ceil, même forme que floor) : auréoles d'infiltration, moisissure.
+  if (cfg.ceil) for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) {
+    if (MAP.type[ti(x, z)] !== T_FLOOR || !MAP.roof[ti(x, z)]) continue; const list = cfg.ceil[styles[MAP.style[ti(x, z)]]]; if (!list) continue;
+    for (const [cell, p, size = 1.2] of list) if (Math.random() < p) decal(q, cell, x * T + rand(0.5, 1.5), roomCeil(x, z) - 0.004, z * T + rand(0.5, 1.5), 0, -1, 0, size * rand(0.7, 1.3), size * rand(0.7, 1.3), rand(TAU), 1);
   }
   const m = q.build(false); if (m) { m.renderOrder = 2; m.userData.dynamic = true; }
 }
