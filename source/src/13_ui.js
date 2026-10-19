@@ -260,7 +260,9 @@ function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&a
 
 /* ─── Transitions d'état ─── */
 function beginGame(opts) {
-  loaderShow('start'); setTimeout(loaderHide, 1100); // carton de la carte : couvre la mise en place (plein écran, souris verrouillée)
+  // Carton de la carte : couvre la mise en place (plein écran, souris verrouillée, premières images) ; au moins 1 s et 3 images.
+  loaderShow('start'); const f0 = R.frames || 0, t0 = performance.now();
+  const wait = () => { const dt = performance.now() - t0; if (((R.frames || 0) - f0 >= 3 && dt >= 1000) || dt > 6000) loaderHide(); else setTimeout(wait, 50); }; wait();
   Sfx.init();
   $('joinPanel').classList.add('hidden'); $('lobby').classList.add('hidden');
   G.start(opts);

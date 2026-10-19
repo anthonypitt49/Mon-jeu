@@ -89,7 +89,7 @@ async function warmUp() {
     const p = (VM.cache[k + (up ? '+' : '')] ||= viewmodelParts(k, up)); if (p.holder.parent) continue;
     p.flash.visible = p.flashSide.visible = true; vg.add(p.holder); holders.push(p);
   }
-  if (!VM.knife) { VM.knife = buildKnife(); R.viewScene.add(VM.knife); VM.nade = buildGrenadeModel(true); R.viewScene.add(VM.nade); }
+  if (!VM.knife) { VM.knife = buildKnife(); VM.knife.visible = false; R.viewScene.add(VM.knife); VM.nade = buildGrenadeModel(true); VM.nade.visible = false; R.viewScene.add(VM.nade); } // (cachés hors usage, comme dans setViewmodel)
   const kv = [VM.knife.visible, VM.nade.visible]; VM.knife.visible = VM.nade.visible = true;
   // Objets cachés du décor (lueurs, effets, objets de quête…) : rendus visibles le temps du préchauffage. Jamais les lumières :
   // leur nombre entre dans chaque shader, en allumer une compilerait tout pour un éclairage que le jeu n'aura pas.
