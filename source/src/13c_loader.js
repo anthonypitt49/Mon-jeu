@@ -107,7 +107,8 @@ async function warmUp() {
   // (Avec la chaîne d'effets d'image, la scène est dessinée dans une image intermédiaire et non à l'écran : three.js en tire
   // une autre variante de shader, sans mappage des tons. On compile donc dans la même cible que le vrai rendu.)
   const rt = R.composer ? R.composer.readBuffer : null, prevRt = r.getRenderTarget(); r.setRenderTarget(rt);
-  try { await r.compileAsync(scene, cam); await r.compileAsync(vs, R.viewCam); } catch { try { r.compile(scene, cam); r.compile(vs, R.viewCam); } catch { /* compilation paresseuse */ } }
+  const par = r.extensions.has('KHR_parallel_shader_compile'); // (sinon three.js se plaint dans la console et compile d'un bloc)
+  try { if (par) { await r.compileAsync(scene, cam); await r.compileAsync(vs, R.viewCam); } else { r.compile(scene, cam); r.compile(vs, R.viewCam); } } catch { /* compilation paresseuse */ }
   r.setRenderTarget(prevRt);
   // Ombres : le cadre de la lune est élargi à toute la carte le temps de ces images, pour que chaque objet qui porte une
   // ombre ait sa variante d'ombre compilée (sinon elle l'était quand la caméra du menu passait près de lui).
