@@ -783,7 +783,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '6.3.1'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '6.3.2'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -11793,7 +11793,7 @@ function penDecor() {
   /* ── Quais : pilotis, bittes d'amarrage, bateau, grue, lampadaires ── */
   { const pil = new Batch(new THREE.CylinderGeometry(0.18, 0.2, 1, 8), fmat('boisBrut', 0x4a3a2a)); /* pieux ronds créosotés : bois brut, pas les planches du quai */
     for (let x = X(18); x <= X(45); x += 2) for (const z of [X(23), X(30)]) pil.add(x, -1.6, z, 0, 0, 0, 1, 3.8, 1);
-    for (let z = X(23); z <= X(30); z += 2) { pil.add(X(18), -1.6, z, 0, 0, 0, 1, 3.8, 1); pil.add(X(45), -1.6, z, 0, 0, 0, 1, 3.8, 1); }
+    for (let z = X(23); z <= X(30); z += 2) { pil.add(X(18), -1.6, z, 0, 0, 0, 1, 3.8, 1); pil.add(X(46), -1.6, z, 0, 0, 0, 1, 3.8, 1); } // (bord est : la rambarde du chemin de ronde, x 102 ; en x 100 les têtes de pieux sortaient du plancher à 2 m d'elle)
     for (let z = X(18); z <= X(23); z += 2) { pil.add(X(45), -1.6, z, 0, 0, 0, 1, 3.8, 1); pil.add(X(46), -1.6, z, 0, 0, 0, 1, 3.8, 1); }
     pil.build(); }
   for (const x of [X(24), X(32), X(40)]) { const g = KIT.g(x, X(30) - 0.35, 0); KIT.c(g, 0, 0.3, 0, 0.16, 0.2, 0.6, dark, 10); KIT.c(g, 0, 0.62, 0, 0.22, 0.2, 0.08, dark, 10); colliderBox(x, X(30) - 0.35, 0.45, 0.45, 0, 0.7, 'metal'); }
