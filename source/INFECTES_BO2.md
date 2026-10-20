@@ -16,6 +16,9 @@ perdent à son redémarrage) :
 
 État : la limite de sessions du propriétaire a coupé le premier passage. Faits : référence BO2, technique, personnages,
 banques. Coupés : animations, outils, les deux vérifications indépendantes, la synthèse. Relance demandée (« Réessayer »).
+La reprise du même workflow (resumeFromRunId) refaisait en direct les recherches finies (cache manqué) : arrêtée. Seconde passe
+lancée à part (workflow « recherche-infectes-bo2-suite », 7 agents) : vérifie les candidats sauvegardés, cherche animations et
+outils, puis synthèse ; elle lit les résultats de la première passe dans ce dossier au lieu de les refaire.
 
 Constats déjà sûrs (chercheur « personnages ») : aucun zombie CC0 réaliste sur Sketchfab ; le gisement utile est en CC-BY
 (compte gratuit requis pour télécharger, ou copies d'Objaverse sur Hugging Face pour les modèles d'avant 2023) ; beaucoup de
