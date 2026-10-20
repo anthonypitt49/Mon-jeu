@@ -25,3 +25,28 @@ Constats déjà sûrs (chercheur « personnages ») : aucun zombie CC0 réaliste
 zombies « réalistes » sortent d'Adobe Fuse/Mixamo (redistribution des fichiers bruts interdite : risqué) ; modèles extraits de
 Call of Duty et d'autres jeux présents sous étiquette CC-BY : exclus. Bibliothèque communautaire MakeHuman : 1 362 vêtements
 (558 CC0, 804 CC-BY) utilisables par notre chaîne actuelle.
+
+## Résultat de la recherche (seconde passe terminée, 7 agents)
+
+Plan de décision complet : `recherche_infectes/plan_decision.md` (constat classé, ressources vérifiées avec licences et accès,
+trois voies comparées, plan en 11 étapes, questions au propriétaire). Résultats bruts : `recherche_infectes/resultats_seconde_passe.json`.
+
+Recommandation : voie A (garder nos 18 infectés MakeHuman et les enrichir : yeux lumineux par carte, animations capturées CC0
+Quaternius UAL1/UAL2 et CC-BY 100STYLE, mâchoire, gibs façon BO2, matière et vêtements d'époque), plus deux variantes
+téléchargées (Hazmat CC-BY pour la Cité, soldat 1917 tiré du Panzergrenadier CC0). Voie C (IA) écartée.
+
+En attente des réponses du propriétaire (achats UAL2 Source 14,99 $, comptes Sketchfab/Gumroad, Mixamo, ordre, gore, crédits).
+
+## Plan (voie A)
+
+1. [ ] Yeux lumineux par carte (code seulement).
+2. [ ] Outil d'animations hors du jeu (UAL1 et UAL2 Standard, CC0) : reciblage sur nos 53 os, fichier compressé.
+3. [ ] Mixeur d'animations dans le jeu, avec rétro-reciblage vers le squelette procédural (tirs, gore, poupée inchangés).
+4. [ ] Os de mâchoire dans make_zombies.py, 18 GLB regénérés.
+5. [ ] Variété des démarches (100STYLE).
+6. [ ] Animations fournies par le propriétaire (UAL2 Source, pack Rohr), si achetées ou téléchargées.
+7. [ ] Gore façon BO2 (morceaux préparés, chapeaux, marcheur sans tête).
+8. [ ] Matière et vêtements d'époque.
+9. [ ] Poids et performance (meshopt, KTX2, LOD).
+10. [ ] Variantes spéciales (Hazmat, soldat 1917), téléchargées par le propriétaire.
+11. [ ] (option) Rictus figés.

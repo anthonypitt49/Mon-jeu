@@ -1,0 +1,552 @@
+{
+ "verificationsDesCandidatsSauvegardes": [
+  {
+   "key": "personnages",
+   "verified": [
+    {
+     "name": "Zombie Soldier (better_peter, Sketchfab)",
+     "url": "https://sketchfab.com/3d-models/zombie-soldier-176e930e63d144cc8f615b8dd3a8c74f",
+     "licenseConfirmed": "API Sketchfab lue : licence « CC Attribution » (CC-BY 4.0). Description de l'auteur : « You can use it freely in any of your projects » et « In this model some of Mixamo animations were uploaded ».",
+     "redistribution": "oui",
+     "downloadTest": "GET api.sketchfab.com/v3/models/176e930e…/download : HTTP 401 « Authentication credentials were not provided ». Absent de l'index Objaverse (object-paths.json.gz, 798 759 entrées vérifiées). Donc connexion requise : le propriétaire doit le télécharger à la main. Fichier non mesuré par moi. Chiffres de l'API : 7 176 faces, 3 603 sommets, 6 animations, 1 matériau, 3 textures, publié le 13/04/2025.",
+     "keep": true,
+     "why": "Licence propre (CC-BY, crédit à better_peter). Les 6 animations embarquées sont des animations Mixamo : il faut les supprimer du GLB (le jeu utilise son squelette procédural). Origine : l'auteur dit l'avoir fait pour un jeu mobile jamais sorti, ce que je ne peux pas prouver. Son compte contient aussi des reproductions de propriétés commerciales (MAX_PAYNE en CC-NC, DeLorean), mais je n'ai trouvé aucun indice d'extraction pour ce zombie. Il reste le plus proche de BO2 par le visage et la peau. Ses vêtements sont modernes (tee-shirt camouflage, gilet tactique) et ne collent à aucune des 4 époques : il servira surtout de référence de rendu, ou de base tête et bras, avec des vêtements à refaire.",
+     "quality": "Vignette vue : crâne chauve, visage arraché et sanglant, yeux blancs, avant-bras écorchés rouges, peinture de texture réaliste. Le maillage est léger (modèle mobile), mais un zombie de BO2 (2012) avait un budget comparable, donc l'écart de silhouette est faible. Résolution des textures inconnue avant téléchargement."
+    },
+    {
+     "name": "Zombie (Male 1), Zombie (Female 1), Zombie (Type Female 2) (martinezequielgorno, Sketchfab)",
+     "url": "https://sketchfab.com/3d-models/zombie-male-1-f40dda49b8b94f2faedf58679f676763",
+     "licenseConfirmed": "API Sketchfab : « CC Attribution » sur les 3 modèles. Description : « IMPORTANT: This mesh is only for ¨MIXAMO¨ and it is free for your games ». Textures annoncées : Body, Top, Bottom, Hair (et Shoes pour Female 2).",
+     "redistribution": "incertain",
+     "downloadTest": "Les 3 modèles sont absents de l'index Objaverse (vérifié). Je n'ai pas testé leur point /download un par un, mais il exige un jeton sur ce même API (401 constaté pour 2 autres modèles) : connexion requise. Chiffres de l'API : 23 890, 24 231 et 21 120 faces, 0 animation, 4 à 5 matériaux, 16 à 20 textures.",
+     "keep": false,
+     "why": "Origine très douteuse. Le même compte publie en CC-BY un « Phoenix Wright (rig) », personnage de Capcom (Ace Attorney) dont l'auteur ne peut pas détenir les droits. Il a aussi publié 7 personnages finis (5 « Character (Type Male Police / Female Police / Detective / Fire Fighter / Tactical Man 1) » et ces zombies) en environ 40 heures, les 14, 15 et 16/02/2023, numérotés « fifth », « sixth », « ninth project ». Leurs matériaux sont découpés par catégorie de vêtement (Body/Top/Bottom/Shoes/Hat/EyeWear/Gloves), comme dans les générateurs de personnages commerciaux : c'est un indice, pas une preuve. Le risque d'un contenu commercial ou extrait reprenant une étiquette CC-BY est trop élevé pour un jeu public. Ils ne sont pas non plus riggés (« only for MIXAMO », 0 animation). Ils peuvent rester une référence visuelle seulement.",
+     "quality": "Vignettes vues (Male 1, Female 1) : très réalistes, peau humide et luisante, bouche ensanglantée, chair ouverte, cheveux en cartes, chemise à carreaux tachée. Ce sont visuellement les plus proches de BO2 du lot, ce qui renforce justement le doute sur leur origine."
+    },
+    {
+     "name": "Zombie Hazmat (LxNazarov, Sketchfab)",
+     "url": "https://sketchfab.com/3d-models/zombie-hazmat-49b3b4307f6a4d2386fdb02354158d04",
+     "licenseConfirmed": "API Sketchfab : « CC Attribution » (CC-BY 4.0). Description : « Hazmat zombie with mixamo animations. I made it for an indie project, which, like every indie project, closed down. »",
+     "redistribution": "oui",
+     "downloadTest": "GET …/49b3b4307f6a4d2386fdb02354158d04/download : HTTP 401 (authentification exigée). Absent d'Objaverse (vérifié). Connexion requise. Chiffres de l'API : 15 521 faces, 7 855 sommets, 4 animations, 2 matériaux, 9 textures, publié le 17/08/2024.",
+     "keep": true,
+     "why": "Licence propre (créditer LxNazarov). Le portfolio de l'auteur est cohérent et semble original : une vingtaine de modèles CC-BY variés (véhicules cyberpunk, gobelin, médecin de peste, « Zzzombie », fermier), sans aucune reprise de personnage commercial vue. Les 4 animations sont des Mixamo et sont à retirer. Il fait une bonne variante spéciale pour la Cité (1957), à la manière des zombies à thème de BO2. Le squelette Mixamo devra être recopié sur le squelette du jeu, comme pour les infectés actuels. Sa taille reste compatible avec 24 infectés à l'écran.",
+     "quality": "Vignette vue : combinaison jaune salie, visière fêlée laissant voir un visage pourri à la bouche ouverte, gants et bottes en caoutchouc. Rendu PBR semi-réaliste, un peu stylisé et moins fin que BO2, mais lisible et dans l'esprit. Fichier non mesuré (connexion requise)."
+    },
+    {
+     "name": "Zombie « Egor » (yaveselyigolovastic, Sketchfab)",
+     "url": "https://sketchfab.com/3d-models/zombie-6ff73b06cf63405d9557720c78cf5e0c",
+     "licenseConfirmed": "API Sketchfab : « Free Standard » (slug free-st). Page sketchfab.com/licenses lue : §2.2(b) interdit de « make available the Licensed Material … in a way that allows third parties to use, download, extract or access the Licensed Material as a stand-alone file » ; §2.2(h) interdit de le rendre disponible « in a manner intended to allow or invite a third party to download, extract, redistribute ».",
+     "redistribution": "non",
+     "downloadTest": "Absent d'Objaverse (vérifié). Point /download non testé pour ce modèle (même API à jeton, connexion requise). Chiffres de l'API : 109 403 faces, 54 696 sommets, 1 animation, 1 matériau, 5 textures.",
+     "keep": false,
+     "why": "Un jeu web publié sur GitHub Pages sert le GLB au navigateur : n'importe qui peut l'extraire, ce que la licence Standard interdit (§2.2 b et h). Le modèle est aussi 8 fois trop lourd (110 000 faces) et n'a aucun vêtement d'époque. Il ne vaut que comme référence visuelle, sauf accord écrit de l'auteur.",
+     "quality": "Vignette vue : sculpture de grande qualité (côtes, chair à vif, mâchoire déformée, plaie au cou). Corps nu de type créature, plus proche d'un mutant que du civil ou soldat zombifié de BO2."
+    },
+    {
+     "name": "WW2 Panzergrenadier 2k (CC0) + kit WW2 headwear (CC0) (britdawgmasterfunk, Sketchfab)",
+     "url": "https://sketchfab.com/3d-models/ww2-panzergrenadier-2k-cc0-6a104431bcb8400080b79446ec019696",
+     "licenseConfirmed": "API Sketchfab : étiquette « CC Attribution ». Description : « CC0 / Free to use as you like unconditionaly ». Kit de casques (7092309d…) : « CC0, free to use unconditionally ». Dans le pire des cas, CC-BY : redistribution permise avec crédit.",
+     "redistribution": "oui",
+     "downloadTest": "Les deux modèles sont absents d'Objaverse (vérifié) : connexion Sketchfab requise. La version Blend Swap évoquée par le chercheur est introuvable : la recherche sur blendswap.com redirige vers l'accueil. Chiffres de l'API : soldat 27 005 faces, 13 354 sommets, 0 animation, 5 matériaux, 23 textures. Kit : 625 730 faces, 0 texture, modificateurs non appliqués (dit l'auteur).",
+     "keep": true,
+     "why": "La licence la plus sûre du lot. Je n'ai vu aucun indice d'extraction : l'auteur décrit son travail dans Blender 3.3 et GIMP, sur les proportions du mannequin UE4 (proportions seulement). Le rig Mixamo a été posé à la main, sans animation. Attention à l'époque : c'est un uniforme de 1939-1945 (vareuse feldgrau, casque M35 sous filet camouflé), pas de 1917. Pour Poste 7, il faudra retirer le filet, changer le casque (le Brodie britannique du kit est presque identique à celui de 1915-1918 ; le casque allemand du kit est un M35, proche mais pas un M1916) et revoir les poches. Il faudra aussi le zombifier avec le pipeline actuel, le réduire d'environ 27 000 à 14 000 triangles et regrouper ses 23 textures 2k. C'est la meilleure base libre pour un équivalent des soldats d'Origins.",
+     "quality": "Vignette vue : personnage réaliste et propre, en pose T, uniforme feldgrau, bretelles, cartouchières, bottes, textures PBR 2k. Bon niveau, mais humain et non zombifié."
+    },
+    {
+     "name": "Vêtements d'époque de la communauté MakeHuman (catalogue assets.json)",
+     "url": "http://www.makehumancommunity.org/clothes.html",
+     "licenseConfirmed": "assets.json téléchargé (HTTP 200, 4,0 Mo) : 3 425 éléments, dont 1 362 vêtements (804 CC-BY, 558 CC0), ce qui confirme les chiffres du chercheur. Les licences des objets cités sont confirmées une par une : Newsboy cap CC0, uniform jacket/pants/cap (train driver) CC-BY (punkduck), Wool Pants CC0, Male Crude Labcoat CC0, 19th century rural people shirt CC0, Elvs Male Trench Coat1, Flat Cap1, Mens Apron1, Male Coveralls 1, 50s Blouse/Shirt and Skirt1 CC-BY (Elvaerwyn), Male pajamas 01 CC0, CL bowler hat CC-BY, Gas Mask CC-BY. L'en-tête du .mhclo du trench indique « license CC BY 4.0 ».",
+     "redistribution": "oui",
+     "downloadTest": "Téléchargement direct sans compte, tout en HTTP 200 : uniform jacket (obj 216 Ko, mhclo, mhmat, diffuse PNG 2048², normales PNG 2048²), Elvs Male Trench Coat1 (obj 903 Ko, diffuse JPG 2048², sans normales), 19th century rural shirt (obj 968 Ko). Triangles mesurés : veste d'uniforme 5 054, trench 19 924, chemise du 19e siècle 23 120. basemesh hm08, compatible avec MPFB2.",
+     "keep": true,
+     "why": "C'est la voie la plus sûre juridiquement et elle s'intègre directement à make_zombies.py et MPFB2, avec un crédit pour les objets CC-BY. Réserves vérifiées : (1) la qualité varie ; la veste d'uniforme est bonne, mais la « 19th century rural people shirt » CC0 pèse 23 120 triangles et sa « texture » est en réalité une capture d'écran de 800×450 : inutilisable telle quelle. (2) Le trench pèse près de 20 000 triangles, plus que tout le budget actuel d'un infecté : il faudra le réduire. (3) Le Gas Mask est un GP-5 soviétique d'après-guerre, anachronique pour 1917. Il dérive du modèle Sketchfab « Russian GP-5 Gas Mask (Filter Damaged) » de frankthefish (CC Attribution, vérifié par l'API), la page MakeHuman nommant MattOades : créditer Mathias_Gredal et l'auteur source. Ces vêtements donnent les silhouettes d'époque de BO2 mais ne rendent pas à eux seuls les corps plus « BO2 ».",
+     "quality": "Rendus vus : veste d'uniforme bleue à boutons dorés, crédible avec carte de normales, bonne base pour les gardiens de 1933 une fois reteinte. Trench correct mais texture simple. Chemise rurale de qualité faible (blanc brillant, sans détail)."
+    }
+   ]
+  },
+  {
+   "key": "banques",
+   "verified": [
+    {
+     "name": "Quaternius – Universal Animation Library 2 (version Standard gratuite)",
+     "url": "https://quaternius.itch.io/universal-animation-library-2",
+     "licenseConfirmed": "CC0 1.0, vérifié à trois endroits : page itch (« Free to use in personal, educational and commercial projects. (CC0 License) »), page quaternius.com/packs/universalanimationlibrary2.html (« License CC0 ») et License.txt du zip (« CC0 1.0 Universal (CC0 1.0) Public Domain Dedication »). J'ai aussi lu quaternius.com/license.html : « Quaternius Asset License (QAL) v1.0 », mise à jour le 28/08/2026. Elle autorise l'usage dans un « Product » (jeu) publié et distribué, gratuit ou payant, sans crédit. Elle interdit seulement de redistribuer les assets « as a standalone asset, asset pack ». Son §7 dit qu'elle n'est pas rétroactive (« the version in effect at the time you obtained the Assets governs »).",
+     "redistribution": "oui",
+     "downloadTest": "OK sans compte (itch.io répond 200 depuis le conteneur). Flux : POST /download_url avec le jeton csrf, puis POST /file/17958478, puis URL Cloudflare R2 signée. Zip Standard : 18 735 003 octets (HTTP 200). Le zip contient UAL2_Standard.glb et UAL2_Standard_RM.glb (8,1 Mo chacun), les FBX Unity, un Mannequin_F (.blend, .fbx, .glb) et License.txt.",
+     "quality": "UAL2_Standard.glb mesuré : 13 744 triangles (mannequin neutre, aucune texture, 2 matériaux), 1 skin de 65 os, 43 animations, générateur « Khronos glTF Blender I/O v4.5.48 », pas de mâchoire. Clips zombie de la version gratuite : Zombie_Idle_Loop (1,33 s), Zombie_Walk_Fwd_Loop (1,33 s), Zombie_Scratch (1,80 s), plus Hit_Knockback (0,83 s) et LayToIdle (1,53 s, utilisable pour un relevé). Os : root, pelvis, spine_01-03, neck_01, Head, clavicle/upperarm/lowerarm/hand, thigh/calf/foot/ball, doigts, plus 12 os « *_leaf ». J'ai comparé avec /home/user/Mon-jeu/assets/zombies/ci_a.glb (lecture seule) : ses 53 os sont exactement un sous-ensemble des 65, à la casse près (Root/root, head/Head). Je n'ai pas rendu les animations : je ne juge pas moi-même la gestuelle.",
+     "keep": true,
+     "why": "C'est le seul candidat qui apporte des animations zombie toutes faites, sous licence sûre, sur un squelette dont les noms correspondent déjà aux infectés du jeu. Le reciblage se limite donc au calage de la pose de repos : T contre A, à vérifier. Limites face à BO2 : il n'y a que 3 clips zombie dans la version gratuite, animés à la main (pas de capture de mouvement). Les 21 clips zombie annoncés (sortie de terre, morsure, course sur 8 directions) sont dans la version Source à 14,99 $ (achat par le propriétaire) ; je ne l'ai pas vérifiée. Garder License.txt avec les fichiers et ne pas publier le pack brut séparément (exigence QAL, prudence)."
+    },
+    {
+     "name": "TextureCan – Bloody Organ, Intestine or Flesh Texture (Others 0001)",
+     "url": "https://www.texturecan.com/details/137/",
+     "licenseConfirmed": "CC0 1.0. Page texturecan.com/terms/ lue : « All the PBR textures, graphics and photos offered by TextureCan.com are under the Creative Commons CC0 1.0 Universe License… No credit or attribution is required… The textures are allowed to be redistributed togehter with your projects and 3D assets. »",
+     "redistribution": "oui",
+     "downloadTest": "Avec un simple « User-Agent: Mozilla/5.0 », le site renvoie 406 (Mod_Security). Avec des en-têtes de navigateur complets (User-Agent Chrome, Accept, Accept-Language), il répond 200. Zip 1K téléchargé : 13 491 864 octets, HTTP 200 (/downloads/others_0001/others_0001_1k_HAt2xb.zip). Zip 2K : HTTP 200 sur HEAD, 51 169 171 octets. Les liens 4K et SBSAR sont visibles sur la page mais je ne les ai pas testés.",
+     "quality": "Contenu du zip 1K : color JPG 1024², normales DirectX et OpenGL en PNG (6 Mo chacune, à recompresser), height PNG, roughness, ao. Vue à l'image : chair rouge bosselée avec un réseau de veines et des reflets rosâtres ou blanchâtres. Elle ressemble à une paroi d'organe plutôt qu'à du muscle. Raccord de pavage correct (écart de bord 5,9 contre 3,5 à l'intérieur, presque invisible). Texture procédurale Substance Designer, pas un extrait de jeu.",
+     "keep": true,
+     "why": "Texture de chair sûre (CC0), redistribuable et facile à récupérer. Elle convient aux moignons, aux coupes de membres arrachés et au cou décapité. Elle est plus vive et plus rose que le sang brun-noir de BO2 : il faudra assombrir et désaturer la couleur. La normale et la hauteur sont les cartes les plus utiles."
+    },
+    {
+     "name": "Quaternius – Universal Animation Library (1) (version Standard gratuite)",
+     "url": "https://quaternius.itch.io/universal-animation-library",
+     "licenseConfirmed": "CC0 1.0 : champ itch « Asset license : Creative Commons Zero v1.0 Universal », mention « (CC0 License) », page quaternius.com/packs/universalanimationlibrary.html « License CC0 », License.txt du zip identique à UAL2. La page itch indique aussi « Content: No generative AI was used ». La remarque sur la QAL faite pour UAL2 s'applique aussi.",
+     "redistribution": "oui",
+     "downloadTest": "OK sans compte, même flux itch (upload 17958403). Zip Standard : 15 904 933 octets, HTTP 200. Il contient UAL1_Standard.glb, UAL1_Standard_RM.glb, les FBX et License.txt. Les versions Pro (9,99 $, 41 Mo) et Source (14,99 $, 46 Mo) sont listées sur itch ; je ne les ai pas testées.",
+     "quality": "UAL1_Standard.glb mesuré : 7,6 Mo, 13 744 triangles, 65 os (même squelette que UAL2), 43 animations, aucune texture. Clips utiles pour les infectés : Hit_Chest (0,33 s), Hit_Head (0,43 s), Death01 (2,40 s), Sprint_Loop (0,67 s), Jog_Fwd_Loop (0,93 s), Walk_Loop (1,33 s), Crouch_Fwd_Loop (2,00 s), Push_Loop (2,67 s), Punch_Jab et Punch_Cross. Aucun clip zombie dans cette version. La reptation (« crawling ») et les morts supplémentaires sont mentionnées sur itch, mais seulement pour les versions payantes.",
+     "keep": true,
+     "why": "Complément sûr et gratuit à UAL2 : réactions aux balles à la tête et au torse, une mort, et un sprint pour les infectés coureurs des manches avancées. Il se recible tout seul, car le squelette est le même. C'est moins important que UAL2 : ce sont des mouvements humains génériques, pas zombie, et il n'y a qu'une seule mort dans la version gratuite. La reptation des infectés amputés de BO2 est payante."
+    },
+    {
+     "name": "TextureCan – Steak Doneness Texture (Food 0012), préréglage « Inside »",
+     "url": "https://www.texturecan.com/details/233/",
+     "licenseConfirmed": "CC0 1.0 (même page texturecan.com/terms/, citée plus haut).",
+     "redistribution": "oui",
+     "downloadTest": "Zip 1K téléchargé (HTTP 200, 15 167 981 octets, /downloads/food_0012/food_0012_1k_b2U7AJ.zip, avec en-têtes de navigateur). Il contient color, normales DirectX et OpenGL, height, roughness, ao.",
+     "quality": "Problème vérifié à l'image : les cartes téléchargeables NE SONT PAS le préréglage « Inside ». La page dit : « This texture is a medium done beef having hot pink center ». La couleur 1K est une tranche de bœuf cuit à point : centre rouge (≈ RGB 112,43,35) et large bord gris-brun cuit (≈ 106,79,65). En pavage, cela donne un quadrillage de carrés rouges encadrés de brun (vu sur un pavage 2×2 ; écart de raccord 11,2 contre 4,4 à l'intérieur). Le préréglage « Inside » (muscle uniforme) ne s'obtient qu'avec le fichier SBSAR, qu'il faut rendre avec un logiciel Substance (Adobe). Je n'ai pas testé ce rendu.",
+     "keep": false,
+     "why": "Sous sa forme téléchargeable, c'est inutilisable pour le muscle à vif : on voit de la viande cuite et un quadrillage au pavage. Il faudrait passer par Substance pour obtenir « Inside ». La chair d'organe (Others 0001) couvre déjà le besoin de gore. On pourrait recadrer le centre sur un petit patch non répétable, mais l'intérêt est faible."
+    },
+    {
+     "name": "TextureCan – Human Face Skin Texture (Skin 0001)",
+     "url": "https://www.texturecan.com/details/574/",
+     "licenseConfirmed": "CC0 1.0 (même page texturecan.com/terms/). Le fichier skin_0001_description.txt du zip indique « Author: https://www.texturecan.com ».",
+     "redistribution": "oui",
+     "downloadTest": "Zip 1K téléchargé, HTTP 200, 15 117 045 octets (/downloads/skin_0001/skin_0001_1k_tGTv2h.zip, avec en-têtes de navigateur). Il contient color, subsurface, roughness, ao (JPG), height, normales DirectX et OpenGL (PNG 1024², 6,5 Mo), un aperçu et les fichiers description et keywords.",
+     "quality": "Couleur : aplat rose-orangé sans aucun détail, inutile. Normale OpenGL : fin réseau de plis croisés et de pores, régulier, qui se répète bien (écart de raccord 12,9 contre 10,6 à l'intérieur). De près, elle tire un peu vers le cuir. Rugosité presque uniforme (valeurs 86 à 114 sur 255, soit 0,34 à 0,45). Texture procédurale Substance, pas un scan ni un extrait de jeu.",
+     "keep": true,
+     "why": "Utilisable sans risque juridique, mais le gain est modeste. Seule la normale sert, en détail répété (multiplié en UV) par-dessus la normale MakeHuman lisse, pour donner du grain à la peau vue de près. Elle n'apporte ni couleur, ni plaies, ni veines : elle ne rapproche pas à elle seule de BO2. À ranger en priorité basse."
+    },
+    {
+     "name": "OpenGameArt – ~100 grunge brushstrokes and splatters set (Dino0040)",
+     "url": "https://opengameart.org/content/100-grunge-brushstrokes-and-splatters-set",
+     "licenseConfirmed": "CC0. Page OGA lue : « License(s): CC0 », avec un lien vers creativecommons.org/publicdomain/zero/1.0/. Auteur Dino0040 (7/11/2020) : « I scanned some brushstrokes and splatter patterns I made using watercolours ». Œuvre originale scannée, pas un extrait de jeu.",
+     "redistribution": "oui",
+     "downloadTest": "OK sans compte : https://opengameart.org/sites/default/files/grunge_brushes.zip, HTTP 200, 34 694 320 octets. Le zip a été supprimé après analyse pour économiser la place.",
+     "quality": "Mesuré : 206 PNG, soit 103 brosses en RGBA avec vraie transparence plus les 103 mêmes en « increased_opacity », et 6 JPG de scans. Taille de 133×180 à 1372×1796 px. Planche teintée en rouge sang vue : environ la moitié sont de vraies éclaboussures organiques (giclées avec projections, taches, coulures) ; le reste, ce sont des coups de pinceau et des hachures, moins utiles pour du sang.",
+     "keep": true,
+     "why": "Bons masques CC0, sans crédit, pour peindre dans make_zombies.py du sang séché et de la crasse sur les vêtements et la peau. Ils servent aussi de décalques d'impact au mur et au sol. À teinter en brun-rouge sombre et à trier : garder les éclaboussures, écarter les traits de pinceau. Certains sont petits (environ 200 px) : à réserver aux petits décalques."
+    }
+   ]
+  }
+ ],
+ "nouveauxThemes": [
+  {
+   "key": "animations",
+   "research": {
+    "summary": "Thème ANIMATIONS : 9 sources classées. J'ai réutilisé les fichiers déjà téléchargés par la passe précédente (dossier /tmp/claude-0/-home-user-Mon-jeu/a5e8b0c5-d5d4-5781-9d88-2973c482adb0/scratchpad/recherche_infectes/animations/ : GLB Quaternius, BVH 100STYLE, pages CMU, Bandai, LAFAN, Mixamo) et j'ai complété en ligne. Rien n'a été modifié dans /home/user/Mon-jeu.\n\nCe qu'il faut retenir :\n1) Quaternius Universal Animation Library 1 et 2 (CC0). Mesuré dans les GLB « Standard » gratuits : 65 os aux noms du mannequin Unreal, les mêmes que nos 53 os « game_engine », donc le reciblage est presque direct. Il y a 43 clips par bibliothèque. Les clips zombies gratuits sont Zombie_Walk_Fwd_Loop, Zombie_Idle_Loop et Zombie_Scratch, avec en plus Death01, Hit_Chest, Hit_Head, Hit_Knockback, Sprint_Loop, ClimbUp_1m, LayToIdle et Punch. La version « Source » de UAL2 (14,99 $, toujours CC0, fichier .blend) ajoute 22 clips zombies : Zombie_Run en 8 directions (les sprinteurs), Zombie_Bite, Zombie_Spawn (le nom fait penser à une sortie de terre, je ne l'ai pas vu bouger) et Zombie_Walk en 8 directions. On y trouve aussi ClimbUp, SafetyVault et GetOffWall, utiles pour la fenêtre. C'est le meilleur rapport licence/qualité/facilité.\n2) Mixamo (Adobe). C'est la collection de zombies la plus complète : 42 résultats « zombie » vus dans le catalogue. Elle contient rampe, rampe rapide, réactions, chutes, relevés, morsures et grattage. La licence (reprise de la FAQ Adobe sur le forum Adobe, la page officielle renvoie 403) dit « really the only thing you can't do is distribute the raw character and animation files ». Le dépôt et le site étant publics, c'est risqué. Il faut aussi un compte Adobe.\n3) 100STYLE (CC-BY 4.0, Zenodo). Ce sont des BVH à 60 i/s, 23 articulations. Le style « Zombie » a été mesuré : marche 173 s, course 83 s, attente 36 s. Il y a aussi les styles Drunk, DragLeftLeg/DragRightLeg, LimpLeft/LimpRight, OnToesBentForward, WildArms et Old. Seulement de la locomotion, avec crédit à donner.\n4) CMU (« free for all uses », revente des données interdite). Format ASF/AMC, téléchargeable directement. On y trouve des marches zombies (sujet 104, essais 41 à 43), des marches ivres, des boiteries, des relevés du sol, des chutes et des coups. Capture ancienne et bruitée, rien de prêt pour un jeu.\n5) Pack gratuit « Halloween » d'Anderson Rohr (Gumroad, prix 0). Il contient 5 marches zombies et 4 attaques de monstre, en FBX avec un squelette Manny UE5. Licence « personal and commercial », mais « may not redistribute, resell, or repackage this pack as a standalone product ».\n\nÀ signaler comme risqué ou exclu : Bandai-Namco (CC BY-NC, sans contenu zombie), LAFAN1 d'Ubisoft (CC BY-NC-ND, exclu), Half-Eaten Zombie de G4G (fait avec l'IA, redistribution interdite, itch inaccessible depuis le conteneur), MoCap Online Zombie (payant, licence non lue).\n\nSans résultat : Truebones (aucun pack zombie trouvé ; ses conditions interdisent la redistribution des FBX/BVH), les packs gratuits Rokoko (aucun thème zombie), Hugging Face (aucun jeu de mocap zombie exploitable) et OpenGameArt (surtout des copies de Quaternius).\n\nManques communs à toutes les sources : je n'ai trouvé aucune animation libre de coups contre des planches de barricade, ni de rampe sans jambes à proprement parler (les rampes trouvées utilisent les genoux). Il faudra les faire à la main ou les tirer de Zombie_Scratch, Push_Loop et Crawl.\n\nRecommandation : base CC0 Quaternius UAL1 + UAL2 (acheter UAL2 Source pour les clips zombies complets), avec 100STYLE (CC-BY) pour varier les marches. Mixamo seulement si le propriétaire accepte le risque de licence.",
+    "candidates": [
+     {
+      "name": "Quaternius – Universal Animation Library 2 (Standard gratuit + Source 14,99 $)",
+      "url": "https://quaternius.com/packs/universalanimationlibrary2.html",
+      "kind": "animations",
+      "license": "CC0 1.0 (License.txt de l'archive lu ; page itch « Asset license Creative Commons Zero »)",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "redistribution": "oui",
+      "download": "direct",
+      "bo2Closeness": 4,
+      "eraFit": "neutre (animations sans costume), convient aux 4 époques",
+      "rigged": "Squelette de 65 os aux noms du mannequin Unreal (root, pelvis, spine_01-03, neck_01, Head, clavicle/upperarm/lowerarm/hand, thigh/calf/foot/ball, doigts). Mêmes noms que nos 53 os game_engine, reciblage quasi direct (corrections de pose de repos par infecté toujours nécessaires).",
+      "specs": "GLB mesuré : UAL2_Standard.glb 8,1 Mo, 43 clips (+ version _RM avec root motion). Utiles gratuits : Zombie_Walk_Fwd_Loop 1,3 s, Zombie_Idle_Loop, Zombie_Scratch 1,8 s, Hit_Knockback, ClimbUp_1m, LayToIdle, Melee_Hook. La Source (.blend, 130+ clips, image officielle lue) ajoute Zombie_Bite, Zombie_Run_Fwd/Bwd/L/R (+ diagonales), Zombie_Spawn, Zombie_Walk 8 directions, SafetyVault_RM, ClimbUp_2m, GetOffWall_2m, LiftAir_Hit, IdleToLay.",
+      "notes": "Meilleure source pour nous. Environ 25 clips utiles aux zombies dans la Source, 7 dans la Standard. Zombie_Run = sprinteurs BO2 ; Zombie_Spawn est prometteur pour la sortie de terre (nom seulement, pas visionné) ; ClimbUp/SafetyVault pour la fenêtre. La Source se paie sur itch (inaccessible depuis le conteneur : achat à la main), le fichier .blend peut demander une version de Blender plus récente que 4.2 (non vérifié). Pas de rampe ni de coups sur barricade dans la liste."
+     },
+     {
+      "name": "Quaternius – Universal Animation Library 1 (Standard gratuit, Pro 9,99 $, Source 14,99 $)",
+      "url": "https://quaternius.com/packs/universalanimationlibrary.html",
+      "kind": "animations",
+      "license": "CC0 1.0 (License.txt lu)",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "redistribution": "oui",
+      "download": "direct",
+      "bo2Closeness": 3,
+      "eraFit": "neutre",
+      "rigged": "Même squelette 65 os noms Unreal que UAL2",
+      "specs": "GLB mesuré : UAL1_Standard.glb 7,6 Mo, 43 clips. Utiles : Death01 2,4 s, Hit_Chest 0,3 s, Hit_Head 0,4 s, Sprint_Loop 0,7 s, Jog_Fwd_Loop, Walk_Loop, Crouch_Fwd_Loop, Punch_Jab, Punch_Cross, Push_Loop 2,7 s, Roll, Jump. Pro/Source : 120+ clips en FBX/GLB, avec d'après la page itch « crawling, death animations » (noms non vus).",
+      "notes": "Complément de UAL2 pour les morts, les impacts et la rampe (Pro). Environ 12 clips utiles en Standard. Push_Loop et Punch peuvent servir de base aux coups contre une barricade. Pro/Source à acheter à la main sur itch."
+     },
+     {
+      "name": "Mixamo (Adobe) – collection Zombie et clips associés",
+      "url": "https://www.mixamo.com",
+      "kind": "animations",
+      "license": "Licence Adobe Mixamo : utilisation libre de droits dans les projets personnels et commerciaux ; « really the only thing you can't do is distribute the raw character and animation files » (FAQ reprise sur community.adobe.com, 2022 ; la page officielle helpx.adobe.com renvoie 403 et n'a pas pu être lue)",
+      "licenseUrl": "https://community.adobe.com/questions-696/mixamo-faq-licensing-royalties-ownership-eula-and-tos-589400",
+      "redistribution": "incertain",
+      "download": "connexion requise",
+      "bo2Closeness": 4,
+      "eraFit": "neutre",
+      "rigged": "Squelette Mixamo « mixamorig » (environ 65 os, noms différents des nôtres : table de correspondance à écrire)",
+      "specs": "FBX (ou DAE) par clip, 30 i/s. Catalogue vu : 42 résultats pour « zombie », dont le pack (walk, idle, attack, run, death, neck bite, crawl, biting, dying, running crawl, scream), un second pack (punching, headbutt, kicking, reaction hit, running, 3 stand up, stumbling, agonizing, scratch idle), plus Zombie Crawling Forward, Zombie Getting Hit And Falling Forward/Onto Back, Zombie Stumble To The Right And Fall, Zombie Laying On Back/Stomach/Side To Standing Up, Zombie Reaction Hit Flinches/Stumble Back, Climb Through Fence And Jump Down.",
+      "notes": "Couverture la plus proche de BO2 (environ 40 clips utiles, dont rampe et relevé du sol). Mais le jeu est public : les GLB contenant ces animations seraient téléchargeables depuis GitHub, ce qui peut être vu comme une redistribution des fichiers bruts. RISQUÉ, décision au propriétaire. Compte Adobe requis : téléchargement à la main."
+     },
+     {
+      "name": "100STYLE (Mason, Starke, Komura 2022)",
+      "url": "https://zenodo.org/record/8127870",
+      "kind": "animations",
+      "license": "CC-BY 4.0 (métadonnées Zenodo lues ; la version reciblée d'orangeduck reprend la même licence, mais son maillage Geno est réservé à la recherche non commerciale, ne pas le prendre)",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "redistribution": "oui",
+      "download": "direct",
+      "bo2Closeness": 3,
+      "eraFit": "neutre",
+      "rigged": "BVH à 23 articulations (Hips, Chest-Chest4, Neck, Head, Collar/Shoulder/Elbow/Wrist, Hip/Knee/Ankle/Toe), sans doigts : table de correspondance simple vers nos os",
+      "specs": "BVH 60 i/s. Fichiers Zombie téléchargés et mesurés : Zombie_FW 10 377 images (173 s), Zombie_FR 4 991 (83 s), Zombie_ID 2 188 (36 s), plus des variantes de virage. Styles utiles vus sur le site : Zombie, Drunk, DragLeftLeg, DragRightLeg, LimpLeft, LimpRight, OnToesBentForward, WildArms, Old, Stiff. Archive complète 1,47 Go (fichiers par style téléchargeables séparément sur Google Drive, ce qui marche depuis le conteneur).",
+      "notes": "Excellente variété de marches titubantes et boiteuses capturées (environ 10 styles × 3 à 8 clips) pour casser l'uniformité actuelle. Locomotion seulement (pas d'attaque, de mort ni de rampe). Clips longs à découper en boucles. Crédit à donner : 100STYLE, Mason, Starke et Komura."
+     },
+     {
+      "name": "CMU Graphics Lab Motion Capture Database",
+      "url": "http://mocap.cs.cmu.edu/",
+      "kind": "animations",
+      "license": "« This dataset of motions is free for all uses… You may include this data in commercially-sold products, but you may not resell this data directly, even in converted form. » (page d'accueil lue). Remerciement demandé.",
+      "licenseUrl": "http://mocap.cs.cmu.edu/",
+      "redistribution": "oui",
+      "download": "direct",
+      "bo2Closeness": 2,
+      "eraFit": "neutre",
+      "rigged": "ASF/AMC (squelette CMU, environ 31 articulations, doigts non capturés). Des conversions BVH existent (cgspeed, Bruce Hahn), non testées",
+      "specs": "ASF/AMC 120 i/s (téléchargement testé : 120.asf + 120_22.amc). Recherches vues : zombie 6 essais (sujet 104 : ZombieWalk, ZombieWalk8, ZombieWalkRightAngleTurns ; sujets 20/21 : zombie march), drunk 6, limp 8, wounded 5, get up 27, fall 8, crawl 3, punch 20, climb 36 (aire de jeux).",
+      "notes": "Libre et accessible, mais captures anciennes (mains et orteils bruités, d'après la FAQ CMU), un acteur par essai et beaucoup de nettoyage. Utile en appoint pour les relevés du sol et les marches blessées. Crédit conseillé : « The data used in this project was obtained from mocap.cs.cmu.edu »."
+     },
+     {
+      "name": "Anderson Rohr – Free mocap pack 08 : Halloween",
+      "url": "https://andersonrohr.gumroad.com/l/mocap_pack8",
+      "kind": "animations",
+      "license": "« This pack can be used for free in both personal and commercial projects. Attribution is not required… You may not redistribute, resell, or repackage this pack as a standalone product. » (page Gumroad lue)",
+      "licenseUrl": "https://andersonrohr.gumroad.com/l/mocap_pack8",
+      "redistribution": "incertain",
+      "download": "connexion requise",
+      "bo2Closeness": 3,
+      "eraFit": "neutre",
+      "rigged": "FBX en 3 squelettes : Rokoko Default, iClone, Manny UE5 (noms proches des nôtres, non vérifié dans les fichiers)",
+      "specs": "19 clips FBX 60 i/s (5 min 54 s au total) : 01-05 Zombie_Walk, 12-13 Attack, 14-17 Monster_Attack, 18 Giant_Monster_Walk, 19 Giant_Monster_Attack, plus loup-garou, vampire et sorts (inutiles).",
+      "notes": "Mocap récente (Rokoko). 5 marches zombies et environ 6 attaques utiles. Gratuit (prix 0) mais Gumroad demande une adresse courriel : téléchargement à la main. Clause : pas de redistribution « comme produit autonome », donc intégré au jeu c'est probablement acceptable (risque faible, à confirmer). Non téléchargé, non mesuré."
+     },
+     {
+      "name": "MoCap Online – Zombie Mocap Animation Packs",
+      "url": "https://superhivemarket.com/products/zombie-mocap-animation-packs",
+      "kind": "animations",
+      "license": "« Royalty Free », texte complet de la licence non lu",
+      "licenseUrl": "",
+      "redistribution": "incertain",
+      "download": "payant",
+      "bo2Closeness": 4,
+      "eraFit": "neutre",
+      "rigged": "Squelette MotusMan_v55 (fourni)",
+      "specs": "Fichiers Blender natifs (2.83 à 3.6). Starter 4,99 $ : 26 animations ; Basic 44,99 $ : 119 ; Pro 99,99 $ : 253. Catégories annoncées : Crawling/Transitions, Hyper-Attacks, Hyper Zombie Chases, Hits, Knock Backs, Directional Deaths, On-Fire Deaths.",
+      "notes": "Le seul pack trouvé qui annonce rampe, poursuites rapides et morts directionnelles ensemble, donc très proche de BO2, mais payant et licence non vérifiée (redistribution probablement interdite). Liste des clips non vue. Superhive n'a pas été testé depuis le conteneur."
+     },
+     {
+      "name": "Bandai-Namco Research Motion Dataset 1 et 2",
+      "url": "https://github.com/BandaiNamcoResearchInc/Bandai-Namco-Research-Motiondataset",
+      "kind": "animations",
+      "license": "CC BY-NC 4.0 (README lu)",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "redistribution": "incertain",
+      "download": "direct",
+      "bo2Closeness": 1,
+      "eraFit": "neutre",
+      "rigged": "BVH, squelette propre au jeu de données",
+      "specs": "BVH. DS1 : walk, run, dash, kick, punch, slash… en 15 styles (dont old, tired, giant). DS2 : walk, run, turns, waves en 7 styles (dont elderly, exhausted). 384 931 images pour DS2.",
+      "notes": "NC = non commercial : RISQUÉ pour un jeu public. Aucune animation zombie ; seules les marches « tired/exhausted/old » auraient un intérêt. À écarter."
+     },
+     {
+      "name": "Half-Eaten Zombie – 110 Animations (G4G Assets)",
+      "url": "https://g4g-assets.itch.io/half-eaten-zombie-110-animations",
+      "kind": "personnage",
+      "license": "Licence incluse (non lue) : usage personnel et commercial dans des projets finis ; interdit « standalone resale, redistribution, sublicensing » ; réalisé avec « an AI-assisted workflow »",
+      "licenseUrl": "",
+      "redistribution": "incertain",
+      "download": "inaccessible",
+      "bo2Closeness": 3,
+      "eraFit": "fantasy et crypte, à recibler sur nos infectés",
+      "rigged": "Squelette personnalisé de 24 os (pas Unreal ni Mixamo)",
+      "specs": "110 clips annoncés (locomotion boiteuse, comportements zombies, réactions, chutes, relevés). Source à 1,99 $ avec GLB et FBX séparés.",
+      "notes": "Page itch lue dans la passe précédente ; itch.io renvoie 403 depuis le conteneur. Outil d'IA dans la chaîne de production + squelette maison de 24 os = RISQUÉ et reciblage pénible. Mentionné pour mémoire seulement."
+     }
+    ]
+   },
+   "verified": [
+    {
+     "name": "Quaternius – Universal Animation Library 2 (Standard gratuit ; Source 14,99 $)",
+     "url": "https://quaternius.com/packs/universalanimationlibrary2.html",
+     "licenseConfirmed": "CC0 1.0, confirmé à trois endroits : la page du pack (« Free to use in personal, educational and commercial projects (CC0 License) »), la page itch et le License.txt de l'archive que j'ai téléchargée (« CC0 1.0 Universal (CC0 1.0) Public Domain Dedication »). ATTENTION, c'est nouveau : la page quaternius.com/license.html affiche maintenant une « Quaternius Asset License (QAL) v1.0 », mise à jour le 28/08/2026. Elle autorise l'usage dans un jeu, même commercial, sans crédit, et interdit seulement de redistribuer les fichiers « as a standalone asset, asset pack… ». Son §7 précise : « the version in effect at the time you obtained the Assets governs ». Il faut donc garder le License.txt CC0 de l'archive avec nos sources. Même sous QAL, publier un jeu qui intègre ces fichiers est permis : « It does not restrict distributing a completed Product that merely incorporates the Assets ».",
+     "redistribution": "oui",
+     "downloadTest": "Réussi depuis le conteneur, en passant par l'API d'itch : POST /download_url, puis POST /file/17958478, puis URL signée Cloudflare R2. J'ai obtenu le zip Standard (18,7 Mo, HTTP 200). Il contient UAL2_Standard.glb (8,1 Mo), sa version _RM (avec déplacement racine), les FBX et Mannequin_F.blend. Mesures avec mon script : 13 744 triangles (mannequin), 65 os, 0 texture, 43 clips. Ils correspondent exactement à la liste du chercheur : Zombie_Walk_Fwd_Loop 1,33 s, Zombie_Idle_Loop 1,33 s, Zombie_Scratch 1,80 s, Hit_Knockback 0,83 s, ClimbUp_1m 0,67 s, LayToIdle 1,53 s, Melee_Hook 0,47 s et Melee_Hook_Rec 0,60 s, Consume 1,33 s. Os comparés avec notre fichier assets/zombies/p7_a.glb (53 os) : mêmes noms (pelvis, spine_01-03, neck_01, clavicle/upperarm/lowerarm/hand, thigh/calf/foot/ball, doigts _01-03). Seules différences : la casse de Head/head et root/Root, et les os « _leaf » en plus. J'ai lu l'image officielle de la liste Source (le fichier s'appelle pro.jpg sur le site ; source.jpg renvoie 404). Elle confirme ZOMBIE_BITE, ZOMBIE_SPAWN, ZOMBIE_RUN_FWD/BWD/L/R avec diagonales, ZOMBIE_WALK en 8 directions, SAFETYVAULT_RM, CLIMBUP_2M_RM, GETOFFWALL_2M_RM, LIFTAIR_HIT_L/R, IDLETOLAY, HIT_KNOCKBACK_RM et MELEE_KNEE/UPPERCUT. Prix vu sur itch : 14,99 $. Le .blend de la version Standard est enregistré avec Blender 4.3 (en-tête BLENDER-v403), plus récent que notre 4.2. La Source est probablement dans le même cas (non vérifié, pas achetée).",
+     "keep": true,
+     "why": "La meilleure base pour nous : licence sûre, téléchargement direct vérifié, noms d'os presque identiques aux nôtres, donc reciblage quasi direct. La Source à 14,99 $ (achat à la main) couvre la marche 8 directions, la course zombie (sprinteurs), la morsure, la sortie de terre (Spawn) et l'enjambement de fenêtre. Ce qui manque : rampe, coups sur barricade, morts variées.",
+     "quality": "Animations faites à la main (clés posées), pas de capture de mouvement, sur un mannequin générique. Correctes et lisibles, mais plus raides et plus « propres » que la capture de mouvement de BO2. Proximité BO2 estimée à 3/5 plutôt que 4/5. Je ne les ai pas visionnées : aucun navigateur, et bpy n'est pas installé dans ce shell. Ce n'est ni un fichier extrait d'un jeu ni du Mixamo : création originale de Quaternius."
+    },
+    {
+     "name": "100STYLE (Mason, Starke, Komura 2022) – styles Zombie, Drunk, DragLeftLeg/RightLeg, LimpLeft/Right, etc.",
+     "url": "https://zenodo.org/record/8127870",
+     "licenseConfirmed": "CC-BY 4.0. Lu dans les métadonnées Zenodo (license id « cc-by-4.0 », créateurs Mason, Starke, Komura, DOI 10.1145/3522618) et sur le site officiel ianxmason.com/100style : « This work is licensed under a Creative Commons Attribution 4.0 International License » et « For creative or commercial work please credit… E.g. \"The 100STYLE Dataset - Ian Mason\" ». Ne pas prendre le maillage Geno de la version reciblée (réservé à la recherche, selon le chercheur ; je ne l'ai pas revérifié).",
+     "redistribution": "oui",
+     "downloadTest": "Réussi. HEAD Zenodo : HTTP 200, content-length 1 468 515 354 (1,47 Go). Je n'ai pas tout téléchargé : j'ai lu par requête partielle (HTTP 206) le répertoire central du zip, soit 101 styles. Les dossiers Zombie, Drunk, DragLeftLeg, DragRightLeg, LimpLeft et LimpRight existent, chacun avec BR/BW/FR/FW/ID/SR/SW/TR1. J'ai extrait Zombie_FW.bvh par une seconde requête partielle (3,16 Mo compressés, 7,3 Mo décompressés). Mesure : racine Hips + 22 articulations (Chest à Chest4, Neck, Head, Collar/Shoulder/Elbow/Wrist, Hip/Knee/Ankle/Toe, sans doigts), 10 377 images à 1/60 s (173 s). Je n'ai pas testé les liens Google Drive par fichier du site.",
+     "keep": true,
+     "why": "Vraie capture de mouvement d'un acteur, avec de la variété : marches zombie, ivres, jambe traînée, boiteuses, dans plusieurs directions et vitesses. Idéal pour casser l'uniformité actuelle, et c'est la licence la plus sûre après CC0 (crédit à donner). Limites : locomotion seulement (pas d'attaque, de mort ni de rampe), longues prises à découper en boucles, squelette différent qui demande une table de correspondance et une correction de pose de repos.",
+     "quality": "Mouvement capturé, naturel, avec le poids du corps : plus proche du rendu BO2 que les animations à la main de Quaternius pour la marche. Proximité BO2 : 3 à 4 sur 5 pour la locomotion. Pas visionné ; mesures faites sur le fichier seulement."
+    },
+    {
+     "name": "Quaternius – Universal Animation Library 1 (Standard gratuit ; Pro 9,99 $ ; Source 14,99 $)",
+     "url": "https://quaternius.com/packs/universalanimationlibrary.html",
+     "licenseConfirmed": "CC0 1.0 : License.txt de l'archive téléchargée (« CC0 1.0 Universal (CC0 1.0) Public Domain Dedication ») et page du pack. Même remarque sur la nouvelle QAL v1.0 du site que pour UAL2 : garder le License.txt.",
+     "redistribution": "oui",
+     "downloadTest": "Réussi par la même API itch (upload 17958403) : zip Standard de 15,9 Mo, HTTP 200. UAL1_Standard.glb mesuré : 13 744 triangles, 65 os (même squelette que UAL2), 0 texture, 43 clips. Liste confirmée : Death01 2,40 s, Hit_Chest 0,33 s, Hit_Head 0,43 s, Sprint_Loop 0,67 s, Jog_Fwd_Loop 0,93 s, Walk_Loop 1,33 s, Crouch_Fwd_Loop 2,00 s, Punch_Jab 0,87 s, Punch_Cross 1,00 s, Push_Loop 2,67 s, Roll 1,47 s, Jump_*. Prix vus sur itch : 9,99 $ et 14,99 $. La page annonce « crawling, … death animations » pour les versions payantes. L'image officielle de la version Pro n'affiche que des silhouettes, sans noms : les noms des clips de rampe et de mort payants restent NON vus.",
+     "keep": true,
+     "why": "Complément gratuit et sûr de UAL2 pour les impacts (tête, poitrine), une mort, le sprint, et des coups de poing ou une poussée qui peuvent servir de base aux coups sur barricade. La rampe n'existerait que dans Pro ou Source, sans nom de clip vérifié.",
+     "quality": "Animations à la main, génériques et non zombies (Death01 est une chute standard). Il faudra les modifier pour les rendre zombies. Proximité BO2 : 2 à 3 sur 5. Pas visionné."
+    },
+    {
+     "name": "Anderson Rohr – Free mocap pack 08 : Halloween",
+     "url": "https://andersonrohr.gumroad.com/l/mocap_pack8",
+     "licenseConfirmed": "Page Gumroad lue (HTTP 200) : « This pack can be used for free in both personal and commercial projects. Attribution is not required… You may not redistribute, resell, or repackage this pack as a standalone product. » Prix : price_cents 0. Fiche : FBX, 19 clips (5 min 54 s au total), 60 i/s, squelettes « Rokoko Default, iClone, Manny (UE5) », nettoyé avec Rokoko Studio. Liste confirmée : 01-05 Zombie_Walk, 12-13 Attack, 14-17 Monster_Attack, 18 Giant_Monster_Walk, 19 Giant_Monster_Attack ; le reste (loup-garou, vampire, sorts) ne nous sert pas.",
+     "redistribution": "oui",
+     "downloadTest": "NON testé. Produit gratuit, mais Gumroad demande une adresse courriel au passage en caisse, et je n'utilise pas celle du propriétaire. À télécharger à la main (« connexion requise » : courriel). Fichiers non mesurés. Les noms d'os du squelette Manny UE5 ne sont PAS identiques aux nôtres (UE5 a spine_01 à 05 et neck_01 à 02 ; nous avons spine_01 à 03 et neck_01) : une petite table de correspondance sera nécessaire.",
+     "keep": true,
+     "why": "Seule interdiction : la revente ou redistribution du pack comme produit autonome. Intégrer ces clips dans le jeu reste permis, risque faible. Apporte 5 marches zombies et environ 6 attaques en vraie capture de mouvement, ce qui complète UAL2 et 100STYLE (qui n'ont presque pas d'attaques). À garder sous réserve du téléchargement à la main et d'une vérification des fichiers.",
+     "quality": "Capture de mouvement récente (combinaison Rokoko), donc naturelle. Proximité BO2 estimée à 3 sur 5 d'après la description seulement : non visionné, non mesuré."
+    },
+    {
+     "name": "Mixamo (Adobe) – collection Zombie et clips associés",
+     "url": "https://www.mixamo.com",
+     "licenseConfirmed": "La page officielle helpx.adobe.com/creative-cloud/faq/mixamo-faq.html se lit aujourd'hui (HTTP 200) : « You can use both characters and animations royalty free for personal, commercial, and non-profit projects including: … Create video games. » Elle ne parle pas de redistribution. La FAQ Adobe sur community.adobe.com (2022) range dans « NO, you cannot create » : « Any type of free distribution of character or animation raw files ».",
+     "redistribution": "incertain",
+     "downloadTest": "Catalogue vérifié avec l'API publique du site (HTTP 200) : exactement 42 résultats pour « zombie » (Scary et Not So Scary Zombie Pack, Zombie Crawl, Running Crawl, Zombie Stand Up ×3, Zombie Death, Dying, Biting, Neck Bite, Reaction Hit ×2, Stumbling, Punching, Headbutt, Kicking, Scream, Agonizing, etc.). Le téléchargement des FBX demande un compte Adobe (non testé, connexion requise).",
+     "keep": false,
+     "why": "C'est la couverture la plus proche de BO2 : rampe, relevés, morsures, réactions, en capture de mouvement. Mais notre jeu sert ses GLB publiquement : n'importe qui peut récupérer l'animation brute, ce que la FAQ Adobe interdit (« free distribution of … animation raw files »). Le risque n'est pas levé par la page officielle, qui n'en dit rien. À écarter par défaut : c'est au propriétaire d'accepter ou non ce risque. UAL2 Source, 100STYLE et le pack Rohr couvrent l'essentiel sans ce risque.",
+     "quality": "Capture de mouvement de bonne qualité, 4 sur 5 face à BO2. Source officielle d'Adobe, pas un fichier extrait d'un jeu."
+    },
+    {
+     "name": "MoCap Online – Zombie Mocap Animation Packs (Superhive)",
+     "url": "https://superhivemarket.com/products/zombie-mocap-animation-packs",
+     "licenseConfirmed": "Superhive (HTTP 200) affiche seulement « License: Royalty Free », avec les prix : Starter 4,99 $ (26 animations), Basic 44,99 $ (119), Pro 99,99 $ (253 animations, 518 fichiers). J'ai lu la Standard License de MoCap Online (mocaponline.com/pages/standard-license). Elle impose : « The integration of the Character Animation… must be in such a manner that prevents their extraction for further distribution… », « Distribution is allowed only as binary-only », et un plafond d'un million d'utilisateurs finaux.",
+     "redistribution": "non",
+     "downloadTest": "Page de vente accessible (HTTP 200). Pack payant, donc non téléchargé et non mesuré.",
+     "keep": false,
+     "why": "La licence exige une distribution binaire dont on ne peut pas extraire les animations. Or un jeu web three.js sert des GLB lisibles, donc récupérables par n'importe qui depuis GitHub Pages : c'est incompatible. En plus, c'est payant. À écarter, malgré le contenu le plus proche de BO2 (rampe, poursuites rapides, morts directionnelles).",
+     "quality": "Capture de mouvement professionnelle, probablement 4 sur 5 face à BO2. Non visionné."
+    }
+   ]
+  },
+  {
+   "key": "outils",
+   "research": {
+    "summary": "Thème OUTILS. J'ai fait des tests réels sans écran, avec le bpy 4.2 de pip (/tmp/claude-0/-home-user-Mon-jeu/a5e8b0c5-d5d4-5781-9d88-2973c482adb0/scratchpad/blender_env) et MPFB 2.0.17. Rien n'a été modifié dans /home/user/Mon-jeu.\n\nCe qui marche dans le conteneur (4 cœurs, 15 Go, sans carte graphique) :\n1) Mâchoire. Le squelette MPFB « default » compte 163 os, dont `jaw` (parent `head`) ; 911 sommets du corps de base y sont pondérés. Le proxy allégé hérite du groupe `jaw`. L'export GLB contient bien l'os.\n2) Formes de visage. MPFB 2.0.17 sait charger les packs visemes01/02 et faceunits01 (52 formes ARKit, CC0). Il les reporte sur les enfants (proxy, vêtements) et l'« export copy » peut les inclure. Résultats mesurés :\n   - sur le proxy male_muscle_13290 : 51 formes sur 52 reportées ; GLB de 26 576 triangles, 163 os et 51 formes, 1,7 Mo sans texture ;\n   - sur une copie allégée par Decimate, report par Surface Deform : 13 648 triangles, jawOpen fait bouger 838 sommets (≈ 3,4 cm), en 2 s. Le blocage noté dans technique_threejs.md (« Decimate efface les formes ») est donc levé.\n3) Gore façon BO2 (modèles g_rarmoff/g_legsoff, membres séparés). On découpe par os dominant avec bmesh : l'avant-bras gauche du proxy donne 1 814 faces séparées. Le bouchage du moignon n'est pas testé.\n4) Rigify est inclus dans bpy de pip. La génération sans écran depuis la métarig MPFB marche : 930 os, dont 181 de déformation (59 au visage, avec DEF-jaw). C'est trop lourd pour 24 infectés, mais utile pour animer dans Blender puis cuire sur le squelette du jeu.\n5) Vêtements MakeHuman d'époque. Licences lues dans l'en-tête de chaque fichier .mhclo : costumes Toigo en CC0 ; chapeau melon, casquette plate, trilby, haut-de-forme, casque colonial, bleu de travail, chemises, pantalons, bottes en CC-BY. Piège : la chemise rayée de bagnard « ews_striped_shirt » est vendue dans un pack CC-BY, mais son fichier dit « AGPL3 ».\n6) Peau zombie CC0 (pack skins03) : sohh_female_zombie_skin, 4096², vue, correcte sans plus.\n\nGénération 3D par IA :\n- Aucune ne tourne ici : TRELLIS.2 exige un GPU NVIDIA de 24 Go, et UniRig exige CUDA, spconv et flash_attn.\n- TRELLIS / TRELLIS.2 et TripoSG : poids sous licence MIT. Leurs espaces Hugging Face tournent sur ZeroGPU (état RUNNING vérifié), mais je n'ai lancé aucune génération : qualité des visages non vérifiée.\n- Meshy : conditions lues. Gratuit = CC BY 4.0 avec crédit à Meshy, plus l'interdiction de retirer les marqueurs d'IA.\n- Hunyuan3D 2 / 2.1 : la licence ne s'applique PAS dans l'UE, au Royaume-Uni ni en Corée du Sud. À exclure si le propriétaire vit dans l'UE.\n- Tripo : conditions illisibles (403). Selon des sources secondaires, le gratuit serait en CC BY 4.0 public : non vérifié.\n- Rodin : la page de prix n'accorde « export illimité et tout usage » qu'aux offres payantes.\n- Stable Fast 3D : licence Stability Community, gratuite sous 1 M$ de revenus.\n- AccuRIG : Windows seulement, compte ActorCore obligatoire ; licence d'usage lue seulement sur un forum.\n\nRecommandation : rester sur MakeHuman et enrichir la chaîne (options 1 à 5), plutôt que passer à la génération par IA (licences floues, pas de squelette, GPU obligatoire).\n\nFichiers de test :\n- scripts /tmp/claude-0/-home-user-Mon-jeu/a5e8b0c5-d5d4-5781-9d88-2973c482adb0/scratchpad/recherche_infectes/outils/scripts/test_machoire.py et /tmp/claude-0/-home-user-Mon-jeu/a5e8b0c5-d5d4-5781-9d88-2973c482adb0/scratchpad/recherche_infectes/outils/scripts/test_report_formes.py ;\n- GLB /tmp/claude-0/-home-user-Mon-jeu/a5e8b0c5-d5d4-5781-9d88-2973c482adb0/scratchpad/recherche_infectes/outils/test/proxy_jaw_arkit.glb ;\n- aperçu de la peau /tmp/claude-0/-home-user-Mon-jeu/a5e8b0c5-d5d4-5781-9d88-2973c482adb0/scratchpad/recherche_infectes/outils/dl_skins/apercu_sohh.jpg.",
+    "candidates": [
+     {
+      "name": "1. Mâchoire articulée : os « jaw » du squelette MPFB « default » greffé sur le squelette « game_engine »",
+      "url": "https://github.com/makehumancommunity/mpfb2",
+      "kind": "outil",
+      "license": "Code MPFB : GPL-3.0-or-later (outil hors du jeu, non distribué). Squelette et poids rig.default.json / weights.default.json : CC0 (indiqué dans le fichier, déjà relevé dans technique_threejs.md)",
+      "licenseUrl": "https://github.com/makehumancommunity/mpfb2",
+      "redistribution": "oui",
+      "download": "direct",
+      "bo2Closeness": 5,
+      "eraFit": "les 4 cartes",
+      "rigged": "oui : 163 os dont jaw (parent head), plus tongue00 à tongue07 et eye.L/R",
+      "specs": "Testé sans écran (bpy 4.2 de pip + MPFB 2.0.17, 3,4 s) : 911 sommets du corps de base pondérés sur jaw ; le proxy male_muscle_13290 reçoit le groupe jaw ; export GLB réussi avec l'os jaw présent (glbinfo).",
+      "notes": "C'est ce que fait BO2 (bouche pendante animée par un os). Le plus simple : dans make_zombies.py, ajouter l'os jaw (tête et queue copiées du squelette default) au squelette game_engine. Il faut aussi reprendre son groupe de poids et l'enlever du groupe head. Les dents du bas et la langue doivent suivre. Côté jeu, la valeur procédurale p.jaw existante tourne cet os. Coût : 1 os de plus sur 53, négligeable."
+     },
+     {
+      "name": "2. Formes de visage ARKit « Faceunits 01 » (52 formes) reportées sur le maillage allégé par Surface Deform",
+      "url": "http://static.makehumancommunity.org/assets/assetpacks/faceunits01.html",
+      "kind": "outil",
+      "license": "CC0 (page des packs : « The assets are shared under CC0 » pour Visemes 01, Visemes 02 et Faceunits 01)",
+      "licenseUrl": "http://static.makehumancommunity.org/assets/assetpacks.html",
+      "redistribution": "oui",
+      "download": "direct",
+      "bo2Closeness": 3,
+      "eraFit": "les 4 cartes",
+      "rigged": "formes (morph targets) en plus du squelette",
+      "specs": "Testé sans écran. 52 cibles chargées sur le corps, 51 reportées par MPFB (FaceService.interpolate_targets) sur le proxy male_muscle_13290. GLB : 26 576 triangles, 51 formes, 1,7 Mo sans texture. Report par Surface Deform vers une copie allégée par Decimate (proxy male_generic, ratio 0,5 → 13 648 triangles) : jawOpen bouge 838 sommets (max 0,034 unité ≈ 3,4 cm), mouthStretchLeft 408, mouthUpperUpLeft 275, noseSneerLeft 306. Durée : 2 s.",
+      "notes": "Lève le blocage noté dans technique_threejs.md (Decimate efface les formes). MPFB 2.0.17 a aussi un panneau MakeExpression et l'« export copy » sait inclure visemes et faceunits (code lu dans createexportcopy.py). Pour le jeu, garder 3 ou 4 formes (jawOpen, noseSneer, mouthUpperUp, mouthStretch) afin de figer un rictus aléatoire ou de l'animer. C'est au-delà de BO2, dont les têtes étaient fixes avec une mâchoire. Penser au préchauffage du shader avec morph targets."
+     },
+     {
+      "name": "3. Découpe « gore » hors du jeu : corps abîmés et membres séparés par os dominant (script bpy/bmesh)",
+      "url": "https://pypi.org/project/bpy/",
+      "kind": "outil",
+      "license": "Blender / bpy : GPL (outil hors du jeu ; le résultat appartient au créateur)",
+      "licenseUrl": "https://pypi.org/project/bpy/",
+      "redistribution": "oui",
+      "download": "direct",
+      "bo2Closeness": 5,
+      "eraFit": "les 4 cartes",
+      "rigged": "les morceaux gardent les poids du squelette",
+      "specs": "Testé sans écran : sélection des sommets dont l'os dominant est lowerarm*.L, wrist, metacarpal ou finger*.L, puis bmesh.ops.split. 1 827 sommets, 1 814 faces séparées sur le proxy de 13 288 faces. Bouchage du moignon (holes_fill + matériau « chair ») : NON testé.",
+      "notes": "Reproduit la méthode BO2 lue dans reference_bo2.md : corps g_rarmoff, g_larmoff, g_legsoff, g_behead et membres lancés séparément. Dans le GLB, chaque zone (tête, bras G et D, avant-bras, jambes) devient une primitive séparée sur le même squelette, avec un capuchon de moignon caché. Arracher = masquer la primitive, afficher le capuchon, lancer une copie du membre. Pas de découpe en temps réel. Cell Fracture n'est pas fourni dans bpy 4.2 (absent de addons_core) et n'est pas utile ici."
+     },
+     {
+      "name": "4. Vêtements d'époque des packs communautaires MakeHuman (hats01-04, suits01/03, shirts02, pants01/02, shoes01/03)",
+      "url": "http://static.makehumancommunity.org/assets/assetpacks.html",
+      "kind": "autre",
+      "license": "Par pack : CC0 (hats01, hats02, suits01, shirts01, pants01, shoes01, gloves01, masks01) ou CC-BY (hats03, hats04, suits03, shirts02, shirts03, pants02, shoes03, equipment03). Vérifié dans l'en-tête des .mhclo : toigo_male_suit_3 « license CC0 », elvs_male_shirt_untucked_bd1 « CC_by » (Elvaerwyn), elvs_male_coveralls_1 « CC-BY » (Elvaerwyn), drednicolson_pith_helmet « CCBY ». ATTENTION : ews_striped_shirt dit « license AGPL3 » malgré le pack CC-BY.",
+      "licenseUrl": "http://static.makehumancommunity.org/assets/assetpacks.html",
+      "redistribution": "oui",
+      "download": "direct",
+      "bo2Closeness": 4,
+      "eraFit": "1880 Filon : melon (culturalibre_cl_bowler_hat), casquette plate (elvs_male_flat_cap1), gavroche (jujube_newsboy_cap, CC0), haut-de-forme, bleu de travail (elvs_male_coveralls_1), chemises (elvs_male_shirt_untucked_bd1), toigo_wool_pants (CC0), maciekg_leather_boots, punkduck_riding_boots / winter_boots. 1917 Poste 7 : casque colonial (drednicolson_pith_helmet), mindfront_patrol_cap, bottes cavalières ; pas de casque Adrian ou Brodie (mrgreaterthan_m1_helmet en CC0 est un casque US de 1941). 1933 Pénitencier : chemise rayée (licence à clarifier), bleu de travail, costumes Toigo croisés (CC0). 1957 Cité : costumes Toigo (CC0), trilby (elvs_male_trilby_hat), chemise et cravate, polo (CC0), jeans.",
+      "rigged": "oui, via MPFB (mhclo suivent le corps et le squelette)",
+      "specs": "Listing à distance des zips (lecture partielle du répertoire central) : hats02_cc0 24 Mo, hats04_cc-by 18 Mo, hats03_cc-by 76 Mo, suits01_cc0 43 Mo, suits03_cc-by 105 Mo. URL de forme https://files.makehumancommunity.org/asset_packs/<pack>/<pack>_cc0.zip ou _ccby.zip ou _cc-by.zip (vérifier le lien sur la page de chaque pack). Aucun pack n'est encore installé dans MPFB (seuls les vêtements système le sont).",
+      "notes": "Fournit la silhouette d'époque qui manque (melon et bleu de mineur, costume des années 30 et 50). Les chapeaux qui sautent sur un tir à la tête non mortel existent aussi dans BO2. Crédits CC-BY à prévoir : Elvaerwyn, DredNicolson, Mindfront, punkduck, culturalibre, maciekg. Écarter ews_striped_shirt tant que la licence n'est pas tranchée, ou refaire des rayures sur une chemise CC0. Les vêtements CC-BY ajoutent des triangles : à alléger comme le reste."
+     },
+     {
+      "name": "5. Peaux « zombie » CC0 du pack MakeHuman skins03 (sohh_female_zombie_skin, naim_abbassi_zombie_skin)",
+      "url": "http://static.makehumancommunity.org/assets/assetpacks.html",
+      "kind": "texture",
+      "license": "CC0 (pack « Material assets, shared under CC0 » ; ligne « license CC0 » lue dans sohh_female_zombie_skin.mhmat)",
+      "licenseUrl": "http://static.makehumancommunity.org/assets/assetpacks.html",
+      "redistribution": "oui",
+      "download": "direct",
+      "bo2Closeness": 2,
+      "eraFit": "les 4 cartes (peau seule)",
+      "rigged": "sans objet (texture sur l'UV du corps MakeHuman)",
+      "specs": "Zip skins03_cc0 de 136 Mo ; je n'en ai extrait que les fichiers zombie. sohh_Zombie_Female_diffuse.png : 4096×4096, diffuse seule, sans carte normale. naim_abbassi_zombie_skin : extraction interrompue par le mandataire, non vue.",
+      "notes": "Vue en réduction : peau pâle marbrée de veines, plaie sanglante au thorax, ecchymoses, visage aux yeux et lèvres rougis. Correct mais en dessous de BO2. L'UV du corps de base MakeHuman est commune aux deux sexes : utilisable comme couche de mélange (sang, veines) dans la peinture actuelle de make_zombies.py, pas comme remplaçant."
+     },
+     {
+      "name": "6. Rigify (inclus dans bpy de pip) avec la métarig MPFB « rigify.human »",
+      "url": "http://static.makehumancommunity.org/mpfb/docs/rigging_posing/rigify.html",
+      "kind": "outil",
+      "license": "Rigify : extension intégrée à Blender (GPL) ; les squelettes générés appartiennent au créateur",
+      "licenseUrl": "https://pypi.org/project/bpy/",
+      "redistribution": "oui",
+      "download": "direct",
+      "bo2Closeness": 2,
+      "eraFit": "les 4 cartes",
+      "rigged": "oui : 930 os générés, 181 de déformation dont 59 au visage (DEF-jaw, lèvres, paupières, sourcils)",
+      "specs": "Testé sans écran : HumanService.add_builtin_rig(..., 'rigify.human') puis bpy.ops.pose.rigify_generate() → {'FINISHED'}.",
+      "notes": "Trop lourd pour 24 infectés dans le navigateur. Son intérêt : animer à la main dans Blender (cinématiques, animations de sortie de terre ou de fenêtre façon BO2) avec de vrais contrôleurs, puis cuire le résultat sur les 53 ou 54 os du jeu. À garder pour plus tard, pas prioritaire."
+     },
+     {
+      "name": "7. TRELLIS.2 (Microsoft) / TRELLIS / TripoSG : génération image → 3D à poids ouverts",
+      "url": "https://huggingface.co/spaces/microsoft/TRELLIS.2",
+      "kind": "outil",
+      "license": "MIT (cardData Hugging Face de microsoft/TRELLIS.2-4B, microsoft/TRELLIS-image-large et VAST-AI/TripoSG ; badge MIT du dépôt GitHub microsoft/TRELLIS.2)",
+      "licenseUrl": "https://huggingface.co/microsoft/TRELLIS.2-4B",
+      "redistribution": "oui",
+      "download": "non testé",
+      "bo2Closeness": 2,
+      "eraFit": "dépend de l'image d'entrée",
+      "rigged": "non : maillage statique texturé (PBR), à rigger ensuite",
+      "specs": "README : « An NVIDIA GPU with at least 24GB of memory is necessary », Linux, CUDA 12.4 → impossible dans le conteneur (pas de GPU). Les espaces microsoft/TRELLIS.2, trellis-community/TRELLIS et VAST-AI/TripoSG sont en état RUNNING sur zero-a10g (API vérifiée), donc utilisables gratuitement avec quota ZeroGPU (compte Hugging Face conseillé).",
+      "notes": "Seule piste IA sans souci de licence. Mais je n'ai lancé aucune génération : qualité des visages, mains et vêtements NON vérifiée. Le maillage sort sans squelette ni symétrie de topologie : il faudrait un auto-rig (option 9) et une refonte, et le zombie quitterait la chaîne MakeHuman (plus de mâchoire ni de poids propres). Intérêt réaliste : accessoires (casques 1917, lampes de mineur, menottes) plutôt que corps entiers. Les images d'entrée ne doivent pas venir de BO2."
+     },
+     {
+      "name": "8. Meshy (génération 3D en ligne, avec auto-rig et animations)",
+      "url": "https://www.meshy.ai/terms-of-use",
+      "kind": "outil",
+      "license": "Conditions lues (§3.2) : offre gratuite = Meshy propriétaire, sorties sous CC BY 4.0 avec crédit à Meshy ; offre payante = l'utilisateur possède ses sorties. Publication dans la Communauté = CC0 (§3.3). Interdiction de retirer les marqueurs d'IA (§2.4). Rigs et animations « Service Assets » licenciés seulement intégrés à la sortie (§3.1).",
+      "licenseUrl": "https://www.meshy.ai/terms-of-use",
+      "redistribution": "incertain",
+      "download": "connexion requise",
+      "bo2Closeness": 2,
+      "eraFit": "selon la demande",
+      "rigged": "auto-rig proposé par le service (non testé)",
+      "specs": "Ne tourne pas en local. Pas d'API gratuite vérifiée.",
+      "notes": "Utilisable en CC BY 4.0 (créditer Meshy) mais classé risqué : sorties d'IA, marqueurs à conserver, et deux zombies Meshy déjà repérés sur Sketchfab (candidats.md) montrent un rendu « IA » peu proche de BO2. Qualité des visages non vérifiée par moi."
+     },
+     {
+      "name": "9. UniRig (VAST-AI-Research) : auto-rig par IA pour maillages quelconques",
+      "url": "https://github.com/VAST-AI-Research/UniRig",
+      "kind": "outil",
+      "license": "MIT (fichier LICENSE du dépôt ; cardData Hugging Face VAST-AI/UniRig : mit)",
+      "licenseUrl": "https://github.com/VAST-AI-Research/UniRig",
+      "redistribution": "oui",
+      "download": "non testé",
+      "bo2Closeness": 1,
+      "eraFit": "sans objet",
+      "rigged": "produit squelette + poids (FBX)",
+      "specs": "Dépendances lues dans le README : PyTorch ≥ 2.3.1, spconv-<version CUDA>, torch_scatter/torch_cluster CUDA, flash_attn → GPU NVIDIA obligatoire, impossible ici. Le README annonce un successeur, SkinTokens.",
+      "notes": "N'a d'intérêt que si l'on prend des corps faits par IA (option 7) ou des modèles sans squelette. Pour MakeHuman, MPFB rigge déjà parfaitement. AccuRIG (Reallusion), l'alternative grand public, est Windows seulement, demande un compte ActorCore même pour exporter, et sa licence d'usage n'est attestée que par un forum : non vérifiée."
+     },
+     {
+      "name": "10. À écarter : Hunyuan3D 2 / 2.1 (Tencent), et réserves sur Tripo, Rodin et Stable Fast 3D",
+      "url": "https://huggingface.co/tencent/Hunyuan3D-2.1",
+      "kind": "outil",
+      "license": "Tencent Hunyuan Community License : « THIS LICENSE AGREEMENT DOES NOT APPLY IN THE EUROPEAN UNION, UNITED KINGDOM AND SOUTH KOREA », et §c : pas d'usage ni de distribution des sorties hors Territoire. Lu dans le LICENSE du dépôt GitHub Tencent-Hunyuan/Hunyuan3D-2.1.",
+      "licenseUrl": "https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1/blob/main/LICENSE",
+      "redistribution": "non",
+      "download": "non testé",
+      "bo2Closeness": 2,
+      "eraFit": "sans objet",
+      "rigged": "non",
+      "specs": "Espace tencent/Hunyuan3D-2.1 RUNNING sur zero-a10g ; ne tourne pas dans le conteneur (GPU).",
+      "notes": "Interdit si le propriétaire vit dans l'UE : la licence ne s'y applique pas. Autres réserves vérifiées : Rodin/Hyper3D n'accorde « Unlimited export and any use » qu'aux offres payantes (page de prix lue). Stable Fast 3D et SPAR3D sont sous Stability AI Community License : gratuit sous 1 M$ de revenus, sorties à l'utilisateur, mais inscription demandée pour un usage commercial (licence d'IA, risque modéré). Tripo : pages de conditions en 403, seul un résumé de recherche dit « gratuit = CC BY 4.0 public », non vérifié."
+     }
+    ]
+   },
+   "verified": [
+    {
+     "name": "1. Mâchoire articulée : os « jaw » du squelette MPFB « default » greffé sur « game_engine »",
+     "url": "https://github.com/makehumancommunity/mpfb2",
+     "licenseConfirmed": "Lu : blender_manifest.toml de MPFB 2.0.17 installé = « SPDX:GPL-3.0-or-later » (outil, non distribué). LICENSE.md du dépôt (raw.githubusercontent.com, lu), section C : « Rigs, poses and expressions [...] have been released under CC0 1.0 Universal ». weights.default.json et weights.game_engine.json contiennent « \"license\": \"CC0\" ». Correction : rig.default.json, lui, n'a pas de champ licence ; c'est LICENSE.md qui le couvre.",
+     "redistribution": "oui",
+     "downloadTest": "github.com renvoie 403 par le mandataire, mais raw.githubusercontent.com donne 200 (LICENSE.md lu). MPFB 2.0.17 est déjà installé dans /root/.config/blender/4.2/extensions/user_default/mpfb (le chemin « .user/ » du script du chercheur n'existe pas). La page MakeHuman annonce une version 2.0.18. Mon propre test sans écran (bpy 4.2, 1,5 s) : os jaw lu dans le squelette default (163 os, parent head), greffé sur game_engine (53 → 54 os) ; 911 sommets du corps pondérés jaw, avec les autres poids multipliés par (1-w). Ajout des dents après la greffe : teeth_base a 1 884 sommets sur 3 868 sur jaw (la mâchoire du bas, tous au-dessus de 0,5). PROBLÈME : la langue tongue01 n'a que 2 sommets sur 226 pondérés jaw. Elle ne suit donc PAS toute seule et il faut la pondérer à la main (toute la langue sur jaw, par exemple). Les yeux restent sur head, ce qui est correct. Rotation de 20° : les dents bougent jusqu'à 3,3 cm et 107 sommets du corps de plus de 2 cm. GLB exporté (/tmp/claude-0/-home-user-Mon-jeu/a5e8b0c5-d5d4-5781-9d88-2973c482adb0/scratchpad/recherche_infectes/verif_outils/test/ge_jaw.glb, 1,7 Mo, sans allègement ni texture) : 1 skin de 54 os avec jaw.",
+     "keep": true,
+     "why": "Utile et peu coûteux (1 os). Le jeu a déjà BN.jaw et p.jaw dans source/src/09_zombies.js (lignes 6, 316, 344, 346, 352), donc l'animation existe et seul le modèle n'a pas l'os. Non testé : le passage complet par make_zombies.py (Decimate garde normalement les groupes de poids) et l'orientation locale de l'os jaw au moment de recopier la rotation dans le reciblage (axe ou signe peut-être à corriger). Corrections au chercheur : la langue ne suit pas automatiquement, et la mention CC0 vient de LICENSE.md et non de rig.default.json.",
+     "quality": "Propre à BO2 : bouche qui s'ouvre sur les attaques et les cris. Rien d'extrait d'un jeu commercial (données MakeHuman CC0)."
+    },
+    {
+     "name": "3. Découpe « gore » hors du jeu par os dominant + bouchage du moignon (bpy/bmesh)",
+     "url": "https://pypi.org/project/bpy/",
+     "licenseConfirmed": "PyPI (JSON lu) : bpy « GPL-3.0 », dernière version 5.2.2 (4.2 installée). Page blender.org/about/license (lue) : « What you create with Blender is your sole property. » Le résultat n'est pas sous GPL.",
+     "redistribution": "oui",
+     "downloadTest": "bpy 4.2 fonctionne déjà dans /tmp/claude-0/-home-user-Mon-jeu/a5e8b0c5-d5d4-5781-9d88-2973c482adb0/scratchpad/blender_env. Mon test porte sur le corps de base (celui que le jeu utilise) après ExportService.bake_modifiers_remove_helpers : 13 380 sommets, 13 378 faces, maillage fermé (0 bord). PIÈGE : le corps a des groupes qui ne sont pas des os (« body », « HelperGeometry », « JointCubes », « Left », « Mid », « Right »...). Sans filtre, l'os dominant n'est jamais lowerarm_l et la sélection est vide (0 sommet à mon premier essai) ; il faut ne garder que les groupes qui sont des os. Avec le filtre : 1 843 sommets et 1 828 faces (lowerarm_l, hand_l, doigts _l) séparés par bmesh.ops.split, ce qui donne 52 arêtes de bord nouvelles, soit 2 boucles de 26 (moignon et morceau). holes_fill les ferme toutes (0 bord ensuite), avec 2 faces de 26 côtés, soit 48 triangles. Le bouchage, non testé par le chercheur, est donc vérifié ici. Cell Fracture est bien absent de addons_core.",
+     "keep": true,
+     "why": "Techniquement validé et conforme à la méthode BO2 (corps et membres préparés à l'avance). Limites honnêtes : la coupe suit les arêtes du maillage (bord en escalier selon les quads), et le capuchon est un polygone plat de 26 côtés, sans UV ni matériau. Pour approcher BO2, il faudra un capuchon « chair et os » modelé ou texturé, ou un décalque. Non testé : l'export en primitives séparées sur un même squelette, et le comportement après Decimate (à faire de préférence après la découpe, ou en protégeant la couture).",
+     "quality": "Le rendu dépend du capuchon et de la texture de chair, qui restent à faire."
+    },
+    {
+     "name": "4. Vêtements d'époque des packs MakeHuman (hats01-04, suits01/03, shirts02, pants01/02, shoes03)",
+     "url": "https://static.makehumancommunity.org/assets/assetpacks.html",
+     "licenseConfirmed": "Page lue : « Mesh assets shared under CC0 » (Hats 01, Hats 02, Pants 01, Shirts 01, Shoes 01, Suits 01, Suits 02) et « Mesh assets shared under CC-BY » (Hats 03, Hats 04, Pants 02, Shirts 02, Shoes 03, Suits 03). MAIS l'en-tête de chaque .mhclo, lu à distance, contredit parfois le pack. Confirmés : toigo_male_suit_3 et tous les costumes Toigo de suits01 CC0 ; toigo_wool_pants CC0 ; mrgreaterthan_m1_helmet CC0 ; elvs_male_coveralls_1 CC-BY ; elvs_male_shirt_untucked_bd1 CC_by ; elvs_male_shirt_tie_tucked1 CC_by ; culturalibre_cl_bowler_hat CC-BY ; elvs_male_flat_cap1 CC BY 4.0 ; elvs_male_trilby_hat CC-by ; elvs_tophat1 CC-by ; mindfront_patrol_cap CC BY 4.0 ; drednicolson_pith_helmet CCBY ; punkduck_riding_boots CC BY 4.0 ; punkduck_winter_boots CC BY 3.0 ; mindfront_male_trousers_1/2 CC BY 4.0. ERREURS du chercheur : jujube_newsboy_cap (pack hats01 « CC0 ») est « license AGPL3 », pas CC0 ; maciekg_leather_boots (proposé pour le Filon) est « AGPL3 ». Autres AGPL3 dans des packs CC0 ou CC-BY : ews_striped_shirt, maciekg_leather_helmet, jaldmic_m1951_72, grinsegold_corinthian_helmet, javherre templar helmet, maciekg_wizard_hat, scailman_low-heeled_boots. punkduck_diver_suit (suits03) est « CC-BY-NC-SA ». cortu_cargo_pants (pants01) n'a aucune ligne de licence.",
+     "redistribution": "oui",
+     "downloadTest": "Les 13 zips répondent 200 (HEAD) avec Accept-Ranges, à l'adresse https://files.makehumancommunity.org/asset_packs/<pack>/<pack>_cc0.zip, _cc-by.zip ou _ccby.zip selon le pack (liens relevés sur chaque page). Tailles : hats01 6,6 Mo ; hats02 24,0 ; hats03 76,0 ; hats04 17,9 ; suits01 42,6 ; suits03 105,3 ; shirts02 175,4 ; pants01 21,9 ; pants02 131,8 ; shoes01 83,0 ; shoes03 50,3. Lecture à distance par plages HTTP (sans tout télécharger) : script /tmp/claude-0/-home-user-Mon-jeu/a5e8b0c5-d5d4-5781-9d88-2973c482adb0/scratchpad/recherche_infectes/verif_outils_scripts/rzip.py. Mesures sur deux fichiers extraits : elvs_male_coveralls_1, 34 633 triangles, texture 2048 et carte normale, avec des écussons de mécanicien modernes peints sur la texture ; culturalibre_cl_bowler_hat, 2 368 triangles. hats04 (casques) contient : riding, warrior_02, KZ45, vélo, cornu, pith, cuir, M1951-72. Aucun casque Adrian ni Brodie de 1917, confirmé.",
+     "keep": true,
+     "why": "Style réaliste et silhouettes d'époque (melon, casquette plate, costumes années 30-50, bleu de travail), directement compatibles MPFB et squelette. Conditions : vérifier la licence .mhclo de CHAQUE vêtement, pas celle du pack ; exclure tout ce qui est AGPL3 (copyleft, risqué pour un fichier de jeu public) et NC ; créditer les auteurs CC-BY (Elvaerwyn, culturalibre, Mindfront, DredNicolson, punkduck). Remplacer le gavroche jujube et les bottes maciekg. Le bleu de travail doit être fortement allégé (34 633 → environ 3 800 triangles) et ses écussons repeints. La qualité est moyenne (niveau MakeHuman), inférieure aux tenues sales et déchirées de BO2 : à salir et déchirer avec la peinture de make_zombies.py.",
+     "quality": "Moyen, réaliste (pas dessin animé). Plus proche de BO2 pour la silhouette que pour le détail."
+    },
+    {
+     "name": "2. Formes de visage ARKit « Faceunits 01 » (52 cibles) reportées par Surface Deform sur un maillage allégé",
+     "url": "https://static.makehumancommunity.org/assets/assetpacks/faceunits01.html",
+     "licenseConfirmed": "Page des packs, lue : « Functional asset packs [...] The assets are shared under CC0 » (Visemes 01/02, Faceunits 01). Page du pack : « ARKit style faceunits contributed by Mika Suominen ». Dans le zip, packs/faceunits01.json porte « \"license\": \"CC0\" », auteur Mika Suominen, et « Autogenerated ARKit faceunit ».",
+     "redistribution": "oui",
+     "downloadTest": "https://files.makehumancommunity.org/functional/faceunits01.zip : 200, 257 821 octets, téléchargé et listé, 52 fichiers .target. Mon test bpy (2 s) : 52 cibles chargées sur le corps. Copie sans assistants allégée par Decimate 0,5 (11 044 faces, 6 691 sommets), liée par Surface Deform (bind OK). Résultats : jawOpen bouge 382 sommets de plus de 2 mm (max 3,9 cm) ; mouthStretchLeft 80 (max 7,9 mm) ; noseSneerLeft 41 (max 4,5 mm) ; mouthUpperUpLeft 50 (max 5,7 mm). PIÈGE trouvé : la copie doit d'abord recevoir la forme du corps (clés macro « $md-... » à 0,99) ; sinon tout le maillage se décale. Non revérifié : le report sur le proxy male_muscle_13290 par FaceService.interpolate_targets annoncé par le chercheur.",
+     "keep": true,
+     "why": "Licence propre et technique vérifiée, mais priorité basse. BO2 n'a pas d'expressions faciales (tête fixe et mâchoire), et l'os jaw du candidat 1 couvre déjà l'ouverture de la bouche. Les autres formes sont petites (4 à 8 mm), donc peu visibles à distance de jeu. Utile surtout pour figer un rictus différent par infecté, en cuisant la forme dans le maillage, ce qui ne coûte rien en jeu. Garder des formes animées ajoute du calcul et des variantes de shader pour 24 infectés.",
+     "quality": "Plutôt du détail que du vrai gain BO2."
+    },
+    {
+     "name": "5a. Peau « sohh_female_zombie_skin » (pack MakeHuman skins03)",
+     "url": "https://static.makehumancommunity.org/assets/assetpacks/skins03.html",
+     "licenseConfirmed": "Page skins03, lue : « Non-natural skins, shared under CC0 », avec la ligne « sohh_female_zombie_skin | sohh | asset repo | CC0 ». Le .mhmat lu dans le zip contient « license CC0 ».",
+     "redistribution": "oui",
+     "downloadTest": "skins03_cc0.zip : 200, 136 827 522 octets. Lecture à distance des seuls fichiers zombie. Correction au chercheur : il y a aussi sohh_Zombie_Female_bump.png (4096×4096, niveaux de gris, 5,9 Mo) en plus de la diffuse 4096×4096 (18,3 Mo). Fichiers dans /tmp/claude-0/-home-user-Mon-jeu/a5e8b0c5-d5d4-5781-9d88-2973c482adb0/scratchpad/recherche_infectes/verif_outils/dl_skins/ et /tmp/claude-0/-home-user-Mon-jeu/a5e8b0c5-d5d4-5781-9d88-2973c482adb0/scratchpad/recherche_infectes/outils/dl_skins/. Aperçu vu : peau pâle marbrée de veines violacées, plaie au thorax et à la hanche, ecchymoses, yeux et lèvres rougis.",
+     "keep": true,
+     "why": "Réaliste et CC0, sur l'UV du corps MakeHuman que make_zombies.py utilise déjà. Utilisable comme couche de mélange (veines, ecchymoses, plaies) et son bump comme relief, après réduction à 2048. Ne remplace pas la peinture actuelle : un seul motif, des plaies placées au même endroit, et un niveau en dessous de BO2.",
+     "quality": "Correcte, réaliste, inférieure à BO2."
+    },
+    {
+     "name": "5b. Peau « naim_abbassi_zombie_skin » (pack MakeHuman skins03)",
+     "url": "https://static.makehumancommunity.org/assets/assetpacks/skins03.html",
+     "licenseConfirmed": "La page skins03 indique CC0 pour cette ligne (lu). Le .mhmat (« name ZombieMaterial ») n'a AUCUNE ligne de licence.",
+     "redistribution": "oui",
+     "downloadTest": "Zombie.png extrait à distance (2048×2048 RGBA, 5,4 Mo) et regardé : petits tampons de sang identiques répétés partout, griffures rouges dessinées, un carré de texture mal raccordé sur le ventre, et un filigrane « ©MakeHuman.org » dans le coin.",
+     "keep": false,
+     "why": "Style dessin animé avec des tampons répétés et un raccord visible : loin de BO2. En plus, le filigrane serait à effacer. À écarter.",
+     "quality": "Faible."
+    },
+    {
+     "name": "6. Rigify (inclus dans bpy) avec la métarig MPFB « rigify.human »",
+     "url": "https://static.makehumancommunity.org/mpfb/docs/rigging_posing/rigify.html",
+     "licenseConfirmed": "Rigify fait partie de Blender (bpy GPL-3.0 selon PyPI). blender.org : « What you create with Blender is your sole property. » La métarig MPFB relève des « Rigs » CC0 de LICENSE.md. Seules des animations cuites iraient dans le jeu, pas le script d'interface GPL que Rigify génère.",
+     "redistribution": "oui",
+     "downloadTest": "Vérifié : rigify est présent dans bpy/4.2/scripts/addons_core et s'active. Mon test (1,1 s) : métarig de 185 os, puis bpy.ops.pose.rigify_generate() renvoie {'FINISHED'} ; squelette généré de 930 os, dont 181 déformants (96 au visage selon mes mots-clés jaw, lip, lid, brow, cheek, nose, ear... ; le chercheur en comptait 59 avec un autre filtre).",
+     "keep": false,
+     "why": "Fonctionne, mais n'apporte rien au flux actuel. 930 os sont hors de question dans le navigateur, et l'intérêt de Rigify (contrôleurs, IK) suppose un animateur humain devant l'écran de Blender, ce qui n'est pas le cas dans ce projet sans écran. Le jeu a déjà son squelette procédural. À reconsidérer seulement si on décide de cuire des animations faites à la main (sortie de terre, franchissement de fenêtre) sur 54 os.",
+     "quality": "Sans objet pour le rendu."
+    }
+   ]
+  }
+ ]
+}
