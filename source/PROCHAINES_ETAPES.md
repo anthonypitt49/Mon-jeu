@@ -2,6 +2,10 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.3.1) : relecture de la 6.3
+
+Relecture du code de la 6.3 par un workflow (4 relecteurs par thème, puis un sceptique chargé de réfuter chaque défaut) : 13 défauts signalés, 10 après dédoublonnage, 9 confirmés, tous légers sauf les lignes de la cour. Corrigés : bouts et linteau des cloisons à faïence de l'infirmerie (faïence jusqu'au plafond, faces en double qui scintillaient), relief et rugosité de la pierre qui n'étaient pas lus en alternance (`#include` pas encore développés dans onBeforeCompile), lignes de la cour unies au lieu d'écaillées (texture non répétée), flacons de l'armoire à pharmacie enfermés dans un pavé plein, pancarte de l'établi barrée par la baguette, poutre du réfectoire arrêtée à 8 cm du linteau, gobelets traversés par les plateaux. Écarté : jour sous les rochers du rivage (sous l'eau, qui est opaque). Vérifié : photos rapprochées de chaque correction, `gels.mjs penitencier 2` (0 shader tardif, 0 erreur).
+
 ## Fait (version 6.3) : l'esthétique du Pénitencier
 
 Mise en ligne le 19 octobre 2026 : `main` (GitHub Pages, vérifié : version.json et GAME_VERSION à 6.3) et l'Artifact du jeu avec salon co-op (version 26, page seule).

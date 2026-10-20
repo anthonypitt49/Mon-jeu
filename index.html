@@ -783,7 +783,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '6.3'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '6.3.1'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -3257,11 +3257,11 @@ function flatSolidWall(K, X0, Z0, X1, Z1, bit, ax, az, bx, bz, roofA, roofB) {
     if (bit === 0) { // mur nord-sud en x = X0, entre les carreaux (ax, az) et (ax + 1, az) ; bout nord (-1) ou sud (1)
       const zn = az + end, zl = end < 0 ? az : az + 1;
       if (solidK(edgeWall(ax, zn, ax + 1, zn)) || edgeWall(ax, zl - 1, ax, zl) || edgeWall(ax + 1, zl - 1, ax + 1, zl)) continue;
-      const Z = zl * TILE + end * E; qb(mCap).wall(X0 - E, Z, X0 + E, Z, y0, h, 0, end, false);
+      const Z = zl * TILE + end * E; pan(mCap, roofA || roofB, y0, h, (q, a, b, o) => (o ? qbBox(q, X0 - E - o, a, Math.min(Z, Z + end * o), X0 + E + o, b, Math.max(Z, Z + end * o)) : q.wall(X0 - E, Z, X0 + E, Z, a, b, 0, end, false))); // (faïence à mi-hauteur : coupée comme les faces, baguette qui fait le tour du bout)
     } else { // mur est-ouest en z = Z0, entre (ax, az) et (ax, az + 1) ; bout ouest (-1) ou est (1)
       const xn = ax + end, xl = end < 0 ? ax : ax + 1;
       if (solidK(edgeWall(xn, az, xn, az + 1)) || edgeWall(xl - 1, az, xl, az) || edgeWall(xl - 1, az + 1, xl, az + 1)) continue;
-      const X = xl * TILE + end * E; qb(mCap).wall(X, Z0 - E, X, Z0 + E, y0, h, end, 0, false);
+      const X = xl * TILE + end * E; pan(mCap, roofA || roofB, y0, h, (q, a, b, o) => (o ? qbBox(q, Math.min(X, X + end * o), a, Z0 - E - o, Math.max(X, X + end * o), b, Z0 + E + o) : q.wall(X, Z0 - E, X, Z0 + E, a, b, end, 0, false)));
     }
   }
   // Dessus du mur.
@@ -3393,7 +3393,8 @@ function flatDetails() {
     for (let bit = 0; bit < 2; bit++) {
       if (!(w & (1 << bit))) continue; const k = MAP.ek[ti(x, z) * 2 + bit], K = wallDef(k); if (K.see) continue;
       const ax = x, az = z, bx = bit ? x : x + 1, bz = bit ? z + 1 : z, h = wallH(K, ax, az, bx, bz), y0 = K.y0 || 0, q = qb(fv(K.out || 'concrete'));
-      if (bit === 0) { const X = (x + 1) * T; if (deg(x + 1, z) === 1) q.wall(X - E, z * T - E, X + E, z * T - E, y0, h, 0, -1); if (deg(x + 1, z + 1) === 1) q.wall(X - E, (z + 1) * T + E, X + E, (z + 1) * T + E, y0, h, 0, 1); }
+      // (murs à faïence K.up : leur bout est déjà dessiné, coupé à mi-hauteur, par flatSolidWall)
+      if (K.up) { /* rien */ } else if (bit === 0) { const X = (x + 1) * T; if (deg(x + 1, z) === 1) q.wall(X - E, z * T - E, X + E, z * T - E, y0, h, 0, -1); if (deg(x + 1, z + 1) === 1) q.wall(X - E, (z + 1) * T + E, X + E, (z + 1) * T + E, y0, h, 0, 1); }
       else { const Z = (z + 1) * T; if (deg(x, z + 1) === 1) q.wall(x * T - E, Z - E, x * T - E, Z + E, y0, h, -1, 0); if (deg(x + 1, z + 1) === 1) q.wall((x + 1) * T + E, Z - E, (x + 1) * T + E, Z + E, y0, h, 1, 0); }
       // 5. Soubassement côté extérieur, corniche côté pièce.
       for (const [side, tx, tz] of [[-1, ax, az], [1, bx, bz]]) {
@@ -3419,7 +3420,7 @@ function flatDetails() {
     const side = (k, tx, tz) => solidK(k) || tt(tx, tz) === T_BLOCK;
     if (!side(kA, ax - px, az - pz) || !side(kB, ax + px, az + pz)) continue;
     const K = wallDef(solidK(kA) ? kA : kB), ch = Math.min(roomCeil(ax, az), roomCeil(bx, bz)), hy = 2.3; if (ch - hy < 0.2) continue;
-    const mIn = fv(K.in || K.out || 'plaster'), q = qb(mIn);
+    const mIn = fv(K.up && hy >= K.up.y ? K.up.mat : K.in || K.out || 'plaster'), q = qb(mIn); // (au-dessus de la faïence à mi-hauteur : l'enduit du haut du mur)
     if (bit === 0) { const X = (x + 1) * T; q.wall(X - E, z * T, X - E, (z + 1) * T, hy, ch, -1, 0, false); q.wall(X + E, z * T, X + E, (z + 1) * T, hy, ch, 1, 0, false); q.flat(X - E, z * T, X + E, (z + 1) * T, hy, -1); }
     else { const Z = (z + 1) * T; q.wall(x * T, Z - E, (x + 1) * T, Z - E, hy, ch, 0, -1, false); q.wall(x * T, Z + E, (x + 1) * T, Z + E, hy, ch, 0, 1, false); q.flat(x * T, Z - E, (x + 1) * T, Z + E, hy, -1); }
   }
@@ -3992,8 +3993,9 @@ function photoDetile(m) {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nfloat dtWeight(vec2 uv) { float a = uv.x * 2.1 + sin(uv.y * 0.9 + uv.x * 0.7) * 1.2; return smoothstep(0.3, 0.7, 0.5 + 0.5 * sin(a)); }')
       .replace('#include <map_fragment>', `#ifdef USE_MAP\n  float dtK = dtWeight(vMapUv);\n  diffuseColor *= ${mixT('map', 'vMapUv')};\n#else\n  float dtK = 0.0;\n#endif`)
-      .replace('texture2D( normalMap, vNormalMapUv )', mixT('normalMap', 'vNormalMapUv'))
-      .replace('texture2D( roughnessMap, vRoughnessMapUv )', mixT('roughnessMap', 'vRoughnessMapUv'));
+      // (le shader reçu ici n'a pas encore ses #include développés : on développe ces deux morceaux pour en changer la lecture)
+      .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps.split('texture2D( normalMap, vNormalMapUv )').join(mixT('normalMap', 'vNormalMapUv')))
+      .replace('#include <roughnessmap_fragment>', THREE.ShaderChunk.roughnessmap_fragment.replace('texture2D( roughnessMap, vRoughnessMapUv )', mixT('roughnessMap', 'vRoughnessMapUv')));
   };
   m.customProgramCacheKey = () => key + '|detile';
 }
@@ -11715,7 +11717,7 @@ function penDecor() {
     KIT.b(sh, 0, 0, 0, 0.8, 1.1, 0.05, plate); KIT.b(sh, 0, 0.25, 0.03, 0.5, 0.08, 0.02, strap); /* la sangle est la pièce SANGLES ramassée */
     for (let i = 0; i < 6; i++) KIT.c(sh, -0.3 + (i % 3) * 0.3, i < 3 ? 0.45 : -0.45, 0.06, 0.02, 0.03, 0.08, rust, 6).rotation.x = Math.PI / 2;
     sh.visible = false; colliderBox(s.x, s.z, 1.9, 0.9, s.yaw, 1.0, 'wood');
-    const sign = mesh(new THREE.PlaneGeometry(1.2, 0.4), new THREE.MeshStandardMaterial({ map: woodSign(['ÉTABLI DE FORTUNE', 'BOUCLIER · 3 PIÈCES'], { w: 512, h: 170 }), roughness: 0.9 }), 0, 1.75, -0.42, 0, g, false);
+    const sign = mesh(new THREE.PlaneGeometry(1.2, 0.4), new THREE.MeshStandardMaterial({ map: woodSign(['ÉTABLI DE FORTUNE', 'BOUCLIER · 3 PIÈCES'], { w: 512, h: 170 }), roughness: 0.9 }), 0, 1.6, -0.39, 0, g, false); /* (sous la baguette de faïence à 1,9 m, 3 cm devant le mur) */
     WORLD.shieldTable = { pos: new THREE.Vector3(s.x, 1, s.z), shield: sh }; }
   // Pièces du bouclier (lueur dorée pour qu'on les repère).
   WORLD.penParts = PEN_PARTS.map((p, i) => {
@@ -11740,14 +11742,14 @@ function penDecor() {
   { const clock = textTexture(128, 128, (c) => { c.fillStyle = '#e8e4d8'; c.beginPath(); c.arc(64, 64, 60, 0, TAU); c.fill(); c.strokeStyle = '#222'; c.lineWidth = 5; c.stroke(); for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU; c.fillStyle = '#222'; c.fillRect(64 + Math.cos(a) * 48 - 2, 64 + Math.sin(a) * 48 - 2, 4, 4); } c.lineWidth = 4; c.beginPath(); c.moveTo(64, 64); c.lineTo(64, 24); c.moveTo(64, 64); c.lineTo(92, 70); c.stroke(); });
     mesh(new THREE.CircleGeometry(0.4, 24), new THREE.MeshStandardMaterial({ map: clock, roughness: 0.5 }), X(47) - 0.1, 2.8, X(12), -Math.PI / 2, R.scene, false); }
   // Poutres de béton sous le plafond (de la cloison de la cuisine, z 30, au mur sud, z 44 ; x 88-102, là où la cloison est pleine).
-  { const ch = roomCeil(tileOf(X(42)), tileOf(X(12))), beam = fmat('concrete', 0xa8a498); for (const x of [89.5, 95.5, 101]) KIT.b(R.scene, x, ch - 0.2, (X(10) + X(17)) / 2, 0.32, 0.4, X(17) - X(10) - 2 * EDGE_T, beam); }
+  { const ch = roomCeil(tileOf(X(42)), tileOf(X(12))), beam = fmat('concrete', 0xa8a498); for (const x of [89.5, 95.5, 101]) { const z0 = X(10) + EDGE_T, z1 = x === 101 ? X(17) : X(17) - EDGE_T; /* (x 101 : au-dessus de la porte du chemin de ronde, x 100-102, jusqu'au linteau) */ KIT.b(R.scene, x, ch - 0.2, (z0 + z1) / 2, 0.32, 0.4, z1 - z0, beam); } }
   // Suspensions émaillées au-dessus des tables, gobelets en fer-blanc, marmites sur les fourneaux, tableau du menu.
   { const ch = roomCeil(tileOf(X(42)), tileOf(X(12))), shade = fmat('email', 0x2e4a3a, { rough: 0.4, side: THREE.DoubleSide }), cups = new Batch(new THREE.CylinderGeometry(0.042, 0.036, 0.1, 10), fmat('galva', 0xb8bcbe, { rough: 0.5, metal: 0.6 }));
     for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) {
       const x = X(37) + 1 + c * 9, z = X(11) + 0.5 + r * 3.4, g = KIT.g(x, z, 0, 3.0);
       KIT.c(g, 0, (ch - 3.0) / 2, 0, 0.008, 0.008, ch - 3.0, dark, 4, false); mesh(new THREE.ConeGeometry(0.26, 0.16, 18, 1, true), shade, 0, -0.02, 0, 0, g, false);
       KIT.s(g, 0, -0.1, 0, 0.055, KM.bulb); KIT.glow(g, 0, -0.14, 0, 0xffd9a0, 1.1, 0.55);
-      for (let i = 0; i < 6; i++) if (rng() < 0.75) cups.add(x - 2 + i * 0.8 + (rng() - 0.5) * 0.2, 0.81, z + (i % 2 ? 0.3 : -0.3), rng() * TAU);
+      for (let i = 0; i < 6; i++) if (rng() < 0.75) cups.add(x - 2.2 + i * 0.88 + (rng() - 0.5) * 0.1, 0.81, /* (entre les plateaux) */ z + (i % 2 ? 0.3 : -0.3), rng() * TAU);
     }
     cups.build();
     for (const sx of [X(36) + 0.6, X(38) + 0.4]) { const g = KIT.g(sx, X(8) + 0.45, 0); KIT.c(g, 0, 1.12, 0, 0.24, 0.22, 0.32, MATS.iron, 16); KIT.c(g, 0, 1.29, 0, 0.25, 0.25, 0.03, MATS.iron, 16, false); } // marmites de fonte
@@ -11760,7 +11762,9 @@ function penDecor() {
   kShelf(X(10) + 0.3, X(16), Math.PI / 2, 1.6, 2); kTable(X(18) + 0.2, X(17) + 1, Math.PI / 2, 1.6, 0.8, 0.9, steel);
   // Armoire à pharmacie vitrée (mur ouest), lavabo (mur nord, à l'écart de la porte du bloc en x 38-40), chariot à instruments, croix rouge.
   { const g = KIT.g(X(10) + 0.26, X(18) + 1.1, Math.PI / 2) /* entre la fenêtre (z 44-46) et la cloison de la salle (z 48) */, enamel = fmat('email', 0xeceee8, { rough: 0.35 }), vials = [fmat('email', 0x6a3a1a, { rough: 0.15 }), fmat('email', 0x2a4a7a, { rough: 0.15 }), fmat('email', 0xd8d8d0, { rough: 0.2 })];
-    KIT.b(g, 0, 0.95, 0, 1.0, 1.9, 0.4, enamel); KIT.b(g, 0, 1.15, 0.205, 0.9, 1.3, 0.01, k.glass, 0, false);
+    // Caisson ouvert devant (fond, côtés, dessus, soubassement plein, cadre autour de la vitre) : on voit les flacons.
+    KIT.b(g, 0, 0.95, -0.19, 1.0, 1.9, 0.02, enamel); for (const sx of [-1, 1]) KIT.b(g, sx * 0.49, 0.95, 0, 0.02, 1.9, 0.4, enamel); KIT.b(g, 0, 1.89, 0, 1.0, 0.02, 0.4, enamel); KIT.b(g, 0, 0.25, 0, 1.0, 0.5, 0.4, enamel);
+    for (const sx of [-1, 1]) KIT.b(g, sx * 0.47, 1.15, 0.19, 0.06, 1.3, 0.02, enamel, 0, false); KIT.b(g, 0, 1.84, 0.19, 1.0, 0.08, 0.02, enamel, 0, false); KIT.b(g, 0, 1.15, 0.205, 0.9, 1.3, 0.01, k.glass, 0, false);
     for (let s = 0; s < 3; s++) { KIT.b(g, 0, 0.62 + s * 0.42, 0.02, 0.92, 0.02, 0.34, enamel, 0, false); for (let i = 0; i < 7; i++) if (rng() < 0.8) KIT.c(g, -0.38 + i * 0.12, 0.7 + s * 0.42, 0.02 + (rng() - 0.5) * 0.12, 0.03, 0.035, 0.14, vials[(rng() * 3) | 0], 8, false); }
     KIT.solid(g, 1.0, 0.4, 1.9, 'metal'); }
   kSink(X(15) + 1.5, X(15) + 0.25, 0);
@@ -11816,9 +11820,9 @@ function penDecor() {
       collider(a, X(0) + 1.25, b, X(0) + 1.85, 0.44, 'concrete'); collider(a, X(0) + 0.65, b, X(0) + 1.25, 1.5, 'concrete'); collider(a, X(0), b, X(0) + 0.65, 2.04, 'concrete');
     } }
   // Terrain de balle au mur peint au sol (rectangle, ligne médiane, lignes de service, rond central), peinture écaillée.
-  { const tex = textTexture(256, 32, (c) => { c.clearRect(0, 0, 256, 32); for (let x = 0; x < 256; x += 2) { const n = tfbm(x / 32, 1.3, 8, 3); if (n < 0.47) continue; c.fillStyle = `rgba(214,210,196,${clamp((n - 0.47) * 2.4, 0, 0.55)})`; c.fillRect(x, 5 + rng() * 3, 2, 22 - rng() * 5); } });
+  { const tex = textTexture(256, 32, (c) => { c.clearRect(0, 0, 256, 32); for (let x = 0; x < 256; x += 2) { const n = tfbm(x / 32, 1.3, 8, 3); if (n < 0.47) continue; c.fillStyle = `rgba(214,210,196,${clamp((n - 0.47) * 2.4, 0, 0.55)})`; c.fillRect(x, 5 + rng() * 3, 2, 22 - rng() * 5); } }, { repeat: true }); /* (répétée le long des bandes de 18 m) */
     const paint = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, roughness: 0.85 });
-    const strip = (x0, z0, x1, z1) => { const L = Math.hypot(x1 - x0, z1 - z0), g = new THREE.PlaneGeometry(L, 0.1), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * L / 2 + rng()); const m = mesh(g, paint, (x0 + x1) / 2, 0.012, (z0 + z1) / 2, 0, R.scene, false); m.rotation.set(-Math.PI / 2, 0, Math.atan2(-(z1 - z0), x1 - x0)); m.renderOrder = 2; };
+    const strip = (x0, z0, x1, z1) => { const L = Math.hypot(x1 - x0, z1 - z0), g = new THREE.PlaneGeometry(L, 0.1), uv = g.attributes.uv; const o = rng(); for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * L / 2 + o); const m = mesh(g, paint, (x0 + x1) / 2, 0.012, (z0 + z1) / 2, 0, R.scene, false); m.rotation.set(-Math.PI / 2, 0, Math.atan2(-(z1 - z0), x1 - x0)); m.renderOrder = 2; };
     const a = 61, b = 79, c = 13.8, d = 18.8; strip(a, c, b, c); strip(a, d, b, d); strip(a, c, a, d); strip(b, c, b, d); strip(70, c, 70, d); strip(64.5, c, 64.5, d); strip(75.5, c, 75.5, d);
     const ring = mesh(new THREE.RingGeometry(1.45, 1.55, 48), paint, 70, 0.012, (c + d) / 2, 0, R.scene, false); ring.rotation.x = -Math.PI / 2; ring.renderOrder = 2; }
   kBench(X(36), X(4) + 1, Math.PI); kBench(X(24), X(4) + 1, Math.PI);
