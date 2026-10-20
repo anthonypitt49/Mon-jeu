@@ -297,11 +297,11 @@ function flatSolidWall(K, X0, Z0, X1, Z1, bit, ax, az, bx, bz, roofA, roofB) {
     if (bit === 0) { // mur nord-sud en x = X0, entre les carreaux (ax, az) et (ax + 1, az) ; bout nord (-1) ou sud (1)
       const zn = az + end, zl = end < 0 ? az : az + 1;
       if (solidK(edgeWall(ax, zn, ax + 1, zn)) || edgeWall(ax, zl - 1, ax, zl) || edgeWall(ax + 1, zl - 1, ax + 1, zl)) continue;
-      const Z = zl * TILE + end * E; qb(mCap).wall(X0 - E, Z, X0 + E, Z, y0, h, 0, end, false);
+      const Z = zl * TILE + end * E; pan(mCap, roofA || roofB, y0, h, (q, a, b, o) => (o ? qbBox(q, X0 - E - o, a, Math.min(Z, Z + end * o), X0 + E + o, b, Math.max(Z, Z + end * o)) : q.wall(X0 - E, Z, X0 + E, Z, a, b, 0, end, false))); // (faïence à mi-hauteur : coupée comme les faces, baguette qui fait le tour du bout)
     } else { // mur est-ouest en z = Z0, entre (ax, az) et (ax, az + 1) ; bout ouest (-1) ou est (1)
       const xn = ax + end, xl = end < 0 ? ax : ax + 1;
       if (solidK(edgeWall(xn, az, xn, az + 1)) || edgeWall(xl - 1, az, xl, az) || edgeWall(xl - 1, az + 1, xl, az + 1)) continue;
-      const X = xl * TILE + end * E; qb(mCap).wall(X, Z0 - E, X, Z0 + E, y0, h, end, 0, false);
+      const X = xl * TILE + end * E; pan(mCap, roofA || roofB, y0, h, (q, a, b, o) => (o ? qbBox(q, Math.min(X, X + end * o), a, Z0 - E - o, Math.max(X, X + end * o), b, Z0 + E + o) : q.wall(X, Z0 - E, X, Z0 + E, a, b, end, 0, false)));
     }
   }
   // Dessus du mur.
@@ -433,7 +433,8 @@ function flatDetails() {
     for (let bit = 0; bit < 2; bit++) {
       if (!(w & (1 << bit))) continue; const k = MAP.ek[ti(x, z) * 2 + bit], K = wallDef(k); if (K.see) continue;
       const ax = x, az = z, bx = bit ? x : x + 1, bz = bit ? z + 1 : z, h = wallH(K, ax, az, bx, bz), y0 = K.y0 || 0, q = qb(fv(K.out || 'concrete'));
-      if (bit === 0) { const X = (x + 1) * T; if (deg(x + 1, z) === 1) q.wall(X - E, z * T - E, X + E, z * T - E, y0, h, 0, -1); if (deg(x + 1, z + 1) === 1) q.wall(X - E, (z + 1) * T + E, X + E, (z + 1) * T + E, y0, h, 0, 1); }
+      // (murs à faïence K.up : leur bout est déjà dessiné, coupé à mi-hauteur, par flatSolidWall)
+      if (K.up) { /* rien */ } else if (bit === 0) { const X = (x + 1) * T; if (deg(x + 1, z) === 1) q.wall(X - E, z * T - E, X + E, z * T - E, y0, h, 0, -1); if (deg(x + 1, z + 1) === 1) q.wall(X - E, (z + 1) * T + E, X + E, (z + 1) * T + E, y0, h, 0, 1); }
       else { const Z = (z + 1) * T; if (deg(x, z + 1) === 1) q.wall(x * T - E, Z - E, x * T - E, Z + E, y0, h, -1, 0); if (deg(x + 1, z + 1) === 1) q.wall((x + 1) * T + E, Z - E, (x + 1) * T + E, Z + E, y0, h, 1, 0); }
       // 5. Soubassement côté extérieur, corniche côté pièce.
       for (const [side, tx, tz] of [[-1, ax, az], [1, bx, bz]]) {
@@ -459,7 +460,7 @@ function flatDetails() {
     const side = (k, tx, tz) => solidK(k) || tt(tx, tz) === T_BLOCK;
     if (!side(kA, ax - px, az - pz) || !side(kB, ax + px, az + pz)) continue;
     const K = wallDef(solidK(kA) ? kA : kB), ch = Math.min(roomCeil(ax, az), roomCeil(bx, bz)), hy = 2.3; if (ch - hy < 0.2) continue;
-    const mIn = fv(K.in || K.out || 'plaster'), q = qb(mIn);
+    const mIn = fv(K.up && hy >= K.up.y ? K.up.mat : K.in || K.out || 'plaster'), q = qb(mIn); // (au-dessus de la faïence à mi-hauteur : l'enduit du haut du mur)
     if (bit === 0) { const X = (x + 1) * T; q.wall(X - E, z * T, X - E, (z + 1) * T, hy, ch, -1, 0, false); q.wall(X + E, z * T, X + E, (z + 1) * T, hy, ch, 1, 0, false); q.flat(X - E, z * T, X + E, (z + 1) * T, hy, -1); }
     else { const Z = (z + 1) * T; q.wall(x * T, Z - E, (x + 1) * T, Z - E, hy, ch, 0, -1, false); q.wall(x * T, Z + E, (x + 1) * T, Z + E, hy, ch, 0, 1, false); q.flat(x * T, Z - E, (x + 1) * T, Z + E, hy, -1); }
   }

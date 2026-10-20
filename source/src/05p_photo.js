@@ -179,8 +179,9 @@ function photoDetile(m) {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nfloat dtWeight(vec2 uv) { float a = uv.x * 2.1 + sin(uv.y * 0.9 + uv.x * 0.7) * 1.2; return smoothstep(0.3, 0.7, 0.5 + 0.5 * sin(a)); }')
       .replace('#include <map_fragment>', `#ifdef USE_MAP\n  float dtK = dtWeight(vMapUv);\n  diffuseColor *= ${mixT('map', 'vMapUv')};\n#else\n  float dtK = 0.0;\n#endif`)
-      .replace('texture2D( normalMap, vNormalMapUv )', mixT('normalMap', 'vNormalMapUv'))
-      .replace('texture2D( roughnessMap, vRoughnessMapUv )', mixT('roughnessMap', 'vRoughnessMapUv'));
+      // (le shader reçu ici n'a pas encore ses #include développés : on développe ces deux morceaux pour en changer la lecture)
+      .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps.split('texture2D( normalMap, vNormalMapUv )').join(mixT('normalMap', 'vNormalMapUv')))
+      .replace('#include <roughnessmap_fragment>', THREE.ShaderChunk.roughnessmap_fragment.replace('texture2D( roughnessMap, vRoughnessMapUv )', mixT('roughnessMap', 'vRoughnessMapUv')));
   };
   m.customProgramCacheKey = () => key + '|detile';
 }

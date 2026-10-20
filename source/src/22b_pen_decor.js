@@ -79,7 +79,7 @@ function penDecor() {
     KIT.b(sh, 0, 0, 0, 0.8, 1.1, 0.05, plate); KIT.b(sh, 0, 0.25, 0.03, 0.5, 0.08, 0.02, strap); /* la sangle est la pièce SANGLES ramassée */
     for (let i = 0; i < 6; i++) KIT.c(sh, -0.3 + (i % 3) * 0.3, i < 3 ? 0.45 : -0.45, 0.06, 0.02, 0.03, 0.08, rust, 6).rotation.x = Math.PI / 2;
     sh.visible = false; colliderBox(s.x, s.z, 1.9, 0.9, s.yaw, 1.0, 'wood');
-    const sign = mesh(new THREE.PlaneGeometry(1.2, 0.4), new THREE.MeshStandardMaterial({ map: woodSign(['ÉTABLI DE FORTUNE', 'BOUCLIER · 3 PIÈCES'], { w: 512, h: 170 }), roughness: 0.9 }), 0, 1.75, -0.42, 0, g, false);
+    const sign = mesh(new THREE.PlaneGeometry(1.2, 0.4), new THREE.MeshStandardMaterial({ map: woodSign(['ÉTABLI DE FORTUNE', 'BOUCLIER · 3 PIÈCES'], { w: 512, h: 170 }), roughness: 0.9 }), 0, 1.6, -0.39, 0, g, false); /* (sous la baguette de faïence à 1,9 m, 3 cm devant le mur) */
     WORLD.shieldTable = { pos: new THREE.Vector3(s.x, 1, s.z), shield: sh }; }
   // Pièces du bouclier (lueur dorée pour qu'on les repère).
   WORLD.penParts = PEN_PARTS.map((p, i) => {
@@ -104,14 +104,14 @@ function penDecor() {
   { const clock = textTexture(128, 128, (c) => { c.fillStyle = '#e8e4d8'; c.beginPath(); c.arc(64, 64, 60, 0, TAU); c.fill(); c.strokeStyle = '#222'; c.lineWidth = 5; c.stroke(); for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU; c.fillStyle = '#222'; c.fillRect(64 + Math.cos(a) * 48 - 2, 64 + Math.sin(a) * 48 - 2, 4, 4); } c.lineWidth = 4; c.beginPath(); c.moveTo(64, 64); c.lineTo(64, 24); c.moveTo(64, 64); c.lineTo(92, 70); c.stroke(); });
     mesh(new THREE.CircleGeometry(0.4, 24), new THREE.MeshStandardMaterial({ map: clock, roughness: 0.5 }), X(47) - 0.1, 2.8, X(12), -Math.PI / 2, R.scene, false); }
   // Poutres de béton sous le plafond (de la cloison de la cuisine, z 30, au mur sud, z 44 ; x 88-102, là où la cloison est pleine).
-  { const ch = roomCeil(tileOf(X(42)), tileOf(X(12))), beam = fmat('concrete', 0xa8a498); for (const x of [89.5, 95.5, 101]) KIT.b(R.scene, x, ch - 0.2, (X(10) + X(17)) / 2, 0.32, 0.4, X(17) - X(10) - 2 * EDGE_T, beam); }
+  { const ch = roomCeil(tileOf(X(42)), tileOf(X(12))), beam = fmat('concrete', 0xa8a498); for (const x of [89.5, 95.5, 101]) { const z0 = X(10) + EDGE_T, z1 = x === 101 ? X(17) : X(17) - EDGE_T; /* (x 101 : au-dessus de la porte du chemin de ronde, x 100-102, jusqu'au linteau) */ KIT.b(R.scene, x, ch - 0.2, (z0 + z1) / 2, 0.32, 0.4, z1 - z0, beam); } }
   // Suspensions émaillées au-dessus des tables, gobelets en fer-blanc, marmites sur les fourneaux, tableau du menu.
   { const ch = roomCeil(tileOf(X(42)), tileOf(X(12))), shade = fmat('email', 0x2e4a3a, { rough: 0.4, side: THREE.DoubleSide }), cups = new Batch(new THREE.CylinderGeometry(0.042, 0.036, 0.1, 10), fmat('galva', 0xb8bcbe, { rough: 0.5, metal: 0.6 }));
     for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) {
       const x = X(37) + 1 + c * 9, z = X(11) + 0.5 + r * 3.4, g = KIT.g(x, z, 0, 3.0);
       KIT.c(g, 0, (ch - 3.0) / 2, 0, 0.008, 0.008, ch - 3.0, dark, 4, false); mesh(new THREE.ConeGeometry(0.26, 0.16, 18, 1, true), shade, 0, -0.02, 0, 0, g, false);
       KIT.s(g, 0, -0.1, 0, 0.055, KM.bulb); KIT.glow(g, 0, -0.14, 0, 0xffd9a0, 1.1, 0.55);
-      for (let i = 0; i < 6; i++) if (rng() < 0.75) cups.add(x - 2 + i * 0.8 + (rng() - 0.5) * 0.2, 0.81, z + (i % 2 ? 0.3 : -0.3), rng() * TAU);
+      for (let i = 0; i < 6; i++) if (rng() < 0.75) cups.add(x - 2.2 + i * 0.88 + (rng() - 0.5) * 0.1, 0.81, /* (entre les plateaux) */ z + (i % 2 ? 0.3 : -0.3), rng() * TAU);
     }
     cups.build();
     for (const sx of [X(36) + 0.6, X(38) + 0.4]) { const g = KIT.g(sx, X(8) + 0.45, 0); KIT.c(g, 0, 1.12, 0, 0.24, 0.22, 0.32, MATS.iron, 16); KIT.c(g, 0, 1.29, 0, 0.25, 0.25, 0.03, MATS.iron, 16, false); } // marmites de fonte
@@ -124,7 +124,9 @@ function penDecor() {
   kShelf(X(10) + 0.3, X(16), Math.PI / 2, 1.6, 2); kTable(X(18) + 0.2, X(17) + 1, Math.PI / 2, 1.6, 0.8, 0.9, steel);
   // Armoire à pharmacie vitrée (mur ouest), lavabo (mur nord, à l'écart de la porte du bloc en x 38-40), chariot à instruments, croix rouge.
   { const g = KIT.g(X(10) + 0.26, X(18) + 1.1, Math.PI / 2) /* entre la fenêtre (z 44-46) et la cloison de la salle (z 48) */, enamel = fmat('email', 0xeceee8, { rough: 0.35 }), vials = [fmat('email', 0x6a3a1a, { rough: 0.15 }), fmat('email', 0x2a4a7a, { rough: 0.15 }), fmat('email', 0xd8d8d0, { rough: 0.2 })];
-    KIT.b(g, 0, 0.95, 0, 1.0, 1.9, 0.4, enamel); KIT.b(g, 0, 1.15, 0.205, 0.9, 1.3, 0.01, k.glass, 0, false);
+    // Caisson ouvert devant (fond, côtés, dessus, soubassement plein, cadre autour de la vitre) : on voit les flacons.
+    KIT.b(g, 0, 0.95, -0.19, 1.0, 1.9, 0.02, enamel); for (const sx of [-1, 1]) KIT.b(g, sx * 0.49, 0.95, 0, 0.02, 1.9, 0.4, enamel); KIT.b(g, 0, 1.89, 0, 1.0, 0.02, 0.4, enamel); KIT.b(g, 0, 0.25, 0, 1.0, 0.5, 0.4, enamel);
+    for (const sx of [-1, 1]) KIT.b(g, sx * 0.47, 1.15, 0.19, 0.06, 1.3, 0.02, enamel, 0, false); KIT.b(g, 0, 1.84, 0.19, 1.0, 0.08, 0.02, enamel, 0, false); KIT.b(g, 0, 1.15, 0.205, 0.9, 1.3, 0.01, k.glass, 0, false);
     for (let s = 0; s < 3; s++) { KIT.b(g, 0, 0.62 + s * 0.42, 0.02, 0.92, 0.02, 0.34, enamel, 0, false); for (let i = 0; i < 7; i++) if (rng() < 0.8) KIT.c(g, -0.38 + i * 0.12, 0.7 + s * 0.42, 0.02 + (rng() - 0.5) * 0.12, 0.03, 0.035, 0.14, vials[(rng() * 3) | 0], 8, false); }
     KIT.solid(g, 1.0, 0.4, 1.9, 'metal'); }
   kSink(X(15) + 1.5, X(15) + 0.25, 0);
@@ -180,9 +182,9 @@ function penDecor() {
       collider(a, X(0) + 1.25, b, X(0) + 1.85, 0.44, 'concrete'); collider(a, X(0) + 0.65, b, X(0) + 1.25, 1.5, 'concrete'); collider(a, X(0), b, X(0) + 0.65, 2.04, 'concrete');
     } }
   // Terrain de balle au mur peint au sol (rectangle, ligne médiane, lignes de service, rond central), peinture écaillée.
-  { const tex = textTexture(256, 32, (c) => { c.clearRect(0, 0, 256, 32); for (let x = 0; x < 256; x += 2) { const n = tfbm(x / 32, 1.3, 8, 3); if (n < 0.47) continue; c.fillStyle = `rgba(214,210,196,${clamp((n - 0.47) * 2.4, 0, 0.55)})`; c.fillRect(x, 5 + rng() * 3, 2, 22 - rng() * 5); } });
+  { const tex = textTexture(256, 32, (c) => { c.clearRect(0, 0, 256, 32); for (let x = 0; x < 256; x += 2) { const n = tfbm(x / 32, 1.3, 8, 3); if (n < 0.47) continue; c.fillStyle = `rgba(214,210,196,${clamp((n - 0.47) * 2.4, 0, 0.55)})`; c.fillRect(x, 5 + rng() * 3, 2, 22 - rng() * 5); } }, { repeat: true }); /* (répétée le long des bandes de 18 m) */
     const paint = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, roughness: 0.85 });
-    const strip = (x0, z0, x1, z1) => { const L = Math.hypot(x1 - x0, z1 - z0), g = new THREE.PlaneGeometry(L, 0.1), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * L / 2 + rng()); const m = mesh(g, paint, (x0 + x1) / 2, 0.012, (z0 + z1) / 2, 0, R.scene, false); m.rotation.set(-Math.PI / 2, 0, Math.atan2(-(z1 - z0), x1 - x0)); m.renderOrder = 2; };
+    const strip = (x0, z0, x1, z1) => { const L = Math.hypot(x1 - x0, z1 - z0), g = new THREE.PlaneGeometry(L, 0.1), uv = g.attributes.uv; const o = rng(); for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * L / 2 + o); const m = mesh(g, paint, (x0 + x1) / 2, 0.012, (z0 + z1) / 2, 0, R.scene, false); m.rotation.set(-Math.PI / 2, 0, Math.atan2(-(z1 - z0), x1 - x0)); m.renderOrder = 2; };
     const a = 61, b = 79, c = 13.8, d = 18.8; strip(a, c, b, c); strip(a, d, b, d); strip(a, c, a, d); strip(b, c, b, d); strip(70, c, 70, d); strip(64.5, c, 64.5, d); strip(75.5, c, 75.5, d);
     const ring = mesh(new THREE.RingGeometry(1.45, 1.55, 48), paint, 70, 0.012, (c + d) / 2, 0, R.scene, false); ring.rotation.x = -Math.PI / 2; ring.renderOrder = 2; }
   kBench(X(36), X(4) + 1, Math.PI); kBench(X(24), X(4) + 1, Math.PI);
