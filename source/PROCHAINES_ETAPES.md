@@ -2,6 +2,14 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.5) : infectés façon BO2, étape 2 — animations capturées
+
+Demande du propriétaire : « lance l'étape des animations ». Détail et choix : `source/INFECTES_BO2.md` (étapes 2 et 3).
+
+- **Clips** : Universal Animation Library 1 et 2 de Quaternius (CC0, versions Standard gratuites) — marche zombie, attente, griffure, course, sprint — reciblés hors du jeu par `tools/make_anims.mjs` sur le squelette procédural de 20 os ; 40 Ko dans `src/09d_zanims.js`. Licence gardée dans `tools/licences/quaternius_UAL.txt`, crédit dans `assets/zombies/CREDITS.md`.
+- **Dans le jeu** : clip choisi selon la vitesse de base (marche, course, sprint des enragés), attente à l'arrêt et au hurlement, griffure pour l'attaque et les planches ; cadence calée sur la vitesse réelle, fondus de 0,25 s, miroir et cadence tirés pour chacun ; recul aux impacts, inclinaison propre, hurlement et mâchoire par-dessus. Les corps réalistes suivent comme avant (sphères de tir, gore, poupée de chiffon inchangés) ; les corps procéduraux des téléphones en profitent aussi. Restent procéduraux : rampant, sortie de terre, Givreux figé. `?noanim` : ancienne animation.
+- **Coût** : +0,1 ms de mise à jour pour 24 infectés (`bench.mjs`) ; 0 shader tardif (`gels.mjs`). Outil : `dev/anims.mjs` (profil, face, avant/après).
+
 ## Fait (version 6.4.1) : yeux sans halo
 
 Retour du propriétaire : « trop de lumière ; seulement le globe de l'œil, pas de lumière supplémentaire autour ». Halos retirés ; le globe garde sa couleur par carte, sans brouillard, avec une clarté juste sous le seuil du halo du post-traitement (il ne rayonne plus sur le visage).

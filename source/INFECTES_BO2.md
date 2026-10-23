@@ -48,8 +48,21 @@ En attente des réponses du propriétaire (achats UAL2 Source 14,99 $, comptes S
    (version 6.4.1) Retour du propriétaire : « trop de lumière, seulement le globe de l'œil ». Halos retirés ; clarté du
    globe poussée juste sous le seuil du halo du post-traitement (luminance 0,8 < 0,9) : il brille sans rien éclairer
    autour. Contrepartie : à 15-20 m, les yeux redeviennent de petits points.
-2. [ ] Outil d'animations hors du jeu (UAL1 et UAL2 Standard, CC0) : reciblage sur nos 53 os, fichier compressé.
-3. [ ] Mixeur d'animations dans le jeu, avec rétro-reciblage vers le squelette procédural (tirs, gore, poupée inchangés).
+2. [x] (version 6.5) Outil d'animations hors du jeu (`tools/make_anims.mjs`, UAL1 et UAL2 Standard, CC0). Choix différent
+   du plan de la recherche : les clips sont reciblés sur le SQUELETTE PROCÉDURAL de 20 os (et non sur les 53 os des modèles)
+   — le jeu les joue sur ce squelette, que les corps réalistes recopient déjà (zrealPose) : sphères de tir, gore, poupée de
+   chiffon et corps procéduraux des téléphones marchent sans rétro-reciblage. Méthode : rotation du corps de chaque os =
+   variation depuis le repos du mannequin × alignement des directions de repos (bras en T → bras le long du corps).
+   5 clips : marche zombie (1,12 m/s au sol), attente, griffure, course (Jog, 5,7 m/s), sprint (8,8 m/s) ; 40 Ko dans
+   `src/09d_zanims.js` (rotations sur 16 bits, 30 images/s).
+3. [x] (version 6.5) Lecture dans le jeu (`09_zombies.js` zanimInit/zanimApply, sans AnimationMixer) : marche (vitesse
+   de base < 3 m/s, cadence 0,55 à 1,6 selon la vitesse réelle), course (≥ 3), sprint (≥ 6,2, enragés), attente quand
+   l'infecté est arrêté ou hurle, griffure pour l'attaque (calée sur attackT) et les planches (en boucle) ; fondus de 0,25 s,
+   y compris depuis la pose procédurale en fin de sortie de terre ; copie en miroir des clips de déplacement et cadence
+   ±8 % tirées pour chacun ; couches procédurales par-dessus (inclinaison propre, recul aux impacts, hurlement, mâchoire).
+   Restent procéduraux : rampant, sortie de terre, Givreux figé. `?noanim` revient à l'ancienne animation.
+   Vérifié : `dev/anims.mjs` (profil et face, avant/après), `dev/zreal.mjs` (gore, rampant, marcheur sans tête),
+   `bench.mjs` (24 infectés : 5,91 contre 5,82 ms de mise à jour, +0,1 ms), `gels.mjs penitencier 2`.
 4. [ ] Os de mâchoire dans make_zombies.py, 18 GLB regénérés.
 5. [ ] Variété des démarches (100STYLE).
 6. [ ] Animations fournies par le propriétaire (UAL2 Source, pack Rohr), si achetées ou téléchargées.

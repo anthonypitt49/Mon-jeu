@@ -1,0 +1,17 @@
+-------------------------------------------------------
+License:
+CC0 1.0 Universal (CC0 1.0) 
+Public Domain Dedication
+https://creativecommons.org/publicdomain/zero/1.0/
+
+------------------------------------------------------
+Models by @Quaternius
+Consider supporting me on Patreon!
+
+https://www.patreon.com/quaternius
+
+
+(Texte de License.txt fourni dans les packs « Universal Animation Library » 1 et 2, version Standard, de Quaternius,
+téléchargés sur https://quaternius.itch.io/universal-animation-library et
+https://quaternius.itch.io/universal-animation-library-2 le 20 octobre 2026. Les packs eux-mêmes ne sont pas gardés
+dans le dépôt : seuls les clips reciblés par tools/make_anims.mjs le sont, dans src/09d_zanims.js.)

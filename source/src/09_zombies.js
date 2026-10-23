@@ -358,6 +358,56 @@ function poseBody(b, p) {
   if (p.fl) { b[BN.spine].rotation.x += p.fl.x; b[BN.chest].rotation.y += p.fl.y; b[BN.head].rotation.x += p.fl.h; b[BN.head].rotation.z += p.fl.y * 0.6; }
 }
 
+/* ─── Animations capturées (09d_zanims.js, Quaternius UAL, CC0) : clips reciblés hors du jeu sur ce squelette ───
+   Décodés au premier usage (le fichier de données vient après celui-ci dans la page). Marche zombie, attente, griffure
+   (attaque et planches), course et sprint ; chaque clip de déplacement a aussi sa copie en miroir (variété). Le rampant,
+   la sortie de terre et le soldat au fusil restent procéduraux. */
+let ZANIM = null;
+function zanimInit() {
+  if (ZANIM !== null) return ZANIM;
+  if (typeof ZANIM_DATA === 'undefined' || /noanim/.test(location.search)) return (ZANIM = false);
+  const NB = ZANIM_DATA.bones, clips = {}, dec = (b64) => { const s = atob(b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new Int16Array(u.buffer); };
+  // Miroir gauche ↔ droite : os échangés, rotation reflétée sur le plan médian (x ↦ −x), bassin aussi.
+  const MIR = BONE_DEF.map((_, i) => i); for (const [l, r] of [['clavL', 'clavR'], ['uArmL', 'uArmR'], ['fArmL', 'fArmR'], ['handL', 'handR'], ['thighL', 'thighR'], ['shinL', 'shinR'], ['footL', 'footR']]) { MIR[BN[l]] = BN[r]; MIR[BN[r]] = BN[l]; }
+  for (const [k, c] of Object.entries(ZANIM_DATA.clips)) {
+    const qi = dec(c.q), pi = dec(c.p), q = new Float32Array(qi.length), p = new Float32Array(pi.length);
+    for (let i = 0; i < qi.length; i += 4) { const l = Math.hypot(qi[i], qi[i + 1], qi[i + 2], qi[i + 3]) || 1; q[i] = qi[i] / l; q[i + 1] = qi[i + 1] / l; q[i + 2] = qi[i + 2] / l; q[i + 3] = qi[i + 3] / l; }
+    for (let i = 0; i < pi.length; i++) p[i] = pi[i] / 1000;
+    clips[k] = { ...c, q, p, fps: ZANIM_DATA.fps };
+    if (c.loop) {
+      const qm = new Float32Array(q.length), pm = new Float32Array(p.length);
+      for (let f = 0; f < c.n; f++) for (let i = 0; i < NB; i++) { const s = (f * NB + MIR[i]) * 4, d = (f * NB + i) * 4; qm[d] = q[s]; qm[d + 1] = -q[s + 1]; qm[d + 2] = -q[s + 2]; qm[d + 3] = q[s + 3]; }
+      for (let f = 0; f < c.n; f++) { pm[f * 3] = -p[f * 3]; pm[f * 3 + 1] = p[f * 3 + 1]; pm[f * 3 + 2] = p[f * 3 + 2]; }
+      clips[k + '_m'] = { ...clips[k], q: qm, p: pm };
+    }
+  }
+  return (ZANIM = { NB, clips });
+}
+const _zaA = new THREE.Quaternion(), _zaB = new THREE.Quaternion(), _zaE = new THREE.Euler(), _zaQ = new THREE.Quaternion(), _zaP = new THREE.Vector3();
+// Image d'un clip à l'instant t : [image, suivante, fraction] (en boucle ou bloqué à la fin).
+function zanimFrame(c, t, loop = c.loop) {
+  const f = loop ? (((t / c.len) % 1) + 1) % 1 * c.n : clamp(t / c.len, 0, 1) * (c.n - 1), i0 = Math.min(Math.floor(f), c.n - 1);
+  return [i0, loop ? (i0 + 1) % c.n : Math.min(i0 + 1, c.n - 1), f - i0];
+}
+function zanimRot(c, fr, i, q) { const NB = ZANIM.NB, a = (fr[0] * NB + i) * 4, b = (fr[1] * NB + i) * 4; q.set(c.q[a], c.q[a + 1], c.q[a + 2], c.q[a + 3]); return q.slerp(_zaB.set(c.q[b], c.q[b + 1], c.q[b + 2], c.q[b + 3]), fr[2]); }
+function zanimPos(c, fr, v) { const a = fr[0] * 3, b = fr[1] * 3, k = fr[2]; return v.set(lerp(c.p[a], c.p[b], k), lerp(c.p[a + 1], c.p[b + 1], k), lerp(c.p[a + 2], c.p[b + 2], k)); }
+// Pose d'un infecté par les clips : A = { cur, t, loop, prev, pt, ploop, w, snap }, puis couches procédurales
+// (inclinaison propre à chacun, recul aux impacts, hurlement, mâchoire).
+function zanimApply(b, A, p) {
+  const C = ZANIM.clips, c = C[A.cur], fc = zanimFrame(c, A.t, A.loop), pc = A.prev && C[A.prev], fp = pc && zanimFrame(pc, A.pt, A.ploop), w = smooth(clamp(A.w, 0, 1));
+  for (let i = 0; i < b.length; i++) {
+    zanimRot(c, fc, i, _zaA);
+    if (w < 1) { if (pc) _zaA.copy(zanimRot(pc, fp, i, _zaQ).slerp(_zaA, w)); else if (A.snap) _zaA.copy(_zaQ.fromArray(A.snap, i * 4).slerp(_zaA, w)); }
+    b[i].quaternion.copy(_zaA);
+  }
+  zanimPos(c, fc, _zaP); if (w < 1) { if (pc) _zaP.lerpVectors(zanimPos(pc, fp, _zv3), _zaP, w); else if (A.snap) _zaP.lerpVectors(_zv3.fromArray(A.snap, b.length * 4), _zaP, w); }
+  b[BN.hips].position.copy(_zaP);
+  const add = (i, x, y, z) => b[i].quaternion.multiply(_zaQ.setFromEuler(_zaE.set(x, y, z)));
+  add(BN.spine, p.lean + p.fl.x, 0, 0); add(BN.chest, 0, p.fl.y, 0); add(BN.head, p.fl.h + p.headX, 0, p.headTilt + p.fl.y * 0.6);
+  b[BN.jaw].quaternion.setFromEuler(_zaE.set(p.jaw, 0, 0));
+}
+const _zv3 = new THREE.Vector3();
+
 /* ─── Poupée de chiffon (Verlet) ─── */
 const RAG_PTS = [[BN.hips, 0, 0], [BN.chest, 0.12, 0], [BN.neck, 0, 0], [BN.head, 0.21, 0], [BN.uArmL, 0, 0], [BN.fArmL, 0, 0], [BN.handL, -0.08, 0], [BN.uArmR, 0, 0], [BN.fArmR, 0, 0], [BN.handR, -0.08, 0], [BN.thighL, 0, 0], [BN.shinL, 0, 0], [BN.footL, 0, 0], [BN.thighR, 0, 0], [BN.shinR, 0, 0], [BN.footR, 0, 0]];
 const RAG_LINKS = [[0, 1, 1], [1, 2, 1], [2, 3, 1], [1, 4, 1], [4, 5, 1], [5, 6, 1], [1, 7, 1], [7, 8, 1], [8, 9, 1], [0, 10, 1], [10, 11, 1], [11, 12, 1], [0, 13, 1], [13, 14, 1], [14, 15, 1],
@@ -660,11 +710,31 @@ class Zombie {
     const cam = R.camera.position, dx = this.pos.x - cam.x, dz = this.pos.z - cam.z, d2 = dx * dx + dz * dz;
     this.shadowT -= dt; if (this.shadowT <= 0) { this.shadowT = 0.4 + Math.random() * 0.2; (this.real?.mesh || this.mesh).castShadow = d2 < 26 * 26; }
     this.lodAcc += dt; const every = d2 > 70 * 70 ? 0.25 : d2 > 38 * 38 ? 0.066 : 0;
-    if (this.lodAcc < every) return; this.lodAcc = 0;
+    if (this.lodAcc < every) return; this.lodDt = this.lodAcc; this.lodAcc = 0; // (lodDt : temps écoulé depuis la dernière pose, pour les clips)
     this.jawT += dt;
     const run = clamp((this.speed - 1.3) / 2.5, 0, 1);
     if (this.screaming > 0 && this.remote) this.screaming -= dt;
     const scream = this.screaming > 0 ? Math.sin(Math.min(1, this.screaming / 1.2) * Math.PI) : 0;
+    const jaw = scream ? 0.2 + scream * 0.5 : this.state === 'attack' ? 0.1 + Math.sin(Math.min(1, this.attackT * 1.4) * Math.PI) * 0.45 : 0.1 + Math.max(0, Math.sin(this.jawT * 2.3 + this.id)) * 0.18;
+    // Animations capturées, sauf rampant, sortie de terre et Givreux figé (procéduraux).
+    if (zanimInit() && !this.crawl && this.rise >= 1) {
+      const A = this.anim ||= { cur: 'idle', t: rand(0, 2), loop: true, prev: null, pt: 0, ploop: true, w: 1, snap: null, mir: Math.random() < 0.5 ? '_m' : '', rate: rand(0.92, 1.08) };
+      if (!A.started) { A.started = true; A.snap = new Float32Array(this.bones.length * 4 + 3); this.bones.forEach((q, i) => q.quaternion.toArray(A.snap, i * 4)); this.bones[BN.hips].position.toArray(A.snap, this.bones.length * 4); A.w = 0; } // (fondu depuis la pose procédurale : fin de la sortie de terre)
+      const base = this.speed * (this.rage > 0 ? 1.4 : 1), moving = spd > Math.max(0.2, base * 0.25);
+      let want = this.state === 'attack' || this.state === 'tear' ? 'scratch' : !moving || scream ? 'idle' : base >= 6.2 ? 'sprint' : base >= 3 ? 'jog' : 'walk';
+      if (want !== 'scratch' && want !== 'idle') want += A.mir;
+      if (want !== A.cur) { A.prev = A.cur; A.pt = A.t; A.ploop = A.loop; A.w = 0; A.cur = want; A.t = want === 'scratch' ? 0 : A.t; A.snap = null; }
+      const c = ZANIM.clips[want], step = this.lodDt;
+      A.loop = want === 'scratch' ? this.state === 'tear' : c.loop;
+      if (this.state === 'attack') A.t = this.attackT * c.len; // (le coup porte à 45 % de l'attaque)
+      else A.t += step * A.rate * (c.speed ? clamp(spd / c.speed, want.startsWith('walk') ? 0.55 : 0.72, want.startsWith('walk') ? 1.6 : 1.3) : 1);
+      if (A.prev) A.pt += step; A.w += step / 0.25; if (A.w >= 1) { A.prev = null; A.snap = null; }
+      zanimApply(this.bones, A, { lean: (this.lean - 0.2) * 0.6 + (this.brute ? 0.1 : 0) - scream * 0.3, headTilt: this.headTilt * 0.6 - scream * 0.4, headX: -scream * 0.35, jaw, fl: this.fl });
+      if (this.headless) this.bones[BN.head].scale.setScalar(0.001);
+      if (this.real) zrealPose(this);
+      return;
+    }
+    if (this.anim) this.anim.started = false; // (retour au procédural : rampant)
     poseBody(this.bones, { phase: this.phase, run: this.brute ? 0 : run, lean: this.lean + (this.brute ? 0.1 : 0) - scream * 0.25, reach: this.speed > 3 || scream ? 0 : 1, attack: this.state === 'attack' ? this.attackT : 0, tear: this.state === 'tear' ? 1 : 0, crawl: this.crawl, rise: this.rise, headTilt: this.headTilt - scream * 0.5, t: this.time, limp: this.limp, moving: clamp(spd / Math.max(0.5, this.speed * 0.6), 0, 1), jaw: scream ? 0.2 + scream * 0.5 : 0.1 + Math.max(0, Math.sin(this.jawT * 2.3 + this.id)) * 0.18, fl: this.fl });
     if (this.headless) this.bones[BN.head].scale.setScalar(0.001);
     if (this.real) zrealPose(this);
