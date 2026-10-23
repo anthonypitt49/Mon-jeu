@@ -2,7 +2,7 @@
 """Fabrique les infectés réalistes du jeu, une époque par carte, dans ../../assets/zombies/.
 
 Corps, peaux, vêtements, cheveux : MakeHuman (CC0), assemblés par l'extension MPFB2 dans Blender lancé sans écran
-(module Python bpy 4.2). Chaque personnage reçoit le squelette « game_engine » (53 os), est allégé, puis toutes ses
+(module Python bpy 4.2). Chaque personnage reçoit le squelette « game_engine » (53 os) plus une mâchoire (54), est allégé, puis toutes ses
 textures sont réunies en une seule image (un seul appel de dessin par infecté dans le jeu). La « zombification » est
 peinte en 3D sur cette image : chaque texel connaît sa position sur le corps (peau grise et marbrée, veines, orbites
 creuses, sang à la bouche, plaies, boue et sang sur les vêtements, teintes d'époque). Le relief est tiré de la couleur.
@@ -110,23 +110,21 @@ def one(cid):
     base = HumanService.create_human(macro_detail_dict=macro)
     HumanService.set_character_skin(D(f"skins/{spec['skin']}/{spec['skin']}.mhmat"), base, skin_type='MAKESKIN')
     HumanService.add_builtin_rig(base, 'game_engine')
+    rig = next(o for o in bpy.data.objects if o.type == 'ARMATURE')
+    add_jaw(base, rig, LocationService.get_mpfb_data('rigs/standard'))
     parts = [('eyes', 'low-poly'), ('eyebrows', 'eyebrow00' + str(1 + rng.integers(9))), ('eyelashes', 'eyelashes01'), ('teeth', 'teeth_base'), ('tongue', 'tongue01')]
     if spec.get('hair'): parts.append(('hair', spec['hair']))
     tint = {}
     for name, col in spec['clothes']: parts.append(('clothes', name)); tint[name] = col
     for kind, name in parts:
         HumanService.add_mhclo_asset(D(f'{kind}/{name}/{name}.mhclo'), base, asset_type='Clothes' if kind == 'clothes' else kind, subdiv_levels=0, material_type='MAKESKIN')
-    rig = next(o for o in bpy.data.objects if o.type == 'ARMATURE')
+    jaw_parts(bpy.data.objects, base)
     ExportService.bake_modifiers_remove_helpers(base, bake_masks=True, bake_subdiv=False, remove_helpers=True, also_proxy=True)
     meshes = [o for o in bpy.data.objects if o.type == 'MESH']
 
     def bake_shapes(o):
-        sk = o.data.shape_keys
-        if not sk: return
-        kb = sk.key_blocks; n = len(o.data.vertices); b0 = np.empty(n * 3, 'f'); kb[0].data.foreach_get('co', b0); res = b0.copy()
-        for k in kb[1:]:
-            if k.value and not k.mute: a = np.empty(n * 3, 'f'); k.data.foreach_get('co', a); res += k.value * (a - b0)
-        o.shape_key_clear(); o.data.vertices.foreach_set('co', res); o.data.update()
+        if not o.data.shape_keys: return
+        res = shaped(o).ravel(); o.shape_key_clear(); o.data.vertices.foreach_set('co', res); o.data.update()
 
     def kind_of(o):
         n = o.name.lower()
@@ -362,6 +360,81 @@ def one(cid):
                 bytes=os.path.getsize(tag + '.glb'))
     json.dump(info, open(tag + '.json', 'w'))
     print('FAIT', cid, tris, 'triangles', info['bytes'], 'octets')
+
+
+def shaped(o):
+    """Sommets d'un maillage avec ses formes (âge, carrure…) appliquées, en coordonnées de l'objet."""
+    import numpy as np
+    n = len(o.data.vertices); b0 = np.empty(n * 3, 'f'); o.data.vertices.foreach_get('co', b0); sk = o.data.shape_keys
+    if sk:
+        kb = sk.key_blocks; kb[0].data.foreach_get('co', b0); res = b0.copy()
+        for k in kb[1:]:
+            if k.value and not k.mute: a = np.empty(n * 3, 'f'); k.data.foreach_get('co', a); res += k.value * (a - b0)
+        b0 = res
+    return b0.reshape(-1, 3)
+
+
+def add_jaw(base, rig, rigs):
+    """Os de mâchoire (le squelette « game_engine » n'en a pas) : placé et pondéré comme dans le squelette « default » de
+    MPFB (CC0), enfant de la tête. Le bas du visage passe de ses os actuels à la mâchoire (1 415 sommets du corps de
+    base). Appelé avant les pièces du visage : dents et langue en héritent."""
+    import bpy, numpy as np
+    from mathutils import Vector
+    jd = json.load(open(os.path.join(rigs, 'rig.default.json')))['jaw']
+    co = shaped(base); g = base.vertex_groups[jd['head']['cube_name']]
+    pivot = co[[v.index for v in base.data.vertices if any(e.group == g.index for e in v.groups)]].mean(0)  # cube « joint-mouth »
+    M = rig.matrix_world.inverted() @ base.matrix_world
+    bpy.context.view_layer.objects.active = rig; bpy.ops.object.mode_set(mode='EDIT')
+    eb = rig.data.edit_bones.new('jaw'); eb.head = M @ Vector(pivot); eb.tail = M @ Vector(co[jd['tail']['vertex_index']]); eb.roll = 0
+    eb.parent = rig.data.edit_bones['head']; eb.use_connect = False
+    bpy.ops.object.mode_set(mode='OBJECT')
+    # Poids : la mâchoire et toute sa descendance dans « default » (lèvre du bas « oris01/02/06/07 », langue…) ; sans
+    # elles, le menton descendait mais la lèvre du bas restait collée à celle du haut.
+    rd = json.load(open(os.path.join(rigs, 'rig.default.json')))
+    def under_jaw(b):
+        while b:
+            if b == 'jaw': return True
+            b = rd[b].get('parent')
+        return False
+    acc = {}
+    for b, lst in json.load(open(os.path.join(rigs, 'weights.default.json')))['weights'].items():
+        if b in rd and under_jaw(b):
+            for vi, w in lst: acc[vi] = acc.get(vi, 0) + w
+    gj = base.vertex_groups.new(name='jaw')
+    for vi, w in acc.items():
+        w = min(1.0, w)
+        for e in base.data.vertices[vi].groups: e.weight *= 1 - w
+        gj.add([vi], w, 'REPLACE')
+
+
+def jaw_parts(objects, base):
+    """Dents du bas, leur gencive et la langue entièrement à la mâchoire (le report automatique des poids n'en donne
+    presque pas). Les deux rangées se touchent (pas d'écart de hauteur) : chaque dent est un îlot du maillage, rangée du
+    bas si elle est sous sa voisine d'en face ; la gencive (le plus gros îlot) suit la dent la plus proche."""
+    import numpy as np
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+    for o in objects:
+        nm = o.name.lower()
+        if o.type != 'MESH' or o == base or not ('teeth' in nm or 'tongue' in nm): continue
+        co = shaped(o); n = len(co)
+        if 'teeth' in nm:
+            ed = np.empty(len(o.data.edges) * 2, 'i'); o.data.edges.foreach_get('vertices', ed); ed = ed.reshape(-1, 2)
+            _, lab = connected_components(coo_matrix((np.ones(len(ed)), (ed[:, 0], ed[:, 1])), shape=(n, n)), directed=False)
+            gum = np.bincount(lab).argmax(); teeth = [k for k in np.unique(lab) if k != gum]
+            c = {k: co[lab == k].mean(0) for k in teeth}; low = np.zeros(n, bool)
+            for k in teeth:
+                other = min((j for j in teeth if j != k), key=lambda j: np.hypot(*(c[j][:2] - c[k][:2])))
+                if c[k][2] < c[other][2]: low |= lab == k
+            tv = np.flatnonzero(lab != gum); gv = np.flatnonzero(lab == gum)
+            near = tv[np.argmin(((co[gv][:, None, :] - co[tv][None, :, :]) ** 2).sum(-1), 1)]
+            low[gv] = low[near]; sel = np.flatnonzero(low).tolist()
+            print('mâchoire : dents', len(teeth), 'dont', sum(1 for k in teeth if low[lab == k].all()), 'en bas')
+        else: sel = list(range(n))
+        for vg in o.vertex_groups:
+            if vg.name != 'jaw': vg.remove(sel)
+        (o.vertex_groups.get('jaw') or o.vertex_groups.new(name='jaw')).add(sel, 1.0, 'REPLACE')
+        print('mâchoire :', o.name, len(sel), 'sommets sur', n)
 
 
 def bm_cut(obj, z):

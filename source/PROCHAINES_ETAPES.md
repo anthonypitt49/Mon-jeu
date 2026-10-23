@@ -2,6 +2,15 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.7) : os de mâchoire des infectés réalistes
+
+Demande du propriétaire : « passe à l'os de mâchoire ». Détail : `source/INFECTES_BO2.md` (étape 4).
+
+- **Modèles** : les 18 GLB regénérés par `tools/make_zombies.py` avec un 54e os, `jaw` (position et poids du squelette « default » de MPFB, CC0) : menton, lèvre du bas, dents du bas et leur gencive, langue. Piège rencontré : le seul groupe « jaw » ne suffit pas, la lèvre du bas est portée par ses enfants (oris…) — bouche qui s'étirait sans s'ouvrir.
+- **Jeu** : la mâchoire du modèle recopie celle du squelette procédural (déjà animée : souffle en marchant, attaque, hurlement). Rien d'autre ne change (même matière, 0 shader en plus).
+- **Artifact** : republier aussi les 18 `assets/zombies/<id>.glb.txt` (base64 des nouveaux GLB) avec `manifest.json`.
+- **Vérifié** : `dev/machoire.mjs` (gros plans, `GRIS=1` forme seule).
+
 ## Fait (version 6.6) : bras tendus et démarches variées
 
 Demande du propriétaire : « relève les bras et passe aux démarches variées ». Détail : `source/INFECTES_BO2.md` (étape 5).

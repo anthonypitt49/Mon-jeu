@@ -7,8 +7,9 @@
 
 const ZREAL = { state: 'off', err: '', ms: 0, tpl: {}, list: [], brute: null, boss: null, era: '' };
 const ZR_GLB = '.glb'; // (build.mjs --artifact : '.glb.txt', le même fichier en base64)
-// Os procédural → os du modèle (squelette « game_engine » de MakeHuman).
-const ZR_MAP = [[BN.hips, 'pelvis'], [BN.spine, 'spine_01'], [BN.chest, 'spine_03'], [BN.neck, 'neck_01'], [BN.head, 'head'],
+// Os procédural → os du modèle (squelette « game_engine » de MakeHuman, plus la mâchoire ajoutée par make_zombies.py ;
+// un modèle sans mâchoire garde la bouche fermée).
+const ZR_MAP = [[BN.hips, 'pelvis'], [BN.spine, 'spine_01'], [BN.chest, 'spine_03'], [BN.neck, 'neck_01'], [BN.head, 'head'], [BN.jaw, 'jaw'],
   [BN.clavL, 'clavicle_l'], [BN.uArmL, 'upperarm_l'], [BN.fArmL, 'lowerarm_l'], [BN.handL, 'hand_l'],
   [BN.clavR, 'clavicle_r'], [BN.uArmR, 'upperarm_r'], [BN.fArmR, 'lowerarm_r'], [BN.handR, 'hand_r'],
   [BN.thighL, 'thigh_l'], [BN.shinL, 'calf_l'], [BN.footL, 'foot_l'], [BN.thighR, 'thigh_r'], [BN.shinR, 'calf_r'], [BN.footR, 'foot_r']];

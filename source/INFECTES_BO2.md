@@ -63,7 +63,17 @@ En attente des réponses du propriétaire (achats UAL2 Source 14,99 $, comptes S
    Restent procéduraux : rampant, sortie de terre, Givreux figé. `?noanim` revient à l'ancienne animation.
    Vérifié : `dev/anims.mjs` (profil et face, avant/après), `dev/zreal.mjs` (gore, rampant, marcheur sans tête),
    `bench.mjs` (24 infectés : 5,91 contre 5,82 ms de mise à jour, +0,1 ms), `gels.mjs penitencier 2`.
-4. [ ] Os de mâchoire dans make_zombies.py, 18 GLB regénérés.
+4. [x] (version 6.7) Os de mâchoire dans `make_zombies.py` (`add_jaw`, `jaw_parts`), 18 GLB regénérés (54 os). Position
+   du squelette « default » de MPFB (cube « joint-mouth » → sommet 991 du menton, enfant de la tête), calculée avec les
+   formes du personnage. Poids : la mâchoire ET toute sa descendance dans « default » (lèvre du bas oris01/02/06/07,
+   langue, special04 : 1 415 sommets du corps de base) — avec le seul groupe « jaw » (911 sommets), le menton descendait
+   mais la lèvre du bas restait collée à celle du haut (bouche qui s'étire sans s'ouvrir, vu en `GRIS=1`). Les poids pris
+   à la mâchoire sont retirés des os d'origine (somme 1). Dents : les deux rangées se touchent (pas d'écart de hauteur) ;
+   chaque dent est un îlot du maillage, rangée du bas si elle est sous sa voisine d'en face (16 sur 32), gencive selon
+   la dent la plus proche ; langue entière à la mâchoire. Jeu : `[BN.jaw, 'jaw']` dans ZR_MAP (09b_zreal.js) ; un modèle
+   sans mâchoire (ancien fichier en cache) garde la bouche fermée. Ouverture : 0,1 à 0,28 rad en marchant, jusqu'à
+   0,55 à l'attaque, 0,7 au hurlement. Vérifié : `dev/machoire.mjs <modèle>` (fermée, moitié, grande ouverte, trois
+   quarts ; `GRIS=1` forme seule).
 5. [x] (version 6.6) Démarches variées et bras tendus. Capture 100STYLE (CC-BY 4.0, crédit dans
    `assets/zombies/CREDITS.md` et le README) : `make_anims.mjs <UAL> <BVH>` cherche dans chaque longue prise un cycle en
    ligne droite qui retombe sur son début, retire l'avance et le cap, répartit l'écart de couture sur tout le cycle (plus
