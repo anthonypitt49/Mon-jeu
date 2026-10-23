@@ -405,8 +405,35 @@ function zanimApply(b, A, p) {
   const add = (i, x, y, z) => b[i].quaternion.multiply(_zaQ.setFromEuler(_zaE.set(x, y, z)));
   add(BN.spine, p.lean + p.fl.x, 0, 0); add(BN.chest, 0, p.fl.y, 0); add(BN.head, p.fl.h + p.headX, 0, p.headTilt + p.fl.y * 0.6);
   b[BN.jaw].quaternion.setFromEuler(_zaE.set(p.jaw, 0, 0));
+  if (p.reach > 0.01) zanimReach(b, p);
 }
-const _zv3 = new THREE.Vector3();
+const _zv3 = new THREE.Vector3(), _zaC = new THREE.Quaternion(), _zaT = new THREE.Quaternion(), _zaY = new THREE.Quaternion(), _zaF = new THREE.Vector3(), _zaUp = new THREE.Vector3(0, 1, 0);
+// Bras tendus à la BO2, par-dessus le clip (les jambes n'y touchent pas). La direction du bras est visée dans le repère du
+// corps : à l'horizontale devant lui même quand le clip voûte le dos, en suivant à moitié la torsion du buste ;
+// avant-bras un peu fléchis, léger balancement au rythme des pas. p.reach : poids (0 = clip seul), p.rp : hauteur des bras.
+function zanimReach(b, p) {
+  const r = p.reach;
+  _zaB.copy(b[BN.hips].quaternion).multiply(b[BN.spine].quaternion).multiply(b[BN.chest].quaternion); // buste, repère du corps
+  _zaF.set(0, 0, 1).applyQuaternion(_zaB); _zaY.setFromAxisAngle(_zaUp, Math.atan2(_zaF.x, _zaF.z) * 0.5);
+  for (let k = 1; k >= -1; k -= 2) {
+    const L = k > 0, cl = L ? BN.clavL : BN.clavR, ua = L ? BN.uArmL : BN.uArmR, fa = L ? BN.fArmL : BN.fArmR;
+    b[cl].quaternion.slerp(_zaQ.setFromEuler(_zaE.set(-0.1, 0.1 * k, 0.06 * k)), r);
+    _zaT.setFromEuler(_zaE.set(p.rp + p.s * 0.12 * k + (L ? 0 : 0.1), 0, k * (0.12 + Math.sin(p.t * (L ? 1.3 : 1.1)) * 0.06))).premultiply(_zaY);
+    b[ua].quaternion.slerp(_zaC.copy(_zaB).multiply(b[cl].quaternion).invert().multiply(_zaT), r);
+    b[fa].quaternion.slerp(_zaQ.setFromEuler(_zaE.set(L ? -0.3 - Math.sin(p.t * 2 + 1) * 0.12 : -0.22 - Math.sin(p.t * 1.8) * 0.1, 0, 0)), r);
+  }
+}
+// Démarches des marcheurs (clip, part, vitesse relative, bras tendus) : Quaternius « Zombie_Walk », et 100STYLE « Zombie »
+// (bras déjà en avant), « Drunk », « DragLeftLeg » (jambe traînée) et « Zombie » en course (petits pas rapides). Les deux
+// démarches lentes de la capture imposent leur vitesse : un pied qui glisse se voit plus qu'un infecté un peu plus lent.
+const ZGAITS = [['walk', 0.34, 1, 0.9], ['zwalk', 0.2, 0.72, 0], ['drunk', 0.16, 1, 0.5], ['drag', 0.14, 0.66, 0.8], ['zrun', 0.16, 1, 0]];
+// Tirée du numéro de l'infecté : l'hôte et les invités voient la même.
+function zgait(z) {
+  if (z.brute) return ZGAITS[0];
+  let h = Math.sin(z.id * 12.9898 + 78.233) * 43758.5453; h -= Math.floor(h);
+  for (const g of ZGAITS) if ((h -= g[1]) < 0) return g;
+  return ZGAITS[0];
+}
 
 /* ─── Poupée de chiffon (Verlet) ─── */
 const RAG_PTS = [[BN.hips, 0, 0], [BN.chest, 0.12, 0], [BN.neck, 0, 0], [BN.head, 0.21, 0], [BN.uArmL, 0, 0], [BN.fArmL, 0, 0], [BN.handL, -0.08, 0], [BN.uArmR, 0, 0], [BN.fArmR, 0, 0], [BN.handR, -0.08, 0], [BN.thighL, 0, 0], [BN.shinL, 0, 0], [BN.footL, 0, 0], [BN.thighR, 0, 0], [BN.shinR, 0, 0], [BN.footR, 0, 0]];
@@ -557,7 +584,7 @@ class Zombie {
     R.scene.add(this.holder);
     if (ZREAL.state === 'on') this.useReal();
     this.pos = new THREE.Vector3(o.x, o.y ?? 0, o.z); this.yaw = o.yaw ?? 0;
-    this.maxHp = this.hp = o.hp ?? 150; this.speed = (ZSPEED[this.kind] || 1) * rand(0.9, 1.1);
+    this.gait = zgait(this); this.maxHp = this.hp = o.hp ?? 150; this.speed = (ZSPEED[this.kind] || 1) * rand(0.9, 1.1) * (this.kind === 'walker' || this.kind === 'frost' ? this.gait[2] : 1);
     this.state = o.state || 'rise'; this.t = 0; this.phase = rand(TAU); this.time = rand(10);
     this.headTilt = rand(-0.3, 0.3); this.limp = Math.random() < 0.3 ? rand(0.2, 0.6) : 0; this.lean = rand(0.1, 0.32);
     this.crawl = this.kind === 'crawler'; this.rise = this.state === 'rise' ? 0 : 1;
@@ -721,15 +748,20 @@ class Zombie {
       const A = this.anim ||= { cur: 'idle', t: rand(0, 2), loop: true, prev: null, pt: 0, ploop: true, w: 1, snap: null, mir: Math.random() < 0.5 ? '_m' : '', rate: rand(0.92, 1.08) };
       if (!A.started) { A.started = true; A.snap = new Float32Array(this.bones.length * 4 + 3); this.bones.forEach((q, i) => q.quaternion.toArray(A.snap, i * 4)); this.bones[BN.hips].position.toArray(A.snap, this.bones.length * 4); A.w = 0; } // (fondu depuis la pose procédurale : fin de la sortie de terre)
       const base = this.speed * (this.rage > 0 ? 1.4 : 1), moving = spd > Math.max(0.2, base * 0.25);
-      let want = this.state === 'attack' || this.state === 'tear' ? 'scratch' : !moving || scream ? 'idle' : base >= 6.2 ? 'sprint' : base >= 3 ? 'jog' : 'walk';
+      // Marche : la démarche de l'infecté ; entre 1,6 et 3 m/s, la course zombie à petits pas (bras déjà tendus).
+      let want = this.state === 'attack' || this.state === 'tear' ? 'scratch' : !moving || scream ? 'idle' : base >= 6.2 ? 'sprint' : base >= 3 ? 'jog' : base >= 1.6 && !this.brute ? 'zrun' : this.gait[0];
       if (want !== 'scratch' && want !== 'idle') want += A.mir;
       if (want !== A.cur) { A.prev = A.cur; A.pt = A.t; A.ploop = A.loop; A.w = 0; A.cur = want; A.t = want === 'scratch' ? 0 : A.t; A.snap = null; }
       const c = ZANIM.clips[want], step = this.lodDt;
       A.loop = want === 'scratch' ? this.state === 'tear' : c.loop;
       if (this.state === 'attack') A.t = this.attackT * c.len; // (le coup porte à 45 % de l'attaque)
-      else A.t += step * A.rate * (c.speed ? clamp(spd / c.speed, want.startsWith('walk') ? 0.55 : 0.72, want.startsWith('walk') ? 1.6 : 1.3) : 1);
+      else A.t += step * A.rate * (c.speed ? (c.speed < 2 ? clamp(spd / c.speed, 0.55, 1.75) : clamp(spd / c.speed, 0.72, 1.3)) : 1);
       if (A.prev) A.pt += step; A.w += step / 0.25; if (A.w >= 1) { A.prev = null; A.snap = null; }
-      zanimApply(this.bones, A, { lean: (this.lean - 0.2) * 0.6 + (this.brute ? 0.1 : 0) - scream * 0.3, headTilt: this.headTilt * 0.6 - scream * 0.4, headX: -scream * 0.35, jaw, fl: this.fl });
+      // Bras tendus : selon la démarche, un peu moins à l'arrêt, jamais pendant l'attaque, la course ou le hurlement.
+      const reach = want === 'scratch' || scream || this.brute ? 0 : want === 'idle' ? this.gait[3] * 0.6 : want.startsWith(this.gait[0]) ? this.gait[3] : 0;
+      A.reach = (A.reach ?? reach) + (reach - (A.reach ?? reach)) * Math.min(1, step * 4);
+      zanimApply(this.bones, A, { lean: (this.lean - 0.2) * 0.6 + (this.brute ? 0.1 : 0) - scream * 0.3, headTilt: this.headTilt * 0.6 - scream * 0.4, headX: -scream * 0.35, jaw, fl: this.fl,
+        reach: A.reach, rp: -1.42 + this.lean * 0.6, s: Math.sin((A.t / c.len) * TAU), t: this.jawT + this.id });
       if (this.headless) this.bones[BN.head].scale.setScalar(0.001);
       if (this.real) zrealPose(this);
       return;

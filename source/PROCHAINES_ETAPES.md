@@ -2,6 +2,16 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.6) : bras tendus et démarches variées
+
+Demande du propriétaire : « relève les bras et passe aux démarches variées ». Détail : `source/INFECTES_BO2.md` (étape 5).
+
+- **Démarches** : capture de mouvement 100STYLE (CC-BY 4.0 : crédit obligatoire, mis dans `assets/zombies/CREDITS.md` et le README) — zombie bras en avant, ivre, jambe traînée, course zombie à petits pas — en plus de la marche Quaternius. Tirée du numéro de chaque infecté (même démarche chez l'hôte et les invités). Les rapides (1,6 à 3 m/s) prennent la course zombie. Coutures de boucle lissées et vitesse au sol mesurée sur les pieds reciblés (`tools/make_anims.mjs <UAL> <BVH>`). Les BVH ne sont pas dans le dépôt (liens Google Drive de 100STYLE, styles Zombie_FW, Drunk_FW, DragLeftLeg_FW, Zombie_FR).
+- **Contrepartie** : les marcheurs « zombie » et « traîne » sont 28 et 34 % plus lents (vitesse de leur capture) ; réglable dans `ZGAITS` (09_zombies.js).
+- **Bras tendus** : couche `zanimReach` par-dessus le clip (jambes intactes), bras à l'horizontale dans le repère du corps, poids par démarche, relâchés en attaque, course, hurlement et pour les brutes.
+- **Vérifié** : `GAITS=1 node dev/anims.mjs penitencier 2` (profil, `FRONT=1` face), `bench.mjs` (30 infectés : 6,24 ms), `gels.mjs penitencier 2` (0 shader tardif).
+- **Suite du plan** (`INFECTES_BO2.md`) : os de mâchoire dans les modèles, gore façon BO2, matières et vêtements, poids.
+
 ## Fait (version 6.5) : infectés façon BO2, étape 2 — animations capturées
 
 Demande du propriétaire : « lance l'étape des animations ». Détail et choix : `source/INFECTES_BO2.md` (étapes 2 et 3).

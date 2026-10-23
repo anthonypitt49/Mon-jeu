@@ -64,7 +64,22 @@ En attente des réponses du propriétaire (achats UAL2 Source 14,99 $, comptes S
    Vérifié : `dev/anims.mjs` (profil et face, avant/après), `dev/zreal.mjs` (gore, rampant, marcheur sans tête),
    `bench.mjs` (24 infectés : 5,91 contre 5,82 ms de mise à jour, +0,1 ms), `gels.mjs penitencier 2`.
 4. [ ] Os de mâchoire dans make_zombies.py, 18 GLB regénérés.
-5. [ ] Variété des démarches (100STYLE).
+5. [x] (version 6.6) Démarches variées et bras tendus. Capture 100STYLE (CC-BY 4.0, crédit dans
+   `assets/zombies/CREDITS.md` et le README) : `make_anims.mjs <UAL> <BVH>` cherche dans chaque longue prise un cycle en
+   ligne droite qui retombe sur son début, retire l'avance et le cap, répartit l'écart de couture sur tout le cycle (plus
+   d'à-coup : 18-20° avant sur « ivre » et « course zombie »), recible, et mesure la vitesse au sol sur NOS pieds (la marche
+   Quaternius passe de 1,12 à 0,97 m/s : elle glissait de 13 %). Clips : zwalk (Zombie, bras déjà en avant, 0,54 m/s),
+   drunk (0,99), drag (DragLeftLeg, 0,49), zrun (Zombie_FR : 1,15 m/s à petits pas rapides — ce n'est pas une course,
+   100STYLE ne dépasse pas 1,4 m/s dans ce style). 71 Ko.
+   Jeu : démarche tirée du numéro de l'infecté (hôte et invités voient la même) : Quaternius 34 %, zombie 20 %, ivre 16 %,
+   traîne 14 %, course zombie 16 % ; entre 1,6 et 3 m/s (rapides, hurleurs), course zombie (cadence jusqu'à 1,75).
+   Contrepartie de jeu : les marcheurs « zombie » et « traîne » vont 28 et 34 % moins vite (vitesse de leur capture : un
+   pied qui glisse se voit plus qu'un infecté plus lent) ; réglable dans ZGAITS.
+   Bras tendus (couche `zanimReach`, les jambes du clip n'y touchent pas) : direction visée dans le repère du corps,
+   à l'horizontale même quand le clip voûte le dos, suit à moitié la torsion du buste, léger balancement au pas ; poids par
+   démarche (0,9 Quaternius, 0,8 traîne, 0,5 ivre, 0 pour les clips 100STYLE déjà bras en avant), ×0,6 à l'arrêt, 0 en
+   attaque, course, hurlement et pour les brutes. Vérifié : `GAITS=1 dev/anims.mjs` (profil et face), `bench.mjs`
+   (30 infectés : 6,24 ms), `gels.mjs penitencier 2` (0 shader tardif).
 6. [ ] Animations fournies par le propriétaire (UAL2 Source, pack Rohr), si achetées ou téléchargées.
 7. [ ] Gore façon BO2 (morceaux préparés, chapeaux, marcheur sans tête).
 8. [ ] Matière et vêtements d'époque.

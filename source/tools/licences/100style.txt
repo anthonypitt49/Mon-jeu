@@ -1,0 +1,13 @@
+100STYLE — capture de mouvement de 100 styles de locomotion
+Auteurs : Ian Mason, Sebastian Starke, Taku Komura (2022), « Real-Time Style Modelling of Human Locomotion via
+Feature-Wise Transformations and Local Motion Phases », Proc. ACM Comput. Graph. Interact. Tech. 5(1).
+Site : https://www.ianxmason.com/100style/  (fichiers BVH par style, liens Google Drive)
+Licence : Creative Commons Attribution 4.0 International (CC-BY 4.0) — https://creativecommons.org/licenses/by/4.0/
+  Libre d'usage, y compris commercial, à condition de créditer les auteurs, de donner le lien de la licence et
+  d'indiquer les modifications.
+
+Utilisé dans le jeu : styles Zombie (FW, FR), Drunk (FW) et DragLeftLeg (FW).
+Modifications : un cycle de marche extrait de chaque prise, avance et cap retirés, écart de couture réparti sur le
+cycle, reciblage sur le squelette procédural de 20 os, quantification (source/tools/make_anims.mjs →
+source/src/09d_zanims.js).
+Crédit affiché : assets/zombies/CREDITS.md et README.md (section Gore).
