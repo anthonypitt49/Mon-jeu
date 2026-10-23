@@ -83,10 +83,12 @@ def main():
         p = os.path.join(OUT, s['id'] + '.json')
         if os.path.exists(p): chars[s['id']] = json.load(open(p)); os.remove(p)
     json.dump({'eras': ERA_OF_MAP, 'chars': {k: chars[k] for k in sorted(chars)}}, open(man_p, 'w'), indent=1)
-    with open(os.path.join(OUT, 'CREDITS.md'), 'w') as f:
-        f.write('# Infectés réalistes\n\nCorps, peaux, vêtements et cheveux : [MakeHuman](https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html) '
-                '(pack « makehuman_system_assets », CC0, domaine public), assemblés par [MPFB2](https://static.makehumancommunity.org/mpfb.html). '
-                'Zombification, assemblage et textures : `source/tools/make_zombies.py`.\n')
+    cred = os.path.join(OUT, 'CREDITS.md')  # (déjà là : gardé tel quel, il porte aussi les crédits des animations, dont le CC-BY de 100STYLE)
+    if not os.path.exists(cred):
+        with open(cred, 'w') as f:
+            f.write('# Infectés réalistes\n\nCorps, peaux, vêtements et cheveux : [MakeHuman](https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html) '
+                    '(pack « makehuman_system_assets », CC0, domaine public), assemblés par [MPFB2](https://static.makehumancommunity.org/mpfb.html). '
+                    'Zombification, assemblage et textures : `source/tools/make_zombies.py`.\n')
 
 
 # ─────────────────────────── Un personnage (dans Blender) ───────────────────────────

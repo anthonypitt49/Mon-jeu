@@ -28,8 +28,8 @@ const url = await page.evaluate(async ([mid, GRIS]) => {
   P.pitch = 0.04; SP.updatePlayer(0.016);
   { const E = SP.M().env, L = R.lights, roofed = !!SP.MAP.roof[SP.tileOf(P.pos.z) * SP.MAPW() + SP.tileOf(P.pos.x)]; L.hemi.intensity = roofed ? E.hemiIn : E.hemiOut; R.scene.environmentIntensity = (roofed ? E.envIn : E.envOut) * (R.envK || 1); }
   const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw), x = P.pos.x + fx * 1.1, z = P.pos.z + fz * 1.1;
-  const zb = SP.spawnTestZombie(x, z, 'walker'); zb.rise = 1; zb.state = 'move'; zb.vel.set(0, 0, 0); zb.yaw = Math.atan2(P.pos.x - x, P.pos.z - z);
   const t = ZREAL.tpl[mid]; if (!t) return 'modèle absent : ' + mid + ' (état ' + ZREAL.state + ')';
+  const zb = SP.spawnTestZombie(x, z, ZREAL.list.includes(t) ? 'walker' : 'brute'); zb.rise = 1; zb.state = 'move'; zb.vel.set(0, 0, 0); zb.yaw = Math.atan2(P.pos.x - x, P.pos.z - z); // (brute : gabarit à part)
   if (zb.real) { zb.holder.remove(zb.real.root); zb.real = null; } zb.variant = ZREAL.list.indexOf(t); zb.useReal();
   if (GRIS) zb.real.mesh.material = new SP.THREE.MeshStandardMaterial({ color: 0x9a9a9a, roughness: 0.7, side: SP.THREE.DoubleSide }); // (GRIS=1 : forme seule, sans la peinture)
   const cw = 640, ch = 360, mc = document.createElement('canvas'); mc.width = cw * 2; mc.height = ch * 2; const c2 = mc.getContext('2d');
