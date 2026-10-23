@@ -76,7 +76,7 @@ function zrealTemplate(scene, mat, info) {
   const k = clamp(1.657 / info.eyes[0][1], 0.85, 1.25);
   const hipsOff = wp(bones.pelvis).multiplyScalar(k).sub(boneW(BN.hips)); // bassin du modèle (à l'échelle) − bassin procédural
   // Lueur des yeux : deux petites sphères juste devant les globes (fiche du modèle), dans le repère de l'os de la tête.
-  const eyeC = info.eyes.map((e) => bones.head.worldToLocal(new THREE.Vector3(e[0], e[1], e[2] + 0.007)).toArray()), eyeGeo = mergeGeometries(eyeC.map((c) => new THREE.SphereGeometry(0.0085, 8, 6).translate(...c))); eyeGeo.userData.centers = eyeC; // (centres : halos des yeux)
+  const eyeGeo = mergeGeometries(info.eyes.map((e) => new THREE.SphereGeometry(0.0085, 8, 6).translate(...bones.head.worldToLocal(new THREE.Vector3(e[0], e[1], e[2] + 0.007)).toArray())));
   return { scene, mesh, K, order, hipsOff, info, eyeGeo, k, id: mesh.name };
 }
 

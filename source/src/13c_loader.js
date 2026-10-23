@@ -76,7 +76,7 @@ async function warmUp() {
     tpls.forEach((t, i) => put(zrealInstance(t).root, (i - tpls.length / 2) * 0.7, -1.2));
     const zf = zrealInstance(tpls[0]); zf.mesh.material = ZMAT_FROZEN; put(zf.root, 2.2, -1.2);
   }
-  { const c = new THREE.Color(EYE_COL[MAP_ID] ?? 0xffb040); eyeHalos(put(new THREE.Mesh(ZEYE_GEO, eyeMaterial(c)), 0, 0.5), c); } // (yeux et halos : mêmes matières qu'en jeu, sans brouillard)
+  put(new THREE.Mesh(ZEYE_GEO, eyeMaterial(new THREE.Color(EYE_COL[MAP_ID] ?? 0xffb040))), 0, 0.5); // (même matière qu'en jeu, sans brouillard)
   if (GORE.capGeo) put(new THREE.Mesh(GORE.capGeo, GORE.capMat), 0.3, 0.5);
   put(buildGrenadeModel(false), -0.3, 0.5);
   for (const type of Object.keys(DROP_TYPES)) put(new THREE.Sprite(new THREE.SpriteMaterial({ map: dropTexture(type), depthWrite: false, transparent: true })), rand(-1, 1), 0.8);

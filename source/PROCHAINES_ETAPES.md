@@ -2,6 +2,10 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.4.1) : yeux sans halo
+
+Retour du propriétaire : « trop de lumière ; seulement le globe de l'œil, pas de lumière supplémentaire autour ». Halos retirés ; le globe garde sa couleur par carte, sans brouillard, avec une clarté juste sous le seuil du halo du post-traitement (il ne rayonne plus sur le visage).
+
 ## Fait (version 6.4) : infectés façon BO2, étape 1 — les yeux
 
 Demande du propriétaire : « aller chercher un autre niveau, le plus proche possible de Black Ops 2 Zombies ; cherche des modèles sur des sites web ». Recherche faite par workflows (première passe coupée par la limite de sessions du propriétaire, puis seconde passe à part) : `source/INFECTES_BO2.md` (suivi et plan en 11 étapes) et `source/recherche_infectes/` (plan de décision, ressources vérifiées, référence BO2, technique). Constat : aucun modèle gratuit et légal ne fait mieux que nos infectés ; l'écart avec BO2 tient au mouvement, aux yeux, au gore et à la matière. Le propriétaire a validé la voie recommandée (« vas-y » : gratuit seulement, sans Mixamo, yeux puis animations, gore complet).

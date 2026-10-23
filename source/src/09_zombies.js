@@ -13,19 +13,11 @@ const BONE_DEF = [
 ];
 const ZV = {}; // géométries par variante
 let ZMAT, ZMAT_SKIN, ZMAT_FROZEN, ZEYE_GEO, SOLDIER_MATS;
-// Yeux lumineux à la BO2 : une couleur par carte, rendue bien au-dessus du seuil du halo (0,9) pour que le post-traitement
-// les fasse rayonner, sans brouillard (on les voit percer la brume), et un petit halo additif par œil, visible aussi sans
-// post-traitement. Avant : 1,7 cm sous le seuil du halo, à peine un pixel à 10 m.
-const EYE_COL = { poste7: 0xff7a1a, cite: 0xffc838, penitencier: 0xff2a14, filon: 0x48a8ff }, EYE_HDR = 6, EYE_HALO = {};
-const eyeMaterial = (col) => new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(EYE_HDR), fog: false });
-// Le halo garde une taille apparente minimale (0,009 rad, ≈ 6 pixels en 1080p) : de loin, deux points vifs au lieu de rien.
-function eyeHaloScale(r, scene, cam) { _v1.setFromMatrixPosition(this.matrixWorld); const d = _v1.distanceTo(cam.position), w = this.parent.matrixWorld.getMaxScaleOnAxis() || 1; this.scale.setScalar(Math.max(0.085, d * 0.009 / w)); this.updateMatrixWorld(); }
-function eyeHalos(eyes, col) {
-  const m = (EYE_HALO[col.getHex()] ||= new THREE.SpriteMaterial({ map: TEX.sprites.glow, color: col.clone().multiplyScalar(2.2), blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-  for (let i = 0; i < 2; i++) { const s = new THREE.Sprite(m); s.scale.setScalar(0.085); s.onBeforeRender = eyeHaloScale; eyes.add(s); }
-  eyeHalosPlace(eyes);
-}
-function eyeHalosPlace(eyes) { const c = eyes.geometry.userData.centers; if (c) eyes.children.forEach((s, i) => c[i] && s.position.set(c[i][0], c[i][1], c[i][2])); }
+// Yeux lumineux à la BO2 : une couleur par carte, sans brouillard (on les voit percer la brume). Demande du propriétaire :
+// seulement le globe de l'œil, aucune lumière autour ; la clarté est donc poussée juste sous le seuil du halo du
+// post-traitement (luminance 0,8 < 0,9) : globe vif et saturé, pas de rayonnement sur le visage.
+const EYE_COL = { poste7: 0xff7a1a, cite: 0xffc838, penitencier: 0xff2a14, filon: 0x48a8ff };
+const eyeMaterial = (col) => { const l = 0.2126 * col.r + 0.7152 * col.g + 0.0722 * col.b; return new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(Math.min(4, 0.8 / Math.max(l, 1e-3))), fog: false }); };
 
 /* ─── Constructeur de corps : anneaux lissés, pondération par os, deux matériaux (tissu, peau) ─── */
 class BodyBuilder {
@@ -284,7 +276,7 @@ function buildZombieAssets() {
   ZMAT_FROZEN = new THREE.MeshStandardMaterial({ color: 0xcfeaff, roughness: 0.12, metalness: 0.25, emissive: 0x2a6fb0, emissiveIntensity: 0.45, normalMap: TEX.snow.normalMap });
   SOLDIER_MATS = bodyMaterial(0.05);
   const eyes = [new THREE.SphereGeometry(0.011, 6, 4), new THREE.SphereGeometry(0.011, 6, 4)]; eyes[0].translate(0.034, 0.1, 0.088); eyes[1].translate(-0.034, 0.1, 0.088);
-  ZEYE_GEO = mergeGeometries(eyes); ZEYE_GEO.userData.centers = [[0.034, 0.1, 0.088], [-0.034, 0.1, 0.088]]; // (centres des yeux : halos)
+  ZEYE_GEO = mergeGeometries(eyes);
   const r = mulberry32(99);
   const coats = [[0.2, 0.21, 0.17], [0.25, 0.23, 0.18], [0.16, 0.18, 0.21], [0.23, 0.19, 0.14], [0.3, 0.3, 0.27], [0.17, 0.16, 0.13]];
   const sk = () => [0.42 + r() * 0.07, 0.45 + r() * 0.05, 0.5 + r() * 0.05];
@@ -503,7 +495,7 @@ class Zombie {
     this.scale = this.boss ? 1.45 : this.brute ? 1.12 : this.kind === 'screamer' ? 1.1 : rand(0.93, 1.07);
     this.holder.scale.setScalar(this.scale);
     const eyeCol = new THREE.Color(this.boss ? 0xff1a08 : this.brute ? 0xff3a2a : this.kind === 'frost' ? 0xaaf6ff : this.kind === 'screamer' ? 0xff40e0 : MAP_ID === 'cite' && o.round >= 12 ? 0x7fd8ff : EYE_COL[MAP_ID] ?? 0xffb040);
-    this.eyes = new THREE.Mesh(ZEYE_GEO, eyeMaterial(eyeCol)); this.bones[BN.head].add(this.eyes); eyeHalos(this.eyes, eyeCol);
+    this.eyes = new THREE.Mesh(ZEYE_GEO, eyeMaterial(eyeCol)); this.bones[BN.head].add(this.eyes);
     this.eyes.position.set(-BONE_DEF[BN.head][0], 1.745 - BONE_DEF[BN.head][1] - 0.1 + 0.012, 0.022 - BONE_DEF[BN.head][2]);
     // Givreux : cristaux de glace sur le dos et les épaules (position donnée en repère du modèle, relative à l'os).
     if (this.kind === 'frost') for (const [b, x, y, z, s] of [[BN.chest, 0, 1.42, -0.15, 1.2], [BN.clavL, 0.17, 1.5, -0.06, 0.8], [BN.clavR, -0.17, 1.5, -0.06, 0.8], [BN.spine, 0.05, 1.18, -0.14, 0.9]]) { const c = frostCrystals(); c.position.set(x - BONE_DEF[b][0], y - BONE_DEF[b][1], z - BONE_DEF[b][2]); c.scale.setScalar(s); this.bones[b].add(c); }
@@ -681,7 +673,7 @@ class Zombie {
   useReal() {
     const t = this.boss ? ZREAL.boss : this.brute ? ZREAL.brute : ZREAL.list[this.variant % ZREAL.list.length]; if (!t) return;
     this.real = zrealInstance(t); this.holder.add(this.real.root); this.mesh.visible = false;
-    this.real.bones.head.add(this.eyes); this.eyes.geometry = t.eyeGeo; this.eyes.position.set(0, 0, 0); eyeHalosPlace(this.eyes);
+    this.real.bones.head.add(this.eyes); this.eyes.geometry = t.eyeGeo; this.eyes.position.set(0, 0, 0);
     if (this.state === 'frozen') this.real.mesh.material = ZMAT_FROZEN;
     zrealPose(this);
   }

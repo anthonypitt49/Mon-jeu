@@ -45,6 +45,9 @@ En attente des réponses du propriétaire (achats UAL2 Source 14,99 $, comptes S
    voie à 20 m. Préchauffés avec les mêmes matières. Vérifié : `dev/yeux.mjs` (5 à 20 m, zoom, de près, de dos : cachés),
    `gels.mjs penitencier 2` (0 shader tardif). Choix du propriétaire (« vas-y ») : gratuit seulement, sans Mixamo, yeux
    puis animations, gore jusqu'au marcheur sans tête.
+   (version 6.4.1) Retour du propriétaire : « trop de lumière, seulement le globe de l'œil ». Halos retirés ; clarté du
+   globe poussée juste sous le seuil du halo du post-traitement (luminance 0,8 < 0,9) : il brille sans rien éclairer
+   autour. Contrepartie : à 15-20 m, les yeux redeviennent de petits points.
 2. [ ] Outil d'animations hors du jeu (UAL1 et UAL2 Standard, CC0) : reciblage sur nos 53 os, fichier compressé.
 3. [ ] Mixeur d'animations dans le jeu, avec rétro-reciblage vers le squelette procédural (tirs, gore, poupée inchangés).
 4. [ ] Os de mâchoire dans make_zombies.py, 18 GLB regénérés.
