@@ -39,7 +39,12 @@ En attente des réponses du propriétaire (achats UAL2 Source 14,99 $, comptes S
 
 ## Plan (voie A)
 
-1. [ ] Yeux lumineux par carte (code seulement).
+1. [x] (version 6.4) Yeux lumineux par carte : rouge au Pénitencier, bleu au Filon, orangé au Poste 7, jaune à la Cité
+   (bleu dès la 12e manche) ; couleur rendue 6 fois au-dessus de la normale (le halo du post-traitement les fait rayonner),
+   sans brouillard ; un halo additif par œil qui garde une taille apparente minimale (≈ 6 pixels en 1080p) pour qu'on les
+   voie à 20 m. Préchauffés avec les mêmes matières. Vérifié : `dev/yeux.mjs` (5 à 20 m, zoom, de près, de dos : cachés),
+   `gels.mjs penitencier 2` (0 shader tardif). Choix du propriétaire (« vas-y ») : gratuit seulement, sans Mixamo, yeux
+   puis animations, gore jusqu'au marcheur sans tête.
 2. [ ] Outil d'animations hors du jeu (UAL1 et UAL2 Standard, CC0) : reciblage sur nos 53 os, fichier compressé.
 3. [ ] Mixeur d'animations dans le jeu, avec rétro-reciblage vers le squelette procédural (tirs, gore, poupée inchangés).
 4. [ ] Os de mâchoire dans make_zombies.py, 18 GLB regénérés.

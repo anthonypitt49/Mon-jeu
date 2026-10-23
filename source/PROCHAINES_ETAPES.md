@@ -2,6 +2,12 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.4) : infectés façon BO2, étape 1 — les yeux
+
+Demande du propriétaire : « aller chercher un autre niveau, le plus proche possible de Black Ops 2 Zombies ; cherche des modèles sur des sites web ». Recherche faite par workflows (première passe coupée par la limite de sessions du propriétaire, puis seconde passe à part) : `source/INFECTES_BO2.md` (suivi et plan en 11 étapes) et `source/recherche_infectes/` (plan de décision, ressources vérifiées, référence BO2, technique). Constat : aucun modèle gratuit et légal ne fait mieux que nos infectés ; l'écart avec BO2 tient au mouvement, aux yeux, au gore et à la matière. Le propriétaire a validé la voie recommandée (« vas-y » : gratuit seulement, sans Mixamo, yeux puis animations, gore complet).
+
+- **Yeux** (`09_zombies.js`) : une couleur par carte (Pénitencier rouge, Filon bleu, Poste 7 orangé, Cité jaune puis bleu dès la 12e manche ; Geôlier, costauds, Givreux et hurleurs gardent la leur), rendue 6 fois au-dessus de la normale pour que le halo du post-traitement les fasse rayonner, sans brouillard ; un halo additif par œil, à taille apparente minimale (≈ 6 pixels en 1080p) : avant, 1,7 cm sous le seuil du halo, à peine un pixel à 10 m. Préchauffage avec les mêmes matières (0 shader tardif). Outil : `dev/yeux.mjs`.
+
 ## Fait (version 6.3.2) : têtes de pieux du chemin de ronde
 
 Capture du propriétaire : « les bases des poteaux sont décalées » sur les quais. Les pieux du bord est des quais (z 56 à 70) étaient posés en x 100 (jonction quais / chemin de ronde, en plein plancher) au lieu de x 102 (la rambarde) : leurs têtes, qui dépassent de 30 cm pour servir de socle aux poteaux, faisaient une rangée de plots à 2 m de la rambarde. Déplacés sous la rambarde. Le reste du chantier (bord sud, ouest, nord) était déjà aligné. Vérifié en photo (`dev/photo.mjs`, vue du chemin de ronde).
