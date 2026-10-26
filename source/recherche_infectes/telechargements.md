@@ -38,6 +38,21 @@ Meshy (format **GLB**) :
 - M11 World War I Soldier (humain à zombifier) : https://www.meshy.ai/fr/posts/01940cb0-3506-7623-b762-20d166816cb4
 - M12 Frankenstein's Creation (redingote 1880, facultatif) : https://www.meshy.ai/fr/posts/019a118f-b14e-76ea-b449-ce57c1931a29
 
+Soldats de 1914-1918 (demande du 26 octobre ; planche `source/dev/shots/selection_soldats.jpg`), Meshy, format GLB :
+- P1 poilu en képi, bleu horizon, pose en T : https://www.meshy.ai/fr/posts/0196fe45-4288-712f-84f5-87b2a1a9a6d0
+- P2 poilu, casque Adrian, masque à gaz, pose en T : https://www.meshy.ai/fr/posts/019db635-0f39-71d2-abdd-5f99eb4b6c41
+- P3 soldat allemand 1916 (casque d'acier, molletières) : https://www.meshy.ai/fr/posts/019c2501-32ac-7b67-9f4d-d44621a0f05e
+- P4 masque à gaz et capote (infecté spécial) : https://www.meshy.ai/fr/posts/019a114e-6396-7532-9a01-1284c7d3d378
+- P5 « WW1 enemy soldier turned… » (peut-être déjà zombie) : https://www.meshy.ai/fr/posts/0197f4d1-5436-79d1-9759-15d8ccf7dad8
+- P6 soldat colonial kaki (fusil dans les mains : plus dur) : https://www.meshy.ai/fr/posts/019a8903-a3fa-7419-9a6d-4bdfdba266a4
+- (déjà listés : M10 officier britannique, M11 soldat kaki)
+
+Récupérés sans compte par Objaverse (CC-BY, crédit dans le fichier) : casque Adrian de janovich3D (10 048 triangles,
+« free for games »), casque Brodie de noodlepirate (7 966), « Cursed Undead Soldier Rig » de SuperKapoo913 (16 743
+triangles, squelette de 80 os ; fantastique). Dans le dossier de travail, pas encore dans le dépôt. Sur Sketchfab, les
+soldats complets libres sont de 1939-1945 (Wehrmacht de Tactical_Beard, Panzergrenadier CC0, britannique de 3djako) :
+non retenus, Meshy a mieux pour 1917. Écartés : les modèles tirés de Call of Duty, Wolfenstein, Half-Life.
+
 Livraison : fichiers joints dans la conversation, ou dépôt GitHub, dossier `import/` (25 Mo au plus par fichier par
 le site web de GitHub).
 
