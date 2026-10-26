@@ -15,7 +15,7 @@ make_zombies.py --fiches ou ajoutée à manifest.json avec --manifeste), plus un
 
 usage : blender_env/bin/python import_modeles.py <fichier .glb|.gltf|.zip> <id> [--epoque 1957] [--brute]
         [--demi-tour] [--triangles 16000] [--hauteur 1.8] [--credit "Auteur (licence, lien)"] [--manifeste] [--apercu]
-        [--sortie dossier] (essais hors de assets/zombies)
+        [--sortie dossier] (essais hors de assets/zombies) [--textures dossier --prefixe début] (textures livrées à part)
 """
 import os, sys, json, math, zipfile, tempfile, io
 
@@ -38,11 +38,19 @@ def main():
     budget, H = int(arg('--triangles', 16000)), float(arg('--hauteur', 1.9 if brute else 1.8))
     for o in list(bpy.data.objects): bpy.data.objects.remove(o, do_unlink=True)
 
-    # 1. Lecture (une archive de Sketchfab contient un .gltf et ses textures).
+    # 1. Lecture : glTF, FBX (binaire), OBJ, USD/USDZ, .blend, ou archive qui en contient un.
     if src.endswith('.zip'):
         tmp = tempfile.mkdtemp(); zipfile.ZipFile(src).extractall(tmp)
-        src = next(os.path.join(d, f) for d, _, fs in os.walk(tmp) for f in fs if f.endswith(('.gltf', '.glb')))
-    bpy.ops.import_scene.gltf(filepath=src)
+        src = next(os.path.join(d, f) for d, _, fs in os.walk(tmp) for f in fs if f.lower().endswith(('.gltf', '.glb', '.fbx', '.obj', '.usdz', '.usd', '.blend')))
+    ext = src.lower().rsplit('.', 1)[-1]
+    if ext in ('gltf', 'glb'): bpy.ops.import_scene.gltf(filepath=src)
+    elif ext == 'fbx': bpy.ops.import_scene.fbx(filepath=src)
+    elif ext == 'obj': bpy.ops.wm.obj_import(filepath=src)
+    elif ext in ('usdz', 'usd', 'usdc', 'usda'): bpy.ops.wm.usd_import(filepath=src)
+    elif ext == 'blend':
+        with bpy.data.libraries.load(src) as (a_, b_): b_.objects = a_.objects
+        for o in b_.objects:
+            if o and o.type in ('MESH', 'ARMATURE'): bpy.context.collection.objects.link(o)
     # Pose de repos figée, squelette d'origine retiré, formes appliquées, transformations appliquées.
     for o in [o for o in bpy.data.objects if o.type == 'MESH']:
         for m in list(o.modifiers): o.modifiers.remove(m)
@@ -94,19 +102,32 @@ def main():
                     if r: return r
             return None
         return up(bs.inputs[socket])
-    def pil(im, size, fill):
-        if im is None: return Image.new('RGB', (size, size), fill)
+    # Textures livrées à part (OBJ sans .mtl) : --textures <dossier> --prefixe <début du nom> ; pour la matière M,
+    # <prefixe>M_diffuse.png et <prefixe>M_normal.png.
+    tdir, tpre = arg('--textures'), arg('--prefixe', '')
+    def by_name(mat, kind):
+        if not tdir or not mat: return None
+        for ext_ in ('png', 'jpg', 'jpeg', 'tga'):
+            f = os.path.join(tdir, '%s%s_%s.%s' % (tpre, mat.name.split('.')[0], kind, ext_))
+            if os.path.exists(f): return bpy.data.images.load(f)
+        return None
+    def pil(im, size, fill, mode='RGB'):
+        if im is None: return Image.new(mode, (size, size), fill if mode == 'RGB' else 255)
         if im.packed_file: p = Image.open(io.BytesIO(im.packed_file.data))
         else: p = Image.open(bpy.path.abspath(im.filepath))
-        return p.convert('RGB').resize((size, size), Image.LANCZOS)
+        if mode == 'L': p = p.getchannel('A') if 'A' in p.getbands() else Image.new('L', p.size, 255)
+        return p.convert(mode).resize((size, size), Image.LANCZOS)
     mats = list(body.data.materials); g = max(1, math.ceil(math.sqrt(len(mats)))); AT = 2048; cell = AT // g
-    col = Image.new('RGB', (AT, AT)); nor = Image.new('RGB', (AT, AT), (128, 128, 255)); has_n = False
+    col = Image.new('RGB', (AT, AT)); nor = Image.new('RGB', (AT, AT), (128, 128, 255)); alp = Image.new('L', (AT, AT), 255); has_n = has_a = False
     for i, mat in enumerate(mats):
         cx, cy = (i % g) * cell, (i // g) * cell
         bc = mat.node_tree.nodes.get('Principled BSDF') if mat and mat.use_nodes else None
         base = tuple(int(255 * c) for c in (bc.inputs['Base Color'].default_value[:3] if bc else (0.5, 0.5, 0.5)))
-        col.paste(pil(img_of(mat, 'Base Color'), cell, base), (cx, cy))
-        ni = img_of(mat, 'Normal')
+        ci = img_of(mat, 'Base Color') or by_name(mat, 'diffuse')
+        col.paste(pil(ci, cell, base), (cx, cy))
+        a_ = pil(ci, cell, 255, 'L')
+        if np.asarray(a_).mean() < 250: alp.paste(a_, (cx, cy)); has_a = True  # (cheveux, cils : découpe)
+        ni = img_of(mat, 'Normal') or by_name(mat, 'normal')
         if ni: nor.paste(pil(ni, cell, (128, 128, 255)), (cx, cy)); has_n = True
     uv = body.data.uv_layers.active or body.data.uv_layers.new(name='UVMap')
     a = np.empty(len(body.data.loops) * 2, 'f'); uv.data.foreach_get('uv', a); a = a.reshape(-1, 2)
@@ -122,6 +143,7 @@ def main():
     os.makedirs(OUT, exist_ok=True); tmpd = os.path.join(OUT, '_' + cid); os.makedirs(tmpd, exist_ok=True)
     col.save(tmpd + '/c.jpg', quality=86, optimize=True, progressive=True)
     if has_n: nor.resize((1024, 1024), Image.LANCZOS).save(tmpd + '/n.jpg', quality=88, optimize=True)
+    if has_a: alp.resize((AT // 4, AT // 4), Image.LANCZOS).convert('RGB').save(tmpd + '/a.jpg', quality=85, optimize=True)
     body.data.materials.clear()
     mat = bpy.data.materials.new(cid); mat.use_nodes = True; nt = mat.node_tree; bs = nt.nodes['Principled BSDF']
     bs.inputs['Roughness'].default_value = 0.8; bs.inputs['Metallic'].default_value = 0
@@ -129,6 +151,11 @@ def main():
     if has_n:
         tn = nt.nodes.new('ShaderNodeTexImage'); tn.image = bpy.data.images.load(tmpd + '/n.jpg'); tn.image.colorspace_settings.name = 'Non-Color'
         nm = nt.nodes.new('ShaderNodeNormalMap'); nt.links.new(tn.outputs['Color'], nm.inputs['Color']); nt.links.new(nm.outputs['Normal'], bs.inputs['Normal'])
+    if has_a:  # découpe rangée dans la case « occlusion » du glTF, comme make_zombies.py (le jeu la remet en découpe)
+        ta = nt.nodes.new('ShaderNodeTexImage'); ta.image = bpy.data.images.load(tmpd + '/a.jpg'); ta.image.colorspace_settings.name = 'Non-Color'
+        ng = bpy.data.node_groups.get('glTF Material Output') or bpy.data.node_groups.new('glTF Material Output', 'ShaderNodeTree')
+        if 'Occlusion' not in [i.name for i in ng.interface.items_tree]: ng.interface.new_socket('Occlusion', in_out='INPUT', socket_type='NodeSocketFloat')
+        gn = nt.nodes.new('ShaderNodeGroup'); gn.node_tree = ng; nt.links.new(ta.outputs['Color'], gn.inputs['Occlusion'])
     body.data.materials.append(mat)
 
     # 5. Articulations d'après la forme (Blender : Z en haut, -Y devant, gauche du personnage en +X).
@@ -264,7 +291,7 @@ def main():
     for o in bpy.data.objects: o.select_set(o in (body, rig))
     bpy.ops.export_scene.gltf(filepath=tag + '.glb', export_format='GLB', use_selection=True, export_skins=True, export_animations=False,
                               export_materials='EXPORT', export_image_format='AUTO', export_morph=False, export_all_influences=False)
-    for f in ('c', 'n'):
+    for f in ('c', 'n', 'a'):
         if os.path.exists(f'{tmpd}/{f}.jpg'): os.remove(f'{tmpd}/{f}.jpg')
     os.rmdir(tmpd)
     info = dict(era=era, brute=brute, boss=False, tris=tris, eyes=[gl(e) for e in eyes], top=round(H, 3), bytes=os.path.getsize(tag + '.glb'),

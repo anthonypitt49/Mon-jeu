@@ -68,3 +68,17 @@ le jeu avec nos animations (`MODELE=<id> GAITS=1 node dev/anims.mjs cite`). Deux
 chaleur de Blender échoue à l'échelle du mètre (calcul à ×10), et la copie refaite en volume doit être remise à sa
 taille avant le report des poids.
 
+## Livraison du 26 octobre (release GitHub « modeles-import », 230 fichiers, 1,3 Go)
+
+Inventaire (planche `source/dev/shots/inventaire_release.jpg`) : aucun des modèles Meshy de la liste, pas le Hazmat
+(textures seules). Utilisables (CC-BY) : les trois zombies de martinezequielgorno (OBJ et USDZ, textures à part),
+le zombie de Pxltiger. Mixamo (chemins « mixamo » dans les fichiers) : Russian_Soldier1, Zombie.Crawl, zombie_scream
+(« World War Zombie », officier zombie de la Grande Guerre). Soldats modernes (hors époque) : 0.group, S_1, Mark_1,
+TacticalSoldier. Provenance inconnue (à demander) : dead_man_animat, zombie1, ZombieCompleteAnimations, node_0,
+abomination et zombie.fbx (FBX texte, illisibles par Blender), Zombie.Static, deux chiens.
+
+Essai dans la Cité (planche `source/dev/shots/avant_apres_cite.jpg`) : les trois zombies sculptés importés
+(`import_modeles.py … --textures <dossier> --prefixe <début>`) marchent avec nos animations. De près, le visage pourri
+est nettement au-dessus ; à distance de jeu, ils ressemblent à des gens ordinaires en tenue moderne (t-shirt court,
+jean, sandales) : peau peu zombifiée, vêtements des années 2020 dans une ville de 1957. Pas encore dans le dépôt.
+
