@@ -61,3 +61,10 @@ le site web de GitHub).
 Mesurer chaque fichier (triangles, squelette, textures), écarter les ratés, puis un essai dans la Cité (1957) avant /
 après, avant de toucher aux autres cartes. Les modèles Meshy n'ont sans doute pas de squelette : les squeletter dans
 Blender (pose en T ou en A : poids automatiques) sur le squelette du jeu.
+
+Outil prêt (26 octobre) : `source/tools/import_modeles.py`. Essayé sur un soldat figé d'Objaverse (« Russian soldier »
+de Chernov-Egor, CC-BY, 12 955 triangles, pose en A) : squelette posé, poids corrects, il marche et tend les bras dans
+le jeu avec nos animations (`MODELE=<id> GAITS=1 node dev/anims.mjs cite`). Deux pièges réglés : la diffusion de
+chaleur de Blender échoue à l'échelle du mètre (calcul à ×10), et la copie refaite en volume doit être remise à sa
+taille avant le report des poids.
+
