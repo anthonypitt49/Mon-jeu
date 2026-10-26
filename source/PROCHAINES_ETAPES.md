@@ -2,6 +2,17 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.8) : modèles de zombies tout faits (Sketchfab, Mixamo) dans les cartes
+
+Demande du propriétaire : « prendre des modèles gratuits déjà faits », puis « utilise-en le plus possible pour la variété ; garde la femme zombie sexy ; enlève le point lumineux des yeux ». Le propriétaire les a téléchargés (release GitHub `modeles-import`, 230 fichiers) ; Meshy demandait un abonnement.
+
+- **Outil** `tools/import_modeles.py` : lit glTF, FBX, OBJ, USDZ, .blend ; garde le squelette d'origine quand ses os se reconnaissent (Mixamo, biped 3ds Max, noms courts ; mâchoire comprise) et le renomme aux noms du jeu, sinon en pose un d'après la forme (bras en T/A ou le long du corps suivis tranche par tranche, poids calculés sur une copie refaite en volume à ×10, bras séparés du torse, faces soudées bras-corps coupées) ; atlas d'une texture, découpe des cheveux, peau zombifiée (`--peau`), reflets adoucis (`--lustre`), pose livrée prise comme repos (`--pose-actuelle`).
+- **10 modèles** (fiches dans `assets/zombies/manifest.json`, `glow: false`, `eras` pour ceux partagés) : Poste 7 — World War Zombie (Mixamo), dead_man, décharné, pxltiger ; Pénitencier — dead_man, décharné ; Cité — homme zombifié et deux femmes (martinezequielgorno), zombie sexy (ssorpeg, reflets adoucis), zombie Mixamo, zombie anti-radiation ; Filon — homme, dead_man, décharné, pxltiger. Les infectés MakeHuman restent (variété).
+- **Écartés** : abomination.fbx et zombie.fbx (extraits de DOOM : outil « Serrat », format md6), soldats modernes (0.group, S_1, Mark_1, TacticalSoldier, Russian_Soldier1), Zombie.Static (poids ratés, peu lisible), chiens (quadrupèdes).
+- **Crédits** : `assets/zombies/CREDITS.md` ; liens et auteurs à demander pour dead_man, le décharné et le zombie anti-radiation.
+- **Coût** : la Cité charge 11 modèles (17 Mo, 2 s en local contre 1,1) ; mémoire vidéo plus élevée en « élevé ». 0 shader tardif, gore et rampant vérifiés (`zreal.mjs cite`, `zreal.mjs poste7`).
+- **Reste** : intérieur de la bouche plus sombre (MakeHuman), gore façon BO2, alléger les GLB les plus lourds (femmes : 3 Mo).
+
 ## Fait (version 6.7) : os de mâchoire des infectés réalistes
 
 Demande du propriétaire : « passe à l'os de mâchoire ». Détail : `source/INFECTES_BO2.md` (étape 4).

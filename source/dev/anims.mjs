@@ -2,7 +2,8 @@
 // attaque, pose recalculée sans les déplacer ; planche de 6 instants dans dev/shots/anims_<carte>.jpg.
 // usage : node anims.mjs <carte> [qualité=2] ; env NOANIM=1 : animation procédurale (comparaison) ; FRONT=1 : tous de face ;
 // GAITS=1 : les cinq démarches des marcheurs (Quaternius, 100STYLE Zombie, Drunk, DragLeftLeg, course zombie) à leur vitesse ;
-// MODELE=<id> : tous avec ce modèle réaliste (essai d'un modèle importé) ; OUVERT=1 : à l'endroit le plus dégagé.
+// MODELE=<id> : tous avec ce modèle réaliste (essai d'un modèle importé), MODELE=a,b,c,d,e : un par infecté ;
+// OUVERT=1 : à l'endroit le plus dégagé.
 import { chromium } from 'playwright';
 import path from 'path';
 import fs from 'fs';
@@ -35,9 +36,11 @@ const url = await page.evaluate(async ([FRONT, GAITS, MODELE, OUVERT]) => {
   // [sorte, vitesse imposée, décalage latéral] : de profil, la tête vers la droite de l'image.
   const set = GAITS ? [['walk', 1, 0.9], ['zwalk', 0.72, 0], ['drunk', 1, 0.5], ['drag', 0.66, 0.8], ['zrun', 1, 0]].map((g, i) => ['walker', 1.05 * g[1], -1.8 + i * 0.9, g])
     : [['walker', 1.1, -1.8], ['jogger', 2.3, -0.9], ['runner', 3.9, 0], ['sprinter', 7.0, 0.9], ['walker', 0, 1.8]];
+  let zsIdx = 0;
   const zs = set.map(([k, v, s, g]) => { const x = P.pos.x + fx * 3.1 + rx * s, z = P.pos.z + fz * 3.1 + rz * s; const zb = SP.spawnTestZombie(x, z, k); zb.yaw = P.yaw - Math.PI / 2; zb.rise = 1; zb.state = 'move'; zb.v = v;
     if (g) { zb.gait = [g[0], 0, g[1], g[2]]; zb.speed = v; }
-    if (MODELE && SP.ZREAL.tpl[MODELE]) { const t = SP.ZREAL.tpl[MODELE]; if (zb.real) { zb.holder.remove(zb.real.root); zb.real = null; } zb.variant = SP.ZREAL.list.indexOf(t); zb.useReal(); } // (MODELE=id : tous avec ce modèle)
+    const ML = MODELE.split(','), mid = ML.length > 1 ? ML[zsIdx++ % ML.length] : MODELE; // (MODELE=a,b,c : un modèle par infecté)
+    if (mid && SP.ZREAL.tpl[mid]) { const MODELE = mid; const t = SP.ZREAL.tpl[MODELE]; if (zb.real) { zb.holder.remove(zb.real.root); zb.real = null; } zb.variant = SP.ZREAL.list.indexOf(t); zb.useReal(); } // (MODELE=id : tous avec ce modèle)
     return zb; });
   const atk = GAITS ? null : zs[4]; if (atk) atk.yaw = P.yaw; // (l'attaquant face à la caméra : il regarde vers (sin yaw, cos yaw))
   if (FRONT) for (const z of zs) z.yaw = P.yaw; // (FRONT=1 : tous de face)

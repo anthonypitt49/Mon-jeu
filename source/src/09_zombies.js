@@ -776,6 +776,7 @@ class Zombie {
     const t = this.boss ? ZREAL.boss : this.brute ? ZREAL.brute : ZREAL.list[this.variant % ZREAL.list.length]; if (!t) return;
     this.real = zrealInstance(t); this.holder.add(this.real.root); this.mesh.visible = false;
     this.real.bones.head.add(this.eyes); this.eyes.geometry = t.eyeGeo; this.eyes.position.set(0, 0, 0);
+    if (t.info.glow === false) this.eyes.visible = false; // (modèles importés : pas de lueur, demande du propriétaire)
     if (this.state === 'frozen') this.real.mesh.material = ZMAT_FROZEN;
     zrealPose(this);
   }

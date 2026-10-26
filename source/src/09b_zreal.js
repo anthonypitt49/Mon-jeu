@@ -27,7 +27,7 @@ async function zrealStart() {
   try {
     const man = await (await fetch(base + 'manifest.json', { cache: 'force-cache' })).json();
     const era = man.eras[MAP_ID]; ZREAL.era = era;
-    const ids = Object.keys(man.chars).filter((k) => man.chars[k].era === era); if (!ids.length) throw new Error('aucun infecté pour ' + era);
+    const ids = Object.keys(man.chars).filter((k) => man.chars[k].era === era || man.chars[k].eras?.includes(era)); // (eras : modèle importé partagé entre cartes) if (!ids.length) throw new Error('aucun infecté pour ' + era);
     const [{ GLTFLoader }, SU] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/utils/SkeletonUtils.js')]);
     ZREAL.clone = SU.clone;
     const gl = new GLTFLoader(), hi = settings.quality >= 2;
