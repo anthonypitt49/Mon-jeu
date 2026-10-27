@@ -2,6 +2,17 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.9) : bouche sombre, gore façon BO2, soldats modernes pour les joueurs
+
+Demande du propriétaire : « assombris l'intérieur de la bouche puis passe au gore ; les soldats modernes, c'était pour les personnages qu'on joue ; mets tout en ligne ; assure-toi que le jeu reste fluide ».
+
+- **Bouche** : les 18 infectés MakeHuman regénérés (`tools/make_zombies.py`) : intérieur de la bouche, langue et gencives assombris ; os `hat` pour les couvre-chefs (Poste 7, Filon, Pénitencier : 8 modèles). Contrôle : `dev/machoire.mjs ci_a`.
+- **Gore** (`src/09c_gore.js`, détail dans `INFECTES_BO2.md`, étape 7) : couvre-chef qui saute au tir à la tête, tête qui éclate quand le tir laisse 10 % de vie ou moins (l'infecté marche encore 3 s sans tête), bras arrachés aux règles de BO2 (pas au pistolet, une chance sur deux), éclats de chair, moignons texturés (chair CC0, `assets/gore/`). Contrôle : `dev/gore.mjs p7_a`.
+- **Soldats** (`src/09e_soldats.js`, `assets/soldats/`) : chaque coéquipier prend le corps d'un des quatre soldats modernes livrés par le propriétaire (forestier, olive « Mark », désert, russe Mixamo), rang donné par l'hôte (champ `s` de la liste des joueurs). Téléchargés seulement en coopération, à l'arrivée du premier coéquipier (6,2 Mo), shaders compilés hors écran. Le corps procédural reste le squelette posé (caché) et la solution de repli. Bras en vue subjective (manches, gants) aux couleurs de la tenue du soldat du joueur. Pose « arme en main » refaite par cinématique inverse : mains sur la poignée et le garde-main de l'arme tenue (la main gauche flottait près du visage). Écarté : TacticalSoldier (maillage figé en posture). Contrôle : `dev/soldats.mjs` (`PROFIL=1`).
+- **Outil** `tools/import_modeles.py` : `--os` (squelette d'origine aux os sans nom, nommés à la main), `--sans-decoupe` (alpha Mixamo qui n'est pas une découpe), `--quart-de-tour`, `--objet` ; pièges réglés : cube par défaut resté dans un .blend, maillage partagé entre personnages, matrices des .blend pas encore calculées.
+- **Fluidité** : `gels.mjs poste7 2` et `gels.mjs cite 2` : 0 shader compilé après le menu, 0 erreur (tir, mise à mort et gore compris : matière des moignons préchauffée). `bench.mjs` (Q=2, 30 infectés réalistes) : 2,93 ms de mise à jour par image. Soldats : rien en solo ; en coopération, téléchargés et compilés hors écran (`compileAsync`) avant d'apparaître ; essai réel hôte + invité (`dev/coopsoldats.mjs`) : chacun voit l'autre sous son soldat (hôte forestier, invité Mark), 0 erreur du jeu (seuls les relais MQTT publics, bloqués par le réseau du conteneur, échouent).
+- **Reste** : auteurs et liens Sketchfab des soldats (S_1, 0.group, Mark) et des zombies dead_man, décharné, anti-radiation ; alléger les GLB les plus lourds.
+
 ## Fait (version 6.8) : modèles de zombies tout faits (Sketchfab, Mixamo) dans les cartes
 
 Demande du propriétaire : « prendre des modèles gratuits déjà faits », puis « utilise-en le plus possible pour la variété ; garde la femme zombie sexy ; enlève le point lumineux des yeux ». Le propriétaire les a téléchargés (release GitHub `modeles-import`, 230 fichiers) ; Meshy demandait un abonnement.

@@ -91,7 +91,12 @@ En attente des réponses du propriétaire (achats UAL2 Source 14,99 $, comptes S
    attaque, course, hurlement et pour les brutes. Vérifié : `GAITS=1 dev/anims.mjs` (profil et face), `bench.mjs`
    (30 infectés : 6,24 ms), `gels.mjs penitencier 2` (0 shader tardif).
 6. [ ] Animations fournies par le propriétaire (UAL2 Source, pack Rohr), si achetées ou téléchargées.
-7. [ ] Gore façon BO2 (morceaux préparés, chapeaux, marcheur sans tête).
+7. [x] Gore façon BO2 (version 6.9, `src/09c_gore.js`). Règles de BO2 : seuls les bras s'arrachent sous les balles
+   (pas au pistolet, coup d'au moins 10 % de la vie, une chance sur deux, 3 au plus par demi-seconde) ; un tir à la tête
+   qui laisse 10 % de vie ou moins fait éclater la tête (éclats de chair), l'infecté marche encore 3 s sans tête et ce
+   qui lui restait de vie s'épuise ; un tir à la tête fait sauter le couvre-chef (os « hat » ajouté par make_zombies.py,
+   événement réseau `zhat`). Moignons et éclats texturés (chair CC0 de TextureCan, `assets/gore/`), 24 éclats au plus.
+   Brutes et Geôlier : pas de gore. Vérifié : `dev/gore.mjs p7_a`, `gels.mjs` (0 shader tardif).
 8. [ ] Matière et vêtements d'époque.
 9. [ ] Poids et performance (meshopt, KTX2, LOD).
 10. [ ] Variantes spéciales (Hazmat, soldat 1917), téléchargées par le propriétaire.
