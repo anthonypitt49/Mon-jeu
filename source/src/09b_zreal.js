@@ -30,15 +30,8 @@ async function zrealStart() {
     const ids = Object.keys(man.chars).filter((k) => man.chars[k].era === era || man.chars[k].eras?.includes(era)); // (eras : modèle importé partagé entre cartes) if (!ids.length) throw new Error('aucun infecté pour ' + era);
     const [{ GLTFLoader }, SU] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/utils/SkeletonUtils.js')]);
     ZREAL.clone = SU.clone;
-    const gl = new GLTFLoader(), hi = settings.quality >= 2;
-    await Promise.all(ids.map(async (id) => {
-      const g = ZR_GLB === '.glb' ? await gl.loadAsync(base + id + '.glb') : await gl.parseAsync(Uint8Array.from(atob(await (await fetch(base + id + ZR_GLB, { cache: 'force-cache' })).text()), (c) => c.charCodeAt(0)).buffer, base);
-      let src = null; g.scene.traverse((o) => { if (o.isSkinnedMesh) src = o.material; });
-      // Le GLB range la découpe (cheveux, cils) dans la case « occlusion » : elle redevient une découpe ici.
-      const map = hi ? src.map : zrealHalf(src.map);
-      const mat = snowify(new THREE.MeshStandardMaterial({ map, normalMap: src.normalMap, normalScale: new THREE.Vector2(0.9, 0.9), alphaMap: src.aoMap, alphaTest: 0.5, roughness: 0.8, side: THREE.DoubleSide }), 0.12);
-      ZREAL.tpl[id] = zrealTemplate(g.scene, mat, man.chars[id]);
-    }));
+    const gl = new GLTFLoader();
+    await Promise.all(ids.map(async (id) => { const g = await zrealLoad(gl, base, id); ZREAL.tpl[id] = zrealTemplate(g.scene, zrealMaterial(g.scene), man.chars[id]); }));
     ZREAL.list = ids.filter((k) => !man.chars[k].brute).map((k) => ZREAL.tpl[k]);
     ZREAL.brute = ZREAL.tpl[ids.find((k) => man.chars[k].brute)] || ZREAL.list[0];
     ZREAL.boss = ZREAL.tpl[ids.find((k) => man.chars[k].boss)] || ZREAL.brute;
@@ -47,6 +40,17 @@ async function zrealStart() {
   } catch (e) { ZREAL.state = 'failed'; ZREAL.err = String(e?.message || e); }
 }
 
+// Un modèle du dossier base (infectés, soldats) : .glb, ou le même en base64 dans l'Artifact.
+async function zrealLoad(gl, base, id) {
+  return ZR_GLB === '.glb' ? gl.loadAsync(base + id + '.glb') : gl.parseAsync(Uint8Array.from(atob(await (await fetch(base + id + ZR_GLB, { cache: 'force-cache' })).text()), (c) => c.charCodeAt(0)).buffer, base);
+}
+// Matière du jeu à partir de celle du GLB. Le GLB range la découpe (cheveux, cils) dans la case « occlusion » : elle
+// redevient une découpe ici.
+function zrealMaterial(scene) {
+  let src = null; scene.traverse((o) => { if (o.isSkinnedMesh) src = o.material; });
+  const map = settings.quality >= 2 ? src.map : zrealHalf(src.map);
+  return snowify(new THREE.MeshStandardMaterial({ map, normalMap: src.normalMap, normalScale: new THREE.Vector2(0.9, 0.9), alphaMap: src.aoMap, alphaTest: 0.5, roughness: 0.8, side: THREE.DoubleSide }), 0.12);
+}
 // Graphismes « moyen » : couleur ramenée à 1024 px (moins de mémoire vidéo).
 function zrealHalf(t) {
   const im = t.image, c = document.createElement('canvas'); c.width = (im.width / 2) | 0; c.height = (im.height / 2) | 0;

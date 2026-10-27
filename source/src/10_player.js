@@ -8,7 +8,7 @@ const P = {
   rec: { p: 0, y: 0 }, kick: 0, sway: { x: 0, y: 0 }, stepT: 0, breathT: 3, hurtT: 0, lastHurtDir: 0, shotsFired: 0,
   stats: { kills: 0, heads: 0, shots: 0, hits: 0, downs: 0 },
 };
-const VM = { root: null, parts: null, key: null, up: false, flash: null, knife: null, nade: null, cache: {} };
+const VM = { root: null, parts: null, key: null, up: false, flash: null, knife: null, nade: null, cache: {}, arms: [] }; // (arms : copies des gants et manches, recolorées par soldierArms)
 
 function resetLocalPlayer(spawn) {
   Object.assign(P, { frostT: 0, hp: DIFF().hp, maxHp: DIFF().hp, down: false, dead: false, bleed: 0, selfRevive: 0, perks: new Set(), weapons: [{ key: 'pistol', up: false, mag: 12, reserve: 60 }], slot: 0, grenades: 2, ads: 0, fireCd: 0, reload: null, cycleT: 0, switchT: 0, switchTo: -1, knifeT: 0, nadeT: 0, bloom: 0, stamina: 1, hurtT: 0, cherryCd: 0 });
@@ -200,7 +200,9 @@ function updateCamera(dt) {
 // Arme en main : ce qui passe à moins de 7 cm de l'œil est coupé (la crosse contre la joue, en visée, ne bouche plus la vue).
 // Matières propres à l'arme en main (copies), pour ne pas couper les armes du décor.
 const VM_CLIP = [new THREE.Plane(new THREE.Vector3(0, 0, -1), -0.07)];
-function clipViewmodel(root) { root.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); o.material.clippingPlanes = VM_CLIP; } }); }
+function clipViewmodel(root) {
+  root.traverse((o) => { if (o.isMesh) { const src = o.material; o.material = src.clone(); o.material.clippingPlanes = VM_CLIP; if (src === GM.glove || src === GM.sleeve) VM.arms.push([o.material, src]); } });
+}
 // Chaque arme en main est construite une fois puis gardée : changer d'arme ne coûte plus rien.
 function setViewmodel(key, up) {
   if (VM.root) R.viewScene.remove(VM.root);

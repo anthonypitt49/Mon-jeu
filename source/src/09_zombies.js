@@ -307,6 +307,26 @@ function makeRig(geo, mat) {
 const boneW = (i) => new THREE.Vector3(BONE_DEF[i][0], BONE_DEF[i][1], BONE_DEF[i][2]);
 
 /* ─── Pose procédurale ─── */
+// Bras posé par cinématique inverse à deux os (bras, avant-bras) : la main va au point T, donné dans le repère du torse
+// (os chest, celui qui porte l'arme des coéquipiers). Coude dans le plan de l'épaule, de la cible et d'un pôle vers le bas
+// et l'extérieur. Clavicule au repos ; os consécutifs : clavicule, bras, avant-bras, main.
+const HOLD_GRIP = new THREE.Vector3(-0.1, 0.02, 0.17), HOLD_FORE = new THREE.Vector3(-0.1, 0.04, 0.42);
+const _ik = { S: new THREE.Vector3(), d: new THREE.Vector3(), e: new THREE.Vector3(), pole: new THREE.Vector3(), r1: new THREE.Vector3(), r2: new THREE.Vector3(), q: new THREE.Quaternion() };
+const boneOff = (i, out) => out.set(BONE_DEF[i][0] - BONE_DEF[BONE_DEF[i][3]][0], BONE_DEF[i][1] - BONE_DEF[BONE_DEF[i][3]][1], BONE_DEF[i][2] - BONE_DEF[BONE_DEF[i][3]][2]);
+function armIK(b, clav, T, side) {
+  const { S, d, e, pole, r1, r2, q } = _ik;
+  b[clav].quaternion.identity();
+  S.copy(boneOff(clav, e)).add(boneOff(clav + 1, r1)); // épaule
+  const L1 = boneOff(clav + 2, r1).length(), L2 = boneOff(clav + 3, r2).length(); r1.normalize(); r2.normalize();
+  d.subVectors(T, S); const dist = clamp(d.length(), 0.08, L1 + L2 - 0.004); d.normalize();
+  pole.set(side * 0.55, -1, -0.25); pole.addScaledVector(d, -pole.dot(d)).normalize();
+  const a = (L1 * L1 - L2 * L2 + dist * dist) / (2 * dist), h = Math.sqrt(Math.max(0, L1 * L1 - a * a));
+  e.copy(d).multiplyScalar(a).addScaledVector(pole, h); // coude, depuis l'épaule
+  b[clav + 1].quaternion.setFromUnitVectors(r1, pole.copy(e).normalize());
+  // Avant-bras : du coude à la main, direction exprimée dans le repère du bras.
+  pole.copy(d).multiplyScalar(dist).sub(e).normalize().applyQuaternion(q.copy(b[clav + 1].quaternion).invert());
+  b[clav + 2].quaternion.setFromUnitVectors(r2, pole);
+}
 function poseBody(b, p) {
   // p : { phase, run, lean, reach, attack, tear, crawl, rise, headTilt, t, limp, hold, moving, jaw, fl, aim, crouch }
   const s = Math.sin(p.phase), c = Math.cos(p.phase), mv = p.moving ?? 1, run = p.run;
@@ -326,11 +346,11 @@ function poseBody(b, p) {
   b[BN.footL].rotation.x = -kneeL * 0.35 + s * 0.2 * mv; b[BN.footR].rotation.x = -kneeR * 0.35 - s * 0.2 * mv + p.limp * 0.35;
   if (p.crouch) { const k = p.crouch; b[BN.thighL].rotation.x -= 1.1 * k; b[BN.thighR].rotation.x -= 1.1 * k; b[BN.shinL].rotation.x += 1.7 * k; b[BN.shinR].rotation.x += 1.7 * k; b[BN.footL].rotation.x -= 0.5 * k; b[BN.footR].rotation.x -= 0.5 * k; b[BN.spine].rotation.x += 0.3 * k; }
   // Bras.
-  if (p.hold) { // soldat : fusil tenu à deux mains
+  if (p.hold) { // soldat : arme tenue à deux mains, chaque main posée sur sa prise (poignée, garde-main)
     const aim = p.aim || 0;
     b[BN.spine].rotation.x += -aim * 0.3; b[BN.chest].rotation.x += -aim * 0.25; b[BN.head].rotation.x = -aim * 0.4 - 0.05;
-    b[BN.uArmR].rotation.set(-0.95, 0, 0.35); b[BN.fArmR].rotation.x = -1.35; b[BN.handR].rotation.x = 0.2;
-    b[BN.uArmL].rotation.set(-1.25, 0.2, -0.5); b[BN.fArmL].rotation.x = -0.7; b[BN.clavL].rotation.y = 0.2;
+    armIK(b, BN.clavR, p.grip || HOLD_GRIP, -1); armIK(b, BN.clavL, p.fore || HOLD_FORE, 1);
+    b[BN.handR].rotation.x = 0.25; b[BN.handL].rotation.x = 0.35;
   } else if (run > 0.5 && !p.reach) {
     b[BN.uArmL].rotation.set(s * 0.95 - 0.3, 0, 0.14); b[BN.uArmR].rotation.set(-s * 0.95 - 0.3, 0, -0.14);
     b[BN.fArmL].rotation.x = -1.35 + s * 0.2; b[BN.fArmR].rotation.x = -1.35 - s * 0.2;

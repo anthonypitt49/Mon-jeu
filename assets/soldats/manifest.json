@@ -1,0 +1,80 @@
+{
+ "chars": {
+  "s_s1": {
+   "tris": 15999,
+   "eyes": [
+    [
+     0.0324,
+     1.7154,
+     0.123
+    ],
+    [
+     -0.0324,
+     1.7154,
+     0.123
+    ]
+   ],
+   "top": 1.8,
+   "bytes": 1485648,
+   "source": "S_1.blend",
+   "credit": "Soldat en camouflage forestier, Sketchfab (auteur à préciser ; fichier S_1.blend, squelette « Скелет »)"
+  },
+  "s_mark": {
+   "tris": 16000,
+   "eyes": [
+    [
+     0.0324,
+     1.6344,
+     0.1479
+    ],
+    [
+     -0.0324,
+     1.6344,
+     0.1479
+    ]
+   ],
+   "top": 1.8,
+   "bytes": 1286724,
+   "source": "Mark_1.zip",
+   "credit": "« Mark », soldat moderne en tenue olive, Sketchfab (auteur à préciser ; fichier Mark_1_Olive_IdlePose.fbx)"
+  },
+  "s_a1": {
+   "tris": 15998,
+   "eyes": [
+    [
+     0.0324,
+     1.7154,
+     0.1239
+    ],
+    [
+     -0.0324,
+     1.7154,
+     0.1239
+    ]
+   ],
+   "top": 1.8,
+   "bytes": 1620484,
+   "source": "0.group.blend",
+   "credit": "Soldat en camouflage désert (même corps que S_1), Sketchfab (auteur à préciser ; fichier 0.group.blend, personnage « A 1 »)"
+  },
+  "s_russe": {
+   "tris": 15570,
+   "eyes": [
+    [
+     0.0324,
+     1.6668,
+     0.1203
+    ],
+    [
+     -0.0324,
+     1.6668,
+     0.1203
+    ]
+   ],
+   "top": 1.8,
+   "bytes": 1772496,
+   "source": "Russian_Soldier1.fbx",
+   "credit": "Russian Soldier, Mixamo (Adobe), libre d'utilisation dans un jeu"
+  }
+ }
+}

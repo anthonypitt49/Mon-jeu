@@ -457,7 +457,7 @@ const NET = {
 
   /* ─── Hôte ─── */
   startCoop() {
-    const players = this.lobby.map((p) => ({ id: p.id, name: p.name }));
+    const players = this.lobby.map((p, i) => ({ id: p.id, name: p.name, s: i })); // (s : soldat du joueur, 09e_soldats.js)
     this.broadcast('start', { players, hid: P.id, diff: settings.diff });
     beginGame({ solo: players.length <= 1, authority: true, players, diff: settings.diff });
   },
@@ -473,7 +473,7 @@ const NET = {
         this.broadcast('lobby', this.lobby); UI.lobby();
         if ((G.mode === 'playing' || G.mode === 'paused') && !G.players.has(pid)) { // arrivée en cours de partie
           G.addPlayer(pid, name, false);
-          this.sendTo(pid, 'start', { players: [...G.players.values()].map((p) => ({ id: p.id, name: p.name })), state: this.worldState(), hid: P.id, diff: G.diff });
+          this.sendTo(pid, 'start', { players: [...G.players.values()].map((p) => ({ id: p.id, name: p.name, s: p.soldier })), state: this.worldState(), hid: P.id, diff: G.diff });
           UI.message(`${name} REJOINT LE FRONT`, ''); UI.team();
         }
         break;
@@ -716,7 +716,8 @@ function remoteShot(pid, d) {
 /* ─── Camarades (avatars des autres joueurs) ─── */
 class Avatar {
   constructor(rec) {
-    this.rec = rec; const rig = makeRig(ZV.soldier, SOLDIER_MATS); this.holder = rig.holder; this.bones = rig.bones; R.scene.add(this.holder);
+    this.rec = rec; const rig = makeRig(ZV.soldier, SOLDIER_MATS); this.holder = rig.holder; this.bones = rig.bones; this.mesh = rig.mesh; R.scene.add(this.holder);
+    this.real = null; srealStart(); // (soldat moderne : 09e_soldats.js ; corps procédural en attendant, ou s'il manque)
     this.phase = 0; this.t = 0; this.flash = 0; this.gunKey = null;
     const tag = textTexture(256, 64, (x) => { x.font = font(40, 800); x.textAlign = 'center'; x.fillStyle = '#9ce8ff'; x.shadowColor = '#000'; x.shadowBlur = 6; x.fillText(rec.name, 128, 44); });
     this.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tag, depthTest: false, transparent: true, sizeAttenuation: false })); this.tag.scale.set(0.14, 0.035, 1); this.tag.position.y = 2.15; this.tag.renderOrder = 20; this.holder.add(this.tag);
@@ -727,7 +728,11 @@ class Avatar {
     if (this.gun) this.bones[BN.chest].remove(this.gun);
     this.gunKey = key; if (!WEAPONS[key]) { this.gun = null; return; }
     const m = buildGunModel(key, false, false); this.gun = m.root; this.gunParts = m;
-    this.gun.position.set(-0.12, 0.02, 0.26); this.gun.rotation.set(0, Math.PI, 0); this.bones[BN.chest].add(this.gun);
+    // Arme à la poitrine, côté droit ; prises dans le repère du torse (l'arme y est tournée d'un demi-tour) : poignée près
+    // de l'origine du modèle, garde-main vers le milieu du canon (pistolet : seconde main sous la première).
+    const gx = -0.1, gy = 0.04, gz = 0.17, L = m.len || 0.5;
+    this.gun.position.set(gx, gy, gz); this.gun.rotation.set(0, Math.PI, 0); this.bones[BN.chest].add(this.gun);
+    this.grip = new THREE.Vector3(gx, gy - 0.05, gz - 0.02); this.fore = L < 0.33 ? new THREE.Vector3(gx + 0.02, gy - 0.07, gz) : new THREE.Vector3(gx, gy - 0.03, gz + Math.min(0.26, L * 0.42));
   }
   update(dt) {
     const r = this.rec, b = r.net; this.t += dt;
@@ -739,11 +744,18 @@ class Avatar {
     this.phase += spd / 1.4 * Math.PI * dt;
     const h = this.holder; h.visible = !r.dead; h.position.copy(this.pos); h.rotation.set(0, this.yaw + Math.PI, 0);
     const down = r.down;
-    poseBody(this.bones, { phase: this.phase, run: (r.flags & 2) ? 0.6 : 0, lean: 0.04, reach: 0, attack: 0, tear: 0, crawl: false, rise: 1, headTilt: 0, t: this.t, limp: 0, hold: true, aim: tp, crouch: (r.flags & 1) ? 1 : 0, moving: clamp(spd / 2.5, 0, 1), jaw: 0 });
+    poseBody(this.bones, { phase: this.phase, run: (r.flags & 2) ? 0.6 : 0, lean: 0.04, reach: 0, attack: 0, tear: 0, crawl: false, rise: 1, headTilt: 0, t: this.t, limp: 0, hold: true, grip: this.grip, fore: this.fore, aim: tp, crouch: (r.flags & 1) ? 1 : 0, moving: clamp(spd / 2.5, 0, 1), jaw: 0 });
+    if (!this.real && SREAL.state === 'on') this.useReal();
+    if (this.real) zrealPose(this);
     if (down) { h.rotation.x = -1.3; h.position.y += 0.2; }
     if (this.flash > 0 && this.gunParts) { this.flash -= dt; this.muz.visible = true; this.gunParts.muzzle.getWorldPosition(this.muz.position); this.muz.material.rotation = rand(TAU); } else this.muz.visible = false;
   }
-  destroy() { R.scene.remove(this.holder); R.scene.remove(this.muz); }
+  // Corps du soldat : le modèle recopie le squelette procédural, dont le maillage devient invisible (ses os portent l'arme).
+  useReal() {
+    const t = soldierTpl(this.rec.soldier); if (!t) return;
+    this.real = zrealInstance(t); this.holder.add(this.real.root); this.procMat = this.mesh.material; this.mesh.material = SR_HIDE;
+  }
+  destroy() { R.scene.remove(this.holder); R.scene.remove(this.muz); this.mesh.skeleton.dispose(); this.real?.mesh.skeleton.dispose(); }
 }
 
 function lockList() { const l = WORLD.perks.filter((p) => p.locked).map((p) => 'p:' + p.key); if (G.box.locked) l.push('b'); return l; }

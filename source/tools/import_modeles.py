@@ -18,7 +18,8 @@ usage : blender_env/bin/python import_modeles.py <fichier .glb|.gltf|.zip> <id> 
         [--sortie dossier] (essais hors de assets/zombies) [--textures dossier --prefixe début] (textures livrées à part)
         [--tex "Matière=couleur.png;relief.png"] [--peau Body|*] [--lustre 0.5] [--eras 1917,1880]
         [--nouveau-squelette] (ignorer le squelette d'origine) [--pose-actuelle [--image n]] (la pose livrée devient le repos)
-        [--objet début du nom] (un seul personnage d'un fichier qui en contient plusieurs)
+        [--objet début du nom] (un seul personnage d'un fichier qui en contient plusieurs) [--quart-de-tour] (livré de profil)
+        [--sans-decoupe] (alpha des couleurs ignoré) [--os "Bone=pelvis,Bone.002=spine_01,…"] (squelette d'origine aux os sans noms parlants : correspondance à la main)
 Les modèles importés n'ont pas de lueur aux yeux (glow: false dans la fiche ; demande du propriétaire).
 """
 import os, sys, json, math, zipfile, tempfile, io
@@ -92,16 +93,21 @@ def main():
     # inconnus, --nouveau-squelette) : on en pose un plus bas.
     rigs = sorted([o for o in bpy.data.objects if o.type == 'ARMATURE'], key=lambda a: -len(a.data.bones))
     keep, REN = None, {}
+    # --os "Bone=pelvis,Bone.002=spine_01,…" : correspondance donnée à la main (os sans noms parlants, reconnus à leur
+    # place dans la hiérarchie).
+    ren_of = lambda r: dict(kv.split('=') for kv in arg('--os').split(',')) if arg('--os') else game_names([b.name for b in r.data.bones])
     if rigs and not arg('--nouveau-squelette', flag=True):
-        REN = game_names([b.name for b in rigs[0].data.bones])
+        REN = ren_of(rigs[0])
         if len(REN) >= 19: keep = rigs[0]
         else: print('os reconnus :', len(REN), sorted(REN.values()), '— exemples :', [b.name for b in rigs[0].data.bones][:12])
-    meshes = [o for o in bpy.data.objects if o.type == 'MESH']
+    # (le cube de la scène par défaut de Blender, resté dans certains .blend, fausserait la taille)
+    meshes = [o for o in bpy.data.objects if o.type == 'MESH' and not (o.name.startswith('Cube') and len(o.data.vertices) <= 8)]
     if arg('--objet'):  # fichier à plusieurs personnages : garder celui-là (et son squelette)
         meshes = [o for o in meshes if o.name.startswith(arg('--objet'))]
         own = {m.object for o in meshes for m in o.modifiers if m.type == 'ARMATURE' and m.object} | {o.parent for o in meshes if o.parent and o.parent.type == 'ARMATURE'}
         rigs = sorted([r for r in rigs if r in own], key=lambda a: -len(a.data.bones))
-        keep = rigs[0] if keep and rigs and len(game_names([b.name for b in rigs[0].data.bones])) >= 19 else None
+        keep = rigs[0] if keep and rigs and len(ren_of(rigs[0])) >= 19 else None
+        if keep: REN = ren_of(keep)
     if keep:
         meshes = [o for o in meshes if any(m.type == 'ARMATURE' and m.object == keep for m in o.modifiers)] or meshes
         if arg('--pose-actuelle', flag=True):
@@ -121,7 +127,9 @@ def main():
     print('squelette :', 'gardé (%d os reconnus sur %d)' % (len(REN), len(keep.data.bones)) if keep else 'nouveau')
     for o in [o for o in bpy.data.objects if o.type == 'MESH' and o not in meshes]: bpy.data.objects.remove(o, do_unlink=True)
     # Pose de repos figée, formes appliquées, transformations appliquées (squelette compris s'il est gardé).
+    bpy.context.view_layer.update()  # (objets d'un .blend : matrices monde pas encore calculées)
     for o in meshes:
+        if o.data.users > 1: o.data = o.data.copy()  # (maillage partagé entre personnages : Blender refuserait d'y appliquer la rotation)
         for m in list(o.modifiers):
             if not (keep and m.type == 'ARMATURE'): o.modifiers.remove(m)
         if o.data.shape_keys: o.shape_key_clear()
@@ -150,6 +158,8 @@ def main():
 
     # 2. Orientation et taille : pieds au sol, 1,80 m, centré ; de face vers -Y (le +Z du glTF). Les pieds dépassent
     # vers l'avant des chevilles : s'ils pointent vers +Y, demi-tour (ou --demi-tour pour forcer).
+    if arg('--quart-de-tour', flag=True):  # (modèle livré de profil, regard vers ±X)
+        body.data.transform(Matrix.Rotation(math.pi / 2, 4, 'Z')); apply_rig(Matrix.Rotation(math.pi / 2, 4, 'Z'))
     V = verts(); lo, hi = V.min(0), V.max(0); s = H / (hi[2] - lo[2])
     T = Matrix.Scale(s, 4) @ Matrix.Translation(Vector((-(lo[0] + hi[0]) / 2, -(lo[1] + hi[1]) / 2, -lo[2])))
     body.data.transform(T); apply_rig(T); V = verts()
@@ -223,7 +233,8 @@ def main():
         ci = forced(mat, 0) or found(img_of(mat, 'Base Color')) or by_name(mat, 'diffuse')
         col.paste(pil(ci, cell, base), (cx, cy))
         a_ = pil(ci, cell, 255, 'L')
-        if np.asarray(a_).mean() < 250: alp.paste(a_, (cx, cy)); has_a = True  # (cheveux, cils : découpe)
+        # (cheveux, cils : découpe ; --sans-decoupe quand la couche alpha des couleurs sert à autre chose, Mixamo par exemple)
+        if np.asarray(a_).mean() < 250 and not arg('--sans-decoupe', flag=True): alp.paste(a_, (cx, cy)); has_a = True
         ni = forced(mat, 1) or found(img_of(mat, 'Normal')) or by_name(mat, 'normal')
         if ni: nor.paste(pil(ni, cell, (128, 128, 255)), (cx, cy)); has_n = True
         cells.append((mat.name if mat else '', cx, cy))
@@ -366,7 +377,9 @@ def main():
         J['head'] = (J['neck_01'][1], Vector((0, yc(0.86, 0.88), 0.99 * H)))
         for side, sgn in (('l', 1), ('r', -1)):
             hp = leg(crotch - 0.08, crotch - 0.03, sgn); kn = leg(0.26, 0.30, sgn); an = leg(0.04, 0.07, sgn)
-            ft = sl(0, 0.03, *((0, 0.25) if sgn > 0 else (-0.25, 0))); toe = ft[np.argmin(ft[:, 1])]
+            ft = sl(0, 0.03, *((0, 0.25) if sgn > 0 else (-0.25, 0)))
+            if not len(ft): print('pieds introuvables : sommets de', V.min(0).round(3), 'à', V.max(0).round(3), '; bas :', V[V[:, 2] < 0.03 * H][:8].round(3))
+            toe = ft[np.argmin(ft[:, 1])]
             hipj = Vector((hp[0] * 0.95, hip_y, (crotch - 0.01) * H))
             J['thigh_' + side] = (hipj, Vector((kn[0], kn[1], 0.285 * H)))
             J['calf_' + side] = (J['thigh_' + side][1], Vector((an[0], an[1], 0.05 * H)))

@@ -55,6 +55,7 @@ const G = {
   addPlayer(id, name, isLocal) {
     const rec = { id, name, isLocal, pos: isLocal ? P.pos : new THREE.Vector3(tcx(SPOTS.start[0]), 0, tcx(SPOTS.start[1])), yaw: 0, pitch: 0, points: 500, kills: 0, heads: 0, downs: 0, shots: 0, hits: 0, perks: new Set(), down: false, dead: false, repairPts: 0, weaponKey: 'pistol', flags: 0 };
     const gh = this.ghosts?.get(id); if (gh) { Object.assign(rec, gh); this.ghosts.delete(id); } // retour après une coupure : on retrouve ses points
+    const used = new Set([...this.players.values()].map((r) => r.soldier)); rec.soldier = 0; while (used.has(rec.soldier)) rec.soldier++; // (premier soldat libre ; l'hôte l'envoie)
     this.players.set(id, rec); if (!isLocal) rec.avatar = new Avatar(rec);
     return rec;
   },
@@ -74,7 +75,8 @@ const G = {
     for (const [, r] of this.players) if (!r.isLocal) r.avatar?.destroy();
     this.players.clear(); this.ghosts = new Map(); this.netRs = null; this.seen = new Set(); SPEC.target = null; clearPings();
     const me = this.addPlayer(P.id, P.name, true);
-    if (players) players.forEach((p) => { if (p.id !== P.id) this.addPlayer(p.id, p.name, false); });
+    if (players) for (const p of players) { const r = p.id === P.id ? me : this.addPlayer(p.id, p.name, false); if (p.s != null) r.soldier = p.s | 0; } // (soldat choisi par l'hôte)
+    soldierArms(me.soldier);
     const order = [...this.players.keys()].sort(), idx = Math.max(0, order.indexOf(P.id));
     resetLocalPlayer(SPOTS.coopStarts[idx % SPOTS.coopStarts.length]);
     me.points = 500;
