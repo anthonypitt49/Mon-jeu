@@ -48,6 +48,12 @@ SPECS = [
          clothes=[('male_worksuit01', (0.5, 0.52, 0.5)), ('shoes04', None)]),
     dict(id='pe_b', era='1933', macro=dict(gender=1, age=0.6, muscle=0.45, weight=0.3, height=0.5), skin='middleage_african_male', hair='short02',
          clothes=[('male_casualsuit06', (0.62, 0.6, 0.55)), ('shoes04', None)]),
+    # (ajoutés en 6.10 : le ménage du propriétaire ne laissait que deux marcheurs) vieux détenu en chemise de toile bleue,
+    # jeune en veste de travail en denim délavé. (casualsuit02 et 04 : imprimés et logos modernes, écartés.)
+    dict(id='pe_e', era='1933', macro=dict(gender=1, age=0.78, muscle=0.35, weight=0.25, height=0.5), skin='old_caucasian_male', hair='short03',
+         clothes=[('male_casualsuit05', (0.42, 0.5, 0.62)), ('shoes03', None)]),
+    dict(id='pe_f', era='1933', macro=dict(gender=1, age=0.45, muscle=0.65, weight=0.4, height=0.6), skin='young_african_male', hair='short04',
+         clothes=[('male_casualsuit01', (0.4, 0.44, 0.5)), ('shoes04', None)]),  # (denim délavé : plus foncé, on le prenait pour le Geôlier)
     dict(id='pe_c', era='1933', macro=dict(gender=1, age=0.5, muscle=0.55, weight=0.45, height=0.6), skin='middleage_caucasian_male', hair='short04',
          clothes=[('male_elegantsuit01', (0.16, 0.2, 0.3)), ('shoes04', None)], extra=['garde'], boss=True),  # le geôlier (boss) en est une version géante
     dict(id='pe_d', era='1933', brute=True, macro=dict(gender=1, age=0.5, muscle=1, weight=0.8, height=0.75), skin='middleage_asian_male', hair='short02',

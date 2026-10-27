@@ -2,6 +2,15 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.10) : ménage des infectés, carte par carte
+
+Retour du propriétaire après essai de la 6.9 : « il y en a qui ne vont vraiment pas avec ceux qu'on avait ; pose-moi des questions avec des images ». Planches numérotées par carte (`dev/catalogue.mjs <carte>` : en pied et en gros plan, éclairage de la carte), choix fait par le propriétaire.
+
+- **Retirés partout** (GLB supprimés, crédits mis à jour) : l'écorché « Dead man », le décharné, le zombie nu de pxltiger, le zombie en combinaison anti-radiation. Plus besoin de leurs auteurs pour les crédits.
+- **Restent** : Poste 7 — trois poilus MakeHuman, l'officier Mixamo, le costaud ; Cité — les 9 civils (4 MakeHuman, 4 femmes importées dont la zombie sexy, l'homme en chemise sombre) et le costaud ; Filon — 4 MakeHuman, l'homme en chemise sombre, le costaud ; Pénitencier — pe_a, pe_b, le Geôlier, le costaud.
+- **Pénitencier comblé** (il ne restait que deux marcheurs) : deux détenus MakeHuman de plus, `pe_e` (vieux, chemise de toile bleu clair) et `pe_f` (veste de travail en denim délavé), validés par le propriétaire sur planche. Pièges : `male_casualsuit02` et `04` portent des imprimés et un logo modernes (écartés) ; un denim trop foncé se confondait avec l'uniforme du Geôlier dans la nuit.
+- **À garder en tête** : au moins 4 marcheurs par carte, sinon les mêmes visages reviennent sans cesse dans une manche chargée.
+
 ## Fait (version 6.9) : bouche sombre, gore façon BO2, soldats modernes pour les joueurs
 
 Demande du propriétaire : « assombris l'intérieur de la bouche puis passe au gore ; les soldats modernes, c'était pour les personnages qu'on joue ; mets tout en ligne ; assure-toi que le jeu reste fluide ».
