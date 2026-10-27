@@ -162,11 +162,26 @@ def one(cid):
         for p in pieces:
             p.name = 'extra_' + ex; mat = bpy.data.materials.new('extra_' + ex); mat.use_nodes = True
             t = mat.node_tree.nodes.new('ShaderNodeTexImage'); t.name = 'diffuseTexture'; t.image = img; p.data.materials.append(mat)
-            vg = p.vertex_groups.new(name='head'); vg.add(list(range(len(p.data.vertices))), 1.0, 'REPLACE')
+            vg = p.vertex_groups.new(name='hat'); vg.add(list(range(len(p.data.vertices))), 1.0, 'REPLACE')  # (os « hat » : il saute)
             md = p.modifiers.new('rig', 'ARMATURE'); md.object = rig; p.parent = rig
             if not p.data.uv_layers: p.data.uv_layers.new(name='UVMap')
             extras.append(p)
     meshes += extras
+    # Couvre-chef (casque, casquette, chapeau) sur son propre os « hat », enfant de la tête : le jeu le fait sauter sur un
+    # tir à la tête non mortel, comme chez BO2 (os replié, copie qui s'envole).
+    hats = extras + [o for o in meshes if kind_of(o) == 'hat']
+    if hats:
+        from mathutils import Vector
+        M = rig.matrix_world.inverted()
+        bpy.context.view_layer.objects.active = rig; bpy.ops.object.mode_set(mode='EDIT')
+        eb = rig.data.edit_bones.new('hat'); eb.head = M @ Vector((hx, hyc, head_top - 0.07)); eb.tail = M @ Vector((hx, hyc, head_top + 0.03))
+        eb.parent = rig.data.edit_bones['head']; eb.use_connect = False
+        bpy.ops.object.mode_set(mode='OBJECT')
+        for o in hats:
+            if o in extras: continue
+            for g in list(o.vertex_groups): o.vertex_groups.remove(g)
+            o.vertex_groups.new(name='hat').add(list(range(len(o.data.vertices))), 1.0, 'REPLACE')
+        print('chapeau : os « hat »,', len(hats), 'pièce(s)')
 
     # 2. Allègement.
     for o in meshes:
@@ -215,7 +230,7 @@ def one(cid):
         uv.data.foreach_set('uv', a.ravel())
     # Images d'atlas : couleur (avec teintes d'époque), découpe (alpha).
     col = np.zeros((AT, AT, 3), np.float32); alpha = np.ones((AT, AT), np.float32); region = np.zeros((AT, AT), np.uint8)
-    REG = {'body': 1, 'clothes': 2, 'shoes': 2, 'hat': 2, 'hair': 3, 'low-poly': 4, 'teeth': 5, 'tongue': 5, 'eyebrow': 3, 'eyelash': 3}
+    REG = {'body': 1, 'clothes': 2, 'shoes': 2, 'hat': 2, 'hair': 3, 'low-poly': 4, 'teeth': 5, 'tongue': 6, 'eyebrow': 3, 'eyelash': 3}
     for key, (x, y, sz, k, im) in rect.items():
         src = bpy.path.abspath(im.filepath) if im is not None and im.filepath else ''
         if src and os.path.exists(src): img = Image.open(src).convert('RGBA')
@@ -321,6 +336,15 @@ def one(cid):
     # Yeux : laiteux, jaunis (le jeu y ajoute leur lueur) ; dents jaunies.
     col = np.where((reg == 4)[..., None], (lum[..., None] * 0.35 + 0.5) * np.array([1, 0.93, 0.72], np.float32), col)
     col = np.where((reg == 5)[..., None], col * np.array([0.72, 0.6, 0.45], np.float32), col)
+    # Intérieur de la bouche sombre, comme chez BO2 (sinon la langue et les gencives roses, bien éclairées, faisaient une
+    # bouche claire quand la mâchoire s'ouvre) : langue rouge noirâtre, gencives assombries, fond de la bouche (peau
+    # du corps derrière l'avant des dents) presque noir.
+    lum2 = col @ np.array([0.299, 0.587, 0.114], np.float32)
+    col = np.where((reg == 6)[..., None], np.array([0.16, 0.035, 0.03], np.float32) * (0.6 + 0.6 * lum2)[..., None], col)
+    gum = (reg == 5) & (col[..., 0] > col[..., 1] * 1.25)
+    col = np.where(gum[..., None], col * np.array([0.42, 0.22, 0.2], np.float32), col)
+    cav = ((reg == 1) & C3 & (np.abs(X) < 0.034) & (np.abs(Z - mouth[2]) < 0.028) & (Yf > mouth[1] + 0.004))
+    col = np.where(cav[..., None], col * 0.18 + np.array([0.05, 0.008, 0.008], np.float32), col)
 
     # 6. Relief : détail fin de la couleur (trame, pores, plis), plaies creusées ; pas les grandes taches.
     from scipy import ndimage

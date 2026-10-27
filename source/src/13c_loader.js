@@ -77,7 +77,7 @@ async function warmUp() {
     const zf = zrealInstance(tpls[0]); zf.mesh.material = ZMAT_FROZEN; put(zf.root, 2.2, -1.2);
   }
   put(new THREE.Mesh(ZEYE_GEO, eyeMaterial(new THREE.Color(EYE_COL[MAP_ID] ?? 0xffb040))), 0, 0.5); // (même matière qu'en jeu, sans brouillard)
-  if (GORE.capGeo) put(new THREE.Mesh(GORE.capGeo, GORE.capMat), 0.3, 0.5);
+  goreAssets(); put(new THREE.Mesh(GORE.capGeo, GORE.capMat), 0.3, 0.5); // (moignons et éclats de chair : textures de chair)
   put(buildGrenadeModel(false), -0.3, 0.5);
   for (const type of Object.keys(DROP_TYPES)) put(new THREE.Sprite(new THREE.SpriteMaterial({ map: dropTexture(type), depthWrite: false, transparent: true })), rand(-1, 1), 0.8);
   put(new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.sprites.glow, color: 0x3dff7a, blending: THREE.AdditiveBlending, depthWrite: false })), 0, 1);

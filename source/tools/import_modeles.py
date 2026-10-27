@@ -18,6 +18,7 @@ usage : blender_env/bin/python import_modeles.py <fichier .glb|.gltf|.zip> <id> 
         [--sortie dossier] (essais hors de assets/zombies) [--textures dossier --prefixe début] (textures livrées à part)
         [--tex "Matière=couleur.png;relief.png"] [--peau Body|*] [--lustre 0.5] [--eras 1917,1880]
         [--nouveau-squelette] (ignorer le squelette d'origine) [--pose-actuelle [--image n]] (la pose livrée devient le repos)
+        [--objet début du nom] (un seul personnage d'un fichier qui en contient plusieurs)
 Les modèles importés n'ont pas de lueur aux yeux (glow: false dans la fiche ; demande du propriétaire).
 """
 import os, sys, json, math, zipfile, tempfile, io
@@ -35,8 +36,17 @@ def game_names(names):
     suivent leur parent). Familles : Mixamo (mixamorig:Hips…), « biped » de 3ds Max (… Pelvis, LArmUpperarm…), noms
     courts (hips, L_arm, L_elbow…)."""
     import re
-    base = {n: re.sub(r'^(mixamorig\d*:|base ?human|bip0?1 ?|bip )', '', n.strip().lower()).replace(' ', '') for n in names}
+    base = {n: re.sub(r'^(mixamorig\d*:|base ?human|bip0?1 ?|bip |cc_base_)', '', n.strip().lower()).replace(' ', '') for n in names}
     low = set(base.values()); out = {}
+    if 'waist' in low and 'hip' in low:  # Character Creator (CC_Base_Hip, Waist, Spine01, Spine02, NeckTwist01, L_Upperarm…)
+        tab = {'hip': 'pelvis', 'waist': 'spine_01', 'spine02': 'spine_03', 'necktwist01': 'neck_01', 'jawroot': 'jaw'}
+        for sd in 'lr':
+            tab.update({sd + '_clavicle': 'clavicle_' + sd, sd + '_upperarm': 'upperarm_' + sd, sd + '_forearm': 'lowerarm_' + sd, sd + '_hand': 'hand_' + sd,
+                        sd + '_thigh': 'thigh_' + sd, sd + '_calf': 'calf_' + sd, sd + '_foot': 'foot_' + sd})
+        tab['head'] = 'head'
+        for n, b in base.items():
+            if b in tab and tab[b] not in out.values(): out[n] = tab[b]
+        return out
     if 'ribcage' in low: tab = {'pelvis': 'pelvis', 'spine1': 'spine_01', 'ribcage': 'spine_03'}
     elif 'chest' in low: tab = {'hips': 'pelvis', 'spine': 'spine_01', 'chest': 'spine_03'}
     else: tab = {'hips': 'pelvis', 'spine': 'spine_01', 'spine2': 'spine_03'}
@@ -87,6 +97,11 @@ def main():
         if len(REN) >= 19: keep = rigs[0]
         else: print('os reconnus :', len(REN), sorted(REN.values()), '— exemples :', [b.name for b in rigs[0].data.bones][:12])
     meshes = [o for o in bpy.data.objects if o.type == 'MESH']
+    if arg('--objet'):  # fichier à plusieurs personnages : garder celui-là (et son squelette)
+        meshes = [o for o in meshes if o.name.startswith(arg('--objet'))]
+        own = {m.object for o in meshes for m in o.modifiers if m.type == 'ARMATURE' and m.object} | {o.parent for o in meshes if o.parent and o.parent.type == 'ARMATURE'}
+        rigs = sorted([r for r in rigs if r in own], key=lambda a: -len(a.data.bones))
+        keep = rigs[0] if keep and rigs and len(game_names([b.name for b in rigs[0].data.bones])) >= 19 else None
     if keep:
         meshes = [o for o in meshes if any(m.type == 'ARMATURE' and m.object == keep for m in o.modifiers)] or meshes
         if arg('--pose-actuelle', flag=True):

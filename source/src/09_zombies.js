@@ -614,6 +614,9 @@ class Zombie {
     this.t += dt; this.time += dt;
     if (this.state === 'dead') return;
     if (this.rage > 0) this.rage -= dt;
+    // Sans tête (tir à la tête non mortel, comme chez BO2) : il marche encore ; ce qui lui restait de vie (10 % au plus)
+    // s'épuise en 3 s, le temps qu'on le voie avancer sans tête.
+    if (this.headless && this.alive) { this.hp -= (this.headDrain ||= Math.max(this.hp, this.maxHp * 0.02) / 3) * dt; if (this.hp <= 0) { G.killZombie(this, this.killer ?? P.id, { head: true, dir: _v1.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)) }); return; } }
     if (this.state === 'frozen') { this.frozenT -= dt; if (this.frozenT <= 0) G.shatterZombie(this); return; }
     if (this.state === 'rise') { this.rise = Math.min(1, this.t / (this.kind === 'runner' || this.kind === 'sprinter' ? 0.9 : 1.4)); if (this.rise >= 1) { this.state = 'move'; this.t = 0; } return; }
     // Cible : joueur vivant le plus proche.

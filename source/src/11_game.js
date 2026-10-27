@@ -212,6 +212,10 @@ const G = {
     z.hp -= dmg;
     if (z.hp <= 0) { info.dmg = dmg; this.killZombie(z, pid, info); return true; }
     this.addPoints(pid, 10, true);
+    // Tête (BO2) : s'il reste 10 % de vie ou moins, elle éclate et l'infecté marche encore (il perd 20 % de sa vie par
+    // seconde, 09_zombies.js think) ; sinon le couvre-chef saute.
+    if (info.head && !z.brute && !z.boss && !z.headless && z.hp <= z.maxHp * 0.1) { z.killer = pid; this.gore(z, [BN.head], info.dir); }
+    else if (info.head && !z.hatOff && z.real?.bones.hat) { const d = info.dir || _v1.set(0, 0, 1); zHat(z, d); this.emit('zhat', { id: z.id, dx: +d.x.toFixed(2), dz: +d.z.toFixed(2) }, true); }
     this.gore(z, goreOnHit(z, dmg, info), info.dir);
     // Jambes emportées par l'explosion : l'infecté rampe (zSever le fait ramper, ici et chez les invités).
     if (info.explosive && info.crawl && !z.brute && !z.crawl) this.gore(z, Math.random() < 0.5 ? [BN.shinL, BN.shinR] : [Math.random() < 0.5 ? BN.thighL : BN.thighR], info.dir);
@@ -423,6 +427,7 @@ const G = {
       case 'zfreeze': { const z = ZOMBIES.find((q) => q.id === d.id); if (z && z.alive) z.freeze(1.2); break; }
       case 'zshatter': { const z = ZOMBIES.find((q) => q.id === d.id); if (z && z.state !== 'dead') { z.state = 'dead'; z.holder.visible = false; z.t = 8.5; fxIce(_v1.set(z.pos.x, z.pos.y + 1, z.pos.z)); Sfx.shatter(z.pos); } break; }
       case 'zlimb': { const z = ZOMBIES.find((q) => q.id === d.id); if (z) for (const b of d.b) zSever(z, b, _v1.set(d.dx, 0, d.dz)); break; }
+      case 'zhat': { const z = ZOMBIES.find((q) => q.id === d.id); if (z) zHat(z, _v1.set(d.dx, 0, d.dz)); break; }
       case 'zcrawl': { const z = ZOMBIES.find((q) => q.id === d.id); if (z) { z.crawl = true; z.speed = ZSPEED.crawler; } break; }
       case 'zv': { const z = ZOMBIES.find((q) => q.id === d[0]); if (z && z.remote) Sfx.zombie(z.pos, d[1] ? 'scream' : 'groan'); break; }
       case 'za': { const z = ZOMBIES.find((q) => q.id === d[0]); if (z && z.remote) { z.state = 'attack'; z.attackT = 0; Sfx.zombie(z.pos, 'attack'); } break; }
