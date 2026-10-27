@@ -13,8 +13,8 @@ l'homme en chemise à carreaux, reflets adoucis pour la zombie blonde) :
 
 - « Zombie (Male 1) », « Zombie (Female 1) », « Zombie (Type Female 2) » de [martinezequielgorno](https://sketchfab.com/martinezequielgorno) (Sketchfab, [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/)).
 - « Sexy zombie girl » de [ssorpeg](https://sketchfab.com/3d-models/2fde047371d0455780a7034416c1c6fa) (Sketchfab, CC-BY 4.0).
-- « Zombie » de [pxltiger](https://sketchfab.com/3d-models/zombie-73ef58af341e46afba1da53366ed79cf) (Sketchfab, CC-BY 4.0).
 - « World War Zombie » (Pedroso) et une zombie de [Mixamo](https://www.mixamo.com) (Adobe), utilisés selon les conditions de Mixamo.
-- Zombie en combinaison anti-radiation (« 3dBit »), « Dead man » et un zombie décharné : Sketchfab, CC-BY 4.0 — liens et
-  auteurs à préciser (fournis par le propriétaire du jeu).
+
+Retirés en version 6.10 (choix du propriétaire, ne collaient pas avec les autres infectés) : le zombie de pxltiger, le
+zombie en combinaison anti-radiation, « Dead man » et le zombie décharné.
 

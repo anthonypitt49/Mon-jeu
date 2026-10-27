@@ -198,29 +198,6 @@
    "source": "node_0.glb",
    "credit": "Sexy zombie girl, ssorpeg, CC-BY 4.0, https://sketchfab.com/3d-models/2fde047371d0455780a7034416c1c6fa"
   },
-  "ci_z": {
-   "era": "1957",
-   "glow": false,
-   "brute": false,
-   "boss": false,
-   "tris": 15521,
-   "eyes": [
-    [
-     0.0324,
-     1.629,
-     0.0842
-    ],
-    [
-     -0.0324,
-     1.629,
-     0.0842
-    ]
-   ],
-   "top": 1.8,
-   "bytes": 1140448,
-   "source": "ZombieCompleteAnimations.fbx",
-   "credit": "Zombie en combinaison anti-radiation (3dBit), Sketchfab, CC-BY : lien \u00e0 pr\u00e9ciser"
-  },
   "fi_a": {
    "era": "1880",
    "brute": false,
@@ -504,62 +481,6 @@
    "top": 1.966,
    "bytes": 979572
   },
-  "x_dead": {
-   "era": "1917",
-   "glow": false,
-   "brute": false,
-   "boss": false,
-   "tris": 15999,
-   "eyes": [
-    [
-     0.0324,
-     1.7154,
-     0.2734
-    ],
-    [
-     -0.0324,
-     1.7154,
-     0.2734
-    ]
-   ],
-   "top": 1.8,
-   "bytes": 1920868,
-   "source": "dead_man_animat.blend",
-   "credit": "Dead man (anim\u00e9), Sketchfab, CC-BY : lien \u00e0 pr\u00e9ciser",
-   "eras": [
-    "1917",
-    "1933",
-    "1880"
-   ]
-  },
-  "x_maigre": {
-   "era": "1917",
-   "glow": false,
-   "brute": false,
-   "boss": false,
-   "tris": 7568,
-   "eyes": [
-    [
-     0.0333,
-     1.7464,
-     0.0691
-    ],
-    [
-     -0.0333,
-     1.7464,
-     0.0691
-    ]
-   ],
-   "top": 1.85,
-   "bytes": 870836,
-   "source": "zombie1.fbx",
-   "credit": "Zombie d\u00e9charn\u00e9 (zombie1), Sketchfab, CC-BY : lien \u00e0 pr\u00e9ciser",
-   "eras": [
-    "1917",
-    "1933",
-    "1880"
-   ]
-  },
   "x_martin": {
    "era": "1957",
    "glow": false,
@@ -584,33 +505,6 @@
    "credit": "Zombie (Male 1), martinezequielgorno, CC-BY 4.0, https://sketchfab.com/3d-models/zombie-male-1-f40dda49b8b94f2faedf58679f676763",
    "eras": [
     "1957",
-    "1880"
-   ]
-  },
-  "x_pxl": {
-   "era": "1917",
-   "glow": false,
-   "brute": false,
-   "boss": false,
-   "tris": 4702,
-   "eyes": [
-    [
-     0.0324,
-     1.6776,
-     0.1353
-    ],
-    [
-     -0.0324,
-     1.6776,
-     0.1353
-    ]
-   ],
-   "top": 1.8,
-   "bytes": 723660,
-   "source": "Zombie.zip",
-   "credit": "Zombie, pxltiger, CC-BY 4.0, https://sketchfab.com/3d-models/zombie-73ef58af341e46afba1da53366ed79cf",
-   "eras": [
-    "1917",
     "1880"
    ]
   }
