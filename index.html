@@ -9097,17 +9097,18 @@ function aubeReset() {
   AUBE_FX.souls.forEach((s) => R.scene.remove(s.sp)); AUBE_FX.souls.length = 0; AUBE_FX.morse = null;
   if (AUBE_FX.dawn0) aubeDawn(0);
 }
-function aubeState() { const Q = QUEST; return { l: +(Q.listen || 0).toFixed(1), pl: Q.planted, cr: Q.carry, so: Q.souls, tg: Q.tagBy, cd: Q.code, fd: Q.found, mo: +(Q.morse || 0).toFixed(1), fu: +(Q.fuse || 0).toFixed(0), bo: Q.bossId }; }
+function aubeState() { const Q = QUEST; return { l: +(Q.listen || 0).toFixed(1), pl: Q.planted, cr: Q.carry, so: Q.souls, tg: Q.tagBy, cd: Q.code, fd: Q.found, mo: +(Q.morse || 0).toFixed(1), fu: +(Q.fuse || 0).toFixed(1), bo: Q.bossId }; }
 function aubeSet(d) {
-  const Q = QUEST;
+  const Q = QUEST; if (G.authority) return; // (l'hôte garde ses valeurs exactes : l'état diffusé est arrondi ; un compte à rebours ramené à 0 bloquait la mise à feu)
   if (d.l !== undefined) Q.listen = d.l; if (d.pl) Q.planted = d.pl; if (d.cr) Q.carry = d.cr; if (d.so !== undefined) Q.souls = d.so; if (d.tg !== undefined) Q.tagBy = d.tg;
   if (d.cd) Q.code = d.cd; if (d.fd) Q.found = d.fd; if (d.mo !== undefined) Q.morse = d.mo; if (d.fu !== undefined) Q.fuse = d.fu; if (d.bo !== undefined) Q.bossId = d.bo;
 }
-// Action maintenue (calibrer, écouter, transmettre) : 0,25 s par message du joueur, jamais plus que le temps écoulé chez
-// l'hôte ; la réserve (0,6 s) fait compter deux messages arrivés dans la même image (gigue du réseau en co-op).
+// Action maintenue (calibrer, écouter, transmettre) : le joueur envoie un message toutes les 0,25 à 0,3 s ; chacun vaut le
+// temps écoulé chez l'hôte (0,3 s au plus), et la réserve (0,6 s) fait compter deux messages arrivés dans la même image
+// (gigue du réseau en co-op).
 function holdGain(p, key) {
   const now = G.time, last = p[key] ?? now - 0.25; p[key] = now;
-  const r = Math.min(0.6, (p[key + 'R'] ?? 0.25) + Math.max(0, now - last)), g = Math.min(0.25, r); p[key + 'R'] = r - g; return g;
+  const r = Math.min(0.6, (p[key + 'R'] ?? 0.25) + Math.max(0, now - last)), g = Math.min(0.3, r); p[key + 'R'] = r - g; return g;
 }
 const aubeEmit = (s) => G.emit('quest', Object.assign(questState(), s !== undefined ? { s } : {}));
 const aubeGate = (s) => G.round >= (AUBE.GATE[s] || 0);
