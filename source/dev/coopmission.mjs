@@ -1,5 +1,6 @@
 // Co-op hôte + invité (relais local) : l'INVITÉ rétablit le courant et mène la mission de la carte pendant que l'hôte reste loin.
-// À chaque étape, l'état est comparé des deux côtés. Usage : node coopmission.mjs cite|penitencier|filon
+// À chaque étape, l'état est comparé des deux côtés. Usage : node coopmission.mjs cite|penitencier|filon|poste7
+// (poste7 : l'acte 1 est abrégé chez l'hôte, l'invité mène les actes 2 à 4 de « Aube Blanche » jusqu'au Sapeur et à l'aube)
 import { chromium } from 'playwright';
 import path from 'path';
 const dir = path.dirname(new URL(import.meta.url).pathname);
@@ -15,7 +16,7 @@ const mk = async (tag) => {
   await page.route('https://cdn.jsdelivr.net/npm/peerjs@1.5.5/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/peerjs/dist/peerjs.min.js'), contentType: 'application/javascript' }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
   await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?' + (process.env.Q || 'relay=ws://127.0.0.1:8883&nortc=1') + '#carte=' + MAPID);
-  await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
+  await page.waitForFunction(() => window.__spReady, null, { timeout: 400000 });
   return page;
 };
 const host = await mk('host'), guest = await mk('guest');
@@ -135,7 +136,38 @@ if (MAPID === 'filon') {
   await gAt(v[0] + 1, v[1]); await tick(0.5); log('  chambre forte :', await gAct('fvault')); await tick(1);
   await same('trésor déposé', () => SP.FIL().ms);
 }
-const fin = await guest.evaluate((m) => (m === 'cite' ? SP.CITE().ms === 3 : m === 'penitencier' ? SP.PEN().ms === 4 : SP.FIL().ms === 4), MAPID);
+if (MAPID === 'poste7') {
+  const A = await guest.evaluate(() => SP.AUBE);
+  const qs = () => { const Q = SP.QUEST; return [Q.stage, (Q.planted || []).join(''), Q.souls, (Q.found || []).join(''), Q.code.length]; };
+  const hold = async (kind, n, id) => { for (let i = 0; i < n; i++) { await guest.evaluate(([k, i]) => SP.G.interact(SP.P.id, k, i), [kind, id]); await tick(0.25, false); } };
+  await host.evaluate(() => { Object.assign(SP.QUEST, { stage: 5, hold: 0.3, prevToSpawn: 0 }); }); await tick(1.5);
+  await same('barrage → étape 6', () => SP.QUEST.stage);
+  await host.evaluate(() => { window.__acts = []; const o = SP.G.interact.bind(SP.G); SP.G.interact = (pid, k, i) => { window.__acts.push([pid === SP.P.id ? 'hôte' : 'invité', k, i, SP.QUEST.stage]); return o(pid, k, i); }; });
+  await gAt(A.GEO[0], A.GEO[1] + 1.3); await tick(0.5); await hold('geo', 50); await tick(0.5);
+  log('  actions reçues par l\'hôte', JSON.stringify(await host.evaluate(() => [window.__acts.length, window.__acts.slice(-3), SP.QUEST.listen, SP.G.players.size])));
+  await same('géophone → étape 7', qs);
+  for (let i = 0; i < 3; i++) {
+    await gAt(A.PICK[0] + 1, A.PICK[1] + 1); await tick(0.5); await gAct('charge'); await tick(0.5);
+    await gAt(A.PLANT[i][0] + 0.8, A.PLANT[i][1] + 0.8); await tick(0.5); await gAct('plant', i); await tick(0.75);
+  }
+  await same('charges posées', qs);
+  await host.evaluate(() => { SP.G.round = 13; for (let k = 0; k < 20; k++) { const z = SP.spawnTestZombie(27 + (k % 4), 69 + (k % 3)); SP.G.applyDamage(z, 1e9, SP.P.id, { dir: new SP.THREE.Vector3(1, 0, 0) }); } }); await tick(1.5);
+  await same('âmes → étape 9', qs);
+  await gAt(A.TAG[0] + 1, A.TAG[1]); await tick(0.5); log('  plaque :', await gAct('tag')); await tick(0.75);
+  await gAt(A.WELL[0] + 1.2, A.WELL[1] + 0.8); await tick(0.5); log('  puits :', await gAct('well')); await tick(0.75);
+  await same('code et étape 11', () => [SP.QUEST.stage, SP.QUEST.code.join('')]);
+  for (let i = 0; i < 4; i++) { await gAct('digit', i); await tick(0.5); }
+  await same('chiffres → étape 12', qs);
+  await gAt(A.LAMP[0] - 1, A.LAMP[1] - 0.6); await tick(0.5); await hold('morse', 40); await tick(0.5);
+  await same('morse → étape 13', qs);
+  await gAt(A.DET[0] - 1, A.DET[1] - 1); await tick(0.5); log('  exploseur :', await gAct('detonate')); await tick(1);
+  await tick(30); log('  mise à feu (hôte / invité)', JSON.stringify(await both(() => Math.round(SP.QUEST.fuse))), await objG());
+  await tick(32); await tick(6, false);
+  await same('Sapeur présent', () => [SP.QUEST.stage, !!SP.ZOMBIES.find((z) => z.id === SP.QUEST.bossId && z.alive)]);
+  await (await authPage()).evaluate(() => { const z = SP.ZOMBIES.find((q) => q.id === SP.QUEST.bossId); if (z) SP.G.applyDamage(z, 1e9, SP.P.id, { dir: new SP.THREE.Vector3(1, 0, 0) }); }); await tick(4);
+  await same('aube', () => [SP.QUEST.stage, SP.QUEST.done, SP.QUEST.dawn > 0]);
+}
+const fin = await guest.evaluate((m) => (m === 'cite' ? SP.CITE().ms === 3 : m === 'penitencier' ? SP.PEN().ms === 4 : m === 'poste7' ? SP.QUEST.stage === 15 : SP.FIL().ms === 4), MAPID);
 if (!fin) bad++; log((fin ? 'OK   ' : 'ÉCART') + ' mission menée à terme');
 log('bandeau final invité :', await objG());
 log('RÉSEAU hôte', JSON.stringify(await host.evaluate(() => window.__net)), 'invité', JSON.stringify(await guest.evaluate(() => window.__net)));

@@ -1,9 +1,10 @@
 /* ═══════════════════ OBJECTIF CACHÉ « AUBE BLANCHE » ET BARBELÉS ÉLECTRIFIÉS ═══════════════════
    Après le retour du courant, la radio du poste de commandement grésille. Réparer l'émetteur
-   (3 lampes cachées), calibrer la fréquence puis tenir 90 s déclenche un barrage d'artillerie. */
+   (3 lampes cachées), calibrer la fréquence puis tenir 90 s déclenche un barrage d'artillerie.
+   Acte 1 seulement : la suite (étapes 6 à 15, la Sape, la ferme, le morse, le Sapeur) est dans 11f_aube.js. */
 
 const QUEST = { stage: 0, spots: [], taken: [], calib: 0, hold: 0, lineT: 12, holdStart: 0, prevToSpawn: 0, done: false };
-const QUEST_NAMES = ['', 'Écouter la radio du poste de commandement', "Trouver les lampes d'émetteur", 'Installer les lampes dans la radio', 'Calibrer la fréquence (maintenir E sur la radio)', 'Tenir jusqu\'au barrage d\'artillerie', 'Opération Aube Blanche accomplie'];
+const QUEST_NAMES = ['', 'Écouter la radio du poste de commandement', "Trouver les lampes d'émetteur", 'Installer les lampes dans la radio', 'Calibrer la fréquence (maintenir E sur la radio)', 'Tenir jusqu\'au barrage d\'artillerie'];
 const TUBE_SPOTS = [
   [55.1, 0.5, 8.35, 0], [16.2, 1.12, 15.3, 0], // tranchée de première ligne (banquette, caisses)
   [24.2, 1.52, 37.1, 1], [26.9, 0.58, 37.3, 1], // poste de commandement (couchette, caisse)
@@ -49,6 +50,7 @@ function buildQuestProps() {
     const lampMat = new THREE.MeshBasicMaterial({ color: 0x551010 }); mesh(new THREE.SphereGeometry(0.03, 8, 6), lampMat, 0.12, 1.45, 0.08, 0, box, false);
     return { mat, g, lampMat, pos: new THREE.Vector3(s.x, 1.2, s.z), buzzT: 0 };
   });
+  buildAubeProps();
 }
 
 /* ─── Hôte ─── */
@@ -56,9 +58,10 @@ function questReset() {
   Object.assign(QUEST, { stage: 0, spots: [], taken: [], calib: 0, hold: 0, lineT: 12, done: false });
   for (const t of WORLD.tubes || []) t.g.visible = false;
   for (const t of TRAPS) { t.active = 0; t.cool = 0; }
+  aubeReset();
   UI.objective && UI.objective();
 }
-function questState() { return { s: QUEST.stage, sp: QUEST.spots, tk: QUEST.taken, c: +QUEST.calib.toFixed(1), h: +QUEST.hold.toFixed(1) }; }
+function questState() { return Object.assign({ s: QUEST.stage, sp: QUEST.spots, tk: QUEST.taken, c: +QUEST.calib.toFixed(1), h: +QUEST.hold.toFixed(1) }, aubeState()); }
 function questHost(dt) {
   if (QUEST.stage === 0 && G.power) {
     // Trois lampes : une en première ligne, une au poste ou au dépôt, une en soutien ou au dépôt.
@@ -72,9 +75,11 @@ function questHost(dt) {
   if (QUEST.stage === 5) {
     QUEST.hold -= dt; G.toSpawn = Math.max(G.toSpawn, 6);
     if (QUEST.hold <= 30 && QUEST.hold + dt > 30) G.emit('qline', { k: 'thirty' });
+    // Le barrage ne finit plus la quête : il ouvre l'acte 2 (la Sape).
     if (QUEST.hold <= 0) { G.emit('quest', Object.assign(questState(), { s: 6 })); G.emit('barrage', {}); G.toSpawn = QUEST.prevToSpawn; for (const [pid] of G.players) G.addPoints(pid, 3000, false); }
     else if (Math.random() < dt * 0.4) G.netEvent('qtick', { h: +QUEST.hold.toFixed(0) });
   }
+  aubeHost(dt);
   // Barbelés : minuteries et électrocution.
   for (const t of TRAPS) {
     if (t.cool > 0) t.cool = Math.max(0, t.cool - dt);
@@ -86,6 +91,7 @@ function questHost(dt) {
   }
 }
 function questInteract(pid, kind, id) {
+  if (aubeInteract(pid, kind, id)) return;
   if (kind === 'radio') {
     if (QUEST.stage === 1) { G.emit('quest', Object.assign(questState(), { s: 2 })); G.emit('qline', { k: 'listen' }); }
     else if (QUEST.stage === 3) { G.emit('quest', Object.assign(questState(), { s: 4 })); G.emit('qline', { k: 'install' }); }
@@ -95,8 +101,8 @@ function questInteract(pid, kind, id) {
     G.emit('quest', Object.assign(questState(), { s: n >= 3 ? 3 : 2 })); G.emit('qline', { k: 'tube', n });
   } else if (kind === 'calib') {
     if (QUEST.stage !== 4) return;
-    const p = G.players.get(pid); if (!p || G.time - (p.calibT ?? -1) < 0.18) return;
-    const gain = clamp(G.time - (p.calibT ?? G.time - 0.25), 0, 0.3); p.calibT = G.time;
+    const p = G.players.get(pid); if (!p) return;
+    const gain = holdGain(p, 'calibT'); // (11f_aube.js)
     QUEST.calib = Math.min(20, QUEST.calib + gain);
     if (QUEST.calib >= 20) { QUEST.hold = 90; QUEST.prevToSpawn = G.toSpawn; G.emit('quest', Object.assign(questState(), { s: 5, h: 90 })); G.emit('qline', { k: 'hold' }); }
     else if (Math.round(QUEST.calib * 4) % 4 === 0) G.netEvent('quest', questState());
@@ -107,7 +113,7 @@ function questInteract(pid, kind, id) {
   }
 }
 // Pendant la calibration et l'attente, les infectés affluent.
-function questSpawnFactor() { return QUEST.stage === 4 ? 0.6 : QUEST.stage === 5 ? 0.45 : 1; }
+function questSpawnFactor() { return (QUEST.stage === 4 ? 0.6 : QUEST.stage === 5 ? 0.45 : 1) * aubeSpawnFactor(); }
 
 /* ─── Tous les joueurs ─── */
 const QLINES = {
@@ -122,11 +128,14 @@ function questApply(type, d) {
   if (type === 'quest') {
     const prev = QUEST.stage;
     QUEST.stage = d.s; QUEST.spots = d.sp || QUEST.spots; QUEST.taken = d.tk || QUEST.taken; QUEST.calib = d.c ?? QUEST.calib; if (d.h !== undefined) QUEST.hold = d.h;
+    aubeSet(d); if (d.s >= 15) QUEST.done = true;
     (WORLD.tubes || []).forEach((t, i) => { /* lampes : Poste 7 seulement */ const k = QUEST.spots.indexOf(i); t.g.visible = QUEST.stage === 2 && k >= 0 && !QUEST.taken[k]; });
     if (d.s === 2 && prev < 2) UI.message('OBJECTIF SECRET', "Réparez l'émetteur radio du poste de commandement.");
-    if (d.s === 6 && prev < 6) { QUEST.done = true; Sfx.jingle([0, 4, 7, 12, 16, 19, 24], 392, 'triangle', 0.14); UI.banner('OPÉRATION AUBE BLANCHE ACCOMPLIE', '+3000 points · le secteur tient bon'); UI.subtitle(QLINES.done[0]); }
+    if (d.s === 6 && prev === 5) { Sfx.jingle([0, 4, 7, 12], 392, 'triangle', 0.14); UI.message('ACTE 1 ACCOMPLI', '+3000 points · mais le barrage n\'a rien arrêté'); setTimeout(() => aubeLine({ k: 'barrage' }), 7000); }
     UI.objective();
-  } else if (type === 'qline') {
+  } else if (type === 'aube') return aubeApplyFx(d);
+  else if (type === 'qline') {
+    if (aubeLine(d)) return;
     const arr = QLINES[d.k]; let text = arr ? arr[(Math.random() * arr.length) | 0] : '';
     if (d.k === 'tube') text = `Lampe d'émetteur récupérée (${d.n}/3).`;
     Sfx.radio(RADIO_POS, d.k === 'call' ? 1 : 0.6); UI.subtitle(text, d.k !== 'tube');
@@ -139,6 +148,7 @@ function questVisuals(dt) {
   const t = G.time;
   for (const tb of WORLD.tubes) if (tb.g.visible) { tb.glow.material.opacity = 0.55 + Math.sin(t * 4) * 0.25; tb.g.rotation.y += dt * 0.6; }
   WORLD.radioLamp.material.opacity = QUEST.stage >= 1 && QUEST.stage < 6 ? (Math.sin(t * (QUEST.stage === 4 ? 12 : 3)) > 0 ? 0.9 : 0.15) : 0;
+  aubeVisuals(dt);
   TRAPS.forEach((tr, i) => {
     const w = WORLD.traps[i];
     if (tr.active > 0) { tr.active = Math.max(0, tr.active - (G.authority ? 0 : dt)); w.mat.emissiveIntensity = Math.random() < 0.7 ? 1.5 + Math.random() * 2 : 0.2; w.lampMat.color.set(0x3ab8ff); if (Math.random() < dt * 25) { const [tx, tz] = tr.tiles[(Math.random() * tr.tiles.length) | 0]; fxSparks(_v1.set(tcx(tx) + rand(-0.9, 0.9), rand(0.2, 0.75), tcx(tz) + rand(-0.9, 0.9)), 3); } w.buzzT -= dt; if (w.buzzT <= 0) { w.buzzT = 0.45; Sfx.buzz(w.pos); } }
@@ -161,8 +171,9 @@ function questCandidates(cand, px, pz) {
     if (QUEST.stage === 1) cand(d, { kind: 'radio', text: 'Écouter la radio', range: 1.9 });
     else if (QUEST.stage === 2) cand(d, { kind: 'info', text: `Émetteur en panne — lampes trouvées : ${QUEST.taken.filter(Boolean).length}/3`, range: 1.9 });
     else if (QUEST.stage === 3) cand(d, { kind: 'radio', text: 'Installer les lampes dans la radio', range: 1.9 });
-    else if (QUEST.stage === 4) cand(d, { kind: 'calib', text: `Maintenir pour calibrer la fréquence (${Math.round((QUEST.calib / 20) * 100)} %)`, range: 1.9, hold: true });
+    else if (QUEST.stage === 4) cand(d, { kind: 'calib', text: `Maintenir pour calibrer la fréquence (${Math.round((QUEST.calib / 20) * 100)} %)`, range: 1.9, hold: true, tick: QUEST.calib / 20 });
   }
+  aubeCandidates(cand, px, pz);
   if (QUEST.stage === 2) QUEST.spots.forEach((si, k) => { if (QUEST.taken[k]) return; const s = TUBE_SPOTS[si]; cand(Math.hypot(px - s[0], pz - s[2]), { kind: 'tube', id: si, text: "Ramasser la lampe d'émetteur", range: 1.5 }); });
   TRAPS.forEach((t, i) => {
     if (!MAP.zoneActive[t.zone]) return; const w = WORLD.traps[i], d = Math.hypot(px - w.pos.x, pz - w.pos.z);
@@ -176,7 +187,8 @@ function questCandidates(cand, px, pz) {
 // Ligne de mission de Poste 7 pour le bandeau d'objectif.
 function questObjective() {
   if (MAP_ID !== 'poste7') return null; const s = QUEST.stage;
-  if (!s || s >= 6) return null;
+  if (!s) return null;
+  if (s >= 6) return aubeObjective(s);
   const o = { title: 'OPÉRATION AUBE BLANCHE', line: QUEST_NAMES[s], sub: '' };
   if (s === 1) o.sub = 'La radio du poste de commandement grésille';
   if (s === 2) { o.line += ` (${QUEST.taken.filter(Boolean).length}/3)`; o.sub = 'Une en première ligne, une au poste ou au dépôt, une en soutien ou au dépôt'; }

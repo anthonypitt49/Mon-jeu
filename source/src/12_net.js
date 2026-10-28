@@ -653,7 +653,7 @@ function reconcileWorld(w) {
   // Un message de la caisse ou de l'établi s'est perdu : on revient au repos comme l'hôte.
   if (w.bs === 'idle' && G.box.state !== 'idle' && G.box.state !== 'closing') { if ((NET.boxOff = (NET.boxOff || 0) + 1) >= 2) { NET.boxOff = 0; applyBoxState({ state: 'idle', loc: w.b }); } } else NET.boxOff = 0;
   if (w.bn === 'idle' && G.bench.state !== 'idle') { if ((NET.benchOff = (NET.benchOff || 0) + 1) >= 2) { NET.benchOff = 0; applyBenchState({ state: 'idle' }); } } else NET.benchOff = 0;
-  if (w.q && (w.q.s !== QUEST.stage || w.q.tk?.join() !== QUEST.taken.join())) questApply('quest', w.q);
+  if (w.q && (w.q.s !== QUEST.stage || w.q.tk?.join() !== QUEST.taken.join() || String(w.q.pl) !== String(QUEST.planted) || String(w.q.fd) !== String(QUEST.found))) questApply('quest', w.q);
   if (Array.isArray(w.tr)) w.tr.forEach(([a, c], i) => { const t = TRAPS[i]; if (t && Math.abs(t.active - a) > 2) t.active = a; if (t && Math.abs(t.cool - c) > 2) t.cool = c; });
   if (Array.isArray(w.dr)) for (const dp of [...G.drops]) if (!w.dr.includes(dp.id)) G.applyEvent('take', { id: dp.id, gone: 1 });
   if (w.g) G.gid = String(w.g).slice(0, 24);

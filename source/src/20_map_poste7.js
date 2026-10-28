@@ -4,6 +4,9 @@
    · F la Sape (galerie de mine qui descend à −1,6 m, chambre de mine) · G la Ferme de Bellevue (grande cour à ciel ouvert)
    · H le Poste d'observation (plate-forme surélevée de 1,8 m). Décor des trois dernières : 20c_poste7_ext.js. */
 
+// Interactions de la quête « Aube Blanche » (11b_quest.js et 11f_aube.js).
+const P7_QUEST_KINDS = ['radio', 'tube', 'calib', 'trap', 'geo', 'charge', 'plant', 'tag', 'well', 'digit', 'morse', 'detonate'];
+
 MAPS.poste7 = {
   id: 'poste7', name: 'POSTE 7', sub: 'Secteur nord, hiver 1917',
   objName: 'Opération Aube Blanche accomplie',
@@ -168,7 +171,10 @@ MAPS.poste7 = {
     host(dt) { questHost(dt); supportHost(dt); },
     visuals(dt) { questVisuals(dt); supportVisuals(dt); },
     apply(type, d) { return supportApply(type, d) || questApply(type, d); },
-    interact(pid, kind, id) { if (kind === 'radio' || kind === 'tube' || kind === 'calib' || kind === 'trap') { questInteract(pid, kind, id); return true; } if (kind === 'mortar') { supportInteract(pid); return true; } return false; },
+    interact(pid, kind, id) { if (P7_QUEST_KINDS.includes(kind)) { questInteract(pid, kind, id); return true; } if (kind === 'mortar') { supportInteract(pid); return true; } return false; },
+    kill(z) { aubeKill(z); },
+    bossThink(z, dt) { aubeBossThink(z, dt); },
+    bossDown(z) { aubeBossDown(z); },
     candidates(cand, px, pz) { questCandidates(cand, px, pz); supportCandidates(cand, px, pz); },
     spawnFactor() { return questSpawnFactor(); },
     ping(pid, x, z) { supportPing(pid, x, z); },

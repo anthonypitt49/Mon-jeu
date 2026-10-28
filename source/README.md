@@ -7,8 +7,8 @@ Le jeu en ligne est **un seul fichier**, `index.html`, à la racine du dépôt. 
 | Dossier ou fichier | Rôle |
 |---|---|
 | `src/shell.html` | La page : menus, interface, styles. |
-| `src/00_core.js` … `src/99_start.js` | Le jeu, découpé en 44 parties assemblées dans l'ordre de leur numéro (moteur, textures, son, cartes, infectés, armes, co-op…). Le numéro de version est `GAME_VERSION` dans `src/00_core.js`. |
-| `build.mjs` | Assemble `shell.html` et les 44 parties en un seul fichier. |
+| `src/00_core.js` … `src/99_start.js` | Le jeu, découpé en 45 parties assemblées dans l'ordre de leur numéro (moteur, textures, son, cartes, infectés, armes, co-op…). Le numéro de version est `GAME_VERSION` dans `src/00_core.js`. |
+| `build.mjs` | Assemble `shell.html` et les 45 parties en un seul fichier. |
 | `dev/` | Les tests automatiques : un navigateur sans écran joue des parties, seul ou à plusieurs, et vérifie que tout se passe bien. |
 | `dev/runall.sh` | La batterie complète (environ 2 heures). |
 | `dev/armes.mjs` | Planche de contrôle des armes (profil, trois quarts, en main, en visée) dans `dev/shots/`, pour dessiner ou retoucher une arme (`src/08b_gunmodels.js`). |
@@ -18,6 +18,7 @@ Le jeu en ligne est **un seul fichier**, `index.html`, à la racine du dépôt. 
 | `tools/make_anims.mjs` | Animations capturées des infectés : clips de la Universal Animation Library 1 et 2 de Quaternius (CC0, versions Standard) reciblés sur le squelette procédural de 20 os, écrits dans `src/09d_zanims.js` (`node tools/make_anims.mjs <dossier des GLB UAL> [dossier des BVH 100STYLE]` ; `--liste` montre les clips), et démarches de la capture 100STYLE (CC-BY 4.0 : cycle extrait de chaque prise, couture lissée, vitesse mesurée sur les pieds). Licences : `tools/licences/`. |
 | `tools/make_zombies.py` | Fabrique les infectés réalistes (un type par époque) dans `../assets/zombies/` : corps, peaux et vêtements MakeHuman (CC0) assemblés par l'extension MPFB2 dans Blender sans écran (module Python `bpy` 4.2), allégés, réunis en une seule texture, zombifiés en 3D, exportés en GLB avec le squelette « game_engine » plus un os de mâchoire (lèvre du bas, dents du bas et langue). Installation en tête du fichier ; `…/python make_zombies.py [1917|1957|1933|1880|identifiant]`. |
 | `dev/p7zones.mjs` | Poste 7 agrandi : portes ouvertes, joueur posté dans la chambre de mine, la galerie en pente, la ferme et sur la plate-forme ; vérifie que les infectés y arrivent et frappent : `node p7zones.mjs [secondes par zone]`. |
+| `dev/aube.mjs` | Poste 7, grande quête « Aube Blanche » jouée de bout en bout en solo (géophone, charges, tombes, puits, chiffres, morse, mise à feu, Sapeur, aube) ; captures `shots/aube_*.png` : `node aube.mjs`. En co-op (l'invité mène la quête) : `node coopmission.mjs poste7`. |
 | `dev/catalogue.mjs` | Planche numérotée des infectés réalistes d'une carte (en pied et en gros plan, sous l'éclairage de la carte ; costaud et boss à leur taille) pour choisir lesquels garder : `node catalogue.mjs cite` → `dev/shots/catalogue_<carte>.jpg`. |
 | `dev/gore.mjs` | Gore façon BO2 sur un infecté réaliste : chapeau qui saute, bras arraché, tête qui éclate, marche sans tête puis mort : `node gore.mjs p7_a` → `dev/shots/gore_<modèle>.jpg` (et l'état de chaque étape). |
 | `dev/soldats.mjs` | Soldats joués (coéquipiers factices, un par modèle de `assets/soldats`), arme en main, et bras en vue subjective : `node soldats.mjs cite` → `dev/shots/soldats.jpg` ; `PROFIL=1` de profil avec le corps procédural en regard, `BRAS=n` bras du soldat n. |

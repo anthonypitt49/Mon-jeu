@@ -285,7 +285,7 @@ function updateWeather(dt, time) {
     const u = R.snow.material.uniforms, K = PRECIP[E.precip];
     u.uTime.value = time; u.uCam.value.copy(R.camera.position);
     u.uWind.value.set(Math.cos(WEATHER.windA) * ws, 0, Math.sin(WEATHER.windA) * ws);
-    u.uFall.value = 1 + b * 0.8; u.uOpacity.value = K.opacity * (0.85 + b * 0.3); u.uPR.value = R.pr;
+    u.uFall.value = 1 + b * 0.8; u.uOpacity.value = K.opacity * (0.85 + b * 0.3) * (WEATHER.dim ?? 1); u.uPR.value = R.pr;
   }
   R.scene.fog.density = E.fogDensity + b * E.stormFog;
   R.sky.material.uniforms.uStorm.value = 0.45 + b * 0.5;

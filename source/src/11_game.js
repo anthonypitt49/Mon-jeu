@@ -238,6 +238,7 @@ const G = {
     if (z.kind === 'frost') this.frostBurst(z.pos);
     this.maybeDrop(z);
     if (z.boss) mapHook('bossDown', z, pid);
+    mapHook('kill', z, pid);
   },
   // Membres arrachés (09c_gore.js) : appliqués ici et chez les invités.
   gore(z, bones, dir) {
@@ -664,7 +665,7 @@ function updateInteraction(dt) {
     return;
   }
   if (best.kind === 'repair') { if (held) { INTERACT.repairT -= dt; if (INTERACT.repairT <= 0) { INTERACT.repairT = 0.55; G.interact(P.id, 'repair', best.id); } } else INTERACT.repairT = 0; }
-  else if (best.kind === 'calib') { if (held) { INTERACT.calibT = (INTERACT.calibT || 0) - dt; UI.progress(QUEST.calib / 20); if (INTERACT.calibT <= 0) { INTERACT.calibT = 0.25; G.interact(P.id, 'calib'); } } else UI.progress(-1); }
+  else if (best.tick !== undefined) { if (held) { INTERACT.calibT = (INTERACT.calibT || 0) - dt; UI.progress(best.tick); if (INTERACT.calibT <= 0) { INTERACT.calibT = 0.25; G.interact(P.id, best.kind, best.id); } } else UI.progress(-1); } // action maintenue que l'hôte fait progresser (calibrer, écouter, transmettre)
   else if (best.kind === 'revive') {
     if (held) { const need = P.perks.has('revive') ? 1.6 : 3.2; INTERACT.reviveT += dt; UI.progress(INTERACT.reviveT / need); if (!P.revivingOther) { P.revivingOther = true; NET.send('reviving', [best.id, 1]); } if (INTERACT.reviveT >= need) { INTERACT.reviveT = 0; UI.progress(-1); G.interact(P.id, 'revive', best.id); P.revivingOther = false; } }
     else { if (P.revivingOther) NET.send('reviving', [best.id, 0]); P.revivingOther = false; INTERACT.reviveT = 0; UI.progress(-1); }

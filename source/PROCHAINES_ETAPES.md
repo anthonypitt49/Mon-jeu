@@ -2,6 +2,16 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 7.1) : la grande quête du Poste 7, « Aube Blanche » en quatre actes
+
+Plan validé par le propriétaire (« Oui, ce plan ») ; durée visée : environ une heure, les étapes clés attendent une manche minimale.
+
+- **Acte 1** (`src/11b_quest.js`, inchangé sauf la fin) : radio, trois lampes, calibrage, tenir 90 s ; le barrage d'artillerie ne termine plus la quête (+3000, « mais le barrage n'a rien arrêté »).
+- **Actes 2 à 4 et finale** (`src/11f_aube.js`, étapes 6 à 15) : 6 écouter au géophone de la chambre de mine (maintenir E, 8 s ; la terre tremble, poussière des plafonds, lampes qui vacillent) · 7 porter trois charges d'ammonal (une par joueur à la fois ; lâchée si le porteur tombe) sous la ferme, au fond du Cratère, sous la plate-forme · 8 nourrir les tombes de la ferme : 20 infectés abattus à moins de 9 m (âmes vertes qui volent vers la croix ; manche 8 au moins) · 9 la tombe s'ouvre, prendre la plaque d'identité · 10 la jeter dans le puits (le joueur qui la porte) · 11 quatre chiffres verts tirés au sort apparaissent à la craie (première ligne, poste de commandement, Cratère, chambre de mine) · 12 les transmettre en morse avec la lampe du poste d'observation (manche 11 ; la lampe clignote le vrai code ; trois fusées vertes répondent au nord) · 13 brancher l'exploseur (manche 13) et tenir 60 s dans la chambre de mine (étincelles le long de la galerie, sirène) · 14 explosion géante (toutes les charges, tous les infectés tués), le Sapeur sort du Cratère (Geôlier du Poste 7 : casque pare-balles, frappe le sol et fait monter des renforts) · 15 l'aube se lève en 25 s (ciel, brouillard, lune devenue soleil levant, neige qui s'apaise), +5000 points et un atout gratuit pour chacun, munitions max. Remise à zéro : la nuit revient à la partie suivante.
+- **Moteur** : action maintenue générique (`tick` sur une proposition d'interaction, 11_game.js) et gain côté hôte avec réserve (`holdGain`) : deux messages de l'invité arrivés dans la même image comptent tous les deux (avant, le calibrage perdait du temps en co-op) ; crochet de carte `kill` (infecté abattu, hôte) ; `WEATHER.dim` (densité de neige) ; resynchronisation des invités sur les charges et les chiffres.
+- **Vérifié** : `dev/aube.mjs` (quête entière en solo, captures `shots/aube_*.png`, 0 erreur), `coopmission.mjs poste7` (l'invité mène les actes 2 à 4 jusqu'à l'aube, 0 écart, 0 erreur), `gels.mjs poste7 2` (0 shader tardif), `mapplay.mjs` poste7 et cite (0 erreur).
+- **Suite** : grandes quêtes des autres cartes (Cité « Alerte atomique », Pénitencier « L'évasion », Filon), puis leur agrandissement.
+
 ## Fait (version 7.0) : Poste 7 agrandi (sous-sol, étage, grande zone extérieure)
 
 Choix du propriétaire (questions du 28 octobre) : agrandir d'abord le Poste 7, avec les quatre sortes d'agrandissement (nouvelles zones, étages et sous-sols, grande zone extérieure, plus de détails) ; ensuite des grandes quêtes d'environ une heure, qui allongent les quêtes actuelles de chaque carte.
