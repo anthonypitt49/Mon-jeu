@@ -9,7 +9,11 @@ let MAP_W = 40, MAP_D = 32;
 const T_SOLID = 0, T_FLOOR = 1, T_DOOR = 2, T_RAMP = 3, T_BLOCK = 4;
 const C_SURF = 0, C_TRENCH = 1, C_RAMP = 2, C_BLOCK = 3; // classes de déplacement des infectés
 let ZONE_NAMES = [];
-const STYLE_TRENCH = 0, STYLE_BUNKER = 1, STYLE_DUGOUT = 2, STYLE_YARD = 3, STYLE_CRATER = 4; // styles des tranchées (Poste 7)
+const STYLE_TRENCH = 0, STYLE_BUNKER = 1, STYLE_DUGOUT = 2, STYLE_YARD = 3, STYLE_CRATER = 4, STYLE_SAPE = 5; // styles des tranchées (Poste 7)
+// Tranchées : hauteur du sol (M.floorH : cuvette du Cratère, galerie de la Sape qui descend, plate-forme du poste
+// d'observation) et plafond des abris couverts, 2,45 m au-dessus du sol mais jamais plus haut que la surface.
+const floorAt = (x, z) => (M.floorH ? M.floorH(x, z) : 0);
+const roofAt = (x, z) => Math.min(WALL_H - 0.08, floorAt(x, z) + 2.45);
 
 const MAP = { doors: [], barricades: [], zoneActive: [], props: [], hasEdges: false };
 let SPOTS = null;
@@ -111,6 +115,8 @@ function buildMap() {
   M.setup?.();
   // Accès en pente (rive, eau) : hauteur du terrain au bord extérieur.
   for (const b of MAP.barricades) if (b.look === 'slope') b.outH = surfH(tcx(b.x) + b.dir[0] * TILE / 2, tcx(b.z) + b.dir[1] * TILE / 2);
+  // Tranchées : la rampe part du sol intérieur (plate-forme surélevée…) et monte jusqu'à la surface.
+  for (const b of MAP.barricades) b.base = M.flat ? 0 : floorAt(tcx(b.x) - b.dir[0] * TILE / 2, tcx(b.z) - b.dir[1] * TILE / 2);
 }
 function setEdge(x, z, bit, kind) {
   if (!inMap(x, z)) return; const i = ti(x, z);
@@ -192,6 +198,7 @@ function flowTile(x, z) {
 }
 
 // Hauteur du sol pour un infecté selon sa classe.
+const rampY = (r, t) => (r.base || 0) + smooth(t) * (WALL_H - (r.base || 0)); // (tranchées : du sol intérieur à la surface)
 function rampT(r, x, z) {
   const ox = tcx(r.x) - r.dir[0] * TILE / 2, oz = tcx(r.z) - r.dir[1] * TILE / 2; // bord intérieur
   return clamp(((x - ox) * r.dir[0] + (z - oz) * r.dir[1]) / TILE, 0, 1);
@@ -201,8 +208,8 @@ const SILL_H = 0.62;
 function sillH(r, t) { return r.look === 'window' ? SILL_H * smooth(clamp(1 - Math.abs(t - 0.1) / 0.2, 0, 1)) : 0; }
 function groundAt(x, z) {
   const tx = tileOf(x), tz = tileOf(z), c = tClass(tx, tz);
-  if (c === C_TRENCH || tType(tx, tz) === T_DOOR) return M.floorH ? M.floorH(x, z) : 0; // (porte fermée : le sol du passage, où le joueur s'avance jusqu'au battant)
-  if (c === C_RAMP) { const r = MAP.barricades[MAP.rampAt[ti(tx, tz)]], t = rampT(r, x, z); return M.flat ? (r.look === 'slope' ? smooth(clamp((t - 0.15) / 0.85, 0, 1)) * r.outH : sillH(r, t)) : smooth(t) * WALL_H; }
+  if (c === C_TRENCH || tType(tx, tz) === T_DOOR) return floorAt(x, z); // (porte fermée : le sol du passage, où le joueur s'avance jusqu'au battant)
+  if (c === C_RAMP) { const r = MAP.barricades[MAP.rampAt[ti(tx, tz)]], t = rampT(r, x, z); return M.flat ? (r.look === 'slope' ? smooth(clamp((t - 0.15) / 0.85, 0, 1)) * r.outH : sillH(r, t)) : rampY(r, t); }
   return surfH(x, z);
 }
 
@@ -270,9 +277,25 @@ function collideEdges(p, r) {
     }
   }
 }
+// Index des obstacles par carreau (marge de 6 carreaux autour de la carte ; au-delà, rangés au bord) : chaque infecté ne
+// teste plus que ceux qui l'entourent, au lieu de tous ceux de la carte à chaque image. Refait quand la liste change ou
+// qu'une boîte bouge (propBox).
+const PROPIDX = { n: -1, dirty: true, cells: null, W: 0, D: 0, stamp: 0, out: [] };
+function propsNear(x0, z0, x1, z1) {
+  const I = PROPIDX, M6 = 6;
+  if (I.dirty || I.n !== MAP.props.length) {
+    I.W = MAP_W + 2 * M6; I.D = MAP_D + 2 * M6; I.cells = Array.from({ length: I.W * I.D }, () => []);
+    for (const b of MAP.props) { const ax = clamp(Math.floor(b.x0 / TILE) + M6, 0, I.W - 1), bx = clamp(Math.floor(b.x1 / TILE) + M6, 0, I.W - 1), az = clamp(Math.floor(b.z0 / TILE) + M6, 0, I.D - 1), bz = clamp(Math.floor(b.z1 / TILE) + M6, 0, I.D - 1); for (let j = az; j <= bz; j++) for (let i = ax; i <= bx; i++) I.cells[j * I.W + i].push(b); }
+    I.n = MAP.props.length; I.dirty = false;
+  }
+  const out = I.out; out.length = 0; const st = ++I.stamp;
+  const ax = clamp(Math.floor(x0 / TILE) + M6, 0, I.W - 1), bx = clamp(Math.floor(x1 / TILE) + M6, 0, I.W - 1), az = clamp(Math.floor(z0 / TILE) + M6, 0, I.D - 1), bz = clamp(Math.floor(z1 / TILE) + M6, 0, I.D - 1);
+  for (let j = az; j <= bz; j++) for (let i = ax; i <= bx; i++) for (const b of I.cells[j * I.W + i]) if (b._st !== st) { b._st = st; out.push(b); }
+  return out;
+}
 function collideProps(p, r, y = 0, step = 0, out) {
   let hit = false;
-  for (const b of MAP.props) {
+  for (const b of propsNear(p.x - r - 0.5, p.z - r - 0.5, p.x + r + 0.5, p.z + r + 0.5)) {
     if (b.off || y + step >= b.y1 || y + 1.6 < (b.y0 || 0)) continue;
     if (b.rot) { if (p.x + r > b.x0 && p.x - r < b.x1 && p.z + r > b.z0 && p.z - r < b.z1 && collideRot(p, r, b.rot, out)) hit = true; continue; }
     if (b.rad) { // cylindre debout (05_world.js colliderCyl) : poussée hors du cercle
@@ -361,10 +384,10 @@ function solidAt(x, y, z, phys) {
   }
   if (t === T_SOLID) return y < WALL_H + (MAP.edge[i] > 1 ? surfH(x, z) - WALL_H : 0) ? (MAP.style[i] === STYLE_BUNKER ? 'concrete' : 'earth') : null;
   if (t === T_BLOCK) return y < blockH(i) ? 'concrete' : null;
-  if (t === T_RAMP) { const r = MAP.barricades[MAP.rampAt[i]]; return y < smooth(rampT(r, x, z)) * WALL_H - 0.02 ? 'earth' : null; }
+  if (t === T_RAMP) { const r = MAP.barricades[MAP.rampAt[i]]; return y < rampY(r, rampT(r, x, z)) - 0.02 ? 'earth' : null; }
   if (t === T_DOOR && !MAP.doors[MAP.doorAt[i]].open && inSlab(MAP.doors[MAP.doorAt[i]], x, z)) return y < WALL_H ? doorMat(MAP.doors[MAP.doorAt[i]]) : null;
-  if (y < (M.floorH ? M.floorH(x, z) : 0)) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : MAP.style[i] === STYLE_CRATER ? 'earth' : 'wood';
-  if (MAP.roof[i] && y > WALL_H - 0.12 && y < WALL_H + 0.5) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : 'metal';
+  if (y < floorAt(x, z)) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : MAP.style[i] === STYLE_CRATER || MAP.style[i] === STYLE_SAPE ? 'earth' : 'wood';
+  if (MAP.roof[i]) { const ry = roofAt(x, z); if (y > ry - 0.04 && y < WALL_H + 0.5) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : y < ry + 0.12 ? (MAP.style[i] === STYLE_SAPE ? 'wood' : 'metal') : 'earth'; } // (galerie basse : la terre jusqu'à la surface)
   return null;
 }
 // Les balles s'arrêtent au battant (d.slab), plus à l'entrée du carreau de la porte.
@@ -449,7 +472,7 @@ const _rlo = [0, 0, 0], _rhi = [0, 0, 0], _roo = [0, 0, 0], _rdd = [0, 0, 0];
 // Hauteur d'appui (caisses, banquettes) sous un cercle.
 function propSupport(p, r, y, step) {
   let g = M.floorH ? M.floorH(p.x, p.z) : 0;
-  for (const b of MAP.props) {
+  for (const b of propsNear(p.x - r, p.z - r, p.x + r, p.z + r)) {
     if (b.off || b.y1 > y + step || b.y1 <= g) continue; if (p.x + r * 0.5 < b.x0 || p.x - r * 0.5 > b.x1 || p.z + r * 0.5 < b.z0 || p.z - r * 0.5 > b.z1) continue;
     const q = b.rot; if (q) { const wx = p.x - q.cx, wz = p.z - q.cz; if (Math.abs(q.c * wx - q.s * wz) > q.hw + r * 0.5 || Math.abs(q.s * wx + q.c * wz) > q.hd + r * 0.5) continue; }
     if (b.rad && Math.hypot(p.x - (b.x0 + b.x1) / 2, p.z - (b.z0 + b.z1) / 2) > b.rad + r * 0.5) continue;

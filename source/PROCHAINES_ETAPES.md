@@ -2,6 +2,17 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 7.0) : Poste 7 agrandi (sous-sol, étage, grande zone extérieure)
+
+Choix du propriétaire (questions du 28 octobre) : agrandir d'abord le Poste 7, avec les quatre sortes d'agrandissement (nouvelles zones, étages et sous-sols, grande zone extérieure, plus de détails) ; ensuite des grandes quêtes d'environ une heure, qui allongent les quêtes actuelles de chaque carte.
+
+- **Carte** (`src/20_map_poste7.js`) : grille 40 × 32 → 58 × 48 carreaux (116 × 96 m), 5 → 8 zones. **La Sape** (porte au bout de la tranchée de soutien, 1250) : boyau, galerie boisée couverte qui descend de 1,6 m, puis chambre de mine (explosifs, exploseur, poste d'écoute, wagonnet sur rails). **La Ferme de Bellevue** (porte au sud du dépôt, 1000 ; galerie vers la chambre de mine, 750) : cour de ferme en ruine de 26 × 24 m à ciel ouvert, six barricades, pans de mur isolés (pas d'enclos : les infectés s'y coinceraient), grange calcinée, puits, tombes fraîches, trou d'obus, revolver au mur, caisse. **Le Poste d'observation** (porte derrière l'abri, 1250) : rampe de terre jusqu'à une plate-forme surélevée de 1,8 m d'où l'on voit tout le no man's land, mitrailleuse, tour de guet, bâche, drapeau qui claque, caisse.
+- **Moteur** (`03_map.js`, `05_world.js`) : `floorAt` et `roofAt` ; parois des tranchées du sol réel au sommet, plafond des abris qui suit le sol (galerie basse), terre au-dessus des entrées de galerie et en surface au-dessus de la galerie, rampes et barricades posées sur le sol réel (plate-forme), poteaux porteurs du sol au plafond, style `STYLE_SAPE` (coffrage, plafond de planches, terre battue, rails).
+- **Décor** : `src/20c_poste7_ext.js`. Deux lumières de plus en qualité moyenne et élevée (chambre de mine, feu de la ferme).
+- **Fluidité** : index des obstacles par carreau (`propsNear`, 03_map.js) : chaque infecté ne teste plus que les obstacles qui l'entourent (avant : tous ceux de la carte, à chaque image). Banc à 30 infectés sur la même machine : 6.11 → 5,3 et 6,1 ms, 7.0 → 5,0 et 5,7 ms (la machine du conteneur varie d'une session à l'autre : comparer sur la même). Rendu : +17 % d'appels de dessin dans la vue du banc. `gels.mjs poste7 2` : 0 shader tardif, 0 erreur.
+- **Vérifié** : `dev/p7zones.mjs` (les infectés atteignent le joueur dans la chambre à −1,6 m, la galerie en pente, la ferme et sur la plate-forme ; 0 erreur), `mapplay.mjs` sur les quatre cartes (portes, zones, courant, caisse, établi ; 0 erreur), `mapview.mjs poste7` (vues).
+- **Suite** : la grande quête du Poste 7 (allonger « Aube Blanche » à travers les nouvelles zones, effets spéciaux), puis les autres cartes.
+
 ## Fait (version 6.11) : infectés maison repeints au niveau des modèles téléchargés
 
 Demande du propriétaire : « continue à améliorer les modèles maison pour qu'ils ressemblent à ceux que j'ai téléchargés », puis viendront l'agrandissement des cartes, des parties plus longues et plus complexes, les effets spéciaux des quêtes et une quête propre à chaque carte.

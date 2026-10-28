@@ -178,6 +178,7 @@ function colliderCyl(x, z, r, h, mat) { const b = { x0: x - r, x1: x + r, z0: z 
 // tests grossiers) ; la vraie boîte (rot : centre, demi-côtés, cosinus et sinus) sert aux collisions, aux rayons et
 // aux appuis (03_map.js). Un quart de tour près, l'enveloppe est exacte et rot reste vide.
 function propBox(b, x, z, w, d, ry) {
+  PROPIDX.dirty = true; // (boîte placée ou déplacée : l'index des obstacles est à refaire)
   const c = Math.cos(ry), s = Math.sin(ry), ac = Math.abs(c), as = Math.abs(s), ex = (w * ac + d * as) / 2, ez = (w * as + d * ac) / 2;
   Object.assign(b, { x0: x - ex, x1: x + ex, z0: z - ez, z1: z + ez });
   b.rot = ac < 1e-3 || as < 1e-3 ? null : { cx: x, cz: z, hw: w / 2, hd: d / 2, c, s };
@@ -382,6 +383,7 @@ function buildTrenches() {
     bags: new Batch(bag, MATS.sandbag), posts: new Batch(boxG(0.13, 1, 0.13), MATS.post), panels: new Batch(boxG(2, 1, 0.05), MATS.planks),
     tin: new Batch(boxG(2, 1, 0.03), MATS.metal), slats: new Batch(boxG(0.95, 0.045, 0.11), MATS.duck), rails: new Batch(boxG(0.08, 0.07, 2), MATS.duck),
     wireProps: new Batch(boxG(0.05, 0.05, 0.05), MATS.iron, false),
+    mrails: new Batch(boxG(0.06, 0.08, 1.0), MATS.iron), sleepers: new Batch(boxG(0.9, 0.06, 0.16), MATS.post),
   };
   // Champs continus pour la neige du sol (mêmes valeurs aux sommets partagés par deux carreaux : pas de lisière droite) :
   // distance à la paroi la plus proche (m) et part de boyau / de cratère autour du point (interpolée entre centres de carreaux).
@@ -408,12 +410,14 @@ function buildTrenches() {
       const ex = dx > 0 ? (x + 1) * TILE : dx < 0 ? x * TILE : null, ez = dz > 0 ? (z + 1) * TILE : dz < 0 ? z * TILE : null;
       const along = dx !== 0 ? [0, 0, 1] : [1, 0, 0];
       const sx = dx !== 0 ? ex : x * TILE, sz = dz !== 0 ? ez : z * TILE;
-      const concrete = style === STYLE_BUNKER, top = roofed ? WALL_H - 0.08 : WALL_H;
+      const concrete = style === STYLE_BUNKER;
       const gb = concrete ? wallConc : wallEarth;
-      // Sens des indices pour que la face regarde vers la tranchée.
-      const flip = (dx > 0) || (dz < 0);
+      // Sens des indices pour que la face regarde vers la tranchée. Du sol réel (galerie qui descend, plate-forme) au sommet :
+      // la surface, ou le plafond d'un abri couvert (qui suit le sol dans la Sape).
+      const flip = (dx > 0) || (dz < 0), fb = floorAt(mx0(), mz0()), top = roofed ? roofAt(mx0(), mz0()) : WALL_H;
+      function mx0() { return sx + along[0] * TILE / 2 + nX * 0.3; } function mz0() { return sz + along[2] * TILE / 2 + nZ * 0.3; }
       gb.grid(4, 5, (s0, v) => {
-        const s = flip ? 1 - s0 : s0, px = sx + along[0] * s * TILE, pz = sz + along[2] * s * TILE, y = v * top;
+        const s = flip ? 1 - s0 : s0, px = sx + along[0] * s * TILE, pz = sz + along[2] * s * TILE, fy = floorAt(px + nX * 0.3, pz + nZ * 0.3), ty = roofed ? roofAt(px + nX * 0.3, pz + nZ * 0.3) : WALL_H, y = fy - 0.05 + v * (ty - fy + 0.05);
         let disp = 0;
         if (!concrete) { const f = Math.sin(Math.PI * s) * Math.sin(Math.PI * v), amp = style === STYLE_CRATER ? 0.62 : 0.3; disp = (fbm(px * 0.9 + py3(y), pz * 0.9 + y, 3) - 0.5) * amp * f - v * 0.16 * Math.sqrt(Math.sin(Math.PI * s)); }
         const ao = concrete ? 0.62 + 0.38 * smooth(clamp(v * 3, 0, 1)) : 0.55 + 0.45 * smooth(clamp(v * 2.2, 0, 1));
@@ -424,15 +428,17 @@ function buildTrenches() {
       const ry = dx !== 0 ? Math.PI / 2 : 0;
       const r = hash2(x * 7 + dx * 3, z * 13 + dz * 5);
       const c0x = sx + nX * 0.1, c0z = sz + nZ * 0.1, c1x = sx + along[0] * TILE + nX * 0.1, c1z = sz + along[2] * TILE + nZ * 0.1;
+      const hw = WALL_H - fb; // hauteur de paroi au-dessus du sol (plate-forme du poste d'observation : 0,7 m)
       if (style === STYLE_TRENCH || style === STYLE_YARD) {
         if (ramp) { /* flancs de rampe : terre nue */ }
-        else if (r < 0.4) { B.panels.add(mx, 0.95, mz, ry + rand(-0.01, 0.01), rand(-0.03, 0.03), 0, 1, 1.75, 1); addPost(c0x, c0z, WALL_H + 0.3); addPost(c1x, c1z, WALL_H + 0.3); }
-        else if (r < 0.65) { B.tin.add(mx + nX * 0.02, 0.95, mz + nZ * 0.02, ry, rand(-0.06, 0.02), rand(-0.02, 0.02), 1, 1.8, 1); addPost(c0x, c0z, WALL_H + 0.3); addPost(c1x, c1z, WALL_H + 0.3); }
+        else if (hw < 1.6) { for (let k = 0; k < 3; k++) { const s = (k + 0.5) / 3; B.bags.add(sx + along[0] * s * TILE + nX * 0.2, fb + 0.1, sz + along[2] * s * TILE + nZ * 0.2, ry + rand(-0.08, 0.08), 0, rand(-0.05, 0.05), 1, 1, 1); } } // (paroi basse : un rang de sacs)
+        else if (r < 0.4) { B.panels.add(mx, fb + 0.95, mz, ry + rand(-0.01, 0.01), rand(-0.03, 0.03), 0, 1, 1.75, 1); addPost(c0x, c0z, WALL_H + 0.3 - fb, fb); addPost(c1x, c1z, WALL_H + 0.3 - fb, fb); }
+        else if (r < 0.65) { B.tin.add(mx + nX * 0.02, fb + 0.95, mz + nZ * 0.02, ry, rand(-0.06, 0.02), rand(-0.02, 0.02), 1, 1.8, 1); addPost(c0x, c0z, WALL_H + 0.3 - fb, fb); addPost(c1x, c1z, WALL_H + 0.3 - fb, fb); }
         else if (r < 0.88) {
           const rows = style === STYLE_YARD ? 9 : 5;
           for (let row = 0; row < rows; row++) for (let k = 0; k < 3; k++) {
-            const s = (k + 0.5 + (row % 2) * 0.5 - 0.25) / 3; if (s > 1) continue;
-            B.bags.add(sx + along[0] * s * TILE + nX * 0.2, 0.1 + row * 0.19, sz + along[2] * s * TILE + nZ * 0.2, ry + rand(-0.08, 0.08), 0, rand(-0.05, 0.05), 1, 1, 1);
+            const s = (k + 0.5 + (row % 2) * 0.5 - 0.25) / 3; if (s > 1 || fb + 0.1 + row * 0.19 > WALL_H - 0.1) continue;
+            B.bags.add(sx + along[0] * s * TILE + nX * 0.2, fb + 0.1 + row * 0.19, sz + along[2] * s * TILE + nZ * 0.2, ry + rand(-0.08, 0.08), 0, rand(-0.05, 0.05), 1, 1, 1);
           }
         }
         // Parapet : deux rangs de sacs sur la lèvre.
@@ -442,6 +448,9 @@ function buildTrenches() {
         }
       } else if (style === STYLE_DUGOUT) {
         B.panels.add(mx, 1.05, mz, ry, 0, 0, 1, 2.1, 1); addPost(c0x, c0z, top); addPost(c1x, c1z, top);
+      } else if (style === STYLE_SAPE && !ramp) {
+        // Galerie de mine : coffrage de planches entre deux étais, à la hauteur de la galerie (le sol descend).
+        const hh = top - fb; B.panels.add(mx, fb + hh / 2, mz, ry + rand(-0.02, 0.02), rand(-0.04, 0.02), 0, 1, hh * 0.98, 1); addPost(c0x, c0z, hh, fb); addPost(c1x, c1z, hh, fb);
       } else if (style === STYLE_CRATER && !ramp && r < 0.22) {
         // Entonnoir d'obus : terre nue, quelques poutres arrachées plantées dans la paroi.
         B.posts.add(mx + nX * 0.25, 1.1, mz + nZ * 0.25, ry + rand(-0.4, 0.4), rand(-0.5, 0.5), rand(-0.3, 0.3), 1.3, 1.9, 1.3);
@@ -464,12 +473,20 @@ function buildTrenches() {
         const tr = 0.2 + 0.8 * smooth(clamp((boardDist(px, pz) - 0.38) / 0.4, 0, 1)) + f * 0.9 + f2 * 0.3; // boyau : boue sous le caillebotis, neige à côté
         const cr = (fh < -0.05 ? 0.5 : 0.68) + f * 1.6 + f2 * 0.6; // Cratère : terre retournée et neige mêlées
         const yd = 0.74 + f * 1.4 + f2 * 0.5; // cour du dépôt : neige, plaques piétinées
-        const sn = clamp(kT * tr + kC * cr + (1 - kT - kC) * yd + (1 - kT) * 0.5 * (1 - clamp(D / 0.66, 0, 1)), 0, 1);
-        const mud = [0.3, 0.25, 0.21], w = 0.88;
+        const sn = style === STYLE_SAPE ? 0 : clamp(kT * tr + kC * cr + (1 - kT - kC) * yd + (1 - kT) * 0.5 * (1 - clamp(D / 0.66, 0, 1)), 0, 1); // (Sape : terre battue sous terre)
+        const mud = style === STYLE_SAPE ? [0.17 + f * 0.06, 0.14 + f * 0.05, 0.11 + f * 0.04] : [0.3, 0.25, 0.21], w = 0.88; // (Sape : terre battue humide, sans neige)
         // Normale tirée de la forme exacte du sol (pas de couture d'éclairage entre carreaux sur les bosses du Cratère).
         const e = 0.06, hx = floorY(px + e, pz) - floorY(px - e, pz), hz = floorY(px, pz + e) - floorY(px, pz - e), nl = Math.hypot(hx, 2 * e, hz);
         return { p: [px, floorY(px, pz), pz], n: [-hx / nl, 2 * e / nl, -hz / nl], uv: [px / 3, pz / 3], c: [lerp(mud[0], w, sn), lerp(mud[1], w, sn), lerp(mud[2], w * 1.03, sn)] };
       });
+      if (style === STYLE_SAPE) { // voie de wagonnet : deux rails de fer sur traverses, dans l'axe de la galerie (pas dans la chambre)
+        const n = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([a, b]) => isFloorish(x + a, z + b)).length;
+        if (n <= 2) {
+          const cx = x0 + TILE / 2, cz = z0 + TILE / 2, rot = ax ? Math.PI / 2 : 0;
+          for (const o of [-0.3, 0.3]) for (const k of [-0.5, 0.5]) { const qx = cx + (ax ? k : o), qz = cz + (ax ? o : k); B.mrails.add(qx, floorAt(qx, qz) + 0.06, qz, rot); }
+          for (let k = 0; k < 4; k++) { const o = -0.75 + k * 0.5, qx = cx + (ax ? o : 0), qz = cz + (ax ? 0 : o); B.sleepers.add(qx, floorAt(qx, qz) + 0.02, qz, rot + rand(-0.06, 0.06)); }
+        }
+      }
       if (trench) {
         // Caillebotis dans l'axe du boyau.
         const cx = x0 + TILE / 2, cz = z0 + TILE / 2, rot = ax ? Math.PI / 2 : 0, jit = rand(-0.04, 0.04);
@@ -488,27 +505,40 @@ function py3(y) { return y * 0.7; }
 function isFloorish(x, z) { const t = tType(x, z); return t === T_FLOOR || t === T_DOOR; }
 
 function buildRoofs() {
-  const ceilC = new GB(), ceilM = new GB();
+  const ceilC = new GB(), ceilM = new GB(), ceilW = new GB(), cap = new GB(), portal = new GB();
   const beams = new Batch(boxG(0.22, 0.26, TILE), MATS.post), posts = new Batch(boxG(0.22, 1, 0.22), MATS.post);
   for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) {
     const i = ti(x, z); if (!MAP.roof[i] || MAP.type[i] === T_SOLID) continue;
-    const st = MAP.style[i], y = WALL_H - 0.08, x0 = x * TILE, z0 = z * TILE;
-    const gb = st === STYLE_BUNKER ? ceilC : ceilM;
-    // Le haut des parois de terre recule un peu : le plafond déborde au-dessus pour ne laisser aucun jour.
+    const st = MAP.style[i], x0 = x * TILE, z0 = z * TILE, y = roofAt(x0 + TILE / 2, z0 + TILE / 2);
+    const gb = st === STYLE_BUNKER ? ceilC : st === STYLE_SAPE ? ceilW : ceilM;
+    // Le haut des parois de terre recule un peu : le plafond déborde au-dessus pour ne laisser aucun jour. Il suit le sol
+    // (galerie de la Sape qui descend), jamais plus haut que la surface.
     const ov = (dx, dz) => (tType(x + dx, z + dz) === T_SOLID ? 0.3 : 0), ax0 = x0 - ov(-1, 0), ax1 = x0 + TILE + ov(1, 0), az0 = z0 - ov(0, -1), az1 = z0 + TILE + ov(0, 1);
-    gb.grid(1, 1, (s, v) => { const px = lerp(ax1, ax0, s), pz = lerp(az0, az1, v); return { p: [px, y, pz], uv: [px / 2, pz / 2], c: [0.5, 0.5, 0.52], n: [0, -1, 0] }; });
+    gb.grid(2, 2, (s, v) => { const px = lerp(ax1, ax0, s), pz = lerp(az0, az1, v); return { p: [px, roofAt(clamp(px, x0, x0 + TILE), clamp(pz, z0, z0 + TILE)), pz], uv: [px / 2, pz / 2], c: [0.5, 0.5, 0.52], n: [0, -1, 0] }; });
     beams.add(x0 + TILE / 2, y - 0.13, z0 + TILE / 2, 0, 0, 0);
-    // Linteau au-dessus des ouvertures vers les zones non couvertes.
+    // Galerie sous la surface : la terre au-dessus du plafond, couverte de neige comme le terrain autour.
+    if (y < WALL_H - 0.2) cap.grid(1, 1, (s, v) => { const px = lerp(ax1, ax0, s), pz = lerp(az0, az1, v); return { p: [px, WALL_H, pz], uv: [px / 3, pz / 3], c: [0.9, 0.92, 0.96] }; });
+    // Linteau au-dessus des ouvertures vers les zones non couvertes ; galerie basse : la terre entre le linteau et la surface.
     for (const [dx, dz] of faceDirs()) {
       const nx = x + dx, nz = z + dz; if (!inMap(nx, nz)) continue; const j = ti(nx, nz);
-      if (MAP.type[j] !== T_SOLID && !MAP.roof[j]) beams.add(x0 + TILE / 2 + dx * (TILE / 2 - 0.1), y - 0.14, z0 + TILE / 2 + dz * (TILE / 2 - 0.1), dx !== 0 ? 0 : Math.PI / 2, 0, 0, 1, 1.2, 1);
+      if (MAP.type[j] !== T_SOLID && !MAP.roof[j]) {
+        const ex = x0 + TILE / 2 + dx * TILE / 2, ez = z0 + TILE / 2 + dz * TILE / 2, ly = roofAt(ex - dx * 0.05, ez - dz * 0.05);
+        beams.add(x0 + TILE / 2 + dx * (TILE / 2 - 0.1), ly - 0.14, z0 + TILE / 2 + dz * (TILE / 2 - 0.1), dx !== 0 ? 0 : Math.PI / 2, 0, 0, 1, 1.2, 1);
+        if (ly < WALL_H - 0.1) {
+          const along = dx !== 0 ? [0, 1] : [1, 0], flip = dx < 0 || dz > 0;
+          portal.grid(2, 2, (s0, v) => { const s = flip ? 1 - s0 : s0, px = ex + along[0] * (s - 0.5) * (TILE + 0.6), pz = ez + along[1] * (s - 0.5) * (TILE + 0.6); return { p: [px, lerp(ly - 0.2, WALL_H, v), pz], uv: [(px + pz) / 2.2, lerp(ly, WALL_H, v) / 2.2], c: [0.6, 0.6, 0.6] }; });
+        }
+      }
     }
   }
   mesh(ceilC.geo(false), MATS.concrete, 0, 0, 0, 0, R.scene, true);
   const mm = MATS.metal.clone(); mm.side = THREE.DoubleSide; mm.userData = {};
   mesh(ceilM.geo(false), mm, 0, 0, 0, 0, R.scene, true);
+  if (ceilW.p.length) { const wm = MATS.planks.clone(); wm.side = THREE.DoubleSide; wm.userData = {}; mesh(ceilW.geo(false), wm, 0, 0, 0, 0, R.scene, true); } // (Sape : plafond de planches)
+  if (cap.p.length) mesh(cap.geo(), MATS.snow, 0, 0, 0, 0, R.scene, true);
+  if (portal.p.length) mesh(portal.geo(), MATS.earth, 0, 0, 0, 0, R.scene, true);
   // Poteaux porteurs.
-  (M.roofPosts || []).forEach(([x, z]) => { posts.add(x, (WALL_H - 0.1) / 2, z, 0, 0, 0, 1, WALL_H - 0.1, 1); collider(x - 0.14, z - 0.14, x + 0.14, z + 0.14, WALL_H, 'wood'); });
+  (M.roofPosts || []).forEach(([x, z]) => { const f = floorAt(x, z), r = roofAt(x, z); posts.add(x, (f + r) / 2, z, 0, 0, 0, 1, r - f, 1); collider(x - 0.14, z - 0.14, x + 0.14, z + 0.14, r, 'wood', f); }); // (du sol au plafond : galerie basse comprise)
   beams.build(); posts.build();
 }
 
@@ -521,27 +551,27 @@ function buildRamps() {
   const posts = new Batch(boxG(0.14, 1, 0.14), MATS.post);
   const wires = [];
   for (const b of MAP.barricades) {
-    const cx = tcx(b.x), cz = tcx(b.z), [dx, dz] = b.dir, px = -dz, pz = dx; // perpendiculaire
+    const cx = tcx(b.x), cz = tcx(b.z), [dx, dz] = b.dir, px = -dz, pz = dx, y0 = b.base || 0; // perpendiculaire ; sol intérieur (plate-forme)
     gb.grid(4, 8, (s, v) => {
       const lateral = (s - 0.5) * TILE, prog = v; // v = 0 bord intérieur → 1 bord extérieur
       const x = cx + px * lateral + dx * (prog - 0.5) * TILE, z = cz + pz * lateral + dz * (prog - 0.5) * TILE;
-      const y = smooth(prog) * WALL_H + (v > 0 && v < 1 && s > 0 && s < 1 ? (fbm(x, z, 2) - 0.5) * 0.12 : 0);
+      const y = rampY(b, prog) + (v > 0 && v < 1 && s > 0 && s < 1 ? (fbm(x, z, 2) - 0.5) * 0.12 : 0);
       const snow = clamp(0.5 + prog * 0.5 - Math.abs(s - 0.5) * 0.4, 0, 1), m = [0.32, 0.26, 0.21];
       return { p: [x, y, z], uv: [x / 3, z / 3], c: [lerp(m[0], 0.9, snow), lerp(m[1], 0.92, snow), lerp(m[2], 0.96, snow)] };
     });
     // Le quadrillage doit regarder vers le haut : on inverse l'ordre si nécessaire.
     fixWinding(gb);
-    for (let k = 1; k < 7; k++) { const prog = k / 7.5; steps.add(cx + dx * (prog - 0.5) * TILE, smooth(prog) * WALL_H + 0.02, cz + dz * (prog - 0.5) * TILE, Math.atan2(px, pz) + Math.PI / 2 + rand(-0.08, 0.08), 0, 0); }
+    for (let k = 1; k < 7; k++) { const prog = k / 7.5; steps.add(cx + dx * (prog - 0.5) * TILE, rampY(b, prog) + 0.02, cz + dz * (prog - 0.5) * TILE, Math.atan2(px, pz) + Math.PI / 2 + rand(-0.08, 0.08), 0, 0); }
     // Montants et planches de la barricade (bord intérieur).
     const ix = cx - dx * (TILE / 2 - 0.12), iz = cz - dz * (TILE / 2 - 0.12);
-    b.center = new THREE.Vector3(ix, 1.1, iz); b.perp = [px, pz];
-    for (const o of [-0.98, 0.98]) posts.add(ix + px * o, 1.15, iz + pz * o, 0, 0, 0, 1, 2.3, 1);
+    b.center = new THREE.Vector3(ix, y0 + 1.1, iz); b.perp = [px, pz];
+    for (const o of [-0.98, 0.98]) posts.add(ix + px * o, y0 + 1.15, iz + pz * o, 0, 0, 0, 1, 2.3, 1);
     b.plankM = [];
     const ang = [0.16, -0.12, 0.22, -0.26, 0.06, -0.18], hs = [0.3, 0.62, 0.95, 1.28, 1.6, 1.92];
     const ry = Math.atan2(px, pz) - Math.PI / 2;
     for (let k = 0; k < 6; k++) {
       _e1.set(0, ry, ang[k] + rand(-0.04, 0.04), 'YXZ'); _q1.setFromEuler(_e1);
-      const m = new THREE.Matrix4().compose(_v1.set(ix + dx * (k % 2 ? 0.05 : -0.02), hs[k], iz + dz * (k % 2 ? 0.05 : -0.02)), _q1, _v2.set(1, 1, 1));
+      const m = new THREE.Matrix4().compose(_v1.set(ix + dx * (k % 2 ? 0.05 : -0.02), y0 + hs[k], iz + dz * (k % 2 ? 0.05 : -0.02)), _q1, _v2.set(1, 1, 1));
       b.plankM.push(m); WORLD.planks.setMatrixAt(b.id * 6 + k, m);
     }
     b.plankAnim = new Array(6).fill(1); b.plankShown = new Array(6).fill(true);

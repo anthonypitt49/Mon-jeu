@@ -783,7 +783,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '6.11'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '7.0'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -1518,7 +1518,11 @@ let MAP_W = 40, MAP_D = 32;
 const T_SOLID = 0, T_FLOOR = 1, T_DOOR = 2, T_RAMP = 3, T_BLOCK = 4;
 const C_SURF = 0, C_TRENCH = 1, C_RAMP = 2, C_BLOCK = 3; // classes de déplacement des infectés
 let ZONE_NAMES = [];
-const STYLE_TRENCH = 0, STYLE_BUNKER = 1, STYLE_DUGOUT = 2, STYLE_YARD = 3, STYLE_CRATER = 4; // styles des tranchées (Poste 7)
+const STYLE_TRENCH = 0, STYLE_BUNKER = 1, STYLE_DUGOUT = 2, STYLE_YARD = 3, STYLE_CRATER = 4, STYLE_SAPE = 5; // styles des tranchées (Poste 7)
+// Tranchées : hauteur du sol (M.floorH : cuvette du Cratère, galerie de la Sape qui descend, plate-forme du poste
+// d'observation) et plafond des abris couverts, 2,45 m au-dessus du sol mais jamais plus haut que la surface.
+const floorAt = (x, z) => (M.floorH ? M.floorH(x, z) : 0);
+const roofAt = (x, z) => Math.min(WALL_H - 0.08, floorAt(x, z) + 2.45);
 
 const MAP = { doors: [], barricades: [], zoneActive: [], props: [], hasEdges: false };
 let SPOTS = null;
@@ -1620,6 +1624,8 @@ function buildMap() {
   M.setup?.();
   // Accès en pente (rive, eau) : hauteur du terrain au bord extérieur.
   for (const b of MAP.barricades) if (b.look === 'slope') b.outH = surfH(tcx(b.x) + b.dir[0] * TILE / 2, tcx(b.z) + b.dir[1] * TILE / 2);
+  // Tranchées : la rampe part du sol intérieur (plate-forme surélevée…) et monte jusqu'à la surface.
+  for (const b of MAP.barricades) b.base = M.flat ? 0 : floorAt(tcx(b.x) - b.dir[0] * TILE / 2, tcx(b.z) - b.dir[1] * TILE / 2);
 }
 function setEdge(x, z, bit, kind) {
   if (!inMap(x, z)) return; const i = ti(x, z);
@@ -1701,6 +1707,7 @@ function flowTile(x, z) {
 }
 
 // Hauteur du sol pour un infecté selon sa classe.
+const rampY = (r, t) => (r.base || 0) + smooth(t) * (WALL_H - (r.base || 0)); // (tranchées : du sol intérieur à la surface)
 function rampT(r, x, z) {
   const ox = tcx(r.x) - r.dir[0] * TILE / 2, oz = tcx(r.z) - r.dir[1] * TILE / 2; // bord intérieur
   return clamp(((x - ox) * r.dir[0] + (z - oz) * r.dir[1]) / TILE, 0, 1);
@@ -1710,8 +1717,8 @@ const SILL_H = 0.62;
 function sillH(r, t) { return r.look === 'window' ? SILL_H * smooth(clamp(1 - Math.abs(t - 0.1) / 0.2, 0, 1)) : 0; }
 function groundAt(x, z) {
   const tx = tileOf(x), tz = tileOf(z), c = tClass(tx, tz);
-  if (c === C_TRENCH || tType(tx, tz) === T_DOOR) return M.floorH ? M.floorH(x, z) : 0; // (porte fermée : le sol du passage, où le joueur s'avance jusqu'au battant)
-  if (c === C_RAMP) { const r = MAP.barricades[MAP.rampAt[ti(tx, tz)]], t = rampT(r, x, z); return M.flat ? (r.look === 'slope' ? smooth(clamp((t - 0.15) / 0.85, 0, 1)) * r.outH : sillH(r, t)) : smooth(t) * WALL_H; }
+  if (c === C_TRENCH || tType(tx, tz) === T_DOOR) return floorAt(x, z); // (porte fermée : le sol du passage, où le joueur s'avance jusqu'au battant)
+  if (c === C_RAMP) { const r = MAP.barricades[MAP.rampAt[ti(tx, tz)]], t = rampT(r, x, z); return M.flat ? (r.look === 'slope' ? smooth(clamp((t - 0.15) / 0.85, 0, 1)) * r.outH : sillH(r, t)) : rampY(r, t); }
   return surfH(x, z);
 }
 
@@ -1779,9 +1786,25 @@ function collideEdges(p, r) {
     }
   }
 }
+// Index des obstacles par carreau (marge de 6 carreaux autour de la carte ; au-delà, rangés au bord) : chaque infecté ne
+// teste plus que ceux qui l'entourent, au lieu de tous ceux de la carte à chaque image. Refait quand la liste change ou
+// qu'une boîte bouge (propBox).
+const PROPIDX = { n: -1, dirty: true, cells: null, W: 0, D: 0, stamp: 0, out: [] };
+function propsNear(x0, z0, x1, z1) {
+  const I = PROPIDX, M6 = 6;
+  if (I.dirty || I.n !== MAP.props.length) {
+    I.W = MAP_W + 2 * M6; I.D = MAP_D + 2 * M6; I.cells = Array.from({ length: I.W * I.D }, () => []);
+    for (const b of MAP.props) { const ax = clamp(Math.floor(b.x0 / TILE) + M6, 0, I.W - 1), bx = clamp(Math.floor(b.x1 / TILE) + M6, 0, I.W - 1), az = clamp(Math.floor(b.z0 / TILE) + M6, 0, I.D - 1), bz = clamp(Math.floor(b.z1 / TILE) + M6, 0, I.D - 1); for (let j = az; j <= bz; j++) for (let i = ax; i <= bx; i++) I.cells[j * I.W + i].push(b); }
+    I.n = MAP.props.length; I.dirty = false;
+  }
+  const out = I.out; out.length = 0; const st = ++I.stamp;
+  const ax = clamp(Math.floor(x0 / TILE) + M6, 0, I.W - 1), bx = clamp(Math.floor(x1 / TILE) + M6, 0, I.W - 1), az = clamp(Math.floor(z0 / TILE) + M6, 0, I.D - 1), bz = clamp(Math.floor(z1 / TILE) + M6, 0, I.D - 1);
+  for (let j = az; j <= bz; j++) for (let i = ax; i <= bx; i++) for (const b of I.cells[j * I.W + i]) if (b._st !== st) { b._st = st; out.push(b); }
+  return out;
+}
 function collideProps(p, r, y = 0, step = 0, out) {
   let hit = false;
-  for (const b of MAP.props) {
+  for (const b of propsNear(p.x - r - 0.5, p.z - r - 0.5, p.x + r + 0.5, p.z + r + 0.5)) {
     if (b.off || y + step >= b.y1 || y + 1.6 < (b.y0 || 0)) continue;
     if (b.rot) { if (p.x + r > b.x0 && p.x - r < b.x1 && p.z + r > b.z0 && p.z - r < b.z1 && collideRot(p, r, b.rot, out)) hit = true; continue; }
     if (b.rad) { // cylindre debout (05_world.js colliderCyl) : poussée hors du cercle
@@ -1870,10 +1893,10 @@ function solidAt(x, y, z, phys) {
   }
   if (t === T_SOLID) return y < WALL_H + (MAP.edge[i] > 1 ? surfH(x, z) - WALL_H : 0) ? (MAP.style[i] === STYLE_BUNKER ? 'concrete' : 'earth') : null;
   if (t === T_BLOCK) return y < blockH(i) ? 'concrete' : null;
-  if (t === T_RAMP) { const r = MAP.barricades[MAP.rampAt[i]]; return y < smooth(rampT(r, x, z)) * WALL_H - 0.02 ? 'earth' : null; }
+  if (t === T_RAMP) { const r = MAP.barricades[MAP.rampAt[i]]; return y < rampY(r, rampT(r, x, z)) - 0.02 ? 'earth' : null; }
   if (t === T_DOOR && !MAP.doors[MAP.doorAt[i]].open && inSlab(MAP.doors[MAP.doorAt[i]], x, z)) return y < WALL_H ? doorMat(MAP.doors[MAP.doorAt[i]]) : null;
-  if (y < (M.floorH ? M.floorH(x, z) : 0)) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : MAP.style[i] === STYLE_CRATER ? 'earth' : 'wood';
-  if (MAP.roof[i] && y > WALL_H - 0.12 && y < WALL_H + 0.5) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : 'metal';
+  if (y < floorAt(x, z)) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : MAP.style[i] === STYLE_CRATER || MAP.style[i] === STYLE_SAPE ? 'earth' : 'wood';
+  if (MAP.roof[i]) { const ry = roofAt(x, z); if (y > ry - 0.04 && y < WALL_H + 0.5) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : y < ry + 0.12 ? (MAP.style[i] === STYLE_SAPE ? 'wood' : 'metal') : 'earth'; } // (galerie basse : la terre jusqu'à la surface)
   return null;
 }
 // Les balles s'arrêtent au battant (d.slab), plus à l'entrée du carreau de la porte.
@@ -1958,7 +1981,7 @@ const _rlo = [0, 0, 0], _rhi = [0, 0, 0], _roo = [0, 0, 0], _rdd = [0, 0, 0];
 // Hauteur d'appui (caisses, banquettes) sous un cercle.
 function propSupport(p, r, y, step) {
   let g = M.floorH ? M.floorH(p.x, p.z) : 0;
-  for (const b of MAP.props) {
+  for (const b of propsNear(p.x - r, p.z - r, p.x + r, p.z + r)) {
     if (b.off || b.y1 > y + step || b.y1 <= g) continue; if (p.x + r * 0.5 < b.x0 || p.x - r * 0.5 > b.x1 || p.z + r * 0.5 < b.z0 || p.z - r * 0.5 > b.z1) continue;
     const q = b.rot; if (q) { const wx = p.x - q.cx, wz = p.z - q.cz; if (Math.abs(q.c * wx - q.s * wz) > q.hw + r * 0.5 || Math.abs(q.s * wx + q.c * wz) > q.hd + r * 0.5) continue; }
     if (b.rad && Math.hypot(p.x - (b.x0 + b.x1) / 2, p.z - (b.z0 + b.z1) / 2) > b.rad + r * 0.5) continue;
@@ -2455,6 +2478,7 @@ function colliderCyl(x, z, r, h, mat) { const b = { x0: x - r, x1: x + r, z0: z 
 // tests grossiers) ; la vraie boîte (rot : centre, demi-côtés, cosinus et sinus) sert aux collisions, aux rayons et
 // aux appuis (03_map.js). Un quart de tour près, l'enveloppe est exacte et rot reste vide.
 function propBox(b, x, z, w, d, ry) {
+  PROPIDX.dirty = true; // (boîte placée ou déplacée : l'index des obstacles est à refaire)
   const c = Math.cos(ry), s = Math.sin(ry), ac = Math.abs(c), as = Math.abs(s), ex = (w * ac + d * as) / 2, ez = (w * as + d * ac) / 2;
   Object.assign(b, { x0: x - ex, x1: x + ex, z0: z - ez, z1: z + ez });
   b.rot = ac < 1e-3 || as < 1e-3 ? null : { cx: x, cz: z, hw: w / 2, hd: d / 2, c, s };
@@ -2659,6 +2683,7 @@ function buildTrenches() {
     bags: new Batch(bag, MATS.sandbag), posts: new Batch(boxG(0.13, 1, 0.13), MATS.post), panels: new Batch(boxG(2, 1, 0.05), MATS.planks),
     tin: new Batch(boxG(2, 1, 0.03), MATS.metal), slats: new Batch(boxG(0.95, 0.045, 0.11), MATS.duck), rails: new Batch(boxG(0.08, 0.07, 2), MATS.duck),
     wireProps: new Batch(boxG(0.05, 0.05, 0.05), MATS.iron, false),
+    mrails: new Batch(boxG(0.06, 0.08, 1.0), MATS.iron), sleepers: new Batch(boxG(0.9, 0.06, 0.16), MATS.post),
   };
   // Champs continus pour la neige du sol (mêmes valeurs aux sommets partagés par deux carreaux : pas de lisière droite) :
   // distance à la paroi la plus proche (m) et part de boyau / de cratère autour du point (interpolée entre centres de carreaux).
@@ -2685,12 +2710,14 @@ function buildTrenches() {
       const ex = dx > 0 ? (x + 1) * TILE : dx < 0 ? x * TILE : null, ez = dz > 0 ? (z + 1) * TILE : dz < 0 ? z * TILE : null;
       const along = dx !== 0 ? [0, 0, 1] : [1, 0, 0];
       const sx = dx !== 0 ? ex : x * TILE, sz = dz !== 0 ? ez : z * TILE;
-      const concrete = style === STYLE_BUNKER, top = roofed ? WALL_H - 0.08 : WALL_H;
+      const concrete = style === STYLE_BUNKER;
       const gb = concrete ? wallConc : wallEarth;
-      // Sens des indices pour que la face regarde vers la tranchée.
-      const flip = (dx > 0) || (dz < 0);
+      // Sens des indices pour que la face regarde vers la tranchée. Du sol réel (galerie qui descend, plate-forme) au sommet :
+      // la surface, ou le plafond d'un abri couvert (qui suit le sol dans la Sape).
+      const flip = (dx > 0) || (dz < 0), fb = floorAt(mx0(), mz0()), top = roofed ? roofAt(mx0(), mz0()) : WALL_H;
+      function mx0() { return sx + along[0] * TILE / 2 + nX * 0.3; } function mz0() { return sz + along[2] * TILE / 2 + nZ * 0.3; }
       gb.grid(4, 5, (s0, v) => {
-        const s = flip ? 1 - s0 : s0, px = sx + along[0] * s * TILE, pz = sz + along[2] * s * TILE, y = v * top;
+        const s = flip ? 1 - s0 : s0, px = sx + along[0] * s * TILE, pz = sz + along[2] * s * TILE, fy = floorAt(px + nX * 0.3, pz + nZ * 0.3), ty = roofed ? roofAt(px + nX * 0.3, pz + nZ * 0.3) : WALL_H, y = fy - 0.05 + v * (ty - fy + 0.05);
         let disp = 0;
         if (!concrete) { const f = Math.sin(Math.PI * s) * Math.sin(Math.PI * v), amp = style === STYLE_CRATER ? 0.62 : 0.3; disp = (fbm(px * 0.9 + py3(y), pz * 0.9 + y, 3) - 0.5) * amp * f - v * 0.16 * Math.sqrt(Math.sin(Math.PI * s)); }
         const ao = concrete ? 0.62 + 0.38 * smooth(clamp(v * 3, 0, 1)) : 0.55 + 0.45 * smooth(clamp(v * 2.2, 0, 1));
@@ -2701,15 +2728,17 @@ function buildTrenches() {
       const ry = dx !== 0 ? Math.PI / 2 : 0;
       const r = hash2(x * 7 + dx * 3, z * 13 + dz * 5);
       const c0x = sx + nX * 0.1, c0z = sz + nZ * 0.1, c1x = sx + along[0] * TILE + nX * 0.1, c1z = sz + along[2] * TILE + nZ * 0.1;
+      const hw = WALL_H - fb; // hauteur de paroi au-dessus du sol (plate-forme du poste d'observation : 0,7 m)
       if (style === STYLE_TRENCH || style === STYLE_YARD) {
         if (ramp) { /* flancs de rampe : terre nue */ }
-        else if (r < 0.4) { B.panels.add(mx, 0.95, mz, ry + rand(-0.01, 0.01), rand(-0.03, 0.03), 0, 1, 1.75, 1); addPost(c0x, c0z, WALL_H + 0.3); addPost(c1x, c1z, WALL_H + 0.3); }
-        else if (r < 0.65) { B.tin.add(mx + nX * 0.02, 0.95, mz + nZ * 0.02, ry, rand(-0.06, 0.02), rand(-0.02, 0.02), 1, 1.8, 1); addPost(c0x, c0z, WALL_H + 0.3); addPost(c1x, c1z, WALL_H + 0.3); }
+        else if (hw < 1.6) { for (let k = 0; k < 3; k++) { const s = (k + 0.5) / 3; B.bags.add(sx + along[0] * s * TILE + nX * 0.2, fb + 0.1, sz + along[2] * s * TILE + nZ * 0.2, ry + rand(-0.08, 0.08), 0, rand(-0.05, 0.05), 1, 1, 1); } } // (paroi basse : un rang de sacs)
+        else if (r < 0.4) { B.panels.add(mx, fb + 0.95, mz, ry + rand(-0.01, 0.01), rand(-0.03, 0.03), 0, 1, 1.75, 1); addPost(c0x, c0z, WALL_H + 0.3 - fb, fb); addPost(c1x, c1z, WALL_H + 0.3 - fb, fb); }
+        else if (r < 0.65) { B.tin.add(mx + nX * 0.02, fb + 0.95, mz + nZ * 0.02, ry, rand(-0.06, 0.02), rand(-0.02, 0.02), 1, 1.8, 1); addPost(c0x, c0z, WALL_H + 0.3 - fb, fb); addPost(c1x, c1z, WALL_H + 0.3 - fb, fb); }
         else if (r < 0.88) {
           const rows = style === STYLE_YARD ? 9 : 5;
           for (let row = 0; row < rows; row++) for (let k = 0; k < 3; k++) {
-            const s = (k + 0.5 + (row % 2) * 0.5 - 0.25) / 3; if (s > 1) continue;
-            B.bags.add(sx + along[0] * s * TILE + nX * 0.2, 0.1 + row * 0.19, sz + along[2] * s * TILE + nZ * 0.2, ry + rand(-0.08, 0.08), 0, rand(-0.05, 0.05), 1, 1, 1);
+            const s = (k + 0.5 + (row % 2) * 0.5 - 0.25) / 3; if (s > 1 || fb + 0.1 + row * 0.19 > WALL_H - 0.1) continue;
+            B.bags.add(sx + along[0] * s * TILE + nX * 0.2, fb + 0.1 + row * 0.19, sz + along[2] * s * TILE + nZ * 0.2, ry + rand(-0.08, 0.08), 0, rand(-0.05, 0.05), 1, 1, 1);
           }
         }
         // Parapet : deux rangs de sacs sur la lèvre.
@@ -2719,6 +2748,9 @@ function buildTrenches() {
         }
       } else if (style === STYLE_DUGOUT) {
         B.panels.add(mx, 1.05, mz, ry, 0, 0, 1, 2.1, 1); addPost(c0x, c0z, top); addPost(c1x, c1z, top);
+      } else if (style === STYLE_SAPE && !ramp) {
+        // Galerie de mine : coffrage de planches entre deux étais, à la hauteur de la galerie (le sol descend).
+        const hh = top - fb; B.panels.add(mx, fb + hh / 2, mz, ry + rand(-0.02, 0.02), rand(-0.04, 0.02), 0, 1, hh * 0.98, 1); addPost(c0x, c0z, hh, fb); addPost(c1x, c1z, hh, fb);
       } else if (style === STYLE_CRATER && !ramp && r < 0.22) {
         // Entonnoir d'obus : terre nue, quelques poutres arrachées plantées dans la paroi.
         B.posts.add(mx + nX * 0.25, 1.1, mz + nZ * 0.25, ry + rand(-0.4, 0.4), rand(-0.5, 0.5), rand(-0.3, 0.3), 1.3, 1.9, 1.3);
@@ -2741,12 +2773,20 @@ function buildTrenches() {
         const tr = 0.2 + 0.8 * smooth(clamp((boardDist(px, pz) - 0.38) / 0.4, 0, 1)) + f * 0.9 + f2 * 0.3; // boyau : boue sous le caillebotis, neige à côté
         const cr = (fh < -0.05 ? 0.5 : 0.68) + f * 1.6 + f2 * 0.6; // Cratère : terre retournée et neige mêlées
         const yd = 0.74 + f * 1.4 + f2 * 0.5; // cour du dépôt : neige, plaques piétinées
-        const sn = clamp(kT * tr + kC * cr + (1 - kT - kC) * yd + (1 - kT) * 0.5 * (1 - clamp(D / 0.66, 0, 1)), 0, 1);
-        const mud = [0.3, 0.25, 0.21], w = 0.88;
+        const sn = style === STYLE_SAPE ? 0 : clamp(kT * tr + kC * cr + (1 - kT - kC) * yd + (1 - kT) * 0.5 * (1 - clamp(D / 0.66, 0, 1)), 0, 1); // (Sape : terre battue sous terre)
+        const mud = style === STYLE_SAPE ? [0.17 + f * 0.06, 0.14 + f * 0.05, 0.11 + f * 0.04] : [0.3, 0.25, 0.21], w = 0.88; // (Sape : terre battue humide, sans neige)
         // Normale tirée de la forme exacte du sol (pas de couture d'éclairage entre carreaux sur les bosses du Cratère).
         const e = 0.06, hx = floorY(px + e, pz) - floorY(px - e, pz), hz = floorY(px, pz + e) - floorY(px, pz - e), nl = Math.hypot(hx, 2 * e, hz);
         return { p: [px, floorY(px, pz), pz], n: [-hx / nl, 2 * e / nl, -hz / nl], uv: [px / 3, pz / 3], c: [lerp(mud[0], w, sn), lerp(mud[1], w, sn), lerp(mud[2], w * 1.03, sn)] };
       });
+      if (style === STYLE_SAPE) { // voie de wagonnet : deux rails de fer sur traverses, dans l'axe de la galerie (pas dans la chambre)
+        const n = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([a, b]) => isFloorish(x + a, z + b)).length;
+        if (n <= 2) {
+          const cx = x0 + TILE / 2, cz = z0 + TILE / 2, rot = ax ? Math.PI / 2 : 0;
+          for (const o of [-0.3, 0.3]) for (const k of [-0.5, 0.5]) { const qx = cx + (ax ? k : o), qz = cz + (ax ? o : k); B.mrails.add(qx, floorAt(qx, qz) + 0.06, qz, rot); }
+          for (let k = 0; k < 4; k++) { const o = -0.75 + k * 0.5, qx = cx + (ax ? o : 0), qz = cz + (ax ? 0 : o); B.sleepers.add(qx, floorAt(qx, qz) + 0.02, qz, rot + rand(-0.06, 0.06)); }
+        }
+      }
       if (trench) {
         // Caillebotis dans l'axe du boyau.
         const cx = x0 + TILE / 2, cz = z0 + TILE / 2, rot = ax ? Math.PI / 2 : 0, jit = rand(-0.04, 0.04);
@@ -2765,27 +2805,40 @@ function py3(y) { return y * 0.7; }
 function isFloorish(x, z) { const t = tType(x, z); return t === T_FLOOR || t === T_DOOR; }
 
 function buildRoofs() {
-  const ceilC = new GB(), ceilM = new GB();
+  const ceilC = new GB(), ceilM = new GB(), ceilW = new GB(), cap = new GB(), portal = new GB();
   const beams = new Batch(boxG(0.22, 0.26, TILE), MATS.post), posts = new Batch(boxG(0.22, 1, 0.22), MATS.post);
   for (let z = 0; z < MAP_D; z++) for (let x = 0; x < MAP_W; x++) {
     const i = ti(x, z); if (!MAP.roof[i] || MAP.type[i] === T_SOLID) continue;
-    const st = MAP.style[i], y = WALL_H - 0.08, x0 = x * TILE, z0 = z * TILE;
-    const gb = st === STYLE_BUNKER ? ceilC : ceilM;
-    // Le haut des parois de terre recule un peu : le plafond déborde au-dessus pour ne laisser aucun jour.
+    const st = MAP.style[i], x0 = x * TILE, z0 = z * TILE, y = roofAt(x0 + TILE / 2, z0 + TILE / 2);
+    const gb = st === STYLE_BUNKER ? ceilC : st === STYLE_SAPE ? ceilW : ceilM;
+    // Le haut des parois de terre recule un peu : le plafond déborde au-dessus pour ne laisser aucun jour. Il suit le sol
+    // (galerie de la Sape qui descend), jamais plus haut que la surface.
     const ov = (dx, dz) => (tType(x + dx, z + dz) === T_SOLID ? 0.3 : 0), ax0 = x0 - ov(-1, 0), ax1 = x0 + TILE + ov(1, 0), az0 = z0 - ov(0, -1), az1 = z0 + TILE + ov(0, 1);
-    gb.grid(1, 1, (s, v) => { const px = lerp(ax1, ax0, s), pz = lerp(az0, az1, v); return { p: [px, y, pz], uv: [px / 2, pz / 2], c: [0.5, 0.5, 0.52], n: [0, -1, 0] }; });
+    gb.grid(2, 2, (s, v) => { const px = lerp(ax1, ax0, s), pz = lerp(az0, az1, v); return { p: [px, roofAt(clamp(px, x0, x0 + TILE), clamp(pz, z0, z0 + TILE)), pz], uv: [px / 2, pz / 2], c: [0.5, 0.5, 0.52], n: [0, -1, 0] }; });
     beams.add(x0 + TILE / 2, y - 0.13, z0 + TILE / 2, 0, 0, 0);
-    // Linteau au-dessus des ouvertures vers les zones non couvertes.
+    // Galerie sous la surface : la terre au-dessus du plafond, couverte de neige comme le terrain autour.
+    if (y < WALL_H - 0.2) cap.grid(1, 1, (s, v) => { const px = lerp(ax1, ax0, s), pz = lerp(az0, az1, v); return { p: [px, WALL_H, pz], uv: [px / 3, pz / 3], c: [0.9, 0.92, 0.96] }; });
+    // Linteau au-dessus des ouvertures vers les zones non couvertes ; galerie basse : la terre entre le linteau et la surface.
     for (const [dx, dz] of faceDirs()) {
       const nx = x + dx, nz = z + dz; if (!inMap(nx, nz)) continue; const j = ti(nx, nz);
-      if (MAP.type[j] !== T_SOLID && !MAP.roof[j]) beams.add(x0 + TILE / 2 + dx * (TILE / 2 - 0.1), y - 0.14, z0 + TILE / 2 + dz * (TILE / 2 - 0.1), dx !== 0 ? 0 : Math.PI / 2, 0, 0, 1, 1.2, 1);
+      if (MAP.type[j] !== T_SOLID && !MAP.roof[j]) {
+        const ex = x0 + TILE / 2 + dx * TILE / 2, ez = z0 + TILE / 2 + dz * TILE / 2, ly = roofAt(ex - dx * 0.05, ez - dz * 0.05);
+        beams.add(x0 + TILE / 2 + dx * (TILE / 2 - 0.1), ly - 0.14, z0 + TILE / 2 + dz * (TILE / 2 - 0.1), dx !== 0 ? 0 : Math.PI / 2, 0, 0, 1, 1.2, 1);
+        if (ly < WALL_H - 0.1) {
+          const along = dx !== 0 ? [0, 1] : [1, 0], flip = dx < 0 || dz > 0;
+          portal.grid(2, 2, (s0, v) => { const s = flip ? 1 - s0 : s0, px = ex + along[0] * (s - 0.5) * (TILE + 0.6), pz = ez + along[1] * (s - 0.5) * (TILE + 0.6); return { p: [px, lerp(ly - 0.2, WALL_H, v), pz], uv: [(px + pz) / 2.2, lerp(ly, WALL_H, v) / 2.2], c: [0.6, 0.6, 0.6] }; });
+        }
+      }
     }
   }
   mesh(ceilC.geo(false), MATS.concrete, 0, 0, 0, 0, R.scene, true);
   const mm = MATS.metal.clone(); mm.side = THREE.DoubleSide; mm.userData = {};
   mesh(ceilM.geo(false), mm, 0, 0, 0, 0, R.scene, true);
+  if (ceilW.p.length) { const wm = MATS.planks.clone(); wm.side = THREE.DoubleSide; wm.userData = {}; mesh(ceilW.geo(false), wm, 0, 0, 0, 0, R.scene, true); } // (Sape : plafond de planches)
+  if (cap.p.length) mesh(cap.geo(), MATS.snow, 0, 0, 0, 0, R.scene, true);
+  if (portal.p.length) mesh(portal.geo(), MATS.earth, 0, 0, 0, 0, R.scene, true);
   // Poteaux porteurs.
-  (M.roofPosts || []).forEach(([x, z]) => { posts.add(x, (WALL_H - 0.1) / 2, z, 0, 0, 0, 1, WALL_H - 0.1, 1); collider(x - 0.14, z - 0.14, x + 0.14, z + 0.14, WALL_H, 'wood'); });
+  (M.roofPosts || []).forEach(([x, z]) => { const f = floorAt(x, z), r = roofAt(x, z); posts.add(x, (f + r) / 2, z, 0, 0, 0, 1, r - f, 1); collider(x - 0.14, z - 0.14, x + 0.14, z + 0.14, r, 'wood', f); }); // (du sol au plafond : galerie basse comprise)
   beams.build(); posts.build();
 }
 
@@ -2798,27 +2851,27 @@ function buildRamps() {
   const posts = new Batch(boxG(0.14, 1, 0.14), MATS.post);
   const wires = [];
   for (const b of MAP.barricades) {
-    const cx = tcx(b.x), cz = tcx(b.z), [dx, dz] = b.dir, px = -dz, pz = dx; // perpendiculaire
+    const cx = tcx(b.x), cz = tcx(b.z), [dx, dz] = b.dir, px = -dz, pz = dx, y0 = b.base || 0; // perpendiculaire ; sol intérieur (plate-forme)
     gb.grid(4, 8, (s, v) => {
       const lateral = (s - 0.5) * TILE, prog = v; // v = 0 bord intérieur → 1 bord extérieur
       const x = cx + px * lateral + dx * (prog - 0.5) * TILE, z = cz + pz * lateral + dz * (prog - 0.5) * TILE;
-      const y = smooth(prog) * WALL_H + (v > 0 && v < 1 && s > 0 && s < 1 ? (fbm(x, z, 2) - 0.5) * 0.12 : 0);
+      const y = rampY(b, prog) + (v > 0 && v < 1 && s > 0 && s < 1 ? (fbm(x, z, 2) - 0.5) * 0.12 : 0);
       const snow = clamp(0.5 + prog * 0.5 - Math.abs(s - 0.5) * 0.4, 0, 1), m = [0.32, 0.26, 0.21];
       return { p: [x, y, z], uv: [x / 3, z / 3], c: [lerp(m[0], 0.9, snow), lerp(m[1], 0.92, snow), lerp(m[2], 0.96, snow)] };
     });
     // Le quadrillage doit regarder vers le haut : on inverse l'ordre si nécessaire.
     fixWinding(gb);
-    for (let k = 1; k < 7; k++) { const prog = k / 7.5; steps.add(cx + dx * (prog - 0.5) * TILE, smooth(prog) * WALL_H + 0.02, cz + dz * (prog - 0.5) * TILE, Math.atan2(px, pz) + Math.PI / 2 + rand(-0.08, 0.08), 0, 0); }
+    for (let k = 1; k < 7; k++) { const prog = k / 7.5; steps.add(cx + dx * (prog - 0.5) * TILE, rampY(b, prog) + 0.02, cz + dz * (prog - 0.5) * TILE, Math.atan2(px, pz) + Math.PI / 2 + rand(-0.08, 0.08), 0, 0); }
     // Montants et planches de la barricade (bord intérieur).
     const ix = cx - dx * (TILE / 2 - 0.12), iz = cz - dz * (TILE / 2 - 0.12);
-    b.center = new THREE.Vector3(ix, 1.1, iz); b.perp = [px, pz];
-    for (const o of [-0.98, 0.98]) posts.add(ix + px * o, 1.15, iz + pz * o, 0, 0, 0, 1, 2.3, 1);
+    b.center = new THREE.Vector3(ix, y0 + 1.1, iz); b.perp = [px, pz];
+    for (const o of [-0.98, 0.98]) posts.add(ix + px * o, y0 + 1.15, iz + pz * o, 0, 0, 0, 1, 2.3, 1);
     b.plankM = [];
     const ang = [0.16, -0.12, 0.22, -0.26, 0.06, -0.18], hs = [0.3, 0.62, 0.95, 1.28, 1.6, 1.92];
     const ry = Math.atan2(px, pz) - Math.PI / 2;
     for (let k = 0; k < 6; k++) {
       _e1.set(0, ry, ang[k] + rand(-0.04, 0.04), 'YXZ'); _q1.setFromEuler(_e1);
-      const m = new THREE.Matrix4().compose(_v1.set(ix + dx * (k % 2 ? 0.05 : -0.02), hs[k], iz + dz * (k % 2 ? 0.05 : -0.02)), _q1, _v2.set(1, 1, 1));
+      const m = new THREE.Matrix4().compose(_v1.set(ix + dx * (k % 2 ? 0.05 : -0.02), y0 + hs[k], iz + dz * (k % 2 ? 0.05 : -0.02)), _q1, _v2.set(1, 1, 1));
       b.plankM.push(m); WORLD.planks.setMatrixAt(b.id * 6 + k, m);
     }
     b.plankAnim = new Array(6).fill(1); b.plankShown = new Array(6).fill(true);
@@ -10682,15 +10735,17 @@ window.SP = { warmUp, spots: () => SPOTS, SREAL, SOLDATS, soldierArms, SR_HIDE, 
 
 // ───────────────────────── MAP_POSTE7 ─────────────────────────
 /* ═══════════════════ CARTE : SECTEUR NORD, POSTE AVANCÉ 7 ═══════════════════
-   Tranchées enneigées de 1917. Grille de 40 × 32 carreaux de 2 m ; le nord (z petit) est le no man's land.
-   Zones : A tranchée de première ligne · B poste de commandement · C dépôt du générateur · D tranchée de soutien · E le Cratère. */
+   Tranchées enneigées de 1917. Grille de 58 × 48 carreaux de 2 m ; le nord (z petit) est le no man's land.
+   Zones : A tranchée de première ligne · B poste de commandement · C dépôt du générateur · D tranchée de soutien · E le Cratère
+   · F la Sape (galerie de mine qui descend à −1,6 m, chambre de mine) · G la Ferme de Bellevue (grande cour à ciel ouvert)
+   · H le Poste d'observation (plate-forme surélevée de 1,8 m). Décor des trois dernières : 20c_poste7_ext.js. */
 
 MAPS.poste7 = {
   id: 'poste7', name: 'POSTE 7', sub: 'Secteur nord, hiver 1917',
   objName: 'Opération Aube Blanche accomplie',
   powerParts: [{ name: "BIDON D'ESSENCE", kind: 'fuel', zones: [0] }, { name: 'MAGNÉTO', kind: 'coil', zones: [1, 3] }, { name: 'COURROIE', kind: 'belt', zones: [4] }],
   intro: ['POSTE 7', 'Secteur nord, front gelé', '14 janvier 1917 — 03 h 12'],
-  desc: 'Tranchées gelées, bunker de commandement, cratère du biplan abattu. La radio attend un opérateur.',
+  desc: 'Tranchées gelées, bunker de commandement, cratère du biplan abattu, sape sous le no man\'s land, ferme en ruine. La radio attend un opérateur.',
   card: ['#24313d', '#8fa6bb'],
   info: { eyebrow: 'FRONT NORD · NUIT <span id="nightNo">01</span>', tagline: 'Les tranchées sont gelées. Les morts, non.', stat: ['TEMPÉRATURE', '−24 °C'] },
   loading: 'CREUSEMENT DES TRANCHÉES…',
@@ -10704,8 +10759,8 @@ MAPS.poste7 = {
     x.strokeStyle = '#141a20'; x.lineWidth = 2; for (let i = 10; i < w; i += 46) { x.beginPath(); x.moveTo(i, h * 0.6); x.lineTo(i + 3, h * 0.5); x.stroke(); }
     x.beginPath(); for (let i = 10; i < w; i += 6) x.lineTo(i, h * 0.53 + Math.sin(i * 0.4) * 3); x.stroke();
   },
-  w: 40, d: 32, flat: false,
-  zones: ['Tranchée de première ligne', 'Poste de commandement', 'Dépôt du générateur', 'Tranchée de soutien', 'Le Cratère'],
+  w: 58, d: 48, flat: false,
+  zones: ['Tranchée de première ligne', 'Poste de commandement', 'Dépôt du générateur', 'Tranchée de soutien', 'Le Cratère', 'La Sape', 'La Ferme de Bellevue', "Le Poste d'observation"],
   grid({ floor, door, ramp }) {
     // Zone A — tranchée de première ligne, avec deux alvéoles de tir au nord.
     floor(6, 6, 33, 7, 0);
@@ -10727,13 +10782,33 @@ MAPS.poste7 = {
     floor(19, 12, 26, 19, 4, STYLE_CRATER);
     floor(23, 9, 23, 11, 4);
     floor(26, 20, 26, 22, 4);
+    // Zone F — la Sape : boyau au bout de la tranchée de soutien, galerie boisée qui descend (−1,6 m, voir floorH), puis
+    // file vers l'ouest jusqu'à la chambre de mine.
+    floor(31, 29, 31, 30, 5);
+    floor(31, 31, 31, 35, 5, STYLE_SAPE, 1);
+    floor(24, 36, 31, 36, 5, STYLE_SAPE, 1);
+    floor(17, 34, 23, 40, 5, STYLE_SAPE, 1);
+    // Zone G — la Ferme de Bellevue : boyau depuis la cour du dépôt, grande cour de ferme en ruine à ciel ouvert.
+    floor(7, 29, 7, 31, 6);
+    floor(3, 32, 15, 43, 6, STYLE_YARD);
+    // Zone H — le Poste d'observation : boyau derrière l'abri, rampe de terre qui monte, plate-forme surélevée.
+    floor(37, 17, 40, 19, 7, STYLE_YARD);
+    floor(41, 13, 45, 21, 7, STYLE_YARD);
     door(9, 8, 750, 'gate', 'Poste de commandement');
     door(9, 19, 1000, 'steel', 'Dépôt du générateur');
     door(31, 8, 1000, 'gate', 'Tranchée de soutien');
     door(16, 24, 1250, 'gate', 'Liaison dépôt ↔ soutien');
     door(23, 8, 1500, 'gate', 'Le Cratère');
     door(26, 23, 1250, 'gate', 'Le Cratère');
-    [[13, 3], [26, 3], [5, 6], [34, 7], [4, 15], [14, 17], [4, 23], [12, 28], [32, 14], [29, 16], [31, 28], [34, 21], [18, 14], [25, 11], [27, 17], [20, 20]].forEach(([x, z]) => ramp(x, z));
+    door(31, 28, 1250, 'gate', 'La Sape');
+    door(7, 28, 1000, 'gate', 'La Ferme de Bellevue');
+    door(16, 38, 750, 'gate', 'Galerie de la ferme');
+    door(36, 18, 1250, 'gate', "Le Poste d'observation");
+    [[13, 3], [26, 3], [5, 6], [34, 7], [4, 15], [14, 17], [4, 23], [12, 28], [32, 14], [29, 16], [29, 22], [34, 21], [18, 14], [25, 11], [27, 17], [20, 20],
+      [32, 30], // Sape (boyau d'entrée, avant la galerie couverte)
+      [2, 35], [2, 41], [6, 44], [12, 44], [13, 31], [16, 42], // Ferme : on y entre de partout
+      [46, 15], [46, 20], [43, 12], [43, 22], // Poste d'observation (rampes du sol de la plate-forme à la surface)
+    ].forEach(([x, z]) => ramp(x, z));
   },
   spots: {
     start: [20, 7], startYaw: 0,
@@ -10743,6 +10818,7 @@ MAPS.poste7 = {
       { weapon: 'shotgun', x: 13, z: 14, wall: 'e' },
       { weapon: 'smg', x: 13, z: 22, wall: 'n' },
       { weapon: 'carbine', x: 30, z: 21, wall: 'w' },
+      { weapon: 'revolver', x: 5, z: 32, wall: 'n' }, // Ferme de Bellevue
     ],
     perks: [
       { perk: 'sprint', x: 32, z: 6, wall: 'n' },
@@ -10755,7 +10831,7 @@ MAPS.poste7 = {
     ],
     power: { x: 5, z: 26, wall: 'w' },
     generator: { x: 14.6, z: 53.4, ry: 0 },
-    box: [{ x: 12, z: 4, wall: 'n' }, { x: 33, z: 17, wall: 'n' }, { x: 10, z: 27, wall: 's' }, { x: 19, z: 18, wall: 'w' }],
+    box: [{ x: 12, z: 4, wall: 'n' }, { x: 33, z: 17, wall: 'n' }, { x: 10, z: 27, wall: 's' }, { x: 19, z: 18, wall: 'w' }, { x: 3, z: 38, wall: 'w' }, { x: 45, z: 17, wall: 'e' }],
     mortar: { x: 26, z: 13, wall: 'e' },
     bench: { x: 35, z: 19, wall: 'e' },
   },
@@ -10776,7 +10852,7 @@ MAPS.poste7 = {
     envMap: { low: [0.05, 0.05, 0.055], mid: [0.3, 0.36, 0.46], high: [0.07, 0.09, 0.14], glowDir: [0.3, 0.05, -0.95], glow: [1, 0.55, 0.25] },
     precip: 'snow', snow: 1, tint: [0.88, 1, 1.16], frost: true, flares: true, flashes: { min: 6, max: 18, a0: -2.6, a1: -0.5 },
     storm: { title: 'TEMPÊTE BLANCHE', sub: 'Visibilité nulle. Ils courent.' },
-    far: { color: 0xc9d4de, y: WALL_H - 1.4, cx: 40, cz: 30 },
+    far: { color: 0xc9d4de, y: WALL_H - 1.4, cx: 58, cz: 48, r0: 110 },
   },
   lights(pl) {
     pl('brazier', 0xff8a3a, 18, 16, 44.2, 1.1, 15.2);
@@ -10788,15 +10864,28 @@ MAPS.poste7 = {
       pl('dugout', 0xffb060, 9, 12, 68, 2.0, 38);
       pl('lantern', 0xffb060, 7, 11, 25, 1.9, 13.4);
       pl('bunker2', 0xff2a18, 0, 12, 12, 2.15, 34);
+      pl('mine', 0xffa850, 7, 14, 41, 0.2, 75); // chambre de mine (Sape)
+      pl('farm', 0xff8a3a, 16, 20, 18, 1.2, 77); // feu de la Ferme de Bellevue
     }
   },
-  roofPosts: [[14, 30], [24, 30], [14, 34], [24, 34], [67, 37], [11, 51.5], [17, 51.5]],
-  decor() { buildProps(); buildCraterProps(); buildOutside(); buildQuestProps(); buildRobot(); buildPoste7Extras(); },
+  roofPosts: [[14, 30], [24, 30], [14, 34], [24, 34], [67, 37], [11, 51.5], [17, 51.5], [39, 72.5], [44, 72.5], [39, 78.5], [44, 78.5]],
+  decor() { buildProps(); buildCraterProps(); buildOutside(); buildQuestProps(); buildRobot(); buildPoste7Extras(); buildPoste7Expansion(); },
   // (plus de mottes à facettes, blanches ni brunes : la neige est dans le sol et le fond du Cratère est bosselé, voir buildTrenches)
   scatter: [{ kind: 'chip', styles: [0, 4], n: 0.6, color: 0x4a3a2a }, { kind: 'rock', ground: [1.2, 12], n: 0.2, color: 0x6a6a66, shadow: true, snow: 1 }],
   // Fond du Cratère en cuvette (≈ 1 m au centre), à niveau le long des parois et des passages.
-  floorH(x, z) { const d = Math.hypot(x - 46, z - 32); if (d >= 7.4) return 0; const k = 1 - d / 7.4; return -1.05 * k * k * (3 - 2 * k) + (fbm(x * 0.7, z * 0.7, 2) - 0.5) * 0.12 * k; },
-  anim(dt, time) { robotAnim(dt, time); },
+  // Sape : la galerie descend de 1,6 m entre z 62 et 70, file à l'ouest à cette profondeur, et la chambre de mine remonte
+  // au niveau des tranchées vers la galerie de la ferme (x < 38). Poste d'observation : la rampe de terre monte de 1,8 m
+  // entre x 76,5 et 81,5 jusqu'à la plate-forme.
+  floorH(x, z) {
+    let h = 0; const d = Math.hypot(x - 46, z - 32);
+    if (d < 7.4) { const k = 1 - d / 7.4; h = -1.05 * k * k * (3 - 2 * k) + (fbm(x * 0.7, z * 0.7, 2) - 0.5) * 0.12 * k; }
+    if (x > 60.5 && x < 65.5 && z > 56 && z < 75) h = Math.min(h, -1.6 * smooth(clamp((z - 62) / 8, 0, 1)));
+    if (z > 66 && z < 84 && x > 31 && x < 65.5) h = Math.min(h, -1.6 * smooth(clamp((x - 34) / 4, 0, 1)));
+    if (x > 72 && x < 94 && z > 24 && z < 45) h = Math.max(h, 1.8 * smooth(clamp((x - 76.5) / 5, 0, 1)));
+    { const e = Math.hypot(x - 19.5, z - 67) / 2.6; if (e < 1) h -= 0.5 * (1 - e * e) * (1 - e * e); } // trou d'obus dans la cour de la ferme
+    return h;
+  },
+  anim(dt, time) { robotAnim(dt, time); p7ExtAnim(dt, time); },
   onPower(on) {
     const L = R.lights;
     L.bunker.color.set(on ? 0xffc890 : 0xff2a18); L.bunker.intensity = L.bunker.userData.base = on ? 16 : 5;
@@ -10929,6 +11018,168 @@ function buildPoste7Extras() {
     const trail = mesh(boxG(2.6, 0.14, 0.2), wood, -1.4, 0.4, 0, 0, g); trail.rotation.z = 0.24;
     for (let i = 0; i < 5; i++) mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.4, 8), MATS.brass, -0.6 + (i % 3) * 0.15, 0.2, 1.4 + ((i / 3) | 0) * 0.15, 0, g).rotation.z = Math.PI / 2;
     for (let i = 0; i < 3; i++) crate(x - 2 + i * 0.85, z + 1.6, 0.2 + i * 0.1, 1, surfH(x - 2 + i * 0.85, z + 1.6)); }
+}
+
+
+// ───────────────────────── 20C_POSTE7_EXT ─────────────────────────
+/* ═══════════════════ POSTE 7 : LA SAPE, LA FERME DE BELLEVUE, LE POSTE D'OBSERVATION ═══════════════════
+   Agrandissement de la version 7.0 (grille et hauteurs du sol : 20_map_poste7.js ; parois, plafonds bas et rampes qui
+   suivent le sol : 05_world.js). La Sape est une galerie de mine boisée qui descend sous le no man's land vers une chambre
+   chargée d'explosifs ; la Ferme de Bellevue, une grande cour de ferme en ruine à ciel ouvert, où l'on entre de partout ;
+   le Poste d'observation, une plate-forme de terre surélevée d'où l'on voit tout le secteur.
+   Ruines de la ferme : des pans de mur isolés, jamais d'enclos (les infectés suivent la grille et glissent le long des
+   obstacles : un recoin fermé les piégerait). */
+
+function buildPoste7Expansion() { buildSape(); buildFerme(); buildObservation(); }
+
+// Objet posé sur le sol réel (galerie qui descend, plate-forme) : groupe à la bonne hauteur.
+function p7g(x, z, ry = 0) { const g = new THREE.Group(); g.position.set(x, floorAt(x, z), z); g.rotation.y = ry; R.scene.add(g); return g; }
+const p7Box = (x, z, w, d, h, ry, mat, y0 = floorAt(x, z)) => MAP.props.push(propBox({ y0, y1: y0 + h, mat }, x, z, w, d, ry));
+// Terre en tas (la matière des parois attend leurs couleurs de sommets : sans elles, elle sortirait noire).
+let P7_DIRT = null; const p7Dirt = () => (P7_DIRT ||= stdMat({ color: 0x4a3c30, map: TEX.earth.map, normalMap: TEX.earth.normalMap, roughness: 1 }, 0.4));
+
+/* ─── La Sape ─── */
+function buildSape() {
+  signPost(62.4, 59, 0, ['LA SAPE', 'DÉFENSE DE FUMER']);
+  // Lampes pendues au plafond de la galerie et de la chambre (l'éclairage de la chambre : R.lights.mine).
+  WORLD.sapeLamps = [[63, 63.5], [63, 68.5], [60, 73], [54, 73], [49, 73], [37.5, 71], [45, 71], [37.5, 80], [45, 80]]
+    .map(([x, z]) => hangingLamp(x, roofAt(x, z) - 0.3, z, MATS.bulbWarm));
+  // Wagonnet sur la voie, chargé de terre.
+  { const g = p7g(56.5, 73, Math.PI / 2);
+    mesh(boxG(0.9, 0.55, 1.3), MATS.rust, 0, 0.55, 0, 0, g); mesh(boxG(0.8, 0.12, 1.2), p7Dirt(), 0, 0.8, 0, 0, g);
+    for (const [a, b] of [[-0.42, -0.45], [0.42, -0.45], [-0.42, 0.45], [0.42, 0.45]]) { const w = mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.06, 12), MATS.iron, a, 0.2, b, 0, g); w.rotation.z = Math.PI / 2; }
+    p7Box(56.5, 73, 0.95, 1.35, 0.85, Math.PI / 2, 'metal'); }
+  // Étais de bois en travers de la galerie (cadres de mine).
+  for (const [x, z, a] of [[63, 65.5, 0], [63, 70.5, 0], [57.5, 73, 1], [51.5, 73, 1]]) {
+    const r = roofAt(x, z), f = floorAt(x, z), g = p7g(x, z, a ? Math.PI / 2 : 0);
+    mesh(boxG(2.1, 0.18, 0.2), rawPost(), 0, r - f - 0.1, 0, 0, g);
+  }
+  // Chambre de mine : caisses d'explosif (ammonal) contre les parois, touret de câble, exploseur, poste d'écoute.
+  const amm = woodSign(['AMMONAL', '⚠ EXPLOSIF'], { w: 256, h: 128 });
+  const ammMat = new THREE.MeshStandardMaterial({ map: amm, roughness: 0.9 });
+  for (const [x, z, n] of [[35.3, 69.3, 3], [35.3, 74, 2], [47.2, 69.3, 3], [41, 69.2, 2]]) {
+    const f = floorAt(x, z);
+    for (let k = 0; k < n; k++) { const cx = x + (k % 2) * 0.85, cy = f + (k >> 1) * 0.55; crate(cx, z, 0, 1, cy); const lab = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), ammMat); lab.position.set(cx, cy + 0.3, z + 0.28); R.scene.add(lab); }
+  }
+  { const g = p7g(40.5, 81); const reel = mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.5, 18), rawWood(), 0, 0.45, 0, 0, g); reel.rotation.x = Math.PI / 2; p7Box(40.5, 81, 0.9, 0.5, 0.9, 0, 'wood'); }
+  { const g = p7g(46.2, 79.6, -Math.PI / 2); WORLD.sapeDetonator = g; // exploseur à poignée (la quête s'en servira)
+    mesh(boxG(0.4, 0.32, 0.3), rawWood(), 0, 0.16, 0, 0, g); mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.45, 8), MATS.iron, 0, 0.5, 0, 0, g); mesh(boxG(0.36, 0.04, 0.04), MATS.iron, 0, 0.72, 0, 0, g);
+    p7Box(46.2, 79.6, 0.4, 0.3, 0.75, 0, 'wood'); }
+  { const g = p7g(45.6, 70.2); // poste d'écoute : table, géophone, casque
+    mesh(boxG(1.2, 0.06, 0.6), rawWood(), 0, 0.8, 0, 0, g); for (const [a, b] of [[-0.55, -0.25], [0.55, -0.25], [-0.55, 0.25], [0.55, 0.25]]) mesh(boxG(0.06, 0.8, 0.06), rawPost(), a, 0.4, b, 0, g);
+    mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.12, 14), MATS.brass, -0.3, 0.89, 0, 0, g); mesh(new THREE.TorusGeometry(0.09, 0.015, 6, 16), MATS.iron, 0.2, 0.88, 0, 0, g).rotation.x = Math.PI / 2;
+    p7Box(45.6, 70.2, 1.2, 0.6, 0.9, 0, 'wood'); }
+  // Outils et seaux, éboulis de terre au fond.
+  for (const [x, z] of [[36, 77], [42.5, 75.5], [47, 76.5]]) { const g = p7g(x, z, rand(TAU)); mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.3, 12), MATS.iron, 0, 0.15, 0, 0, g); }
+  for (const [x, z] of [[35.8, 81], [37, 81.4], [47.5, 81.3]]) { const g = p7g(x, z); const m = mesh(new THREE.SphereGeometry(0.6, 9, 6, 0, TAU, 0, Math.PI / 2), p7Dirt(), 0, 0, 0, rand(TAU), g); m.scale.set(1.3, 0.6, 1); p7Box(x, z, 1.2, 1.2, 0.35, 0, 'earth'); }
+  { const g = p7g(33.2, 75.5, Math.PI / 2); for (const o of [-0.25, 0.25]) { const t = mesh(boxG(0.05, 1.3, 0.04), rawPost(), o, 0.65, 0, 0, g); t.rotation.z = o * 0.4; } } // pelles appuyées
+  poster(41.5, floorAt(41.5, 82) + 1.5, 81.9, Math.PI, 'SILENCE', 'ILS CREUSENT\nAUSSI', '#b9a37c');
+}
+
+/* ─── La Ferme de Bellevue ─── */
+function buildFerme() {
+  const stone = MATS.stone, ch = MATS.char;
+  // Pans de mur de la ferme incendiée (pierre), poutres calcinées. Isolés : aucun enclos où les infectés resteraient coincés.
+  const wall = (x, z, w, d, h, ry = 0) => { mesh(boxG(w, h, d), stone, x, h / 2, z, ry); colliderBox(x, z, w, d, ry, h, 'concrete'); };
+  wall(25.7, 72, 4.6, 0.55, 4.4);                 // pignon nord, porte arrachée
+  { const m = mesh(boxG(1.1, 1.5, 0.56), stone, 25.7, 5.1, 72); m.rotation.z = 0.02; } // haut du pignon
+  wall(22, 75.2, 0.55, 4.6, 3.1);                 // mur ouest (l'angle reste ouvert)
+  wall(26.6, 80, 1.3, 1.3, 5.4);                  // cheminée restée debout
+  wall(13, 79, 5.4, 0.5, 0.95);                   // muret effondré
+  for (let k = 0; k < 6; k++) { const b = mesh(boxG(0.22, 0.22, 4.2), ch, 23 + k * 0.9 + rand(-0.2, 0.2), 0.35 + rand(0, 0.9), 76.5 + rand(-1, 1)); b.rotation.set(rand(-0.25, 0.25), rand(-0.6, 0.6), rand(-0.3, 0.3)); }
+  for (const [x, z, s] of [[24.5, 78.5, 1.1], [28.2, 74.5, 0.8], [20.5, 82, 0.9]]) { const m = mesh(new THREE.SphereGeometry(1, 9, 6, 0, TAU, 0, Math.PI / 2), stone, x, 0, z, rand(TAU)); m.scale.set(s * 1.3, s * 0.45, s); colliderBox(x, z, s * 2, s * 1.6, 0, s * 0.4, 'concrete'); }
+  // Puits.
+  { const x = 11.5, z = 69.5;
+    mesh(new THREE.CylinderGeometry(0.85, 0.9, 0.9, 18, 1, true), fmat('pierre', 0x7a7468, { rough: 1, side: THREE.DoubleSide }), x, 0.45, z); colliderCyl(x, z, 0.9, 0.9, 'concrete');
+    const water = mesh(new THREE.CircleGeometry(0.8, 18), new THREE.MeshBasicMaterial({ color: 0x0a0d10 }), x, 0.35, z, 0, R.scene, false); water.rotation.x = -Math.PI / 2;
+    for (const o of [-0.8, 0.8]) mesh(boxG(0.1, 1.9, 0.1), rawPost(), x + o, 1.3, z);
+    mesh(boxG(1.9, 0.1, 0.1), rawPost(), x, 2.2, z); const roof = mesh(boxG(2.1, 0.06, 1.3), rawWood(), x, 2.4, z); roof.rotation.z = 0.06; }
+  // Charrette renversée, bottes de foin, abreuvoir, tas de fumier gelé.
+  { const g = p7g(27.4, 85, 0.5); const bed = mesh(boxG(1.4, 0.12, 2.6), rawWood(), 0, 0.55, 0, 0, g); bed.rotation.x = 0.25;
+    for (const s of [-0.75, 0.75]) { const w = mesh(new THREE.TorusGeometry(0.55, 0.06, 6, 18), rawPost(), s, 0.55, 0.2, 0, g); w.rotation.y = Math.PI / 2; }
+    mesh(boxG(0.08, 0.08, 2.2), rawPost(), 0, 0.3, -2.1, 0, g).rotation.x = -0.3; colliderBox(27.4, 85, 1.6, 2.8, 0.5, 1.1, 'wood'); }
+  const hay = fmat('foin', 0xb39a5a, { rough: 1, snow: 0.6 });
+  for (const [x, z, y, r] of [[8, 86, 0, 0.1], [9.25, 86.1, 0, -0.05], [8.6, 86, 0.5, 0.2], [30.5, 66.3, 0, 1.2]]) { mesh(boxG(1.2, 0.5, 0.55), hay, x, y + 0.25, z, r); if (!y) colliderBox(x, z, 1.2, 0.55, r, 0.5, 'wood'); }
+  { mesh(boxG(2.2, 0.5, 0.6), rawWood(), 15.2, 0.25, 66.2); colliderBox(15.2, 66.2, 2.2, 0.6, 0, 0.5, 'wood'); const ice = mesh(boxG(2.05, 0.02, 0.45), stdMat({ color: 0xbfd2e0, roughness: 0.15 }), 15.2, 0.48, 66.2, 0, R.scene, false); void ice; }
+  // Tombes fraîches à l'est de la cour (croix de bois, terre retournée) : d'où viennent-ils, à votre avis ?
+  for (let k = 0; k < 4; k++) {
+    const x = 29.6, z = 69 + k * 1.6;
+    const m = mesh(new THREE.SphereGeometry(1, 8, 5, 0, TAU, 0, Math.PI / 2), p7Dirt(), x - 0.9, 0, z, 0); m.scale.set(1.1, 0.22, 0.45);
+    const c = new THREE.Group(); c.position.set(x + 0.3, 0, z); c.rotation.z = rand(-0.15, 0.15); R.scene.add(c);
+    mesh(boxG(0.08, 1.1, 0.08), rawPost(), 0, 0.55, 0, 0, c); mesh(boxG(0.08, 0.08, 0.55), rawPost(), 0, 0.82, 0, 0, c);
+  }
+  // Arbre mort au milieu de la cour, palissade brisée, feu dans un fût (lumière : R.lights.farm).
+  { const t = new THREE.CylinderGeometry(0.12, 0.3, 6.5, 8, 3); t.translate(0, 3.25, 0); const m = mesh(t, MATS.bark, 17.5, -0.1, 82.5); m.rotation.z = 0.08; colliderCyl(17.5, 82.5, 0.3, 3, 'wood');
+    for (let k = 0; k < 4; k++) { const b = new THREE.CylinderGeometry(0.03, 0.08, 1.8, 5); b.translate(0, 0.9, 0); const bm = mesh(b, MATS.bark, 17.5, 2.5 + k * 0.9, 82.5, k * 1.7); bm.rotation.z = 0.9 + rand(-0.2, 0.2); } }
+  for (let k = 0; k < 7; k++) { const x = 6.8 + k * 1.1; if (k === 3) continue; const p = mesh(boxG(0.1, rand(0.7, 1.3), 0.1), rawPost(), x, 0.5, 74.5); p.rotation.z = rand(-0.25, 0.25); }
+  { const x = 18, z = 76.8; mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.88, 18), MATS.rust, x, 0.44, z); colliderCyl(x, z, 0.3, 0.9, 'metal');
+    WORLD.fires.push({ x, y: 0.95, z, size: 0.6, rate: 0.05, t: 0, smoke: 0.3, light: R.lights.farm }); }
+  crate(9.5, 65.2, 0.3); crate(10.3, 65.3, -0.1, 0.8); barrel(26.2, 66.4, MATS.rust); barrel(6.8, 80.2, MATS.olive, true);
+  // Grange calcinée : la charpente seule, ouverte de tous côtés (poteaux, entraits, chevrons qui dépassent du sol).
+  // (rien entre x 12 et 14 au sud : c'est devant la barricade)
+  { for (const [x, z] of [[9.2, 82], [11.6, 82], [15.4, 82.2], [9.2, 87], [11.6, 87]]) { const h = rand(3.6, 4.6); const p = mesh(boxG(0.24, h, 0.24), MATS.char, x, h / 2, z); p.rotation.z = rand(-0.05, 0.05); colliderBox(x, z, 0.26, 0.26, 0, h, 'wood'); }
+    for (const [z, w] of [[82, 6.4], [87, 2.6]]) { const b = mesh(boxG(w, 0.24, 0.24), MATS.char, 9.2 + w / 2 - 0.1, 3.7, z); b.rotation.z = rand(-0.04, 0.04); }
+    for (let k = 0; k < 4; k++) { const r = mesh(boxG(0.16, 0.16, 5.6), MATS.char, 9.5 + k * 1.7, 4.3 + rand(-0.2, 0.2), 84.5); r.rotation.x = rand(-0.35, 0.35); r.rotation.y = rand(-0.08, 0.08); } }
+  // Trou d'obus au milieu de la cour (le sol y descend : floorH) ; charrue, bois de chauffe contre le talus ouest.
+  { const g = p7g(8.5, 77.3, 0.4); mesh(boxG(0.12, 0.12, 2.2), rawPost(), 0, 0.45, 0, 0, g).rotation.x = 0.35; const sh = mesh(boxG(0.5, 0.06, 0.6), MATS.iron, 0, 0.15, 0.9, 0, g); sh.rotation.x = -0.5;
+    for (const s of [-0.35, 0.35]) mesh(boxG(0.06, 0.6, 0.06), rawPost(), s, 0.6, -0.7, 0, g); colliderBox(8.5, 77.3, 0.8, 2.2, 0.4, 0.8, 'wood'); }
+  { for (let row = 0; row < 4; row++) for (let k = 0; k < 6; k++) { const l = mesh(new THREE.CylinderGeometry(0.11, 0.11, 1.1, 7), MATS.bark, 6.65, 0.12 + row * 0.21, 67 + k * 0.23 + (row % 2) * 0.11); l.rotation.x = Math.PI / 2; l.rotation.z = rand(-0.05, 0.05); }
+    collider(6, 66.8, 7.3, 68.5, 0.9, 'wood'); }
+  signPost(15.4, 61.2, 0, ['FERME DE BELLEVUE', '« ICI REPOSENT »']);
+  poster(9.7, 1.5, 64.05, 0, 'RÉQUISITION', 'BÉTAIL ET\nFOURRAGE', '#b9a37c');
+}
+
+/* ─── Le Poste d'observation ─── */
+function buildObservation() {
+  const y0 = 1.8;
+  // Mitrailleuse en batterie sur le parapet nord, pointée sur le no man's land.
+  { const g = new THREE.Group(); g.position.set(89.6, y0, 27.2); R.scene.add(g); // (à l'écart de la rampe nord, x 86 à 88)
+    for (const a of [1.05, 3.15, 5.25]) { const leg = mesh(boxG(0.04, 0.9, 0.04), MATS.iron, Math.sin(a) * 0.15, 0.4, Math.cos(a) * 0.15, 0, g); leg.rotation.x = -Math.cos(a) * 0.33; leg.rotation.z = Math.sin(a) * 0.33; }
+    const gun = new THREE.Group(); gun.position.set(0, 0.95, 0); gun.rotation.set(-0.05, 0, 0); g.add(gun);
+    mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9, 12), MATS.olive, 0, 0, -0.3, 0, gun).rotation.x = Math.PI / 2;
+    mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 8), MATS.iron, 0, 0.02, -0.95, 0, gun).rotation.x = Math.PI / 2;
+    mesh(boxG(0.14, 0.18, 0.5), MATS.iron, 0, 0.02, 0.28, 0, gun);
+    collider(89.2, 26.9, 90, 27.6, y0 + 1.1, 'metal', y0); }
+  // Lunette d'observation sur trépied, périscope, téléphone de campagne, caisses de fusées éclairantes.
+  { const g = new THREE.Group(); g.position.set(84, y0, 28.2); g.rotation.y = 0.3; R.scene.add(g);
+    for (const a of [0.5, 2.6, 4.7]) { const leg = mesh(boxG(0.03, 1.2, 0.03), rawPost(), Math.sin(a) * 0.2, 0.55, Math.cos(a) * 0.2, 0, g); leg.rotation.x = -Math.cos(a) * 0.3; leg.rotation.z = Math.sin(a) * 0.3; }
+    const sc = mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.7, 12), MATS.brass, 0, 1.2, -0.1, 0, g); sc.rotation.x = Math.PI / 2 - 0.1;
+    collider(83.7, 27.9, 84.3, 28.5, y0 + 1.3, 'wood', y0); }
+  mesh(boxG(0.14, 1.2, 0.1), MATS.olive, 90.5, y0 + 1.1, 26.5);
+  { const g = new THREE.Group(); g.position.set(91.2, y0, 33); g.rotation.y = -Math.PI / 2; R.scene.add(g);
+    mesh(boxG(0.7, 0.06, 0.5), rawWood(), 0, 0.75, 0, 0, g); mesh(boxG(0.6, 0.72, 0.42), rawPost(), 0, 0.36, 0, 0, g); mesh(boxG(0.3, 0.2, 0.22), MATS.olive, 0, 0.88, 0, 0, g);
+    collider(90.9, 32.6, 91.5, 33.4, y0 + 1, 'wood', y0); }
+  for (const [x, z, r] of [[83.2, 41.5, 0.1], [84.1, 41.6, -0.2], [83.6, 41.5, 0.3]]) crate(x, z, r, 0.85, y0 + (x === 83.6 ? 0.47 : 0));
+  // Tour de guet en charpente au sud de la plate-forme (deux niveaux de plancher, échelle) et mât de pavillon.
+  { const g = new THREE.Group(); g.position.set(88.5, y0, 40.5); R.scene.add(g);
+    for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) mesh(boxG(0.16, 5.2, 0.16), rawPost(), a, 2.6, b, 0, g);
+    for (const h of [2.4, 4.4]) { mesh(boxG(2.4, 0.1, 2.4), rawWood(), 0, h, 0, 0, g); for (const s of [-1.15, 1.15]) { mesh(boxG(2.4, 0.06, 0.06), rawPost(), 0, h + 0.9, s, 0, g); mesh(boxG(0.06, 0.06, 2.4), rawPost(), s, h + 0.9, 0, 0, g); } }
+    for (let k = 0; k < 10; k++) mesh(boxG(0.5, 0.05, 0.05), rawPost(), 0, 0.3 + k * 0.42, 1.15, 0, g);
+    for (const s of [-0.25, 0.25]) mesh(boxG(0.05, 4.4, 0.05), rawPost(), s, 2.2, 1.15, 0, g);
+    for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) collider(88.5 + a - 0.1, 40.5 + b - 0.1, 88.5 + a + 0.1, 40.5 + b + 0.1, y0 + 5.2, 'wood', y0);
+    WORLD.obsLamp = hangingLamp(0, 5.1, 0, MATS.bulbWarm, g); }
+  { const x = 91.3, z = 37; mesh(new THREE.CylinderGeometry(0.04, 0.05, 7, 8), rawPost(), x, y0 + 3.5, z);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.8, 6, 1), new THREE.MeshStandardMaterial({ map: flagTexture(), roughness: 0.9, side: THREE.DoubleSide }));
+    flag.position.set(x - 0.62, y0 + 6.5, z); flag.userData.dynamic = true; R.scene.add(flag); WORLD.obsFlag = flag; collider(x - 0.06, z - 0.06, x + 0.06, z + 0.06, y0 + 7, 'wood', y0); }
+  // Bâche tendue sur quatre perches au-dessus des caisses (ouverte de tous côtés) ; sacs de sable autour de la mitrailleuse.
+  { const tarp = new THREE.Mesh(new THREE.PlaneGeometry(3, 2.6, 6, 6), fmat('toile', 0x4d5040, { rough: 1, side: THREE.DoubleSide, snow: 1.2 }));
+    const pa = tarp.geometry.attributes.position; for (let i = 0; i < pa.count; i++) pa.setZ(i, -Math.sin((pa.getX(i) / 3 + 0.5) * Math.PI) * 0.18); tarp.geometry.computeVertexNormals();
+    tarp.rotation.x = -Math.PI / 2 + 0.08; tarp.position.set(84.3, y0 + 2.15, 40.2); tarp.castShadow = true; R.scene.add(tarp);
+    for (const [a, b] of [[-1.4, -1.2], [1.4, -1.2], [-1.4, 1.2], [1.4, 1.2]]) { mesh(boxG(0.07, 2.2, 0.07), rawPost(), 84.3 + a, y0 + 1.1, 40.2 + b); collider(84.3 + a - 0.05, 40.2 + b - 0.05, 84.3 + a + 0.05, 40.2 + b + 0.05, y0 + 2.2, 'wood', y0); } }
+  { const bag = sandbagGeo(), bags = new Batch(bag, MATS.sandbag);
+    for (let k = 0; k < 9; k++) { const a = -1.2 + k * 0.3, x = 89.6 + Math.sin(a) * 1.15, z = 27.4 + Math.cos(a) * 1.15 - 1.15 + 1.3; for (let r = 0; r < 2; r++) bags.add(x, y0 + 0.1 + r * 0.19, z, a + Math.PI / 2 + rand(-0.1, 0.1)); }
+    bags.build(); collider(88.3, 28.2, 90.9, 28.9, y0 + 0.4, 'earth', y0); }
+  signPost(75.2, 35.4, 0, ["POSTE D'OBSERVATION", 'TÊTE BAISSÉE']);
+}
+// Drapeau tricolore, délavé et troué.
+function flagTexture() {
+  return textTexture(128, 84, (x, w, h) => { for (const [i, c] of ['#26407a', '#d9d4c4', '#a8302c'].entries()) { x.fillStyle = c; x.fillRect((i * w) / 3, 0, w / 3 + 1, h); }
+    x.globalCompositeOperation = 'destination-out'; for (let k = 0; k < 7; k++) { x.beginPath(); x.arc(Math.random() * w, Math.random() * h, 2 + Math.random() * 5, 0, TAU); x.fill(); } });
+}
+// Le drapeau claque au vent (appelé par l'animation de la carte).
+function p7ExtAnim(dt, time) {
+  const f = WORLD.obsFlag; if (!f) return;
+  const pa = f.geometry.attributes.position; for (let i = 0; i < pa.count; i++) { const u = (pa.getX(i) + 0.6) / 1.2; pa.setZ(i, Math.sin(time * 5 + u * 5) * 0.12 * u); } pa.needsUpdate = true;
 }
 
 
