@@ -1,6 +1,6 @@
 // Catalogue des infectés réalistes d'une carte, pour choisir lesquels garder : chaque modèle numéroté, en pied et en
 // gros plan, sous l'éclairage de la carte (costauds à leur taille de costaud). Planche dans dev/shots/catalogue_<carte>.jpg.
-// usage : node catalogue.mjs <carte> [qualité=2]
+// usage : node catalogue.mjs <carte> [qualité=2] ; MODELES=ci_a,ci_f : ces modèles seulement ; SUFFIXE=_essai : nom de la planche
 import { chromium } from 'playwright';
 import path from 'path';
 import fs from 'fs';
@@ -16,6 +16,7 @@ await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { c
 await page.route('https://cdn.jsdelivr.net/npm/n8ao@2.0.1/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/n8ao/dist/N8AO.js'), contentType: 'application/javascript' }));
 await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
+await ctx.addInitScript((m) => { window.__modeles = m; }, process.env.MODELES || '');
 await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html#carte=' + id);
 await page.waitForFunction(() => window.__spReady, null, { timeout: 600000 });
 await page.evaluate(() => document.querySelector('#soloButton').click());
@@ -27,7 +28,8 @@ const res = await page.evaluate(async () => {
   const M = SP.MAP, W = SP.MAPW(); let best = 0; for (let i = 0; i < M.edge.length; i++) if (M.edge[i] > M.edge[best] && !M.roof[i]) best = i;
   const cx = ((best % W) + 0.5) * 2 - 1.2, cz = (((best / W) | 0) + 0.5) * 2; P.pos.set(cx + 40, P.pos.y, cz + 40); // (joueur loin : l'infecté reste sur place)
   const man = await (await fetch('assets/zombies/manifest.json')).json();
-  const ids = Object.keys(ZREAL.tpl).sort((a, b) => (man.chars[a].brute || man.chars[a].boss) - (man.chars[b].brute || man.chars[b].boss) || (man.chars[a].glow === false) - (man.chars[b].glow === false) || a.localeCompare(b));
+  const only = (window.__modeles || '').split(',').filter(Boolean); // (MODELES=ci_a,ci_f : ceux-là seulement)
+  const ids = Object.keys(ZREAL.tpl).filter((k) => !only.length || only.includes(k)).sort((a, b) => (man.chars[a].brute || man.chars[a].boss) - (man.chars[b].brute || man.chars[b].boss) || (man.chars[a].glow === false) - (man.chars[b].glow === false) || a.localeCompare(b));
   const TW = 300, TH = 360, cols = 3, rows = Math.ceil(ids.length / cols), mc = document.createElement('canvas'); mc.width = TW * 2 * cols; mc.height = TH * rows; const c2 = mc.getContext('2d');
   c2.fillStyle = '#111'; c2.fillRect(0, 0, mc.width, mc.height);
   const cv = R.renderer.domElement, list = ZREAL.list, br = ZREAL.brute, bo = ZREAL.boss, out = [];
@@ -56,7 +58,7 @@ const res = await page.evaluate(async () => {
   return { out, url: mc.toDataURL('image/jpeg', 0.86) };
 });
 fs.mkdirSync(path.join(dir, 'shots'), { recursive: true });
-fs.writeFileSync(path.join(dir, 'shots', `catalogue_${id}.jpg`), Buffer.from(res.url.split(',')[1], 'base64'));
+fs.writeFileSync(path.join(dir, 'shots', `catalogue_${id}${process.env.SUFFIXE || ''}.jpg`), Buffer.from(res.url.split(',')[1], 'base64'));
 for (const r of res.out) console.log(r.join(' | '));
 console.log('ERRORS', errors.length); for (const e of errors.slice(0, 8)) console.log(e);
 await browser.close();

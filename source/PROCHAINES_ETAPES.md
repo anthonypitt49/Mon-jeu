@@ -2,6 +2,16 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 6.11) : infectés maison repeints au niveau des modèles téléchargés
+
+Demande du propriétaire : « continue à améliorer les modèles maison pour qu'ils ressemblent à ceux que j'ai téléchargés », puis viendront l'agrandissement des cartes, des parties plus longues et plus complexes, les effets spéciaux des quêtes et une quête propre à chaque carte.
+
+- **Mesure** (textures des GLB) : les téléchargés étaient deux fois plus sombres (clarté médiane 0,21 à 0,48 contre 0,45 à 0,70) avec 3 à 5 fois plus de rouge (sang, chairs).
+- **Peinture** (`tools/make_zombies.py`, étape 5) : peau terne et crasseuse, lividités violacées, veines plus marquées, orbites plus creuses, sang qui coule de la bouche au cou, plaie au cuir chevelu une fois sur deux, 3 à 6 plaies, mains ensanglantées ; vêtements ternis (fort sur les tissus clairs, presque rien sur les foncés), crasse, boue, col imbibé et quelques coulures isolées, accrocs où l'on voit la chair ; cheveux ternes et poisseux ; dents plus jaunes. Visage moins sali que le corps (lisible de loin).
+- **Logo** : le t-shirt `male_casualsuit06` de MakeHuman porte « MAKEHUMAN » imprimé ; effacé à la fabrication (filtre médian sur la moitié haute de la texture).
+- **Pièges rencontrés** : coulures bornées en x et en hauteur = « tablier » rouge rectangulaire ; assombrir tous les tissus d'un même facteur = silhouettes noires pour les vêtements déjà foncés.
+- 20 GLB regénérés ; contrôle : `dev/catalogue.mjs <carte>` (`MODELES=…`, `SUFFIXE=…` pour un essai).
+
 ## Fait (version 6.10) : ménage des infectés, carte par carte
 
 Retour du propriétaire après essai de la 6.9 : « il y en a qui ne vont vraiment pas avec ceux qu'on avait ; pose-moi des questions avec des images ». Planches numérotées par carte (`dev/catalogue.mjs <carte>` : en pied et en gros plan, éclairage de la carte), choix fait par le propriétaire.

@@ -245,6 +245,11 @@ def one(cid):
         else: img = Image.new('RGBA', (sz, sz), (128, 128, 128, 255))
         img = img.resize((sz, sz), Image.LANCZOS); px = np.asarray(img, np.float32) / 255
         c = px[..., :3]
+        if 'male_casualsuit06' in key:  # logo « MAKEHUMAN » imprimé sur le t-shirt (moitié haute) : remplacé par le tissu voisin
+            from scipy import ndimage
+            top = c[:sz // 2]; med = np.stack([ndimage.median_filter(top[..., i], 25) for i in range(3)], -1)
+            sat = top.max(-1) - top.min(-1); off = (np.abs(top - med).max(-1) > 0.06) | (sat > 0.12)
+            off = ndimage.binary_dilation(off, iterations=3); c = c.copy(); c[:sz // 2][off] = med[off]
         name = next((nm for nm, _ in spec['clothes'] if nm in key), None)
         if name and tint.get(name):  # teinte d'époque : la photo garde son tissage et ses plis, prend la couleur
             lum = c @ np.array([0.299, 0.587, 0.114], np.float32); m = lum.mean() + 1e-3
@@ -293,55 +298,94 @@ def one(cid):
     reg = region; X, Yf, Z = P3[..., 0], P3[..., 1], P3[..., 2]
     skin = (reg == 1) & C3; cloth = (reg == 2) & C3; hair = (reg == 3)
     lum = col @ np.array([0.299, 0.587, 0.114], np.float32)
-    # Peau : grise et froide, à peine verdâtre, marbrée ; veines fines ; ecchymoses ; orbites creuses ; bouche en sang.
+    # Réglée en 6.11 sur les infectés téléchargés (Sketchfab, Mixamo), mesurés : deux fois plus sombres que les nôtres
+    # (clarté médiane 0,25 à 0,45 contre 0,45 à 0,7) et 3 à 5 fois plus de rouge (sang, chairs).
+    # Peau : grise et froide, terne, marbrée, crasseuse ; lividités violacées ; veines ; ecchymoses ; orbites creuses ;
+    # sang qui coule de la bouche sur le menton et le cou.
     n1 = fbm(P3, 5, 4, 1); n2 = fbm(P3, 20, 3, 2)
     dead = np.array([0.6, 0.66, 0.63], np.float32) if race != 'african' else np.array([0.52, 0.52, 0.5], np.float32)
-    s = (lum[..., None] * 0.75 + col * 0.25) * dead * 1.25 + (0.07 if race == 'african' else 0.02)  # (peau sombre : traits encore lisibles)
-    s *= (0.86 + 0.24 * n1)[..., None]
-    bruise = sstep(0.6, 0.75, fbm(P3, 7, 3, 4)) * 0.5; s = s * (1 - bruise[..., None]) + np.array([0.3, 0.2, 0.27], np.float32) * bruise[..., None]
-    rid = 1 - np.abs(2 * fbm(P3, 26, 3, 3) - 1); veins = sstep(0.9, 0.97, rid) * sstep(0.45, 0.6, fbm(P3, 4, 2, 13)) * sstep(0.85, 1.05, Z)  # haut du corps seulement (sur des jambes nues : on aurait dit des tatouages)
-    s *= (1 - 0.4 * veins)[..., None] * (1 - (1 - np.array([0.75, 0.8, 0.95], np.float32)) * veins[..., None])
-    for e in (eyeL, eyeR):
-        d = np.linalg.norm((P3 - e) * [1, 1.6, 1.25], axis=-1); k = sstep(0.05, 0.012, d)
-        s = s * (1 - 0.8 * k)[..., None] + np.array([0.28, 0.04, 0.03], np.float32) * (k * (1 - k) * 1.2)[..., None]
+    face = sstep(eyeL[2] - 0.2, eyeL[2] - 0.1, Z)  # (tête : moins de crasse, sinon le visage ne se lit plus de loin)
+    s = (lum[..., None] * 0.75 + col * 0.25) * dead * (1.0 + 0.12 * face)[..., None] + (0.06 if race == 'african' else 0.015)  # (peau sombre : traits encore lisibles)
+    s *= (0.78 + 0.34 * n1)[..., None]
+    grime = sstep(0.4, 0.78, fbm(P3, 6, 4, 21)) * 0.55 * (1 - 0.6 * face); s = s * (1 - grime[..., None]) + np.array([0.17, 0.14, 0.1], np.float32) * grime[..., None]
+    livid = sstep(0.55, 0.8, fbm(P3, 3, 3, 22)) * 0.45 * (1 - 0.5 * face); s = s * (1 - livid[..., None]) + np.array([0.3, 0.2, 0.28], np.float32) * livid[..., None]
+    bruise = sstep(0.6, 0.75, fbm(P3, 7, 3, 4)) * 0.6; s = s * (1 - bruise[..., None]) + np.array([0.24, 0.13, 0.2], np.float32) * bruise[..., None]
+    rid = 1 - np.abs(2 * fbm(P3, 26, 3, 3) - 1); veins = sstep(0.88, 0.97, rid) * sstep(0.42, 0.6, fbm(P3, 4, 2, 13)) * sstep(0.85, 1.05, Z)  # haut du corps seulement (sur des jambes nues : on aurait dit des tatouages)
+    s *= (1 - 0.5 * veins)[..., None] * (1 - (1 - np.array([0.7, 0.62, 0.85], np.float32)) * veins[..., None])
+    for e in (eyeL, eyeR):  # orbites : creuses, noires et violacées, paupières rougies
+        d = np.linalg.norm((P3 - e) * [1, 1.6, 1.25], axis=-1); k = sstep(0.058, 0.012, d)
+        s = s * (1 - 0.88 * k)[..., None] + np.array([0.22, 0.03, 0.04], np.float32) * (k * (1 - k) * 1.3)[..., None]
     front = Yf < mouth[1] + 0.04
     dm = np.linalg.norm((P3 - mouth) * [1, 1.5, 1.4], axis=-1)
-    streak = sstep(0.5, 0.62, fbm(P3 * [1, 0.15, 0.08], 60, 2, 9)) * (Z < mouth[2]) * (Z > mouth[2] - 0.075 - 0.05 * fbm(P3, 30, 2, 4)) * (np.abs(X) < 0.055) * front
-    blood_m = np.clip(sstep(0.042, 0.018, dm) + streak, 0, 1)
+    # Coulures : bruit étiré à la verticale, de la bouche au menton puis au cou (plus longues au milieu).
+    drip = sstep(0.5, 0.6, fbm(P3 * [1, 0.15, 0.06], 60, 2, 9)); dlen = 0.08 + 0.17 * fbm(P3 * [1, 1, 0.05], 25, 2, 4)
+    streak = drip * (Z < mouth[2]) * (Z > mouth[2] - dlen) * (np.abs(X) < 0.06 - 0.25 * np.maximum(0, mouth[2] - Z) * 0.1) * front
+    blood_m = np.clip(sstep(0.05, 0.016, dm) * (0.55 + 0.45 * fbm(P3, 40, 2, 31)) + streak, 0, 1)
+    # Plaie du cuir chevelu ou de la tempe (une fois sur deux) qui saigne sur le front et la joue.
+    if rng.random() < 0.5:
+        hw = np.array([float(rng.uniform(-0.06, 0.06)), mouth[1] + 0.03, eyeL[2] + 0.07])
+        dh = np.linalg.norm((P3 - hw) * [1, 1, 0.9], axis=-1)
+        run = sstep(0.5, 0.62, fbm(P3 * [1, 0.15, 0.05], 55, 2, 17)) * (Z < hw[2]) * (Z > hw[2] - 0.16) * (np.abs(X - hw[0]) < 0.035) * front
+        blood_m = np.clip(blood_m + sstep(0.03, 0.012, dh) + run * 0.9, 0, 1)
     # Plaies : morsures et chairs à vif, tirées au sort sur la peau (jamais sur le visage).
     wound = np.zeros(lum.shape, np.float32)
     sk_idx = np.argwhere(skin[::16, ::16]) * 16
-    for _ in range(int(rng.integers(2, 5))):
+    for _ in range(int(rng.integers(3, 7))):
         if not len(sk_idx): break
         cy, cx = sk_idx[rng.integers(len(sk_idx))]; c0 = P3[cy, cx]
         if c0[2] > eyeL[2] - 0.12: continue
-        d = np.linalg.norm(P3 - c0, axis=-1); r = rng.uniform(0.025, 0.05)
+        d = np.linalg.norm(P3 - c0, axis=-1); r = rng.uniform(0.03, 0.06)
         wound = np.maximum(wound, sstep(1.0, 0.55, d / (r * (0.6 + 0.8 * fbm(P3, 45, 3, 11)))))
-    flesh = np.array([0.36, 0.05, 0.04], np.float32) * (0.65 + 0.5 * n2)[..., None]; rim = np.array([0.5, 0.36, 0.26], np.float32)
+    flesh = np.array([0.3, 0.035, 0.03], np.float32) * (0.6 + 0.6 * n2)[..., None]; rim = np.array([0.36, 0.26, 0.17], np.float32)
     w = wound[..., None]; s = s * (1 - w) + np.where(w > 0.6, flesh, rim * 0.7) * w
-    b = blood_m[..., None] * 0.9; s = s * (1 - b) + np.array([0.24, 0.02, 0.02], np.float32) * b
+    bl = (0.6 + 0.5 * fbm(P3, 30, 2, 33))[..., None]  # sang séché sombre, plus vif par endroits
+    b = blood_m[..., None] * 0.92; s = s * (1 - b) + np.array([0.2, 0.018, 0.016], np.float32) * bl * b
     hands = sstep(0.95, 0.75, Z) * (np.abs(X) > 0.3)  # mains sales et ensanglantées
-    s = s * (1 - 0.35 * hands)[..., None]
+    hb = hands * sstep(0.4, 0.62, fbm(P3, 14, 3, 34))
+    s = s * (1 - 0.4 * hands)[..., None]; s = s * (1 - 0.8 * hb)[..., None] + np.array([0.2, 0.02, 0.018], np.float32) * (0.8 * hb)[..., None]
     col = np.where(skin[..., None], s, col)
-    # Vêtements : boue qui monte du bas, crasse, sang séché (poitrine, coulures du col), accrocs sombres.
-    c = col.copy(); g1 = fbm(P3, 8, 4, 6)
-    mud = np.clip((0.5 - Z) * 2.4 + (fbm(P3, 5, 3, 5) - 0.5) * 1.3, 0, 1) * 0.6
-    c = c * (1 - mud)[..., None] + np.array([0.23, 0.18, 0.12], np.float32) * mud[..., None]
-    c *= (0.8 + 0.3 * g1)[..., None]
-    chest = sstep(0.32, 0.05, np.linalg.norm((P3 - (mouth + [0, 0.0, -0.28])) * [1.1, 1.6, 0.55], axis=-1)) * front
-    spl = sstep(0.42, 0.62, fbm(P3, 16, 3, 7)) * chest + sstep(0.72, 0.8, fbm(P3, 22, 3, 8)) * 0.8
-    c = c * (1 - spl * 0.8)[..., None] + np.array([0.21, 0.03, 0.025], np.float32) * (spl * 0.8)[..., None]
-    tear = sstep(0.76, 0.84, fbm(P3 * [1.6, 1.6, 0.5], 14, 3, 12))
-    c = c * (1 - tear * 0.7)[..., None] + np.array([0.08, 0.05, 0.04], np.float32) * (tear * 0.7)[..., None]
+    # Vêtements : ternes et salis (les blancs tirent sur le gris jaunâtre), crasse, boue qui monte du bas, sang qui
+    # imbibe le col et coule sur la poitrine et le ventre, éclaboussures, accrocs (chair grise et rouge dans le trou).
+    c = col.copy(); g1 = fbm(P3, 8, 4, 6); lc = c @ np.array([0.299, 0.587, 0.114], np.float32)
+    c = (c * 0.7 + lc[..., None] * 0.3) * (1 - 0.26 * sstep(0.12, 0.55, lc))[..., None]  # (tissus clairs ternis ; les foncés, déjà sombres, à peine)
+    c = np.minimum(c, 0.5 + (c - 0.5) * 0.35) * np.array([1.0, 0.96, 0.86], np.float32)
+    gr = sstep(0.38, 0.75, fbm(P3, 4, 4, 23)) * 0.6; c = c * (1 - gr[..., None]) + np.array([0.13, 0.11, 0.08], np.float32) * gr[..., None]
+    mud = np.clip((0.55 - Z) * 2.4 + (fbm(P3, 5, 3, 5) - 0.5) * 1.3, 0, 1) * 0.7
+    c = c * (1 - mud)[..., None] + np.array([0.2, 0.15, 0.1], np.float32) * mud[..., None]
+    c *= (0.78 + 0.32 * g1)[..., None]
+    # Devant du torse en fondu (un seuil net en y coupait le torse par un plan : le sang finissait par deux bords droits,
+    # un « tablier »), bord rendu irrégulier par du bruit.
+    frontS = sstep(mouth[1] + 0.17 + 0.06 * (fbm(P3, 12, 2, 40) - 0.5), mouth[1] + 0.01, Yf)
+    chest = sstep(0.24, 0.04, np.linalg.norm((P3 - (mouth + [0, 0.0, -0.2])) * [1.7, 1.6, 1.0], axis=-1)) * frontS  # (col et haut de la poitrine)
+    # Coulures du col : quelques filets isolés (un sur quatre environ, tirés le long de x), chacun de sa longueur,
+    # qui pâlissent en descendant ; pas de bord net (avant : un « tablier » rouge rectangulaire).
+    below = np.maximum(0, mouth[2] - 0.14 - Z); Xc = np.stack([X, np.zeros_like(X), np.zeros_like(X)], -1)
+    # (filets fins et sinueux : x décalé par la hauteur ; coupés par endroits ; regroupés vers le milieu)
+    Xw = X + 0.012 * np.sin(Z * 37 + 3 * fbm(P3, 6, 2, 41)) + 0.02 * (fbm(P3 * [0.3, 0.3, 1], 7, 2, 42) - 0.5)
+    Xc = np.stack([Xw, np.zeros_like(X), np.zeros_like(X)], -1)
+    lane = sstep(0.64, 0.7, fbm(Xc, 70, 2, 38)) * sstep(0.42, 0.55, fbm(Xc, 8, 2, 43)); dl = 0.05 + 0.38 * fbm(Xc, 9, 2, 39) ** 1.5
+    brk = sstep(0.32, 0.5, fbm(P3 * [1, 1, 0.35], 28, 2, 44))
+    cdrip = lane * brk * (1 - sstep(0.5, 1.0, below / (dl + 1e-3))) * sstep(0.18, 0.06, np.abs(X)) * frontS * (Z < mouth[2] - 0.12)
+    soak = sstep(0.47, 0.63, fbm(P3, 16, 3, 7) + 0.12 * sstep(0.14, 0.0, np.linalg.norm((P3 - (mouth + [0, 0, -0.16])) * [1.6, 1.6, 1.0], axis=-1)))
+    spl = np.clip(soak * chest + cdrip * 0.85 + sstep(0.7, 0.79, fbm(P3, 22, 3, 8)) * 0.8, 0, 1)
+    c = c * (1 - spl * 0.88)[..., None] + np.array([0.19, 0.02, 0.018], np.float32) * bl * (spl * 0.88)[..., None]
+    tear = sstep(0.74, 0.84, fbm(P3 * [1.6, 1.6, 0.5], 14, 3, 12)); hole = sstep(0.8, 0.86, fbm(P3 * [1.6, 1.6, 0.5], 14, 3, 12))
+    inside = np.array([0.32, 0.28, 0.25], np.float32) * (1 - 0.6 * sstep(0.4, 0.7, n2))[..., None] + np.array([0.18, 0.02, 0.02], np.float32) * sstep(0.4, 0.7, n2)[..., None]
+    c = c * (1 - tear * 0.75)[..., None] + np.array([0.06, 0.04, 0.03], np.float32) * (tear * 0.75)[..., None]
+    c = c * (1 - hole)[..., None] + inside * hole[..., None]
     if spec.get('puttees'):  # bandes molletières : spirale kaki sur le bas du pantalon
         leg = (Z < 0.42) & (Z > 0.1); spiral = np.sin(Z * 150 + np.arctan2(Yf, np.abs(X) - 0.1) * 1.5) > 0
-        pc = np.array([0.4, 0.36, 0.26], np.float32) * np.where(spiral, 1, 0.8)[..., None] * (0.82 + 0.25 * g1)[..., None]
+        pc = np.array([0.32, 0.29, 0.21], np.float32) * np.where(spiral, 1, 0.8)[..., None] * (0.82 + 0.25 * g1)[..., None]
         c = np.where((leg & cloth)[..., None], pc * (1 - mud * 0.6)[..., None], c)
     col = np.where(cloth[..., None], c, col)
-    col = np.where(hair[..., None], col * 0.8, col)
+    # Cheveux : ternes, gras, poussiéreux, du sang collé d'un côté.
+    lh = col @ np.array([0.299, 0.587, 0.114], np.float32)
+    hc = (col * 0.6 + lh[..., None] * 0.4) * 0.6 * (0.8 + 0.3 * fbm(P3, 12, 3, 36))[..., None]
+    hbl = sstep(0.55, 0.7, fbm(P3, 9, 3, 37)) * 0.7; hc = hc * (1 - hbl[..., None]) + np.array([0.16, 0.02, 0.02], np.float32) * hbl[..., None]
+    col = np.where((hair & C3)[..., None], hc, np.where(hair[..., None], col * 0.6, col))
     # Yeux : laiteux, jaunis (le jeu y ajoute leur lueur) ; dents jaunies.
     col = np.where((reg == 4)[..., None], (lum[..., None] * 0.35 + 0.5) * np.array([1, 0.93, 0.72], np.float32), col)
-    col = np.where((reg == 5)[..., None], col * np.array([0.72, 0.6, 0.45], np.float32), col)
+    col = np.where((reg == 5)[..., None], col * np.array([0.6, 0.48, 0.34], np.float32), col)
     # Intérieur de la bouche sombre, comme chez BO2 (sinon la langue et les gencives roses, bien éclairées, faisaient une
     # bouche claire quand la mâchoire s'ouvre) : langue rouge noirâtre, gencives assombries, fond de la bouche (peau
     # du corps derrière l'avant des dents) presque noir.
