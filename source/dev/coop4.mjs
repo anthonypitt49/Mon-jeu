@@ -1,6 +1,6 @@
 // Co-op à QUATRE (partie complète) : un hôte et trois invités, chacun se déplace en cercle pendant que l'hôte abat les
 // infectés ; on vérifie que chacun voit les trois autres là où ils sont, que la manche est la même partout, et qu'un
-// cinquième joueur est refusé (partie complète). Usage : node coop4.mjs [carte=cite]
+// cinquième joueur est refusé pendant la partie (partie complète). Usage : node coop4.mjs [carte=cite]
 // Relais : local par défaut ; Q="nortc=1" IGNORE_CERTS=1 pour la vraie liste de relais publics, sans liaison directe.
 import { chromium } from 'playwright';
 import path from 'path';
@@ -17,7 +17,7 @@ const mk = async (tag) => {
   await page.route('https://cdn.jsdelivr.net/npm/peerjs@1.5.5/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/peerjs/dist/peerjs.min.js'), contentType: 'application/javascript' }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
   await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
-  await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?' + (process.env.Q || 'relay=ws://127.0.0.1:8883&nortc=1') + '#carte=' + MAPID);
+  await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?' + (process.env.Q || 'relay=ws://127.0.0.1:8883&nortc=1') + '#carte=' + MAPID, { timeout: 300000 });
   await page.waitForFunction(() => window.__spReady, null, { timeout: 400000 });
   return page;
 };
@@ -31,11 +31,7 @@ const code = await host.evaluate(() => SP.NET.code);
 for (const [i, g] of guests.entries()) await ui(g, ['Alpha', 'Bravo', 'Charlie'][i], code);
 await host.waitForFunction(() => SP.NET.lobby.length === 4, null, { timeout: 90000 });
 log('salon', code, JSON.stringify(await Promise.all(pages.map((p) => p.evaluate(() => [SP.NET.viaLabel(), SP.NET.lobby.length])))));
-// Un cinquième joueur : refusé.
-const extra = await mk('E'); await ui(extra, 'Echo', code);
-await extra.waitForFunction(() => /complète|trouvée/.test(document.getElementById('joinStatus').textContent), null, { timeout: 60000 }).catch(() => {});
-log('5e joueur :', await extra.evaluate(() => document.getElementById('joinStatus').textContent));
-await extra.context().close();
+for (const g of guests) await g.waitForFunction(() => SP.NET.lobby.length === 4, null, { timeout: 60000 });
 await host.evaluate(() => document.getElementById('startCoop').click());
 for (const g of guests) await g.waitForFunction(() => SP.G.mode === 'playing', null, { timeout: 90000 });
 const ids = await Promise.all(pages.map((p) => p.evaluate(() => SP.P.id)));
@@ -57,6 +53,12 @@ for (let step = 0; step < 240; step++) {
   }
 }
 log('durée réelle', ((Date.now() - t0) / 1000).toFixed(0), 's');
+// Un cinquième joueur pendant la partie : refusé. (Chargé à la fin : une 5e page sur ce conteneur fige les autres plus de
+// 45 s pendant son chargement, et l'hôte les retirerait pour silence, comme un vrai joueur figé.)
+const extra = await mk('E'); await ui(extra, 'Echo', code);
+await extra.waitForFunction(() => /complète|trouvée/.test(document.getElementById('joinStatus').textContent), null, { timeout: 60000 }).catch(() => {});
+log('5e joueur :', await extra.evaluate(() => document.getElementById('joinStatus').textContent));
+await extra.context().close();
 const rounds = await Promise.all(pages.map((p) => p.evaluate(() => SP.G.round))), pl = await Promise.all(pages.map((p) => p.evaluate(() => SP.G.players.size)));
 const ok = rounds.every((r) => r === rounds[0]) && pl.every((n) => n === 4) && worst < 3;
 log(ok ? 'OK   ' : 'ÉCART', 'manches', JSON.stringify(rounds), 'joueurs', JSON.stringify(pl), 'écart de position max', worst.toFixed(2), 'm');
