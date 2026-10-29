@@ -6,12 +6,16 @@
 
 const RELAY_ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const RELAYS = (() => {
-  const q = new URLSearchParams(location.search).get('relay'); // tests : ?relay=ws://127.0.0.1:8883
-  // Le 4e relais écoute sur le port 443, celui du web : il passe les pare-feu qui bloquent les ports 8081, 8084 et 8884.
-  return q ? [q, q, q, q] : ['wss://test.mosquitto.org:8081', 'wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://mqtt.eclipseprojects.io:443/mqtt'];
+  // Tests : ?relay=ws://127.0.0.1:8883 (les quatre), ou quatre adresses séparées par des virgules.
+  const q = new URLSearchParams(location.search).get('relay'), l = q ? q.split(',') : null;
+  // Le 4e relais écoute sur le port 443, celui du web : il passe les pare-feu qui bloquent les ports 8081, 8084 et 8884
+  // (réseaux d'école, d'entreprise, certaines box). Coreflux remplace Eclipse, muet depuis le 21 octobre 2026.
+  return l ? (l.length >= 4 ? l.slice(0, 4) : [q, q, q, q]) : ['wss://test.mosquitto.org:8081', 'wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://iot.coreflux.cloud:443/mqtt'];
 })();
 const RELAY_ROOT = 'snowfall-protocol/v1/';
-const RELAY_NAMES = ['Mosquitto', 'EMQX', 'HiveMQ', 'Eclipse'];
+const RELAY_NAMES = ['Mosquitto', 'EMQX', 'HiveMQ', 'Coreflux'];
+// L'hôte préfère le relais du port 443 : joignable de partout, il laisse entrer les amis dont le réseau filtre les autres.
+const RELAY_PREF = 3, RELAY_PREF_WAIT = 2500;
 // Premier caractère du code : relais 0 à 3 (5 lettres chacun), salon Claude (6 lettres), connexion directe PeerJS (6 lettres).
 const RELAY_G_ROOM = 4, RELAY_G_PEER = 5;
 const RTC_ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, { urls: 'stun:stun.cloudflare.com:3478' }];
@@ -67,17 +71,28 @@ const RELAY = {
   codeFor(k) { const [a, n] = k < RELAY_G_ROOM ? [k * 5, 5] : k === RELAY_G_ROOM ? [20, 6] : [26, 6]; let s = RELAY_ALPHA[a + ((Math.random() * n) | 0)]; for (let i = 0; i < 5; i++) s += RELAY_ALPHA[(Math.random() * RELAY_ALPHA.length) | 0]; return s; },
   // Ouvre la salle du code donné, ou une nouvelle salle sur le premier relais qui répond. Même interface que le salon Claude.
   // `k` impose un relais précis (recherche d'une partie sur chacun des trois).
+  // Nouvelle salle (plusieurs relais essayés) : un autre relais qui répond avant celui du port 443 attend encore
+  // RELAY_PREF_WAIT ; le 443 est pris s'il répond dans ce délai, sinon le premier arrivé.
   open(id, code, k = null, timeout = 9000) {
-    const order = k != null ? [k] : code ? [this.groupOf(code)] : RELAYS.map((_, i) => i);
+    const order = k != null ? [k] : code ? [this.groupOf(code)] : RELAYS.map((_, i) => i), pref = order.length > 1 && order.includes(RELAY_PREF);
     return new Promise((res, rej) => {
       if (!order.every((q) => RELAYS[q])) { rej(new Error('relay')); return; }
-      let done = false, failed = 0; const tries = [];
-      const to = setTimeout(() => { if (done) return; done = true; tries.forEach((c) => c.close()); rej(new Error('relay')); }, timeout);
+      let done = false, failed = 0, early = null, earlyT = 0, prefDead = false; const tries = [];
+      const take = (o) => { if (done) return; done = true; clearTimeout(to); clearTimeout(earlyT); tries.forEach((c) => c !== o.cli && c.close()); o.room.ready(o.cli); res({ room: o.room, code: o.cd }); };
+      const to = setTimeout(() => { if (done) return; if (early) { take(early); return; } done = true; tries.forEach((c) => c.close()); rej(new Error('relay')); }, timeout);
       for (const k of order) {
-        const cd = code || this.codeFor(k), room = relayRoom(RELAY_ROOT + cd.toLowerCase() + '/', id, k);
-        const cli = room.connect(() => { if (!done && ++failed >= order.length) { done = true; clearTimeout(to); rej(new Error('relay')); } });
-        cli.onReady = () => { if (done) { cli.close(); return; } done = true; clearTimeout(to); tries.forEach((o) => o !== cli && o.close()); room.ready(cli); res({ room, code: cd }); };
-        tries.push(cli);
+        const cd = code || this.codeFor(k), room = relayRoom(RELAY_ROOT + cd.toLowerCase() + '/', id, k), o = { room, cd, cli: null };
+        o.cli = room.connect(() => {
+          if (done) return;
+          if (k === RELAY_PREF) { prefDead = true; if (early) { take(early); return; } } // le 443 a échoué : on garde celui qui attendait
+          if (++failed >= order.length) { done = true; clearTimeout(to); rej(new Error('relay')); }
+        });
+        o.cli.onReady = () => {
+          if (done) { o.cli.close(); return; }
+          if (pref && k !== RELAY_PREF && !prefDead) { if (!early) { early = o; earlyT = setTimeout(() => take(early), RELAY_PREF_WAIT); } return; }
+          take(o);
+        };
+        tries.push(o.cli);
       }
     });
   },

@@ -2,14 +2,15 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
-## Fait (version 7.1.1) : co-op en panne chez le propriétaire, diagnostic réseau
+## Fait (version 7.1.2) : co-op rétabli de n'importe où (relais sur le port 443)
 
-Retour du propriétaire (29 octobre) : la partie s'ouvre en « connexion directe » (aucun relais n'a répondu) et son ami, sur le même Wi-Fi, ne peut pas entrer.
+Retour du propriétaire (29 octobre) : partie en « connexion directe », son ami (même Wi-Fi) ne peut pas entrer. Captures du diagnostic (7.1.1) des deux postes : les quatre relais muets (Mosquitto 8081 coupé ; EMQX 8084, HiveMQ 8884 et Eclipse 443 sans réponse), PeerJS joignable, adresse publique (STUN) et TURN impossibles : réseau qui filtre les ports autres que 443 et l'UDP. Avant, Eclipse (port 443) passait ; il ne répond plus depuis le 21 octobre (mqttviewer.app : 0 contrôle réussi sur 11). Le propriétaire veut jouer de n'importe où, comme avant, sans 4G.
 
-- **Cause probable** (non vue chez lui) : le seul relais sur le port 443, `mqtt.eclipseprojects.io`, ne répond plus depuis le 21 octobre (mqttviewer.app : 0 contrôle réussi sur 11) ; Mosquitto est instable ; HiveMQ (8884) et EMQX (8084) marchent, mais sur des ports que son réseau semble filtrer. La connexion directe (PeerJS) échoue ensuite même sur le même Wi-Fi (isolation des appareils, Wi-Fi invité ou box sans « retour NAT »).
-- **Fait** : bouton « Tester mon réseau » (menu Rejoindre et salon) : chaque relais, le serveur PeerJS, les adresses de liaison directe (locale, STUN, TURN), puis un verdict en clair. Messages corrigés : ils ne promettent plus que « le même Wi-Fi suffit ». Relais TURN de PeerJS ajoutés en TCP (passent quand l'UDP est filtré).
-- **À décider avec le propriétaire** : un relais sur le port 443 (flespi, compte gratuit et jeton limité au sujet du jeu : 50 sessions, 20 000 messages par minute), sinon le partage de connexion 4G ou le salon Claude (Artifact partagé).
-- **Contrôles** : `netdiag.mjs` et `coop.mjs` (connexion directe, partie complète), 0 erreur du jeu.
+- **Relais Coreflux** (`wss://iot.coreflux.cloud:443/mqtt`, public, sans compte, certificat Let's Encrypt renouvelé le 25 octobre) à la place d'Eclipse, 4e relais (`src/12c_relay.js`). « Ne pas utiliser en production » selon Coreflux, comme les autres relais publics de test : en cas de panne, chercher un autre relais sur le port 443 (ou un compte gratuit flespi, jeton limité au sujet du jeu).
+- **L'hôte préfère le relais du port 443** (`RELAY_PREF`) : si un autre relais répond d'abord, il attend encore 2,5 s le 443. Sinon un hôte sur un réseau ouvert ouvrirait sa partie sur HiveMQ, que l'ami derrière un réseau filtré ne peut pas joindre.
+- **Interface** : plus d'avertissement jaune dans le salon ; messages d'échec courts ; diagnostic réseau caché, seulement avec `?diag` dans l'adresse (dépannage). Le TURN de PeerJS (aussi en TCP) reste dans la configuration de la connexion directe.
+- **Vérifié** (le conteneur filtre comme le réseau du propriétaire : Mosquitto, EMQX et HiveMQ coupés, port 443 ouvert) : `dev/relais443.mjs` (600 messages sur 600, 74 Ko/s, latence médiane 119 ms) ; `IGNORE_CERTS=1 Q="nortc=1" node coopmission.mjs poste7` (vraie liste de relais, sans liaison directe : l'invité mène toute la grande quête, 0 écart, 0 erreur) ; préférence (trois relais locaux plus rapides + Coreflux : l'hôte choisit Coreflux, mission de la Cité, 0 écart) ; `coop3.mjs cite` (trois joueurs, relève de l'hôte en pleine alerte, 0 écart) ; `dev/coop4.mjs` (quatre joueurs, cinquième refusé) ; `netdiag.mjs`, `coop.mjs` (connexion directe).
+- **Tests en co-op par un relais public** : `same()` attend jusqu'à 4 s que les postes s'accordent (100 à 300 ms d'aller-retour) ; `IGNORE_CERTS=1` parce que le mandataire du conteneur réécrit les certificats.
 
 ## Fait (version 7.1) : la grande quête du Poste 7, « Aube Blanche » en quatre actes
 

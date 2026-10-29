@@ -497,13 +497,13 @@ body.touch .control-strip { display: none; }
         <div class="field"><label for="sessionCode">CODE DE PARTIE</label><input id="sessionCode" maxlength="6" placeholder="EX. FROST7"></div>
         <button type="submit" class="btn" id="joinSubmit">Rejoindre</button>
         <small id="joinStatus">Laissez le code vide pour héberger une nouvelle partie, ou entrez le code d'un ami pour le rejoindre.</small>
-        <button type="button" class="btn ghost diag-btn" id="netDiagBtn">Tester mon réseau</button>
+        <button type="button" class="btn ghost diag-btn hidden" id="netDiagBtn">Tester mon réseau</button>
       </form>
       <div id="lobby" class="lobby hidden">
         <div class="lobby-code"><div><div class="card-label">CODE DE PARTIE</div><b id="lobbyCode">------</b></div><button type="button" class="btn outline-button" id="copyCode">Copier</button></div>
         <ul id="lobbyList"></ul>
         <small id="lobbyStatus">Partagez ce code avec vos amis (4 joueurs max).</small>
-        <div class="row"><button type="button" class="btn" id="startCoop"><span>▶</span> Lancer la partie</button><button type="button" class="btn ghost" id="leaveLobby">Quitter</button><button type="button" class="btn ghost diag-btn" id="netDiagBtn2">Tester mon réseau</button></div>
+        <div class="row"><button type="button" class="btn" id="startCoop"><span>▶</span> Lancer la partie</button><button type="button" class="btn ghost" id="leaveLobby">Quitter</button><button type="button" class="btn ghost diag-btn hidden" id="netDiagBtn2">Tester mon réseau</button></div>
       </div>
       <div id="netDiag" class="net-diag hidden"><b>DIAGNOSTIC RÉSEAU</b><ul id="netDiagList"></ul><p id="netDiagVerdict"></p></div>
       <p class="fullscreen-hint">Astuce : Échap quitte toujours le plein écran (règle du navigateur) — cliquez sur « Reprendre » pour y retourner.</p>
@@ -792,7 +792,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '7.1.1'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '7.1.2'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -9931,10 +9931,10 @@ const NET = {
 // Pourquoi la partie est introuvable : le premier caractère du code dit par où l'hôte est passé.
 function joinFailText(code) {
   const g = RELAY.groupOf(code), head = `Aucune partie trouvée avec le code ${code}.`;
-  if (g === RELAY_G_PEER) return `${head} L'hôte n'a joint aucun relais public : sa partie est en connexion directe, et la liaison directe entre vos deux appareils n'a pas abouti. C'est fréquent, même sur le même Wi-Fi (Wi-Fi invité, réseau d'école, box qui isole les appareils). Le plus sûr : connectez-vous tous les deux au partage de connexion 4G d'un téléphone, puis l'hôte recrée la partie. « Tester mon réseau » (des deux côtés) montre ce qui bloque.`;
+  if (g === RELAY_G_PEER) return `${head} L'hôte n'a joint aucun relais : qu'il recrée la partie.`;
   if (g === RELAY_G_ROOM) return `${head} Ce code est celui d'une partie hébergée dans la page claude.ai : elle ne se rejoint que depuis cette même page. Pour jouer entre amis, hébergez et rejoignez depuis ${PAGES_URL}`;
-  if (!NET.relayReach && !window.claude) return `${head} Aucun relais public ne répond depuis votre réseau (pare-feu, VPN, bloqueur de publicités ou réseau d'école ?). Essayez un autre réseau, par exemple un partage de connexion 4G.`;
-  return `${head} Vérifiez le code (il change si l'hôte recrée la partie) et que vous avez tous les deux la version ${GAME_VERSION} (affichée en bas du menu ; sinon Ctrl+F5).`;
+  if (!NET.relayReach && !window.claude) return `${head} Aucun relais ne répond : vérifiez votre connexion, puis réessayez.`;
+  return `${head} Vérifiez le code (il change si l'hôte recrée la partie) et la version (${GAME_VERSION} des deux côtés, sinon Ctrl+F5).`;
 }
 // Première tentative qui aboutit ; sinon l'erreur la plus parlante (partie complète, accès refusé…).
 function firstReady(probes, timeout) {
@@ -10258,12 +10258,16 @@ function spectateLabel(r) {
 
 const RELAY_ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const RELAYS = (() => {
-  const q = new URLSearchParams(location.search).get('relay'); // tests : ?relay=ws://127.0.0.1:8883
-  // Le 4e relais écoute sur le port 443, celui du web : il passe les pare-feu qui bloquent les ports 8081, 8084 et 8884.
-  return q ? [q, q, q, q] : ['wss://test.mosquitto.org:8081', 'wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://mqtt.eclipseprojects.io:443/mqtt'];
+  // Tests : ?relay=ws://127.0.0.1:8883 (les quatre), ou quatre adresses séparées par des virgules.
+  const q = new URLSearchParams(location.search).get('relay'), l = q ? q.split(',') : null;
+  // Le 4e relais écoute sur le port 443, celui du web : il passe les pare-feu qui bloquent les ports 8081, 8084 et 8884
+  // (réseaux d'école, d'entreprise, certaines box). Coreflux remplace Eclipse, muet depuis le 21 octobre 2026.
+  return l ? (l.length >= 4 ? l.slice(0, 4) : [q, q, q, q]) : ['wss://test.mosquitto.org:8081', 'wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://iot.coreflux.cloud:443/mqtt'];
 })();
 const RELAY_ROOT = 'snowfall-protocol/v1/';
-const RELAY_NAMES = ['Mosquitto', 'EMQX', 'HiveMQ', 'Eclipse'];
+const RELAY_NAMES = ['Mosquitto', 'EMQX', 'HiveMQ', 'Coreflux'];
+// L'hôte préfère le relais du port 443 : joignable de partout, il laisse entrer les amis dont le réseau filtre les autres.
+const RELAY_PREF = 3, RELAY_PREF_WAIT = 2500;
 // Premier caractère du code : relais 0 à 3 (5 lettres chacun), salon Claude (6 lettres), connexion directe PeerJS (6 lettres).
 const RELAY_G_ROOM = 4, RELAY_G_PEER = 5;
 const RTC_ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, { urls: 'stun:stun.cloudflare.com:3478' }];
@@ -10319,17 +10323,28 @@ const RELAY = {
   codeFor(k) { const [a, n] = k < RELAY_G_ROOM ? [k * 5, 5] : k === RELAY_G_ROOM ? [20, 6] : [26, 6]; let s = RELAY_ALPHA[a + ((Math.random() * n) | 0)]; for (let i = 0; i < 5; i++) s += RELAY_ALPHA[(Math.random() * RELAY_ALPHA.length) | 0]; return s; },
   // Ouvre la salle du code donné, ou une nouvelle salle sur le premier relais qui répond. Même interface que le salon Claude.
   // `k` impose un relais précis (recherche d'une partie sur chacun des trois).
+  // Nouvelle salle (plusieurs relais essayés) : un autre relais qui répond avant celui du port 443 attend encore
+  // RELAY_PREF_WAIT ; le 443 est pris s'il répond dans ce délai, sinon le premier arrivé.
   open(id, code, k = null, timeout = 9000) {
-    const order = k != null ? [k] : code ? [this.groupOf(code)] : RELAYS.map((_, i) => i);
+    const order = k != null ? [k] : code ? [this.groupOf(code)] : RELAYS.map((_, i) => i), pref = order.length > 1 && order.includes(RELAY_PREF);
     return new Promise((res, rej) => {
       if (!order.every((q) => RELAYS[q])) { rej(new Error('relay')); return; }
-      let done = false, failed = 0; const tries = [];
-      const to = setTimeout(() => { if (done) return; done = true; tries.forEach((c) => c.close()); rej(new Error('relay')); }, timeout);
+      let done = false, failed = 0, early = null, earlyT = 0, prefDead = false; const tries = [];
+      const take = (o) => { if (done) return; done = true; clearTimeout(to); clearTimeout(earlyT); tries.forEach((c) => c !== o.cli && c.close()); o.room.ready(o.cli); res({ room: o.room, code: o.cd }); };
+      const to = setTimeout(() => { if (done) return; if (early) { take(early); return; } done = true; tries.forEach((c) => c.close()); rej(new Error('relay')); }, timeout);
       for (const k of order) {
-        const cd = code || this.codeFor(k), room = relayRoom(RELAY_ROOT + cd.toLowerCase() + '/', id, k);
-        const cli = room.connect(() => { if (!done && ++failed >= order.length) { done = true; clearTimeout(to); rej(new Error('relay')); } });
-        cli.onReady = () => { if (done) { cli.close(); return; } done = true; clearTimeout(to); tries.forEach((o) => o !== cli && o.close()); room.ready(cli); res({ room, code: cd }); };
-        tries.push(cli);
+        const cd = code || this.codeFor(k), room = relayRoom(RELAY_ROOT + cd.toLowerCase() + '/', id, k), o = { room, cd, cli: null };
+        o.cli = room.connect(() => {
+          if (done) return;
+          if (k === RELAY_PREF) { prefDead = true; if (early) { take(early); return; } } // le 443 a échoué : on garde celui qui attendait
+          if (++failed >= order.length) { done = true; clearTimeout(to); rej(new Error('relay')); }
+        });
+        o.cli.onReady = () => {
+          if (done) { o.cli.close(); return; }
+          if (pref && k !== RELAY_PREF && !prefDead) { if (!early) { early = o; earlyT = setTimeout(() => take(early), RELAY_PREF_WAIT); } return; }
+          take(o);
+        };
+        tries.push(o.cli);
       }
     });
   },
@@ -10481,7 +10496,8 @@ const UI = {
       $('joinSubmit').disabled = false;
     };
     $('sessionCode').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
-    $('netDiagBtn').onclick = $('netDiagBtn2').onclick = () => this.netDiag();
+    // Diagnostic réseau : caché, seulement avec ?diag dans l'adresse (dépannage).
+    if (new URLSearchParams(location.search).has('diag')) { for (const id of ['netDiagBtn', 'netDiagBtn2']) { $(id).classList.remove('hidden'); $(id).onclick = () => this.netDiag(); } }
     $('copyCode').onclick = () => { const c = NET.code; try { navigator.clipboard.writeText(c).then(() => { $('copyCode').textContent = 'Copié'; setTimeout(() => ($('copyCode').textContent = 'Copier'), 1500); }, () => {}); } catch { /* presse-papiers indisponible */ } };
     $('startCoop').onclick = () => { if (NET.isHost) NET.startCoop(); };
     $('leaveLobby').onclick = () => { NET.leave(); $('lobby').classList.add('hidden'); $('joinPanel').classList.remove('hidden'); this.joinStatus("Laissez le code vide pour héberger une nouvelle partie, ou entrez le code d'un ami pour le rejoindre."); };
@@ -10563,8 +10579,7 @@ const UI = {
     $('lobbyList').innerHTML = NET.lobby.map((p, i) => `<li>${escapeHtml(p.name)} <span>${i === 0 ? 'HÔTE' : 'PRÊT'}${p.id === P.id ? ' · VOUS' : ''}${i === 0 ? '' : NET.linkLabel(p.id)}</span></li>`).join('');
     $('startCoop').classList.toggle('hidden', !NET.isHost);
     // L'hôte doit savoir tout de suite si ses amis pourront entrer : connexion directe et salon Claude ont leurs limites.
-    const warn = NET.isHost && NET.via === 'peer' ? " ⚠ Aucun relais public ne répond depuis votre réseau : vos amis n'entreront que si leur appareil joint le vôtre directement, ce qui échoue souvent, même sur le même Wi-Fi (Wi-Fi invité, réseau d'école, box qui isole les appareils). Le plus sûr : tous sur le partage de connexion 4G d'un téléphone. « Tester mon réseau » montre ce qui bloque. Nouvel essai des relais toutes les 12 s — le code changera s'il réussit."
-      : NET.isHost && NET.via === 'room' ? ' ⚠ Partie hébergée dans la page claude.ai : vos amis doivent ouvrir cette même page. Pour jouer avec n\'importe qui, hébergez depuis ' + PAGES_URL : '';
+    const warn = NET.isHost && NET.via === 'room' ? ' ⚠ Partie hébergée dans la page claude.ai : vos amis doivent ouvrir cette même page. Pour jouer avec n\'importe qui, hébergez depuis ' + PAGES_URL : '';
     const found = NET.isHost && NET.relayFound ? ` Relais trouvé : NOUVEAU CODE ${NET.code}.` : '';
     $('lobbyStatus').textContent = (NET.isHost ? `Partagez le code ${NET.code} avec vos amis (4 joueurs max). Lancez quand tout le monde est là.` : "En attente du lancement par l'hôte…") + found + ` Liaison : ${NET.viaLabel()} · version ${GAME_VERSION}.` + warn + (NET.verWarn ? ' ' + NET.verWarn : '');
     $('lobbyStatus').classList.toggle('warn', !!warn);

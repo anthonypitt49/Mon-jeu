@@ -575,10 +575,10 @@ const NET = {
 // Pourquoi la partie est introuvable : le premier caractère du code dit par où l'hôte est passé.
 function joinFailText(code) {
   const g = RELAY.groupOf(code), head = `Aucune partie trouvée avec le code ${code}.`;
-  if (g === RELAY_G_PEER) return `${head} L'hôte n'a joint aucun relais public : sa partie est en connexion directe, et la liaison directe entre vos deux appareils n'a pas abouti. C'est fréquent, même sur le même Wi-Fi (Wi-Fi invité, réseau d'école, box qui isole les appareils). Le plus sûr : connectez-vous tous les deux au partage de connexion 4G d'un téléphone, puis l'hôte recrée la partie. « Tester mon réseau » (des deux côtés) montre ce qui bloque.`;
+  if (g === RELAY_G_PEER) return `${head} L'hôte n'a joint aucun relais : qu'il recrée la partie.`;
   if (g === RELAY_G_ROOM) return `${head} Ce code est celui d'une partie hébergée dans la page claude.ai : elle ne se rejoint que depuis cette même page. Pour jouer entre amis, hébergez et rejoignez depuis ${PAGES_URL}`;
-  if (!NET.relayReach && !window.claude) return `${head} Aucun relais public ne répond depuis votre réseau (pare-feu, VPN, bloqueur de publicités ou réseau d'école ?). Essayez un autre réseau, par exemple un partage de connexion 4G.`;
-  return `${head} Vérifiez le code (il change si l'hôte recrée la partie) et que vous avez tous les deux la version ${GAME_VERSION} (affichée en bas du menu ; sinon Ctrl+F5).`;
+  if (!NET.relayReach && !window.claude) return `${head} Aucun relais ne répond : vérifiez votre connexion, puis réessayez.`;
+  return `${head} Vérifiez le code (il change si l'hôte recrée la partie) et la version (${GAME_VERSION} des deux côtés, sinon Ctrl+F5).`;
 }
 // Première tentative qui aboutit ; sinon l'erreur la plus parlante (partie complète, accès refusé…).
 function firstReady(probes, timeout) {

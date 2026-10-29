@@ -4,7 +4,8 @@ import { chromium } from 'playwright';
 import path from 'path';
 const dir = path.dirname(new URL(import.meta.url).pathname);
 const MAPID = process.argv[2] || 'cite';
-const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--allow-loopback-in-peer-connection', '--disable-features=WebRtcHideLocalIpsWithMdns'] });
+// (IGNORE_CERTS=1 : relais publics joints à travers le mandataire du conteneur, qui réécrit les certificats)
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--allow-loopback-in-peer-connection', '--disable-features=WebRtcHideLocalIpsWithMdns', ...(process.env.IGNORE_CERTS ? ['--ignore-certificate-errors'] : [])] });
 const mk = async (tag) => {
   const ctx = await browser.newContext({ viewport: { width: 480, height: 270 } });
   await ctx.addInitScript(() => { localStorage.setItem('sp_settings', JSON.stringify({ quality: 0 })); const ce = console.error.bind(console); console.error = (...a) => ce(...a.map((x) => (x && x.stack ? x.stack : x))); });
@@ -15,7 +16,7 @@ const mk = async (tag) => {
   await page.route('https://cdn.jsdelivr.net/npm/peerjs@1.5.5/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/peerjs/dist/peerjs.min.js'), contentType: 'application/javascript' }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
   await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?' + (process.env.Q || 'relay=ws://127.0.0.1:8883&nortc=1') + '#carte=' + MAPID);
-  await page.waitForFunction(() => window.__spReady, null, { timeout: 180000 });
+  await page.waitForFunction(() => window.__spReady, null, { timeout: 400000 });
   return page;
 };
 const log = (...a) => console.log(...a);
@@ -33,7 +34,8 @@ log('carte', MAPID, 'joueurs', JSON.stringify(await Promise.all(pages.map((p) =>
 const defKill = () => { window.killNear = (r = 6) => { for (const z of SP.ZOMBIES) if (z.alive && z.state !== 'rise' && !z.boss) for (const [, p] of SP.G.players) if (z.pos.distanceTo(p.pos) < r) { SP.G.applyDamage(z, 1e7, SP.P.id, { dir: new SP.THREE.Vector3(1, 0, 0) }); break; } }; };
 for (const p of pages) await p.evaluate(defKill);
 const tick = async (sec) => { for (let i = 0; i < sec * 4; i++) { await Promise.all(pages.map((p) => p.evaluate(() => { SP.P.hp = SP.P.maxHp = 1e6; SP.sim(0.25); if (SP.G.authority) killNear(); }))); await pages[0].waitForTimeout(20); } };
-const same = async (label, f) => { const r = await Promise.all(pages.map((p) => p.evaluate(f))); const ok = r.every((v) => JSON.stringify(v) === JSON.stringify(r[0])); if (!ok) bad++; log((ok ? 'OK   ' : 'ÉCART') + ' ' + label, JSON.stringify(r[0]), ok ? '' : '≠ ' + JSON.stringify(r.slice(1))); return r; };
+// (relais public : 100 à 300 ms d'aller-retour ; on laisse aux joueurs jusqu'à 4 s pour s'accorder)
+const same = async (label, f) => { let r = await Promise.all(pages.map((p) => p.evaluate(f))); for (let i = 0; i < 16 && !r.every((v) => JSON.stringify(v) === JSON.stringify(r[0])); i++) { await pages[0].waitForTimeout(250); r = await Promise.all(pages.map((p) => p.evaluate(f))); } const ok = r.every((v) => JSON.stringify(v) === JSON.stringify(r[0])); if (!ok) bad++; log((ok ? 'OK   ' : 'ÉCART') + ' ' + label, JSON.stringify(r[0]), ok ? '' : '≠ ' + JSON.stringify(r.slice(1))); return r; };
 const at = (p, x, z) => p.evaluate(([x, z]) => { SP.P.pos.set(x, 0, z); SP.P.vel.set(0, 0, 0); }, [x, z]);
 const act = (p, k, i) => p.evaluate(([k, i]) => SP.G.interact(SP.P.id, k, i), [k, i]);
 const ids = await Promise.all(pages.map((p) => p.evaluate(() => SP.P.id)));

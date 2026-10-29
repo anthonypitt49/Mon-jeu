@@ -25,7 +25,8 @@ const UI = {
       $('joinSubmit').disabled = false;
     };
     $('sessionCode').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
-    $('netDiagBtn').onclick = $('netDiagBtn2').onclick = () => this.netDiag();
+    // Diagnostic réseau : caché, seulement avec ?diag dans l'adresse (dépannage).
+    if (new URLSearchParams(location.search).has('diag')) { for (const id of ['netDiagBtn', 'netDiagBtn2']) { $(id).classList.remove('hidden'); $(id).onclick = () => this.netDiag(); } }
     $('copyCode').onclick = () => { const c = NET.code; try { navigator.clipboard.writeText(c).then(() => { $('copyCode').textContent = 'Copié'; setTimeout(() => ($('copyCode').textContent = 'Copier'), 1500); }, () => {}); } catch { /* presse-papiers indisponible */ } };
     $('startCoop').onclick = () => { if (NET.isHost) NET.startCoop(); };
     $('leaveLobby').onclick = () => { NET.leave(); $('lobby').classList.add('hidden'); $('joinPanel').classList.remove('hidden'); this.joinStatus("Laissez le code vide pour héberger une nouvelle partie, ou entrez le code d'un ami pour le rejoindre."); };
@@ -107,8 +108,7 @@ const UI = {
     $('lobbyList').innerHTML = NET.lobby.map((p, i) => `<li>${escapeHtml(p.name)} <span>${i === 0 ? 'HÔTE' : 'PRÊT'}${p.id === P.id ? ' · VOUS' : ''}${i === 0 ? '' : NET.linkLabel(p.id)}</span></li>`).join('');
     $('startCoop').classList.toggle('hidden', !NET.isHost);
     // L'hôte doit savoir tout de suite si ses amis pourront entrer : connexion directe et salon Claude ont leurs limites.
-    const warn = NET.isHost && NET.via === 'peer' ? " ⚠ Aucun relais public ne répond depuis votre réseau : vos amis n'entreront que si leur appareil joint le vôtre directement, ce qui échoue souvent, même sur le même Wi-Fi (Wi-Fi invité, réseau d'école, box qui isole les appareils). Le plus sûr : tous sur le partage de connexion 4G d'un téléphone. « Tester mon réseau » montre ce qui bloque. Nouvel essai des relais toutes les 12 s — le code changera s'il réussit."
-      : NET.isHost && NET.via === 'room' ? ' ⚠ Partie hébergée dans la page claude.ai : vos amis doivent ouvrir cette même page. Pour jouer avec n\'importe qui, hébergez depuis ' + PAGES_URL : '';
+    const warn = NET.isHost && NET.via === 'room' ? ' ⚠ Partie hébergée dans la page claude.ai : vos amis doivent ouvrir cette même page. Pour jouer avec n\'importe qui, hébergez depuis ' + PAGES_URL : '';
     const found = NET.isHost && NET.relayFound ? ` Relais trouvé : NOUVEAU CODE ${NET.code}.` : '';
     $('lobbyStatus').textContent = (NET.isHost ? `Partagez le code ${NET.code} avec vos amis (4 joueurs max). Lancez quand tout le monde est là.` : "En attente du lancement par l'hôte…") + found + ` Liaison : ${NET.viaLabel()} · version ${GAME_VERSION}.` + warn + (NET.verWarn ? ' ' + NET.verWarn : '');
     $('lobbyStatus').classList.toggle('warn', !!warn);

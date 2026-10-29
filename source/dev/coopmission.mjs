@@ -5,7 +5,8 @@ import { chromium } from 'playwright';
 import path from 'path';
 const dir = path.dirname(new URL(import.meta.url).pathname);
 const MAPID = process.argv[2] || 'cite';
-const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--allow-loopback-in-peer-connection', '--disable-features=WebRtcHideLocalIpsWithMdns'] });
+// (IGNORE_CERTS=1 : relais publics joints à travers le mandataire du conteneur, qui réécrit les certificats)
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--allow-loopback-in-peer-connection', '--disable-features=WebRtcHideLocalIpsWithMdns', ...(process.env.IGNORE_CERTS ? ['--ignore-certificate-errors'] : [])] });
 const mk = async (tag) => {
   const ctx = await browser.newContext({ viewport: { width: 640, height: 360 } });
   await ctx.addInitScript(() => { localStorage.setItem('sp_settings', JSON.stringify({ quality: 0 })); });
@@ -30,8 +31,8 @@ await ui(guest, 'Invite', code);
 await host.waitForFunction(() => SP.NET.lobby.length === 2, null, { timeout: 40000 });
 await host.evaluate(() => document.getElementById('startCoop').click());
 await guest.waitForFunction(() => SP.G.mode === 'playing', null, { timeout: 40000 });
-log('carte', MAPID, 'code', code, 'via', await guest.evaluate(() => SP.NET.via));
 const gid = await guest.evaluate(() => SP.P.id);
+await host.waitForFunction((gid) => SP.G.players.has(gid), gid, { timeout: 60000 });
 const trace = () => { const N = SP.NET; window.__net = []; for (const f of ['lostHost', 'relayDown', 'becomeHost', 'stepDown', 'adoptHost', 'hostGone', 'nextCandidate', 'cancelMigration']) { const o = N[f].bind(N); N[f] = (...a) => { window.__net.push([((performance.now() / 1000) | 0) + 's', f, JSON.stringify(a).slice(0, 60), 'vt-hostVt=' + ((N.vt - N.hostVt) | 0)]); return o(...a); }; } };
 await host.evaluate(trace); await guest.evaluate(trace);
 // Pas de 0,25 s des deux côtés ; l'hôte abat les infectés proches de n'importe quel soldat (les soldats sont invulnérables).
@@ -40,7 +41,9 @@ await host.evaluate(defKill); await guest.evaluate(defKill);
 const tick = async (sec, kill = true) => { for (let i = 0; i < sec * 4; i++) { await Promise.all([host.evaluate((k) => { SP.P.hp = SP.P.maxHp = 1e6; SP.sim(0.25); if (k && SP.G.authority) killNear(); }, kill), guest.evaluate((k) => { SP.P.hp = SP.P.maxHp = 1e6; SP.sim(0.25); if (k && SP.G.authority) killNear(); }, kill)]); await host.waitForTimeout(30); } };
 const authPage = async () => ((await guest.evaluate(() => SP.G.authority)) ? guest : host);
 const both = async (f) => [await host.evaluate(f), await guest.evaluate(f)];
-const same = async (label, f) => { const [h, g] = await both(f); const ok = JSON.stringify(h) === JSON.stringify(g); if (!ok) bad++; log((ok ? 'OK   ' : 'ÉCART') + ' ' + label, JSON.stringify(h), ok ? '' : '≠ invité ' + JSON.stringify(g)); return [h, g]; };
+log('carte', MAPID, 'code', code, 'liaison hôte / invité', JSON.stringify(await both(() => SP.NET.viaLabel())));
+// (relais public : 100 à 300 ms d'aller-retour ; on laisse aux deux côtés jusqu'à 4 s pour s'accorder)
+const same = async (label, f) => { let [h, g] = await both(f); for (let i = 0; i < 16 && JSON.stringify(h) !== JSON.stringify(g); i++) { await host.waitForTimeout(250); [h, g] = await both(f); } const ok = JSON.stringify(h) === JSON.stringify(g); if (!ok) bad++; log((ok ? 'OK   ' : 'ÉCART') + ' ' + label, JSON.stringify(h), ok ? '' : '≠ invité ' + JSON.stringify(g)); return [h, g]; };
 const objG = () => guest.evaluate(() => { SP.UI.objective(); return ['objectiveTitle', 'objectiveText'].map((i) => document.getElementById(i).textContent).join(' | '); });
 // L'invité se place et agit (l'action passe par l'hôte).
 const gAt = (x, z) => guest.evaluate(([x, z]) => { SP.P.pos.set(x, 0, z); SP.P.vel.set(0, 0, 0); }, [x, z]);
