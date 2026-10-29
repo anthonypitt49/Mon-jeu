@@ -31,7 +31,10 @@ const code = await host.evaluate(() => SP.NET.code);
 for (const [i, g] of guests.entries()) await ui(g, ['Alpha', 'Bravo', 'Charlie'][i], code);
 await host.waitForFunction(() => SP.NET.lobby.length === 4, null, { timeout: 90000 });
 log('salon', code, JSON.stringify(await Promise.all(pages.map((p) => p.evaluate(() => [SP.NET.viaLabel(), SP.NET.lobby.length])))));
-for (const g of guests) await g.waitForFunction(() => SP.NET.lobby.length === 4, null, { timeout: 60000 });
+for (const g of guests) await g.waitForFunction(() => SP.NET.lobby.length === 4, null, { timeout: 60000 }).catch(async () => {
+  log('ÉCHEC salon', JSON.stringify(await Promise.all(pages.map((p) => p.evaluate(() => ({ id: SP.P.id, active: SP.NET.active, host: SP.NET.isHost, lobby: SP.NET.lobby.map((q) => q.name), conns: [...SP.NET.conns.keys()], status: document.getElementById('joinStatus').textContent.slice(0, 120), mode: SP.G.mode }))))));
+  throw new Error('salon incomplet');
+});
 await host.evaluate(() => document.getElementById('startCoop').click());
 for (const g of guests) await g.waitForFunction(() => SP.G.mode === 'playing', null, { timeout: 90000 });
 const ids = await Promise.all(pages.map((p) => p.evaluate(() => SP.P.id)));
