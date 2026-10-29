@@ -15,6 +15,8 @@ const RELAY_NAMES = ['Mosquitto', 'EMQX', 'HiveMQ', 'Eclipse'];
 // Premier caractère du code : relais 0 à 3 (5 lettres chacun), salon Claude (6 lettres), connexion directe PeerJS (6 lettres).
 const RELAY_G_ROOM = 4, RELAY_G_PEER = 5;
 const RTC_ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, { urls: 'stun:stun.cloudflare.com:3478' }];
+// Relais TURN publics de PeerJS (ceux de sa configuration par défaut), plus leur variante TCP.
+const PEERJS_TURN = { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478', 'turn:eu-0.turn.peerjs.com:3478?transport=tcp', 'turn:us-0.turn.peerjs.com:3478?transport=tcp'], username: 'peerjs', credential: 'peerjsp' };
 
 // Petit client MQTT 3.1.1 (QoS 0) : connexion, abonnement, publication, maintien en vie.
 function mqttOpen(url, id, will, onMsg, onDown) {
@@ -145,3 +147,55 @@ const RTC = {
     } catch { /* négociation ratée : le relais continue */ }
   },
 };
+
+/* ─── Diagnostic réseau (bouton « Tester mon réseau ») : ce qui passe et ce qui bloque, en clair ───
+   Relais publics un par un, serveur de la connexion directe (PeerJS), puis les adresses que le navigateur trouve pour une
+   liaison directe : locale (même réseau), publique (STUN, réseaux différents), relais TURN (quand le direct est impossible). */
+async function netDiagnose(draw) {
+  const rows = [], put = (i, st, t) => { rows[i] = [st, t]; draw(rows); };
+  const ms = (t0) => Math.round(performance.now() - t0) + ' ms', port = (u) => (u.match(/:(\d+)(?:\/|$)/) || [0, '443'])[1];
+  const relay = (k, i) => new Promise((res) => {
+    const name = `Relais ${RELAY_NAMES[k]} (port ${port(RELAYS[k])})`, t0 = performance.now(); let done = false, to = 0;
+    put(i, 'wait', name + ' : test…');
+    const fin = (ok, why) => { if (done) return; done = true; clearTimeout(to); try { cli.close(); } catch { /* fermé */ } put(i, ok ? 'ok' : 'ko', `${name} : ${ok ? 'joignable, ' + ms(t0) : why}`); res(ok); };
+    const cli = mqttOpen(RELAYS[k], 'diag' + Math.random().toString(36).slice(2, 9), null, () => {}, (w) => fin(false, w === 'refused' ? 'refuse la connexion' : 'injoignable'));
+    cli.onReady = () => fin(true); to = setTimeout(() => fin(false, 'pas de réponse en 8 s'), 8000);
+  });
+  const n = RELAYS.length, iPeer = n, iIce = n + 1;
+  const peer = (async () => {
+    put(iPeer, 'wait', 'Serveur de la connexion directe (PeerJS) : test…'); const t0 = performance.now();
+    try {
+      const Peer = await NET.loadLib();
+      return await new Promise((res) => {
+        const p = new Peer('snowfall-diag-' + Math.random().toString(36).slice(2, 10), NET.peerOptions()); let done = false;
+        const fin = (ok, why) => { if (done) return; done = true; clearTimeout(to); try { p.destroy(); } catch { /* fermé */ } put(iPeer, ok ? 'ok' : 'ko', `Serveur de la connexion directe (PeerJS) : ${ok ? 'joignable, ' + ms(t0) : why}`); res(ok); };
+        const to = setTimeout(() => fin(false, 'pas de réponse en 8 s'), 8000);
+        p.on('open', () => fin(true)); p.on('error', (e) => fin(false, 'erreur ' + (e?.type || '')));
+      });
+    } catch { put(iPeer, 'ko', 'Serveur de la connexion directe (PeerJS) : module injoignable'); return false; }
+  })();
+  const ice = new Promise((res) => {
+    put(iIce, 'wait', 'Liaison directe : recherche des adresses…'); const seen = { host: 0, mdns: 0, srflx: 0, relay: 0 };
+    let pc, done = false, to = 0;
+    const fin = () => {
+      if (done) return; done = true; clearTimeout(to); try { pc && pc.close(); } catch { /* fermé */ }
+      const ok = seen.host || seen.srflx || seen.relay;
+      put(iIce, ok ? 'ok' : 'ko', `Liaison directe : adresse locale ${seen.host ? '✔' : '✖'}${seen.mdns ? ' (masquée .local)' : ''} · publique (STUN) ${seen.srflx ? '✔' : '✖'} · relais TURN ${seen.relay ? '✔' : '✖'}`); res(seen);
+    };
+    try { pc = new RTCPeerConnection({ iceServers: [...RTC_ICE, PEERJS_TURN] }); } catch { put(iIce, 'ko', 'Liaison directe : non prise en charge par ce navigateur'); res(seen); return; }
+    pc.onicecandidate = (e) => { if (!e.candidate) { fin(); return; } const c = e.candidate.candidate || '', t = e.candidate.type || (/ typ (\w+)/.exec(c) || [])[1]; if (t in seen) seen[t]++; if (t === 'host' && /\.local/.test(c)) seen.mdns++; };
+    pc.createDataChannel('diag'); pc.createOffer().then((o) => pc.setLocalDescription(o)).catch(fin);
+    to = setTimeout(fin, 9000);
+  });
+  const okR = await Promise.all(RELAYS.map((_, k) => relay(k, k))), okP = await peer, s = await ice;
+  const reach = okR.map((ok, k) => (ok ? RELAY_NAMES[k] : null)).filter(Boolean);
+  const head = `Version ${GAME_VERSION} · ${new Date().toLocaleString('fr-FR')}. `;
+  if (!navigator.onLine) return head + 'Cet appareil est hors ligne.';
+  if (reach.length) return head + `✔ Le co-op en ligne marche depuis ce réseau (relais ${reach.join(', ')}) : vos amis peuvent vous rejoindre de n'importe où, s'ils ont eux aussi un relais joignable (qu'ils fassent le test).`;
+  let t = head + "✖ Aucun relais public ne répond : ce réseau, un antivirus ou un bloqueur filtre ces connexions (les ports autres que 443, sur les réseaux d'école ou d'entreprise et certaines box). ";
+  if (!okP) t += 'Le serveur de la connexion directe ne répond pas non plus : le co-op est impossible depuis ce réseau. ';
+  else if (s.relay) t += 'La connexion directe reste possible, même entre réseaux différents (relais TURN joignable). ';
+  else if (s.srflx) t += "La connexion directe ne marchera qu'entre appareils qui se voient (même Wi-Fi sans isolation des appareils, ou réseaux ouverts). ";
+  else t += "La connexion directe est bloquée elle aussi (UDP filtré) : seul un autre réseau marchera. ";
+  return t + 'Le plus sûr : connectez-vous tous au partage de connexion 4G d\'un téléphone (ou chacun à sa 4G), puis recréez la partie.';
+}

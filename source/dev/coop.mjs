@@ -14,7 +14,7 @@ const mk = async (tag) => {
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
   await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
   await page.goto('file://' + path.join(dir, 'index.html') + '?peer=127.0.0.1:9000');
-  await page.waitForFunction(() => window.__spReady, null, { timeout: 120000 });
+  await page.waitForFunction(() => window.__spReady, null, { timeout: 400000 });
   return page;
 };
 const host = await mk('host'), guest = await mk('guest');

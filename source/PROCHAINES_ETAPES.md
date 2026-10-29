@@ -2,6 +2,15 @@
 
 Note de passation entre sessions de travail : où en est le projet et ce qui vient ensuite.
 
+## Fait (version 7.1.1) : co-op en panne chez le propriétaire, diagnostic réseau
+
+Retour du propriétaire (29 octobre) : la partie s'ouvre en « connexion directe » (aucun relais n'a répondu) et son ami, sur le même Wi-Fi, ne peut pas entrer.
+
+- **Cause probable** (non vue chez lui) : le seul relais sur le port 443, `mqtt.eclipseprojects.io`, ne répond plus depuis le 21 octobre (mqttviewer.app : 0 contrôle réussi sur 11) ; Mosquitto est instable ; HiveMQ (8884) et EMQX (8084) marchent, mais sur des ports que son réseau semble filtrer. La connexion directe (PeerJS) échoue ensuite même sur le même Wi-Fi (isolation des appareils, Wi-Fi invité ou box sans « retour NAT »).
+- **Fait** : bouton « Tester mon réseau » (menu Rejoindre et salon) : chaque relais, le serveur PeerJS, les adresses de liaison directe (locale, STUN, TURN), puis un verdict en clair. Messages corrigés : ils ne promettent plus que « le même Wi-Fi suffit ». Relais TURN de PeerJS ajoutés en TCP (passent quand l'UDP est filtré).
+- **À décider avec le propriétaire** : un relais sur le port 443 (flespi, compte gratuit et jeton limité au sujet du jeu : 50 sessions, 20 000 messages par minute), sinon le partage de connexion 4G ou le salon Claude (Artifact partagé).
+- **Contrôles** : `netdiag.mjs` et `coop.mjs` (connexion directe, partie complète), 0 erreur du jeu.
+
 ## Fait (version 7.1) : la grande quête du Poste 7, « Aube Blanche » en quatre actes
 
 Plan validé par le propriétaire (« Oui, ce plan ») ; durée visée : environ une heure, les étapes clés attendent une manche minimale.

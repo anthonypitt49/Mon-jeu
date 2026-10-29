@@ -92,6 +92,13 @@ h1 em { display: block; color: transparent; font-style: inherit; -webkit-text-st
 .lobby .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .lobby small { color: #8fa7b0; font-size: .82rem; }
 .lobby small.warn { color: #ffb08a; }
+.join-panel .diag-btn { grid-column: 1 / -1; justify-self: start; padding: 4px 0; font-size: .66rem; text-decoration: underline; }
+.lobby .diag-btn { font-size: .66rem; text-decoration: underline; }
+.net-diag { width: min(100%, 470px); margin-top: 10px; padding: 14px 16px; border: 1px solid #9fe5f14a; background: #061019e0; display: grid; gap: 8px; }
+.net-diag b { color: #a7c3cc; font-size: .66rem; letter-spacing: .14em; }
+.net-diag ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: .8rem; line-height: 1.35; }
+.net-diag li.ok { color: #9be7a8; } .net-diag li.ko { color: #ff9a8a; } .net-diag li.wait { color: #8fa7b0; }
+.net-diag p { margin: 0; color: #e8f6fa; font-size: .82rem; line-height: 1.45; }
 .fullscreen-hint { color: var(--dim); font-size: .78rem; margin: 14px 0 0; max-width: 480px; line-height: 1.45; }
 .mission-card { width: 236px; align-self: end; margin: 0 15px 42px 30px; padding: 20px; border: 1px solid #b4e5f333; background: #0610199e; backdrop-filter: blur(6px); }
 .card-label { color: #93d8eb; font-size: .66rem; font-weight: 800; letter-spacing: .2em; }
@@ -490,13 +497,15 @@ body.touch .control-strip { display: none; }
         <div class="field"><label for="sessionCode">CODE DE PARTIE</label><input id="sessionCode" maxlength="6" placeholder="EX. FROST7"></div>
         <button type="submit" class="btn" id="joinSubmit">Rejoindre</button>
         <small id="joinStatus">Laissez le code vide pour héberger une nouvelle partie, ou entrez le code d'un ami pour le rejoindre.</small>
+        <button type="button" class="btn ghost diag-btn" id="netDiagBtn">Tester mon réseau</button>
       </form>
       <div id="lobby" class="lobby hidden">
         <div class="lobby-code"><div><div class="card-label">CODE DE PARTIE</div><b id="lobbyCode">------</b></div><button type="button" class="btn outline-button" id="copyCode">Copier</button></div>
         <ul id="lobbyList"></ul>
         <small id="lobbyStatus">Partagez ce code avec vos amis (4 joueurs max).</small>
-        <div class="row"><button type="button" class="btn" id="startCoop"><span>▶</span> Lancer la partie</button><button type="button" class="btn ghost" id="leaveLobby">Quitter</button></div>
+        <div class="row"><button type="button" class="btn" id="startCoop"><span>▶</span> Lancer la partie</button><button type="button" class="btn ghost" id="leaveLobby">Quitter</button><button type="button" class="btn ghost diag-btn" id="netDiagBtn2">Tester mon réseau</button></div>
       </div>
+      <div id="netDiag" class="net-diag hidden"><b>DIAGNOSTIC RÉSEAU</b><ul id="netDiagList"></ul><p id="netDiagVerdict"></p></div>
       <p class="fullscreen-hint">Astuce : Échap quitte toujours le plein écran (règle du navigateur) — cliquez sur « Reprendre » pour y retourner.</p>
     </div>
     <aside class="mission-card">
@@ -783,7 +792,7 @@ const WALL_H = 2.5;       // profondeur des tranchées
 const EYE = 1.62, EYE_CROUCH = 1.02, P_RADIUS = 0.34;
 const GRAVITY = 15;
 const MAX_PLAYERS = 4;
-const GAME_VERSION = '7.1'; // à augmenter à chaque mise en ligne (voir version.json)
+const GAME_VERSION = '7.1.1'; // à augmenter à chaque mise en ligne (voir version.json)
 
 /* ─── Bus d'événements minimal ─── */
 const bus = { h: {}, on(e, f) { (this.h[e] ||= []).push(f); }, emit(e, ...a) { (this.h[e] || []).forEach((f) => f(...a)); } };
@@ -9377,8 +9386,9 @@ const NET = {
   linkLabel(id) { if (this.via !== 'relay') return ''; const L = this.isHost ? this.links.get(id) : id === P.id ? this.links.get('host') : null; return L === null ? '' : RTC.healthy(L) ? ' · DIRECT' : ' · RELAIS'; },
   peerOptions() {
     const q = new URLSearchParams(location.search).get('peer'); // ex. ?peer=127.0.0.1:9000 pour un serveur de signalisation privé
-    if (!q) return { debug: 0 };
-    const [host, port] = q.split(':'); return { host, port: +port || 9000, path: '/', secure: location.protocol === 'https:' && host !== 'localhost', debug: 0 };
+    const config = { iceServers: [...RTC_ICE, PEERJS_TURN] }; // (TURN de PeerJS aussi en TCP : passe quand l'UDP est filtré)
+    if (!q) return { debug: 0, config };
+    const [host, port] = q.split(':'); return { host, port: +port || 9000, path: '/', secure: location.protocol === 'https:' && host !== 'localhost', debug: 0, config };
   },
   loadLib() {
     if (window.Peer) return Promise.resolve(window.Peer);
@@ -9921,7 +9931,7 @@ const NET = {
 // Pourquoi la partie est introuvable : le premier caractère du code dit par où l'hôte est passé.
 function joinFailText(code) {
   const g = RELAY.groupOf(code), head = `Aucune partie trouvée avec le code ${code}.`;
-  if (g === RELAY_G_PEER) return `${head} Ce code est celui d'une partie en connexion directe : l'hôte n'a joint aucun relais public, donc seuls les joueurs de son réseau Wi-Fi peuvent entrer. L'hôte doit attendre le nouveau code proposé dans son salon (nouvel essai toutes les 12 s), ou quitter le salon et recréer la partie.`;
+  if (g === RELAY_G_PEER) return `${head} L'hôte n'a joint aucun relais public : sa partie est en connexion directe, et la liaison directe entre vos deux appareils n'a pas abouti. C'est fréquent, même sur le même Wi-Fi (Wi-Fi invité, réseau d'école, box qui isole les appareils). Le plus sûr : connectez-vous tous les deux au partage de connexion 4G d'un téléphone, puis l'hôte recrée la partie. « Tester mon réseau » (des deux côtés) montre ce qui bloque.`;
   if (g === RELAY_G_ROOM) return `${head} Ce code est celui d'une partie hébergée dans la page claude.ai : elle ne se rejoint que depuis cette même page. Pour jouer entre amis, hébergez et rejoignez depuis ${PAGES_URL}`;
   if (!NET.relayReach && !window.claude) return `${head} Aucun relais public ne répond depuis votre réseau (pare-feu, VPN, bloqueur de publicités ou réseau d'école ?). Essayez un autre réseau, par exemple un partage de connexion 4G.`;
   return `${head} Vérifiez le code (il change si l'hôte recrée la partie) et que vous avez tous les deux la version ${GAME_VERSION} (affichée en bas du menu ; sinon Ctrl+F5).`;
@@ -10257,6 +10267,8 @@ const RELAY_NAMES = ['Mosquitto', 'EMQX', 'HiveMQ', 'Eclipse'];
 // Premier caractère du code : relais 0 à 3 (5 lettres chacun), salon Claude (6 lettres), connexion directe PeerJS (6 lettres).
 const RELAY_G_ROOM = 4, RELAY_G_PEER = 5;
 const RTC_ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, { urls: 'stun:stun.cloudflare.com:3478' }];
+// Relais TURN publics de PeerJS (ceux de sa configuration par défaut), plus leur variante TCP.
+const PEERJS_TURN = { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478', 'turn:eu-0.turn.peerjs.com:3478?transport=tcp', 'turn:us-0.turn.peerjs.com:3478?transport=tcp'], username: 'peerjs', credential: 'peerjsp' };
 
 // Petit client MQTT 3.1.1 (QoS 0) : connexion, abonnement, publication, maintien en vie.
 function mqttOpen(url, id, will, onMsg, onDown) {
@@ -10388,6 +10400,58 @@ const RTC = {
   },
 };
 
+/* ─── Diagnostic réseau (bouton « Tester mon réseau ») : ce qui passe et ce qui bloque, en clair ───
+   Relais publics un par un, serveur de la connexion directe (PeerJS), puis les adresses que le navigateur trouve pour une
+   liaison directe : locale (même réseau), publique (STUN, réseaux différents), relais TURN (quand le direct est impossible). */
+async function netDiagnose(draw) {
+  const rows = [], put = (i, st, t) => { rows[i] = [st, t]; draw(rows); };
+  const ms = (t0) => Math.round(performance.now() - t0) + ' ms', port = (u) => (u.match(/:(\d+)(?:\/|$)/) || [0, '443'])[1];
+  const relay = (k, i) => new Promise((res) => {
+    const name = `Relais ${RELAY_NAMES[k]} (port ${port(RELAYS[k])})`, t0 = performance.now(); let done = false, to = 0;
+    put(i, 'wait', name + ' : test…');
+    const fin = (ok, why) => { if (done) return; done = true; clearTimeout(to); try { cli.close(); } catch { /* fermé */ } put(i, ok ? 'ok' : 'ko', `${name} : ${ok ? 'joignable, ' + ms(t0) : why}`); res(ok); };
+    const cli = mqttOpen(RELAYS[k], 'diag' + Math.random().toString(36).slice(2, 9), null, () => {}, (w) => fin(false, w === 'refused' ? 'refuse la connexion' : 'injoignable'));
+    cli.onReady = () => fin(true); to = setTimeout(() => fin(false, 'pas de réponse en 8 s'), 8000);
+  });
+  const n = RELAYS.length, iPeer = n, iIce = n + 1;
+  const peer = (async () => {
+    put(iPeer, 'wait', 'Serveur de la connexion directe (PeerJS) : test…'); const t0 = performance.now();
+    try {
+      const Peer = await NET.loadLib();
+      return await new Promise((res) => {
+        const p = new Peer('snowfall-diag-' + Math.random().toString(36).slice(2, 10), NET.peerOptions()); let done = false;
+        const fin = (ok, why) => { if (done) return; done = true; clearTimeout(to); try { p.destroy(); } catch { /* fermé */ } put(iPeer, ok ? 'ok' : 'ko', `Serveur de la connexion directe (PeerJS) : ${ok ? 'joignable, ' + ms(t0) : why}`); res(ok); };
+        const to = setTimeout(() => fin(false, 'pas de réponse en 8 s'), 8000);
+        p.on('open', () => fin(true)); p.on('error', (e) => fin(false, 'erreur ' + (e?.type || '')));
+      });
+    } catch { put(iPeer, 'ko', 'Serveur de la connexion directe (PeerJS) : module injoignable'); return false; }
+  })();
+  const ice = new Promise((res) => {
+    put(iIce, 'wait', 'Liaison directe : recherche des adresses…'); const seen = { host: 0, mdns: 0, srflx: 0, relay: 0 };
+    let pc, done = false, to = 0;
+    const fin = () => {
+      if (done) return; done = true; clearTimeout(to); try { pc && pc.close(); } catch { /* fermé */ }
+      const ok = seen.host || seen.srflx || seen.relay;
+      put(iIce, ok ? 'ok' : 'ko', `Liaison directe : adresse locale ${seen.host ? '✔' : '✖'}${seen.mdns ? ' (masquée .local)' : ''} · publique (STUN) ${seen.srflx ? '✔' : '✖'} · relais TURN ${seen.relay ? '✔' : '✖'}`); res(seen);
+    };
+    try { pc = new RTCPeerConnection({ iceServers: [...RTC_ICE, PEERJS_TURN] }); } catch { put(iIce, 'ko', 'Liaison directe : non prise en charge par ce navigateur'); res(seen); return; }
+    pc.onicecandidate = (e) => { if (!e.candidate) { fin(); return; } const c = e.candidate.candidate || '', t = e.candidate.type || (/ typ (\w+)/.exec(c) || [])[1]; if (t in seen) seen[t]++; if (t === 'host' && /\.local/.test(c)) seen.mdns++; };
+    pc.createDataChannel('diag'); pc.createOffer().then((o) => pc.setLocalDescription(o)).catch(fin);
+    to = setTimeout(fin, 9000);
+  });
+  const okR = await Promise.all(RELAYS.map((_, k) => relay(k, k))), okP = await peer, s = await ice;
+  const reach = okR.map((ok, k) => (ok ? RELAY_NAMES[k] : null)).filter(Boolean);
+  const head = `Version ${GAME_VERSION} · ${new Date().toLocaleString('fr-FR')}. `;
+  if (!navigator.onLine) return head + 'Cet appareil est hors ligne.';
+  if (reach.length) return head + `✔ Le co-op en ligne marche depuis ce réseau (relais ${reach.join(', ')}) : vos amis peuvent vous rejoindre de n'importe où, s'ils ont eux aussi un relais joignable (qu'ils fassent le test).`;
+  let t = head + "✖ Aucun relais public ne répond : ce réseau, un antivirus ou un bloqueur filtre ces connexions (les ports autres que 443, sur les réseaux d'école ou d'entreprise et certaines box). ";
+  if (!okP) t += 'Le serveur de la connexion directe ne répond pas non plus : le co-op est impossible depuis ce réseau. ';
+  else if (s.relay) t += 'La connexion directe reste possible, même entre réseaux différents (relais TURN joignable). ';
+  else if (s.srflx) t += "La connexion directe ne marchera qu'entre appareils qui se voient (même Wi-Fi sans isolation des appareils, ou réseaux ouverts). ";
+  else t += "La connexion directe est bloquée elle aussi (UDP filtré) : seul un autre réseau marchera. ";
+  return t + 'Le plus sûr : connectez-vous tous au partage de connexion 4G d\'un téléphone (ou chacun à sa 4G), puis recréez la partie.';
+}
+
 
 // ───────────────────────── UI ─────────────────────────
 /* ═══════════════════ INTERFACE : menus, HUD, écrans ═══════════════════ */
@@ -10417,6 +10481,7 @@ const UI = {
       $('joinSubmit').disabled = false;
     };
     $('sessionCode').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+    $('netDiagBtn').onclick = $('netDiagBtn2').onclick = () => this.netDiag();
     $('copyCode').onclick = () => { const c = NET.code; try { navigator.clipboard.writeText(c).then(() => { $('copyCode').textContent = 'Copié'; setTimeout(() => ($('copyCode').textContent = 'Copier'), 1500); }, () => {}); } catch { /* presse-papiers indisponible */ } };
     $('startCoop').onclick = () => { if (NET.isHost) NET.startCoop(); };
     $('leaveLobby').onclick = () => { NET.leave(); $('lobby').classList.add('hidden'); $('joinPanel').classList.remove('hidden'); this.joinStatus("Laissez le code vide pour héberger une nouvelle partie, ou entrez le code d'un ami pour le rejoindre."); };
@@ -10483,6 +10548,14 @@ const UI = {
     if (t === 'none') el.className = 'header-status';
     el.querySelector('span').textContent = (NET.active ? (NET.isHost ? `PARTIE HÉBERGÉE · ${NET.code}` : `CONNECTÉ · ${NET.code}`) : !on ? 'HORS LIGNE · SOLO UNIQUEMENT' : 'CO-OP EN LIGNE DISPONIBLE') + ` · V${GAME_VERSION}`;
   },
+  // Diagnostic réseau : chaque ligne s'affiche dès que son test répond (capture d'écran à envoyer en cas de souci).
+  async netDiag() {
+    const box = $('netDiag'), list = $('netDiagList'), v = $('netDiagVerdict'); if (box.dataset.busy) return;
+    box.dataset.busy = '1'; box.classList.remove('hidden'); v.textContent = 'Tests en cours (10 s environ)…'; box.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    const draw = (rows) => { list.innerHTML = rows.filter(Boolean).map(([st, t]) => `<li class="${st}">${st === 'ok' ? '✔' : st === 'ko' ? '✖' : '…'} ${escapeHtml(t)}</li>`).join(''); };
+    try { v.textContent = await netDiagnose(draw); } catch (e) { v.textContent = 'Le test a échoué : ' + (e?.message || e); }
+    delete box.dataset.busy; box.scrollIntoView?.({ block: 'end', behavior: 'smooth' });
+  },
   joinStatus(t, err) { const s = $('joinStatus'); s.textContent = t; s.classList.toggle('error', !!err); },
   netError(e) { this.joinStatus('Erreur réseau : ' + (e?.type || 'inconnue') + '. Réessayez.', true); },
   lobby() {
@@ -10490,7 +10563,7 @@ const UI = {
     $('lobbyList').innerHTML = NET.lobby.map((p, i) => `<li>${escapeHtml(p.name)} <span>${i === 0 ? 'HÔTE' : 'PRÊT'}${p.id === P.id ? ' · VOUS' : ''}${i === 0 ? '' : NET.linkLabel(p.id)}</span></li>`).join('');
     $('startCoop').classList.toggle('hidden', !NET.isHost);
     // L'hôte doit savoir tout de suite si ses amis pourront entrer : connexion directe et salon Claude ont leurs limites.
-    const warn = NET.isHost && NET.via === 'peer' ? " ⚠ Aucun relais public n'a répondu depuis votre réseau : seuls les joueurs de votre Wi-Fi peuvent entrer avec ce code. Nouvel essai automatique toutes les 12 s — le code changera s'il réussit."
+    const warn = NET.isHost && NET.via === 'peer' ? " ⚠ Aucun relais public ne répond depuis votre réseau : vos amis n'entreront que si leur appareil joint le vôtre directement, ce qui échoue souvent, même sur le même Wi-Fi (Wi-Fi invité, réseau d'école, box qui isole les appareils). Le plus sûr : tous sur le partage de connexion 4G d'un téléphone. « Tester mon réseau » montre ce qui bloque. Nouvel essai des relais toutes les 12 s — le code changera s'il réussit."
       : NET.isHost && NET.via === 'room' ? ' ⚠ Partie hébergée dans la page claude.ai : vos amis doivent ouvrir cette même page. Pour jouer avec n\'importe qui, hébergez depuis ' + PAGES_URL : '';
     const found = NET.isHost && NET.relayFound ? ` Relais trouvé : NOUVEAU CODE ${NET.code}.` : '';
     $('lobbyStatus').textContent = (NET.isHost ? `Partagez le code ${NET.code} avec vos amis (4 joueurs max). Lancez quand tout le monde est là.` : "En attente du lancement par l'hôte…") + found + ` Liaison : ${NET.viaLabel()} · version ${GAME_VERSION}.` + warn + (NET.verWarn ? ' ' + NET.verWarn : '');

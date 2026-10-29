@@ -25,6 +25,7 @@ const UI = {
       $('joinSubmit').disabled = false;
     };
     $('sessionCode').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+    $('netDiagBtn').onclick = $('netDiagBtn2').onclick = () => this.netDiag();
     $('copyCode').onclick = () => { const c = NET.code; try { navigator.clipboard.writeText(c).then(() => { $('copyCode').textContent = 'Copié'; setTimeout(() => ($('copyCode').textContent = 'Copier'), 1500); }, () => {}); } catch { /* presse-papiers indisponible */ } };
     $('startCoop').onclick = () => { if (NET.isHost) NET.startCoop(); };
     $('leaveLobby').onclick = () => { NET.leave(); $('lobby').classList.add('hidden'); $('joinPanel').classList.remove('hidden'); this.joinStatus("Laissez le code vide pour héberger une nouvelle partie, ou entrez le code d'un ami pour le rejoindre."); };
@@ -91,6 +92,14 @@ const UI = {
     if (t === 'none') el.className = 'header-status';
     el.querySelector('span').textContent = (NET.active ? (NET.isHost ? `PARTIE HÉBERGÉE · ${NET.code}` : `CONNECTÉ · ${NET.code}`) : !on ? 'HORS LIGNE · SOLO UNIQUEMENT' : 'CO-OP EN LIGNE DISPONIBLE') + ` · V${GAME_VERSION}`;
   },
+  // Diagnostic réseau : chaque ligne s'affiche dès que son test répond (capture d'écran à envoyer en cas de souci).
+  async netDiag() {
+    const box = $('netDiag'), list = $('netDiagList'), v = $('netDiagVerdict'); if (box.dataset.busy) return;
+    box.dataset.busy = '1'; box.classList.remove('hidden'); v.textContent = 'Tests en cours (10 s environ)…'; box.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    const draw = (rows) => { list.innerHTML = rows.filter(Boolean).map(([st, t]) => `<li class="${st}">${st === 'ok' ? '✔' : st === 'ko' ? '✖' : '…'} ${escapeHtml(t)}</li>`).join(''); };
+    try { v.textContent = await netDiagnose(draw); } catch (e) { v.textContent = 'Le test a échoué : ' + (e?.message || e); }
+    delete box.dataset.busy; box.scrollIntoView?.({ block: 'end', behavior: 'smooth' });
+  },
   joinStatus(t, err) { const s = $('joinStatus'); s.textContent = t; s.classList.toggle('error', !!err); },
   netError(e) { this.joinStatus('Erreur réseau : ' + (e?.type || 'inconnue') + '. Réessayez.', true); },
   lobby() {
@@ -98,7 +107,7 @@ const UI = {
     $('lobbyList').innerHTML = NET.lobby.map((p, i) => `<li>${escapeHtml(p.name)} <span>${i === 0 ? 'HÔTE' : 'PRÊT'}${p.id === P.id ? ' · VOUS' : ''}${i === 0 ? '' : NET.linkLabel(p.id)}</span></li>`).join('');
     $('startCoop').classList.toggle('hidden', !NET.isHost);
     // L'hôte doit savoir tout de suite si ses amis pourront entrer : connexion directe et salon Claude ont leurs limites.
-    const warn = NET.isHost && NET.via === 'peer' ? " ⚠ Aucun relais public n'a répondu depuis votre réseau : seuls les joueurs de votre Wi-Fi peuvent entrer avec ce code. Nouvel essai automatique toutes les 12 s — le code changera s'il réussit."
+    const warn = NET.isHost && NET.via === 'peer' ? " ⚠ Aucun relais public ne répond depuis votre réseau : vos amis n'entreront que si leur appareil joint le vôtre directement, ce qui échoue souvent, même sur le même Wi-Fi (Wi-Fi invité, réseau d'école, box qui isole les appareils). Le plus sûr : tous sur le partage de connexion 4G d'un téléphone. « Tester mon réseau » montre ce qui bloque. Nouvel essai des relais toutes les 12 s — le code changera s'il réussit."
       : NET.isHost && NET.via === 'room' ? ' ⚠ Partie hébergée dans la page claude.ai : vos amis doivent ouvrir cette même page. Pour jouer avec n\'importe qui, hébergez depuis ' + PAGES_URL : '';
     const found = NET.isHost && NET.relayFound ? ` Relais trouvé : NOUVEAU CODE ${NET.code}.` : '';
     $('lobbyStatus').textContent = (NET.isHost ? `Partagez le code ${NET.code} avec vos amis (4 joueurs max). Lancez quand tout le monde est là.` : "En attente du lancement par l'hôte…") + found + ` Liaison : ${NET.viaLabel()} · version ${GAME_VERSION}.` + warn + (NET.verWarn ? ' ' + NET.verWarn : '');
