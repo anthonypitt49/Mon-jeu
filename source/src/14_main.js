@@ -88,6 +88,8 @@ function checkVersion() {
   }).catch(() => { /* hors ligne */ });
 }
 let last = performance.now();
+// Tests : ?norender fait tourner le jeu sans le dessiner (quatre joueurs sur une seule machine sans carte graphique).
+const NO_RENDER = new URLSearchParams(location.search).has('norender');
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
@@ -104,7 +106,7 @@ function frame(now) {
   Sfx.tickAmbience(dt, time);
   UI.tick(dt);
   dynamicResolution(dt);
-  renderFrame(time); R.frames = (R.frames || 0) + 1; // (images dessinées : le carton de lancement en attend quelques-unes)
+  if (!NO_RENDER) renderFrame(time); R.frames = (R.frames || 0) + 1; // (images dessinées : le carton de lancement en attend quelques-unes)
 }
 addEventListener('beforeunload', () => NET.leave(true));
 // Minuterie réseau indépendante de l'affichage. Onglet de l'hôte en arrière-plan : la partie continue

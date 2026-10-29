@@ -2,6 +2,8 @@
 // infectés ; on vérifie que chacun voit les trois autres là où ils sont, que la manche est la même partout, et qu'un
 // cinquième joueur est refusé pendant la partie (partie complète). Usage : node coop4.mjs [carte=cite]
 // Relais : local par défaut ; Q="nortc=1" IGNORE_CERTS=1 pour la vraie liste de relais publics, sans liaison directe.
+// (?norender : jeux non dessinés ; quatre jeux en rendu logiciel figeaient le conteneur, au point qu'un invité n'entendait
+// plus l'hôte pendant 8 s et prenait sa place)
 import { chromium } from 'playwright';
 import path from 'path';
 const dir = path.dirname(new URL(import.meta.url).pathname);
@@ -17,11 +19,8 @@ const mk = async (tag) => {
   await page.route('https://cdn.jsdelivr.net/npm/peerjs@1.5.5/**', (route) => route.fulfill({ path: path.join(dir, 'node_modules/peerjs/dist/peerjs.min.js'), contentType: 'application/javascript' }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
   await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
-  await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?' + (process.env.Q || 'relay=ws://127.0.0.1:8883&nortc=1') + '#carte=' + MAPID, { timeout: 300000 });
+  await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?' + (process.env.Q || 'relay=ws://127.0.0.1:8883&nortc=1') + '&norender#carte=' + MAPID, { timeout: 300000 });
   const t0 = Date.now(); await page.waitForFunction(() => window.__spReady, null, { timeout: 400000 }); console.log('page', tag, 'prête en', Math.round((Date.now() - t0) / 1000), 's');
-  // Quatre jeux en rendu logiciel figent ce conteneur (un invité qui n'entend plus l'hôte 8 s prend sa place) : affichage
-  // ralenti à 2,5 images/s, le test fait avancer le jeu lui-même (SP.sim) et le réseau a sa propre minuterie.
-  await page.evaluate(() => { window.requestAnimationFrame = (f) => setTimeout(() => f(performance.now()), 400); });
   return page;
 };
 const log = (...a) => console.log(...a);
