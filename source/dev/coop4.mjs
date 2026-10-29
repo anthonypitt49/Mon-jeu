@@ -18,7 +18,7 @@ const mk = async (tag) => {
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
   await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
   await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html?' + (process.env.Q || 'relay=ws://127.0.0.1:8883&nortc=1') + '#carte=' + MAPID, { timeout: 300000 });
-  await page.waitForFunction(() => window.__spReady, null, { timeout: 400000 });
+  const t0 = Date.now(); await page.waitForFunction(() => window.__spReady, null, { timeout: 400000 }); console.log('page', tag, 'prête en', Math.round((Date.now() - t0) / 1000), 's');
   // Quatre jeux en rendu logiciel figent ce conteneur (un invité qui n'entend plus l'hôte 8 s prend sa place) : affichage
   // ralenti à 2,5 images/s, le test fait avancer le jeu lui-même (SP.sim) et le réseau a sa propre minuterie.
   await page.evaluate(() => { window.requestAnimationFrame = (f) => setTimeout(() => f(performance.now()), 400); });
