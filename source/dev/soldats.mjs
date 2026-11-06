@@ -17,7 +17,7 @@ await page.route('https://cdn.jsdelivr.net/npm/n8ao@2.0.1/**', (route) => route.
 await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
 await page.goto((process.env.WEB || 'http://127.0.0.1:8088') + '/index.html#carte=' + id);
-await page.waitForFunction(() => window.__spReady, null, { timeout: 240000 });
+await page.waitForFunction(() => window.__spReady, null, { timeout: 400000 });
 await page.evaluate(() => document.querySelector('#soloButton').click());
 await page.waitForTimeout(1500);
 const n = await page.evaluate(() => {

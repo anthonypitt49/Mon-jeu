@@ -164,6 +164,11 @@ function gkArm(K, wrist, dir, p, len = 0.5) {
 // trig : l'index va sur la détente ; cup : main gauche en coupe par-dessus la droite (pistolet à deux mains).
 function gkGripHand(K, root, o) {
   const { d, y, ang = 0.3, R = 0.034, sx = 0.72, top = 0.012, n = 3, trig = true, thumb = true, cup = false, mirror = false, arm = [0.25, -0.5, 1] } = o;
+  if (GK_PROBE) { // relevé seulement : poignet de cette main (même calcul que plus bas), rien n'est construit
+    const h = new THREE.Object3D(); h.position.set(0, y, -d); h.rotation.x = -ang; if (mirror) h.scale.x = -1; h.updateMatrix();
+    GK_PROBE.push({ k: cup ? 'cup' : mirror ? 'vgrip' : 'grip', w: new THREE.Vector3((cup ? -1 : 1) * R * sx * 0.3, -top - 0.06, R * 0.75).applyMatrix4(h.matrix), arm, p: root });
+    return null;
+  }
   const h = new THREE.Group(); h.position.set(0, y, -d); h.rotation.x = -ang; if (mirror) h.scale.x = -1; root.add(h);
   const rr = cup ? R + 0.0125 : R, x0 = cup || mirror ? -1 : 1;
   for (let i = 0; i < n; i++) {
@@ -193,6 +198,7 @@ function gkGripHand(K, root, o) {
 // Main d'appui sous un garde-main horizontal : paume dessous, doigts remontant le flanc droit, pouce à gauche.
 function gkForeHand(K, root, o) {
   const { d, y, R = 0.03, sx = 0.85, arm = [-0.3, -0.55, 1] } = o;
+  if (GK_PROBE) { GK_PROBE.push({ k: 'fore', w: new THREE.Vector3(-R * 0.4, y - R - 0.02, -d + 0.07), arm, p: root }); return null; } // (relevé, voir gkGripHand)
   const h = new THREE.Group(); h.position.set(0, y, -d); root.add(h);
   const a0 = -Math.PI / 2 - 0.35, a1 = 0.55;
   for (let i = 0; i < 4; i++) {
@@ -464,11 +470,16 @@ const GUN_MODELS = {
   },
 };
 
+// Relevé des prises : quand GK_PROBE est un tableau, gkGripHand et gkForeHand y notent le poignet de chaque main (repère de
+// l'arme, ou de sa pièce mobile p) au lieu de construire les mains. Sert aux coéquipiers (09e_soldats.js) : leurs mains
+// vont exactement là où sont celles de la vue subjective.
+let GK_PROBE = null;
 // Construit une arme du nouvel atelier ; même contrat que buildGunModel (pièces mobiles et repères).
 function buildDetailedGun(key, upgraded, withHands) {
   const g = new THREE.Group(), parts = { root: g }, K = gunKit(g, upgraded);
   const r = GUN_MODELS[key](K, parts);
   if (withHands && r.hands) r.hands(g);
+  else if (r.hands) { GK_PROBE = []; try { r.hands(g); parts.holds = GK_PROBE; } finally { GK_PROBE = null; } }
   const moving = new Set(['mag', 'bolt', 'pump', 'slide', 'cyl', 'pan'].map((k) => parts[k]).filter(Boolean));
   for (const p of moving) gunMerge(p);
   gunMerge(g, moving);

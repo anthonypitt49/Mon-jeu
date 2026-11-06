@@ -703,7 +703,7 @@ function netZombieInterp(z, dt) {
 function remoteShot(pid, d) {
   const r = G.players.get(pid); const pos = _v1.set(d[0], d[1], d[2]);
   Sfx.gun(d[6], pos, false);
-  if (r?.avatar) r.avatar.flash = 0.05;
+  if (r?.avatar) { r.avatar.flash = 0.05; r.avatar.fireT = 2.5; r.avatar.kick = 1; }
   // Rayonneur d'un camarade : on trace son trait vert dans la direction où il vise.
   if (d[6] === 'ray' && r) {
     const yaw = r.yaw || 0, pitch = r.pitch || 0, o = new THREE.Vector3(r.pos.x, r.pos.y + 1.45, r.pos.z);
@@ -725,15 +725,12 @@ class Avatar {
     this.muz = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.sprites.muzzle, blending: THREE.AdditiveBlending, depthWrite: false })); this.muz.scale.set(0.5, 0.5, 1); this.muz.visible = false; R.scene.add(this.muz);
     this.pos = rec.pos.clone(); this.yaw = 0;
   }
+  // Arme du coéquipier : posée à chaque image par soldierHold (09e_soldats.js), crosse à l'épaule, mains sur ses prises.
   setGun(key) {
-    if (this.gun) this.bones[BN.chest].remove(this.gun);
-    this.gunKey = key; if (!WEAPONS[key]) { this.gun = null; return; }
+    if (this.gun) this.holder.remove(this.gun);
+    this.gunKey = key; if (!WEAPONS[key]) { this.gun = null; this.gunInfo = null; return; }
     const m = buildGunModel(key, false, false); this.gun = m.root; this.gunParts = m;
-    // Arme à la poitrine, côté droit ; prises dans le repère du torse (l'arme y est tournée d'un demi-tour) : poignée près
-    // de l'origine du modèle, garde-main vers le milieu du canon (pistolet : seconde main sous la première).
-    const gx = -0.1, gy = 0.04, gz = 0.17, L = m.len || 0.5;
-    this.gun.position.set(gx, gy, gz); this.gun.rotation.set(0, Math.PI, 0); this.bones[BN.chest].add(this.gun);
-    this.grip = new THREE.Vector3(gx, gy - 0.05, gz - 0.02); this.fore = L < 0.33 ? new THREE.Vector3(gx + 0.02, gy - 0.07, gz) : new THREE.Vector3(gx, gy - 0.03, gz + Math.min(0.26, L * 0.42));
+    this.gunInfo = soldierGunInfo(m); this.holder.add(this.gun);
   }
   update(dt) {
     const r = this.rec, b = r.net; this.t += dt;
@@ -745,9 +742,12 @@ class Avatar {
     this.phase += spd / 1.4 * Math.PI * dt;
     const h = this.holder; h.visible = !r.dead; h.position.copy(this.pos); h.rotation.set(0, this.yaw + Math.PI, 0);
     const down = r.down;
-    poseBody(this.bones, { phase: this.phase, run: (r.flags & 2) ? 0.6 : 0, lean: 0.04, reach: 0, attack: 0, tear: 0, crawl: false, rise: 1, headTilt: 0, t: this.t, limp: 0, hold: true, grip: this.grip, fore: this.fore, aim: tp, crouch: (r.flags & 1) ? 1 : 0, moving: clamp(spd / 2.5, 0, 1), jaw: 0 });
+    const pist = this.gunInfo?.pistol, rd = clamp(this.ready ?? 1, 0, 1);
+    poseBody(this.bones, { phase: this.phase, run: (r.flags & 2) ? 0.6 : 0, lean: 0.04, reach: 0, attack: 0, tear: 0, crawl: false, rise: 1, headTilt: 0, t: this.t, limp: 0, hold: true, grip: this.gun ? null : undefined, blade: pist ? 0.05 : lerp(0.3, 0.42, rd), cheek: pist ? 0 : rd, aim: tp, crouch: (r.flags & 1) ? 1 : 0, moving: clamp(spd / 2.5, 0, 1), jaw: 0 });
+    const held = soldierHold(this, dt, tp);
     if (!this.real && SREAL.state === 'on') this.useReal();
-    if (this.real) zrealPose(this);
+    if (this.real) { zrealPose(this); if (held) soldierRealIK(this); }
+    soldierBreath(this, dt);
     if (down) { h.rotation.x = -1.3; h.position.y += 0.2; }
     if (this.flash > 0 && this.gunParts) { this.flash -= dt; this.muz.visible = true; this.gunParts.muzzle.getWorldPosition(this.muz.position); this.muz.material.rotation = rand(TAU); } else this.muz.visible = false;
   }

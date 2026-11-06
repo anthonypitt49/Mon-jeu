@@ -46,10 +46,11 @@ async function zrealLoad(gl, base, id) {
 }
 // Matière du jeu à partir de celle du GLB. Le GLB range la découpe (cheveux, cils) dans la case « occlusion » : elle
 // redevient une découpe ici.
-function zrealMaterial(scene) {
+// who : 1 infecté, 0 soldat (intempéries de la carte, charCoat).
+function zrealMaterial(scene, who = 1) {
   let src = null; scene.traverse((o) => { if (o.isSkinnedMesh) src = o.material; });
   const map = settings.quality >= 2 ? src.map : zrealHalf(src.map);
-  return snowify(new THREE.MeshStandardMaterial({ map, normalMap: src.normalMap, normalScale: new THREE.Vector2(0.9, 0.9), alphaMap: src.aoMap, alphaTest: 0.5, roughness: 0.8, side: THREE.DoubleSide }), 0.12);
+  return charCoat(new THREE.MeshStandardMaterial({ map, normalMap: src.normalMap, normalScale: new THREE.Vector2(0.9, 0.9), alphaMap: src.aoMap, alphaTest: 0.5, roughness: 0.8, side: THREE.DoubleSide }), who);
 }
 // Graphismes « moyen » : couleur ramenée à 1024 px (moins de mémoire vidéo).
 function zrealHalf(t) {
@@ -64,6 +65,8 @@ function zrealTemplate(scene, mat, info) {
   scene.updateMatrixWorld(true);
   let mesh = null; scene.traverse((o) => { if (o.isSkinnedMesh) mesh = o; });
   mesh.material = mat; mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false;
+  // Intempéries (charCoat) : la verticale et l'échelle du modèle au repos, dans le repère de son maillage.
+  if (mat.userData.coat) { const c = mat.userData.coat; c.uCoatUp.value.set(0, 1, 0).transformDirection(new THREE.Matrix4().copy(mesh.matrixWorld).invert()); c.uCoatSc.value = new THREE.Vector3().setFromMatrixScale(mesh.matrixWorld).y; }
   const bones = {}; for (const b of mesh.skeleton.bones) bones[b.name] = b;
   const wq = (b) => b.getWorldQuaternion(new THREE.Quaternion()), wp = (b) => b.getWorldPosition(new THREE.Vector3());
   const K = {};

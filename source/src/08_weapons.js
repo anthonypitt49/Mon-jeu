@@ -138,6 +138,9 @@ function buildGunModel(key, upgraded = false, withHands = false) {
   const muzzle = new THREE.Object3D(); muzzle.position.set(0, sightY - 0.035, muzzleZ); g.add(muzzle); parts.muzzle = muzzle;
   const eject = new THREE.Object3D(); eject.position.set(0.03, 0.04, ejectZ); g.add(eject); parts.eject = eject;
   parts.sightY = sightY; parts.len = -muzzleZ;
+  // Prises des mains (poignets), comme le relevé des armes détaillées (08b_gunmodels.js) : coéquipiers.
+  const pist = key === 'pistol' || key === 'revolver';
+  parts.holds = [{ k: 'grip', w: new THREE.Vector3(grip[0] + 0.01, grip[1] - 0.07, grip[2] + 0.03), arm: [0.3, -0.45, 1], p: g }, { k: pist ? 'cup' : 'fore', w: new THREE.Vector3(fore[0] - 0.012, fore[1] - 0.055, fore[2] + 0.07), arm: [-0.3, -0.55, 1], p: g }];
   g.traverse((o) => { if (o.isMesh) { o.castShadow = !withHands; o.receiveShadow = !withHands; } });
   if (withHands) {
     // Gants et manches de capote.

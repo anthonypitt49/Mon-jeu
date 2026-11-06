@@ -17,12 +17,12 @@ await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '',
 await page.route('https://fonts.gstatic.com/**', (r) => r.abort());
 const t0 = Date.now();
 await page.goto('file://' + path.join(dir, 'index.html') + '#carte=' + id);
-await page.waitForFunction(() => window.__spReady || document.querySelector('#loadingLine span')?.textContent.includes('Impossible'), null, { timeout: 180000 });
+await page.waitForFunction(() => window.__spReady || document.querySelector('#loadingLine span')?.textContent.includes('Impossible'), null, { timeout: 400000 });
 if (!(await page.evaluate(() => !!window.__spReady))) { console.log('ÉCHEC', await page.evaluate(() => document.body.innerText.slice(0, 400))); for (const e of errors.slice(0, 8)) console.log(e.slice(0, 900)); process.exit(1); }
 console.log('ready in', ((Date.now() - t0) / 1000).toFixed(1), 's', 'map', await page.evaluate(() => SP.MAP_ID()));
 fs.mkdirSync(path.join(dir, 'shots'), { recursive: true });
 await page.waitForTimeout(800);
-await page.screenshot({ path: path.join(dir, 'shots', `${id}_menu.png`) });
+await page.screenshot({ path: path.join(dir, 'shots', `${id}_menu.png`), timeout: 240000 });
 const info = await page.evaluate(() => { const r = SP.R.renderer; SP.renderFrame(0); return { calls: r.info.render.calls, tris: r.info.render.triangles, geos: r.info.memory.geometries, tex: r.info.memory.textures, doors: SP.MAP.doors.length, bars: SP.MAP.barricades.length, props: SP.MAP.props.length }; });
 console.log('menu render', JSON.stringify(info));
 await page.evaluate(() => { document.querySelector('#soloButton').click(); });
@@ -36,7 +36,7 @@ for (let i = 0; i < views.length; i++) {
     SP.renderFrame(1); }, views[i]);
   await page.waitForTimeout(250);
   const st = await page.evaluate(() => { const r = SP.R.renderer; return { calls: r.info.render.calls, tris: r.info.render.triangles }; });
-  await page.screenshot({ path: path.join(dir, 'shots', `${id}_v${i}.png`) });
+  await page.screenshot({ path: path.join(dir, 'shots', `${id}_v${i}.png`), timeout: 240000 });
   console.log('view', i, JSON.stringify(st));
 }
 console.log('ERRORS', errors.length); for (const e of errors.slice(0, 12)) console.log(e.slice(0, 600));

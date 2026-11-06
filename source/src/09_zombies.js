@@ -344,12 +344,19 @@ function poseBody(b, p) {
   b[BN.thighL].rotation.set(-s * A - 0.04, 0, 0.03); b[BN.thighR].rotation.set(s * A * (1 - p.limp * 0.55) - 0.04, 0, -0.03);
   b[BN.shinL].rotation.x = kneeL; b[BN.shinR].rotation.x = kneeR * (1 - p.limp * 0.4);
   b[BN.footL].rotation.x = -kneeL * 0.35 + s * 0.2 * mv; b[BN.footR].rotation.x = -kneeR * 0.35 - s * 0.2 * mv + p.limp * 0.35;
-  if (p.crouch) { const k = p.crouch; b[BN.thighL].rotation.x -= 1.1 * k; b[BN.thighR].rotation.x -= 1.1 * k; b[BN.shinL].rotation.x += 1.7 * k; b[BN.shinR].rotation.x += 1.7 * k; b[BN.footL].rotation.x -= 0.5 * k; b[BN.footR].rotation.x -= 0.5 * k; b[BN.spine].rotation.x += 0.3 * k; }
+  if (p.crouch && p.hold) { // soldat accroupi : un genou à terre (le droit), pied gauche devant, buste penché sur l'arme
+    const k = p.crouch; b[BN.hips].position.y = lerp(b[BN.hips].position.y, 0.55, k); b[BN.hips].rotation.set(0, -0.35 * k, 0);
+    b[BN.thighR].rotation.set(-0.12 * k, 0, -0.05 * k); b[BN.shinR].rotation.x = 1.5 * k; b[BN.footR].rotation.x = -0.75 * k;
+    b[BN.thighL].rotation.set(-1.42 * k, 0.25 * k, 0.12 * k); b[BN.shinL].rotation.x = 1.38 * k; b[BN.footL].rotation.x = 0.04 * k;
+    b[BN.spine].rotation.x += 0.18 * k; b[BN.spine].rotation.y += 0.3 * k;
+  } else if (p.crouch) { const k = p.crouch; b[BN.thighL].rotation.x -= 1.1 * k; b[BN.thighR].rotation.x -= 1.1 * k; b[BN.shinL].rotation.x += 1.7 * k; b[BN.shinR].rotation.x += 1.7 * k; b[BN.footL].rotation.x -= 0.5 * k; b[BN.footR].rotation.x -= 0.5 * k; b[BN.spine].rotation.x += 0.3 * k; }
   // Bras.
   if (p.hold) { // soldat : arme tenue à deux mains, chaque main posée sur sa prise (poignée, garde-main)
-    const aim = p.aim || 0;
-    b[BN.spine].rotation.x += -aim * 0.3; b[BN.chest].rotation.x += -aim * 0.25; b[BN.head].rotation.x = -aim * 0.4 - 0.05;
-    armIK(b, BN.clavR, p.grip || HOLD_GRIP, -1); armIK(b, BN.clavL, p.fore || HOLD_FORE, 1);
+    const aim = p.aim || 0, bl = p.blade || 0, ck = p.cheek || 0;
+    b[BN.spine].rotation.x += -aim * 0.3; b[BN.chest].rotation.x += -aim * 0.25; b[BN.head].rotation.x = -aim * 0.4 - 0.05 + ck * 0.1;
+    // Tireur droitier : buste de trois quarts (épaule gauche en avant), regard qui reste droit devant, joue sur la crosse.
+    b[BN.spine].rotation.y -= bl * 0.4; b[BN.chest].rotation.y -= bl * 0.6; b[BN.neck].rotation.y += bl * 0.4; b[BN.head].rotation.y = bl * 0.6; b[BN.head].rotation.z = -ck * 0.16;
+    if (p.grip !== null) { armIK(b, BN.clavR, p.grip || HOLD_GRIP, -1); armIK(b, BN.clavL, p.fore || HOLD_FORE, 1); } // (null : bras posés ensuite, soldierHold)
     b[BN.handR].rotation.x = 0.25; b[BN.handL].rotation.x = 0.35;
   } else if (run > 0.5 && !p.reach) {
     b[BN.uArmL].rotation.set(s * 0.95 - 0.3, 0, 0.14); b[BN.uArmR].rotation.set(-s * 0.95 - 0.3, 0, -0.14);

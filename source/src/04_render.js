@@ -6,6 +6,50 @@ const MOON_DIR = new THREE.Vector3(-0.45, 0.62, -0.64).normalize();
 
 // Neige sur les faces tournées vers le ciel : injection dans les matériaux standards.
 const SNOW_UNI = { value: 1 };
+// Intempéries sur les personnages (infectés réalistes, soldats) : neige ou cendre posée sur les épaules, le casque et le
+// dessus des bras, neige, poussière ou boue aux pieds, tenue mouillée sous la pluie. Calculé sur la pose de repos du modèle
+// (normale et hauteur avant le squelette) : la couche reste sur le tissu quand le corps bouge, comme une vraie couche.
+// Par précipitation de la carte : [soldat, infecté] pour le dessus, le bas des jambes et la pluie.
+const CHAR_COAT = {
+  snow: { col: [0.86, 0.9, 0.97], top: [0.9, 0.5], foot: [0.78, 0.82, 0.88], low: [0.38, 0.28], wet: [0, 0] },
+  ash: { col: [0.6, 0.58, 0.56], top: [0.42, 0.3], foot: null, low: [0.5, 0.45], wet: [0, 0] },
+  rain: { col: [0.5, 0.5, 0.5], top: [0, 0], foot: [0.11, 0.09, 0.075], low: [0.45, 0.4], wet: [0.9, 0.8] },
+  dust: { col: null, top: [0.18, 0.14], foot: null, low: [0.6, 0.5], wet: [0, 0] },
+};
+function charCoat(mat, who /* 0 soldat, 1 infecté */) {
+  const E = M.env, C = CHAR_COAT[E.precip] || CHAR_COAT.snow, burst = E.burst || [0.6, 0.55, 0.5];
+  const U = mat.userData.coat = {
+    uCoatUp: { value: new THREE.Vector3(0, 1, 0) }, uCoatSc: { value: 1 },
+    uCoatCol: { value: new THREE.Color(...(C.col || burst)) }, uCoatFoot: { value: new THREE.Color(...(C.foot || burst)) },
+    uCoatTop: { value: C.top[who] * (E.precip === 'snow' ? E.snow ?? 1 : 1) }, uCoatLow: { value: C.low[who] }, uCoatWet: { value: C.wet[who] },
+  };
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, U);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform vec3 uCoatUp; uniform float uCoatSc; varying float vCoatUp; varying float vCoatW; varying float vCoatH; varying vec3 vCoatP;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCoatUp = dot(normalize(normal), uCoatUp); vCoatH = dot(position, uCoatUp) * uCoatSc; vCoatP = position * uCoatSc;')
+      .replace('#include <fog_vertex>', '#include <fog_vertex>\nvCoatW = normalize(transpose(mat3(viewMatrix)) * transformedNormal).y;'); // (verticale de la surface maintenant)
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+        uniform vec3 uCoatCol, uCoatFoot; uniform float uCoatTop, uCoatLow, uCoatWet; varying float vCoatUp; varying float vCoatW; varying float vCoatH; varying vec3 vCoatP;
+        float coH(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+        float coN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(coH(i), coH(i+vec2(1.,0.)), f.x), mix(coH(i+vec2(0.,1.)), coH(i+vec2(1.,1.)), f.x), f.y); }`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        // Amas (9 par mètre), saupoudrage (38 par mètre) et zones plus ou moins chargées (2 par mètre) : le tissu transparaît.
+        float coF = coN(vCoatP.xz * 38.0 + vCoatP.y * 11.0), coM = coN(vCoatP.xz * 9.0 + vCoatP.y * 3.1), coL = coN(vCoatP.xz * 2.2 + vCoatP.y * 1.3);
+        // Dessus au repos ET dessus maintenant : la couche tient sur les épaules et le casque, pas sous un bras levé.
+        float coUp = smoothstep(0.45, 0.85, vCoatUp + (coM - 0.5) * 0.4) * smoothstep(0.15, 0.6, vCoatW);
+        float coTop = coUp * clamp(smoothstep(0.44, 0.7, coM) * 0.75 + smoothstep(0.52, 0.74, coF) * 0.45, 0.0, 1.0) * mix(0.5, 1.0, coL) * uCoatTop;
+        float coLow = (1.0 - smoothstep(0.04, 0.24, vCoatH + (coM - 0.5) * 0.12)) * (0.4 + 0.6 * smoothstep(0.35, 0.65, coF)) * uCoatLow;
+        diffuseColor.rgb = mix(diffuseColor.rgb, uCoatFoot, coLow);
+        diffuseColor.rgb *= 1.0 - uCoatWet * 0.32;
+        diffuseColor.rgb = mix(diffuseColor.rgb, uCoatCol, coTop);`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        roughnessFactor = mix(roughnessFactor * (1.0 - uCoatWet * 0.55), 0.95, coTop);`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        normal = normalize(mix(normal, nonPerturbedNormal, coTop * 0.6)); // la couche adoucit les plis du tissu`);
+  };
+  mat.customProgramCacheKey = () => 'charcoat';
+  return mat;
+}
 function snowify(mat, amount = 1) {
   mat.userData.snow = amount;
   mat.onBeforeCompile = (sh) => {
