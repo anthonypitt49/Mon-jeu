@@ -28,7 +28,7 @@ await page.evaluate((rank) => {
 await page.waitForFunction(() => SP.SREAL.state !== 'loading' && SP.SREAL.state !== 'off', null, { timeout: 180000 });
 const res = await page.evaluate(async (coat) => {
   const { G, P, R } = SP; document.getElementById('hud').classList.add('hidden');
-  if (coat === '0') for (const t of Object.values(SP.SREAL.tpl)) { const c = t.mesh.material.userData.coat; if (c) { c.uCoatTop.value = 0; c.uCoatLow.value = 0; } } // (COAT=0 : sans intempéries)
+  if (coat === '0') for (const t of Object.values(SP.SREAL.tpl)) { const c = t.mesh.material.userData.coat; if (c) { c.uCoatTop.value = 0; c.uCoatLow.value = 0; c.uOutAmt.value = 0; } } // (COAT=0 : sans intempéries ni tenue de la carte)
   const M = SP.MAP, W = SP.MAPW(); let best = 0; for (let i = 0; i < M.edge.length; i++) if (M.edge[i] > M.edge[best] && !M.roof[i]) best = i;
   const cx = ((best % W) + 0.5) * 2, cz = (((best / W) | 0) + 0.5) * 2;
   P.pos.set(cx + 40, SP.groundAt(cx, cz), cz + 40); SP.updatePlayer(0.016); // (joueur loin, hors des vues)

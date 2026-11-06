@@ -13,8 +13,16 @@ const SNOW_UNI = { value: 1 };
 const CHAR_COAT = {
   snow: { col: [0.86, 0.9, 0.97], top: [0.9, 0.5], foot: [0.78, 0.82, 0.88], low: [0.38, 0.28], wet: [0, 0] },
   ash: { col: [0.6, 0.58, 0.56], top: [0.42, 0.3], foot: null, low: [0.5, 0.45], wet: [0, 0] },
-  rain: { col: [0.5, 0.5, 0.5], top: [0, 0], foot: [0.11, 0.09, 0.075], low: [0.45, 0.4], wet: [0.9, 0.8] },
+  rain: { col: [0.5, 0.5, 0.5], top: [0, 0], foot: [0.11, 0.09, 0.075], low: [0.45, 0.4], wet: [0.6, 0.8] },
   dust: { col: null, top: [0.18, 0.14], foot: null, low: [0.6, 0.5], wet: [0, 0] },
+};
+// Tenue des soldats adaptée à la carte : les tissus prennent la palette (sombre, clair) en gardant leur motif (clarté) ;
+// peau et noirs profonds (sangles, semelles) gardés. Manches et gants de la vue subjective : mêmes teintes (09e_soldats.js).
+const OUTFIT = {
+  poste7: { a: [0.36, 0.38, 0.4], b: [0.86, 0.88, 0.9], blot: [0.42, 0.44, 0.4], cut: 0.58, sleeve: 0xc4c8cc, glove: 0x3a3b3d }, // hiver : blanc, taches gris-vert
+  cite: { a: [0.34, 0.31, 0.22], b: [0.72, 0.67, 0.5], blot: [0.36, 0.27, 0.18], cut: 0.47, sleeve: 0xa99a76, glove: 0x6b5a44 }, // désert : kaki, taches brunes
+  penitencier: { a: [0.055, 0.06, 0.065], b: [0.28, 0.29, 0.31], blot: [0.12, 0.13, 0.15], cut: 0.6, sleeve: 0x2b2d30, glove: 0x161617 }, // nuit, pluie : sombre
+  filon: { a: [0.17, 0.14, 0.1], b: [0.5, 0.42, 0.3], blot: [0.24, 0.17, 0.11], cut: 0.52, sleeve: 0x6e5a40, glove: 0x3e2d1f }, // terre : brun, taches sombres
 };
 function charCoat(mat, who /* 0 soldat, 1 infecté */) {
   const E = M.env, C = CHAR_COAT[E.precip] || CHAR_COAT.snow, burst = E.burst || [0.6, 0.55, 0.5];
@@ -22,6 +30,8 @@ function charCoat(mat, who /* 0 soldat, 1 infecté */) {
     uCoatUp: { value: new THREE.Vector3(0, 1, 0) }, uCoatSc: { value: 1 },
     uCoatCol: { value: new THREE.Color(...(C.col || burst)) }, uCoatFoot: { value: new THREE.Color(...(C.foot || burst)) },
     uCoatTop: { value: C.top[who] * (E.precip === 'snow' ? E.snow ?? 1 : 1) }, uCoatLow: { value: C.low[who] }, uCoatWet: { value: C.wet[who] },
+    uOutA: { value: new THREE.Vector3(...(OUTFIT[MAP_ID]?.a || [0, 0, 0])) }, uOutB: { value: new THREE.Vector3(...(OUTFIT[MAP_ID]?.b || [0, 0, 0])) }, uOutAmt: { value: who === 0 && OUTFIT[MAP_ID] ? 0.9 : 0 },
+    uOutBlot: { value: new THREE.Vector3(...(OUTFIT[MAP_ID]?.blot || [0, 0, 0])) }, uOutBlotAmt: { value: OUTFIT[MAP_ID]?.blot ? 0.78 : 0 }, uOutCut: { value: OUTFIT[MAP_ID]?.cut ?? 0.58 },
   };
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
@@ -29,10 +39,22 @@ function charCoat(mat, who /* 0 soldat, 1 infecté */) {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCoatUp = dot(normalize(normal), uCoatUp); vCoatH = dot(position, uCoatUp) * uCoatSc; vCoatP = position * uCoatSc;')
       .replace('#include <fog_vertex>', '#include <fog_vertex>\nvCoatW = normalize(transpose(mat3(viewMatrix)) * transformedNormal).y;'); // (verticale de la surface maintenant)
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-        uniform vec3 uCoatCol, uCoatFoot; uniform float uCoatTop, uCoatLow, uCoatWet; varying float vCoatUp; varying float vCoatW; varying float vCoatH; varying vec3 vCoatP;
+        uniform vec3 uCoatCol, uCoatFoot, uOutA, uOutB, uOutBlot; uniform float uCoatTop, uCoatLow, uCoatWet, uOutAmt, uOutBlotAmt, uOutCut; varying float vCoatUp; varying float vCoatW; varying float vCoatH; varying vec3 vCoatP;
         float coH(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
         float coN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(coH(i), coH(i+vec2(1.,0.)), f.x), mix(coH(i+vec2(0.,1.)), coH(i+vec2(1.,1.)), f.x), f.y); }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
+        if (uOutAmt > 0.0) { // tenue de la carte (soldats)
+          vec3 cs = pow(max(diffuseColor.rgb, 0.0), vec3(0.4545));
+          vec4 hk = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0), hp = mix(vec4(cs.bg, hk.wz), vec4(cs.gb, hk.xy), step(cs.b, cs.g)), hq = mix(vec4(hp.xyw, cs.r), vec4(cs.r, hp.yzx), step(hp.x, cs.r));
+          float hd = hq.x - min(hq.w, hq.y), hue = abs(hq.z + (hq.w - hq.y) / (6.0 * hd + 1e-5)), sat = hd / (hq.x + 1e-5);
+          float skin = smoothstep(0.16, 0.28, sat) * smoothstep(0.28, 0.42, hq.x) * max(1.0 - smoothstep(0.075, 0.105, hue), smoothstep(0.94, 0.98, hue));
+          float ls = dot(cs, vec3(0.299, 0.587, 0.114));
+          vec3 oc = pow(mix(uOutA, uOutB, smoothstep(0.07, 0.5, ls)), vec3(2.2));
+          // (tenue de neige : taches irrégulières accrochées au tissu, repère de repos)
+          float blot = smoothstep(uOutCut - 0.03, uOutCut + 0.03, coN(vCoatP.xz * 4.2 + vCoatP.y * 2.1) * 0.7 + coN(vCoatP.xz * 12.0 + vCoatP.y * 5.3) * 0.3);
+          oc = mix(oc, pow(uOutBlot, vec3(2.2)) * (0.8 + 0.4 * ls), blot * uOutBlotAmt);
+          diffuseColor.rgb = mix(diffuseColor.rgb, oc, uOutAmt * (1.0 - skin) * smoothstep(0.025, 0.08, ls));
+        }
         // Amas (9 par mètre), saupoudrage (38 par mètre) et zones plus ou moins chargées (2 par mètre) : le tissu transparaît.
         float coF = coN(vCoatP.xz * 38.0 + vCoatP.y * 11.0), coM = coN(vCoatP.xz * 9.0 + vCoatP.y * 3.1), coL = coN(vCoatP.xz * 2.2 + vCoatP.y * 1.3);
         // Dessus au repos ET dessus maintenant : la couche tient sur les épaules et le casque, pas sous un bras levé.
@@ -43,7 +65,7 @@ function charCoat(mat, who /* 0 soldat, 1 infecté */) {
         diffuseColor.rgb *= 1.0 - uCoatWet * 0.32;
         diffuseColor.rgb = mix(diffuseColor.rgb, uCoatCol, coTop);`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = mix(roughnessFactor * (1.0 - uCoatWet * 0.55), 0.95, coTop);`)
+        roughnessFactor = mix(roughnessFactor * (1.0 - uCoatWet * 0.3), 0.95, coTop);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         normal = normalize(mix(normal, nonPerturbedNormal, coTop * 0.6)); // la couche adoucit les plis du tissu`);
   };

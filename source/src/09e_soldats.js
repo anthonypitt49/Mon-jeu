@@ -53,8 +53,8 @@ function soldierGrip(tpl) {
 function soldierTpl(i) { const s = SOLDATS[(i | 0) % SOLDATS.length]; return SREAL.tpl[s[0]] || Object.values(SREAL.tpl)[(i | 0) % Object.keys(SREAL.tpl).length]; }
 // Bras en vue subjective aux couleurs du soldat du joueur (manches et gants : matières partagées par toutes les armes).
 function soldierArms(i) {
-  const s = SOLDATS[(i | 0) % SOLDATS.length]; if (!GM.sleeve) return;
-  GM.sleeve.color.setHex(s[1]); GM.glove.color.setHex(s[2]); for (const [m, src] of VM.arms) m.color.copy(src.color); // (armes en main déjà construites : copies)
+  const s = SOLDATS[(i | 0) % SOLDATS.length], o = OUTFIT[MAP_ID]; if (!GM.sleeve) return;
+  GM.sleeve.color.setHex(o ? o.sleeve : s[1]); GM.glove.color.setHex(o ? o.glove : s[2]); // (tenue de la carte, comme les coéquipiers) for (const [m, src] of VM.arms) m.color.copy(src.color); // (armes en main déjà construites : copies)
 }
 
 /* ─── Arme d'un coéquipier : crosse à l'épaule, bras tendus jusqu'aux prises ───
