@@ -45,6 +45,7 @@ const PHOTO_SETS = {
     planks: { set: 'planks', uv: [2, 1.75] },
     boards: { set: 'planks', uv: [2, 2] },
     post: { set: 'planks', uv: [0.13, 2.8], rot: true },
+    postDry: { set: 'planks', uv: [0.13, 2.8], rot: true }, // (traverses de la galerie de la Sape)
     duck: { set: 'planks', uv: [0.95, 0.11] },
     sandbag: { set: 'burlap', uv: [0.6, 0.36], ns: 1.4, tm: 0.55 }, // toile de sac grossière : trame plus large que le tissu photographié
     metal: { set: 'tin', uv: [2, 1.8] },

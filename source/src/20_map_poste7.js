@@ -4,6 +4,38 @@
    · F la Sape (galerie de mine qui descend à −1,6 m, chambre de mine) · G la Ferme de Bellevue (grande cour à ciel ouvert)
    · H le Poste d'observation (plate-forme surélevée de 1,8 m). Décor des trois dernières : 20c_poste7_ext.js. */
 
+// Sols de la carte (voir floorH) : cuvette du Cratère, Sape, carrière, ferme au niveau de la plaine, plate-forme.
+const P7_SHAFT = [42, 75, 1.05]; // puits de lumière au sommet de la voûte, au milieu de la croisée des piliers (x, z, rayon)
+// Grand escalier de la carrière : 8 contremarches de 25 cm (du chœur à −0,8 m à la nef à −2,8 m), 7 marches de 40 cm. On
+// marche sur une pente droite qui passe au milieu des marches (±12 cm) ; le sol affiché (floorVis) passe sous les marches.
+const P7_STAIRS = { x0: 37.2, x1: 40, n: 7, rise: 0.25 };
+function p7Floor(x, z) {
+  let h = 0; const d = Math.hypot(x - 46, z - 32);
+  if (d < 7.4) { const k = 1 - d / 7.4; h = -1.05 * k * k * (3 - 2 * k) + (fbm(x * 0.7, z * 0.7, 2) - 0.5) * 0.12 * k; }
+  if (x > 60.5 && x < 65.5 && z > 56 && z < 75) h = Math.min(h, -1.6 * smooth(clamp((z - 62) / 8, 0, 1)));
+  if (z > 70.5 && z < 75.5 && x >= 47.5 && x < 65.5) h = Math.min(h, -1.6); // galerie ouest, jusqu'à la carrière
+  if (z > 66 && z < 84 && x >= 33.95 && x < 47.5) { // carrière : chœur, escalier (pente droite, voir P7_STAIRS), nef, remontée
+    const S = P7_STAIRS, run = (S.x1 - S.x0) / S.n, st = clamp((x - S.x0 + run / 2) / (run * (S.n + 1)), 0, 1), re = smooth(clamp((x - 44.5) / 3, 0, 1));
+    h = -0.8 - S.rise * (S.n + 1) * st + 1.2 * re;
+  }
+  if (z > 75.5 && z < 78.5 && x > 27 && x < 33.95) h = 2.5 - 3.3 * smooth(clamp((x - 28) / 6, 0, 1)); // escalier de la cave
+  if (x > 13.5 && x < 16.5 && z > 56 && z <= 64) h = WALL_H * smooth(clamp((z - 57.5) / 6.5, 0, 1)); // boyau de la ferme qui monte
+  if (x > 5.95 && x < 32.05 && z > 63.95 && z < 88.05 && !(x > 28 && z > 74 && z < 80)) { // cour de la ferme, au niveau de la plaine
+    h = WALL_H; const e = Math.hypot(x - 19.5, z - 70) / 3.2; if (e < 1) h -= 0.7 * (1 - e * e) * (1 - e * e); // trou d'obus (mare gelée)
+  }
+  if (x > 72 && x < 94 && z > 24 && z < 45) h = Math.max(h, 1.8 * smooth(clamp((x - 76.5) / 5, 0, 1)));
+  return h;
+}
+// Voûte de la carrière : la plus haute (2,3 m, juste sous la plaine) au-dessus de la nef, plus basse vers les parois ; 2,9 m
+// au-dessus du chœur, jamais moins de 2,1 m ; trou du puits de lumière (rien au-dessus : les balles et les grenades y passent).
+function p7Vault(x, z) { const f = p7Floor(x, z), e2 = ((x - 42) / 7.6) ** 2 + ((z - 75) / 7.6) ** 2; return clamp(Math.max(2.3 - 1.75 * e2, f + 2.9 - Math.max(0, x - 37) * 2), f + 2.1, 2.3); }
+function p7Roof(x, z) {
+  if (!(z > 66 && z < 84 && x >= 31.9 && x < 48.05)) return undefined;
+  if (x < 34) return Math.min(WALL_H - 0.08, p7Floor(x, z) + 2.45); // tunnel de la porte de la cave
+  if (Math.hypot(x - P7_SHAFT[0], z - P7_SHAFT[1]) < P7_SHAFT[2]) return 50;
+  return p7Vault(x, z);
+}
+
 // Interactions de la quête « Aube Blanche » (11b_quest.js et 11f_aube.js).
 const P7_QUEST_KINDS = ['radio', 'tube', 'calib', 'trap', 'geo', 'charge', 'plant', 'tag', 'well', 'digit', 'morse', 'detonate'];
 
@@ -54,10 +86,18 @@ MAPS.poste7 = {
     floor(31, 29, 31, 30, 5);
     floor(31, 31, 31, 35, 5, STYLE_SAPE, 1);
     floor(24, 36, 31, 36, 5, STYLE_SAPE, 1);
-    floor(17, 34, 23, 40, 5, STYLE_SAPE, 1);
-    // Zone G — la Ferme de Bellevue : boyau depuis la cour du dépôt, grande cour de ferme en ruine à ciel ouvert.
+    // La chambre de mine est une carrière de craie : chœur à −0,8 m (chapelle), grand escalier, nef à −2,8 m sous une voûte
+    // de 5 m percée d'un puits ; la porte de la galerie de la ferme (couverte) mène à l'escalier de la cave (20c_poste7_ext.js).
+    floor(17, 34, 23, 40, 5, STYLE_CRAIE, 1);
+    floor(16, 38, 16, 38, 5, STYLE_CRAIE, 1);
+    // Zone G — la Ferme de Bellevue : boyau qui remonte de la cour du dépôt jusqu'au sol, grande cour de ferme au niveau de la
+    // plaine, entourée de ses bâtiments ; à l'est, l'escalier de la cave (deux carreaux, entre deux ailes du logis) descend
+    // vers la Sape.
     floor(7, 29, 7, 31, 6);
-    floor(3, 32, 15, 43, 6, STYLE_YARD);
+    floor(3, 32, 13, 43, 6, STYLE_FERME);
+    floor(14, 32, 15, 36, 6, STYLE_FERME);
+    floor(14, 40, 15, 43, 6, STYLE_FERME);
+    floor(14, 38, 15, 38, 6, STYLE_FERME);
     // Zone H — le Poste d'observation : boyau derrière l'abri, rampe de terre qui monte, plate-forme surélevée.
     floor(37, 17, 40, 19, 7, STYLE_YARD);
     floor(41, 13, 45, 21, 7, STYLE_YARD);
@@ -131,27 +171,25 @@ MAPS.poste7 = {
       pl('dugout', 0xffb060, 9, 12, 68, 2.0, 38);
       pl('lantern', 0xffb060, 7, 11, 25, 1.9, 13.4);
       pl('bunker2', 0xff2a18, 0, 12, 12, 2.15, 34);
-      pl('mine', 0xffa850, 7, 14, 41, 0.2, 75); // chambre de mine (Sape)
-      pl('farm', 0xff8a3a, 16, 20, 18, 1.2, 77); // feu de la Ferme de Bellevue
+      pl('mine', 0xffa850, 9, 15, 36.2, 0.6, 71.6); // cierges de la chapelle (carrière de la Sape)
+      pl('farm', 0xff8a3a, 16, 20, 18, WALL_H + 1.2, 77); // feu de la Ferme de Bellevue
     }
   },
-  roofPosts: [[14, 30], [24, 30], [14, 34], [24, 34], [67, 37], [11, 51.5], [17, 51.5], [39, 72.5], [44, 72.5], [39, 78.5], [44, 78.5]],
+  roofPosts: [[14, 30], [24, 30], [14, 34], [24, 34], [67, 37], [11, 51.5], [17, 51.5]], // (carrière : piliers de craie, 20c_poste7_ext.js)
   decor() { buildProps(); buildCraterProps(); buildOutside(); buildQuestProps(); buildRobot(); buildPoste7Extras(); buildPoste7Expansion(); },
   // (plus de mottes à facettes, blanches ni brunes : la neige est dans le sol et le fond du Cratère est bosselé, voir buildTrenches)
   scatter: [{ kind: 'chip', styles: [0, 4], n: 0.6, color: 0x4a3a2a }, { kind: 'rock', ground: [1.2, 12], n: 0.2, color: 0x6a6a66, shadow: true, snow: 1 }],
   // Fond du Cratère en cuvette (≈ 1 m au centre), à niveau le long des parois et des passages.
-  // Sape : la galerie descend de 1,6 m entre z 62 et 70, file à l'ouest à cette profondeur, et la chambre de mine remonte
-  // au niveau des tranchées vers la galerie de la ferme (x < 38). Poste d'observation : la rampe de terre monte de 1,8 m
-  // entre x 76,5 et 81,5 jusqu'à la plate-forme.
-  floorH(x, z) {
-    let h = 0; const d = Math.hypot(x - 46, z - 32);
-    if (d < 7.4) { const k = 1 - d / 7.4; h = -1.05 * k * k * (3 - 2 * k) + (fbm(x * 0.7, z * 0.7, 2) - 0.5) * 0.12 * k; }
-    if (x > 60.5 && x < 65.5 && z > 56 && z < 75) h = Math.min(h, -1.6 * smooth(clamp((z - 62) / 8, 0, 1)));
-    if (z > 66 && z < 84 && x > 31 && x < 65.5) h = Math.min(h, -1.6 * smooth(clamp((x - 34) / 4, 0, 1)));
-    if (x > 72 && x < 94 && z > 24 && z < 45) h = Math.max(h, 1.8 * smooth(clamp((x - 76.5) / 5, 0, 1)));
-    { const e = Math.hypot(x - 19.5, z - 67) / 2.6; if (e < 1) h -= 0.5 * (1 - e * e) * (1 - e * e); } // trou d'obus dans la cour de la ferme
-    return h;
-  },
+  // Sape : la galerie descend de 1,6 m entre z 62 et 70 et file à l'ouest à cette profondeur ; la carrière (x 34 à 48) : chœur
+  // à −0,8 m à l'ouest, grand escalier jusqu'à la nef à −2,8 m, remontée à −1,6 m vers la galerie à l'est. Ferme : la cour est
+  // au niveau de la plaine (+2,5 m) ; son boyau monte depuis le dépôt (z 57,5 à 64) ; l'escalier de la cave descend de la
+  // cour au chœur (x 28 à 34). Poste d'observation : la rampe de terre monte de 1,8 m entre x 76,5 et 81,5.
+  floorH(x, z) { return p7Floor(x, z); },
+  // Sol affiché : sous les marches du grand escalier (dessinées à part), sinon le sol du jeu.
+  // (la pente du jeu déborde d'une demi-marche de chaque côté : là, le sol affiché reste au niveau du chœur ou de la nef)
+  floorVis(x, z) { const S = P7_STAIRS, hw = (S.x1 - S.x0) / S.n / 2; if (!(z > 66 && z < 84 && x > S.x0 - hw && x < S.x1 + hw)) return p7Floor(x, z); return x <= S.x0 ? -0.8 : x >= S.x1 ? -0.8 - S.rise * (S.n + 1) : -2.95; },
+  // Voûte de la carrière (le reste : plafond par défaut, 2,45 m au-dessus du sol).
+  roofH(x, z) { return p7Roof(x, z); },
   anim(dt, time) { robotAnim(dt, time); p7ExtAnim(dt, time); },
   onPower(on) {
     const L = R.lights;

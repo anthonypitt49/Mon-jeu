@@ -1,8 +1,8 @@
-/* ═══════════════════ POSTE 7 : LA SAPE, LA FERME DE BELLEVUE, LE POSTE D'OBSERVATION ═══════════════════
+/* ═══════════════════ POSTE 7 : LA FERME DE BELLEVUE, LE POSTE D'OBSERVATION ═══════════════════
    Agrandissement de la version 7.0 (grille et hauteurs du sol : 20_map_poste7.js ; parois, plafonds bas et rampes qui
-   suivent le sol : 05_world.js). La Sape est une galerie de mine boisée qui descend sous le no man's land vers une chambre
-   chargée d'explosifs ; la Ferme de Bellevue, une grande cour de ferme en ruine à ciel ouvert, où l'on entre de partout ;
-   le Poste d'observation, une plate-forme de terre surélevée d'où l'on voit tout le secteur.
+   suivent le sol : 05_world.js ; la Sape et sa carrière de craie : 20d_poste7_sape.js). La Ferme de Bellevue, une grande
+   cour de ferme en ruine à ciel ouvert, où l'on entre de partout ; le Poste d'observation, une plate-forme de terre
+   surélevée d'où l'on voit tout le secteur.
    Ruines de la ferme : des pans de mur isolés, jamais d'enclos (les infectés suivent la grille et glissent le long des
    obstacles : un recoin fermé les piégerait). */
 
@@ -13,44 +13,6 @@ function p7g(x, z, ry = 0) { const g = new THREE.Group(); g.position.set(x, floo
 const p7Box = (x, z, w, d, h, ry, mat, y0 = floorAt(x, z)) => MAP.props.push(propBox({ y0, y1: y0 + h, mat }, x, z, w, d, ry));
 // Terre en tas (la matière des parois attend leurs couleurs de sommets : sans elles, elle sortirait noire).
 let P7_DIRT = null; const p7Dirt = () => (P7_DIRT ||= stdMat({ color: 0x4a3c30, map: TEX.earth.map, normalMap: TEX.earth.normalMap, roughness: 1 }, 0.4));
-
-/* ─── La Sape ─── */
-function buildSape() {
-  signPost(62.4, 59, 0, ['LA SAPE', 'DÉFENSE DE FUMER']);
-  // Lampes pendues au plafond de la galerie et de la chambre (l'éclairage de la chambre : R.lights.mine).
-  WORLD.sapeLamps = [[63, 63.5], [63, 68.5], [60, 73], [54, 73], [49, 73], [37.5, 71], [45, 71], [37.5, 80], [45, 80]]
-    .map(([x, z]) => hangingLamp(x, roofAt(x, z) - 0.3, z, MATS.bulbWarm));
-  // Wagonnet sur la voie, chargé de terre.
-  { const g = p7g(56.5, 73, Math.PI / 2);
-    mesh(boxG(0.9, 0.55, 1.3), MATS.rust, 0, 0.55, 0, 0, g); mesh(boxG(0.8, 0.12, 1.2), p7Dirt(), 0, 0.8, 0, 0, g);
-    for (const [a, b] of [[-0.42, -0.45], [0.42, -0.45], [-0.42, 0.45], [0.42, 0.45]]) { const w = mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.06, 12), MATS.iron, a, 0.2, b, 0, g); w.rotation.z = Math.PI / 2; }
-    p7Box(56.5, 73, 0.95, 1.35, 0.85, Math.PI / 2, 'metal'); }
-  // Étais de bois en travers de la galerie (cadres de mine).
-  for (const [x, z, a] of [[63, 65.5, 0], [63, 70.5, 0], [57.5, 73, 1], [51.5, 73, 1]]) {
-    const r = roofAt(x, z), f = floorAt(x, z), g = p7g(x, z, a ? Math.PI / 2 : 0);
-    mesh(boxG(2.1, 0.18, 0.2), rawPost(), 0, r - f - 0.1, 0, 0, g);
-  }
-  // Chambre de mine : caisses d'explosif (ammonal) contre les parois, touret de câble, exploseur, poste d'écoute.
-  const amm = woodSign(['AMMONAL', '⚠ EXPLOSIF'], { w: 256, h: 128 });
-  const ammMat = new THREE.MeshStandardMaterial({ map: amm, roughness: 0.9 });
-  for (const [x, z, n] of [[35.3, 69.3, 3], [35.3, 74, 2], [47.2, 69.3, 3], [41, 69.2, 2]]) {
-    const f = floorAt(x, z);
-    for (let k = 0; k < n; k++) { const cx = x + (k % 2) * 0.85, cy = f + (k >> 1) * 0.55; crate(cx, z, 0, 1, cy); const lab = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), ammMat); lab.position.set(cx, cy + 0.3, z + 0.28); R.scene.add(lab); }
-  }
-  { const g = p7g(40.5, 81); const reel = mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.5, 18), rawWood(), 0, 0.45, 0, 0, g); reel.rotation.x = Math.PI / 2; p7Box(40.5, 81, 0.9, 0.5, 0.9, 0, 'wood'); }
-  { const g = p7g(46.2, 79.6, -Math.PI / 2); WORLD.sapeDetonator = g; // exploseur à poignée (la quête s'en servira)
-    mesh(boxG(0.4, 0.32, 0.3), rawWood(), 0, 0.16, 0, 0, g); mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.45, 8), MATS.iron, 0, 0.5, 0, 0, g); mesh(boxG(0.36, 0.04, 0.04), MATS.iron, 0, 0.72, 0, 0, g);
-    p7Box(46.2, 79.6, 0.4, 0.3, 0.75, 0, 'wood'); }
-  { const g = p7g(45.6, 70.2); // poste d'écoute : table, géophone, casque
-    mesh(boxG(1.2, 0.06, 0.6), rawWood(), 0, 0.8, 0, 0, g); for (const [a, b] of [[-0.55, -0.25], [0.55, -0.25], [-0.55, 0.25], [0.55, 0.25]]) mesh(boxG(0.06, 0.8, 0.06), rawPost(), a, 0.4, b, 0, g);
-    mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.12, 14), MATS.brass, -0.3, 0.89, 0, 0, g); mesh(new THREE.TorusGeometry(0.09, 0.015, 6, 16), MATS.iron, 0.2, 0.88, 0, 0, g).rotation.x = Math.PI / 2;
-    p7Box(45.6, 70.2, 1.2, 0.6, 0.9, 0, 'wood'); }
-  // Outils et seaux, éboulis de terre au fond.
-  for (const [x, z] of [[36, 77], [42.5, 75.5], [47, 76.5]]) { const g = p7g(x, z, rand(TAU)); mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.3, 12), MATS.iron, 0, 0.15, 0, 0, g); }
-  for (const [x, z] of [[35.8, 81], [37, 81.4], [47.5, 81.3]]) { const g = p7g(x, z); const m = mesh(new THREE.SphereGeometry(0.6, 9, 6, 0, TAU, 0, Math.PI / 2), p7Dirt(), 0, 0, 0, rand(TAU), g); m.scale.set(1.3, 0.6, 1); p7Box(x, z, 1.2, 1.2, 0.35, 0, 'earth'); }
-  { const g = p7g(33.2, 75.5, Math.PI / 2); for (const o of [-0.25, 0.25]) { const t = mesh(boxG(0.05, 1.3, 0.04), rawPost(), o, 0.65, 0, 0, g); t.rotation.z = o * 0.4; } } // pelles appuyées
-  poster(41.5, floorAt(41.5, 82) + 1.5, 81.9, Math.PI, 'SILENCE', 'ILS CREUSENT\nAUSSI', '#b9a37c');
-}
 
 /* ─── La Ferme de Bellevue ─── */
 function buildFerme() {
@@ -152,8 +114,9 @@ function flagTexture() {
   return textTexture(128, 84, (x, w, h) => { for (const [i, c] of ['#26407a', '#d9d4c4', '#a8302c'].entries()) { x.fillStyle = c; x.fillRect((i * w) / 3, 0, w / 3 + 1, h); }
     x.globalCompositeOperation = 'destination-out'; for (let k = 0; k < 7; k++) { x.beginPath(); x.arc(Math.random() * w, Math.random() * h, 2 + Math.random() * 5, 0, TAU); x.fill(); } });
 }
-// Le drapeau claque au vent (appelé par l'animation de la carte).
+// Animation de la carte : la Sape (cierges, seau, faisceau), le drapeau qui claque au vent.
 function p7ExtAnim(dt, time) {
+  sapeAnim(dt, time);
   const f = WORLD.obsFlag; if (!f) return;
   const pa = f.geometry.attributes.position; for (let i = 0; i < pa.count; i++) { const u = (pa.getX(i) + 0.6) / 1.2; pa.setZ(i, Math.sin(time * 5 + u * 5) * 0.12 * u); } pa.needsUpdate = true;
 }

@@ -112,6 +112,10 @@ const FLAT_TEX = {
   slab: { relief: 1.5, px(u, v, n) { const g = n(u, v, 5, 4), s = n(u + 4, v, 20, 3), k = 1.5, j = (u * k) % 1 < 0.008 || (v * k) % 1 < 0.008, wet = Math.max(0, n(u, v, 3, 3) - 0.55) * 1.4; const w = 0.44 + g * 0.1 + s * 0.05 - wet * 0.12 - (j ? 0.12 : 0); return [w, w * 1.01, w * 1.02, 0.5 + s * 0.3 - (j ? 0.3 : 0)]; } },
   // Bardeaux de toiture (teintés). (2 m)
   shingle: { relief: 4, px(u, v, n) { const rows = 10, r = Math.floor(v * rows), fv = v * rows - r, cols = 6, fu0 = u * cols + (r % 2) * 0.5, c = Math.floor(fu0), fu = fu0 - c, g = n(u, v, 10, 3); const w = (0.5 + hash2(c, r) * 0.15 + g * 0.12) * (0.6 + fv * 0.4) * (fu < 0.03 ? 0.5 : 1); return [w, w, w, fv]; } },
+  // Craie de Picardie (carrière de la Sape) : blanc crème, rognons de silex gris-noir à cortex blanc en lits espacés (parois),
+  // traces de pic par plaques, coulures d'ocre. (3 m) craieV : même craie sans lits de silex (voûte et sol).
+  craie: { relief: 3, px(u, v, n) { return craiePx(u, v, n, true); } },
+  craieV: { relief: 2.5, px(u, v, n) { return craiePx(u, v, n, false); } },
   // Grillage (canal alpha). (1 m)
   chain: { alpha: true, relief: 0.5, canvas(S) { return canvasPaint(S, (x) => {
     x.clearRect(0, 0, S, S); x.strokeStyle = 'rgba(170,175,180,1)'; x.lineWidth = Math.max(1.5, S / 110);
@@ -119,8 +123,24 @@ const FLAT_TEX = {
   }); } },
 };
 const FMATS = {};
+function craiePx(u, v, n, beds) {
+  const g = n(u, v, 5, 4), f = n(u + 7, v, 22, 3), big = n(u + 1.3, v + 2.1, 2, 3);
+  let w = 0.8 + g * 0.1 + f * 0.05 + (big - 0.5) * 0.1;
+  if (beds) {
+    // Deux lits de silex par répétition (un tous les 1,5 m) qui ondulent ; rognons arrondis de 5 à 15 cm, cortex blanc.
+    const lv = v * 2 + (n(u, v, 2, 2) - 0.5) * 0.25, d = Math.abs(lv - Math.round(lv)) * 1.5, nod = n(u + 3.1, v, 16, 3), rr = nod - 0.62 - d * 2.5;
+    if (rr > 0.045) { const k = 0.24 + n(u + 9, v, 60, 2) * 0.14 + (rr - 0.045) * 0.3; return [k, k * 1.04, k * 1.12, 0.3]; }
+    if (rr > 0) w = Math.min(1.02, w + 0.1);
+  }
+  // Traces de pic : courtes entailles parallèles en biais, par plaques.
+  const patch = n(u + 5, v + 5, 4, 2), a = u * 15 + v * 6, b = v * 10 - u * 3, ca = Math.floor(a), cb = Math.floor(b);
+  const groove = patch > 0.56 && a - ca < 0.09 && hash2(ca, cb) > 0.45;
+  if (groove) w -= 0.06 + (patch - 0.56) * 0.35;
+  const ochre = Math.max(0, n(u + 11, v, 3, 3) - 0.62) * 1.2;
+  return [w + ochre * 0.05, w * 0.98 - ochre * 0.03, w * 0.93 - ochre * 0.14, groove ? 0.2 : 0.45 + g * 0.45];
+}
 // Matière d'une carte de plain-pied : clé de texture + teinte ; échelle UV en mètres par répétition.
-const FLAT_SCALE = { brick: 1, siding: 2, plaster: 2, wallpaper: 1.2, victorian: 1.2, stone: 2.4, cellPaint: 3, rock: 4, westPlank: 2, tileWall: 1, checker: 1, asphalt: 4, sidewalk: 2, lawn: 2, sand: 6, parquet: 2, dirt: 4, slab: 3, shingle: 2, chain: 1 };
+const FLAT_SCALE = { craie: 3, craieV: 3, brick: 1, siding: 2, plaster: 2, wallpaper: 1.2, victorian: 1.2, stone: 2.4, cellPaint: 3, rock: 4, westPlank: 2, tileWall: 1, checker: 1, asphalt: 4, sidewalk: 2, lawn: 2, sand: 6, parquet: 2, dirt: 4, slab: 3, shingle: 2, chain: 1 };
 // Familles d'objets : une clé par vraie matière (bois de meuble, tissu, émail, tôle peinte…), pour que chacune reçoive
 // sa propre photo (PHOTO_SETS) et ne soit pas fusionnée avec une autre. [texture dessinée de repli, mètres par unité d'UV]
 const OBJ_FAM = {

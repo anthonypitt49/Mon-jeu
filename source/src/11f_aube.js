@@ -11,7 +11,7 @@
 const AUBE = {
   GEO: [45.6, 70.2], PICK: [41.4, 69.2], PLANT: [[13.4, 69.5], [46, 32], [87, 36.5]], PLANT_NAMES: ['sous la ferme (près du puits)', 'au fond du Cratère', 'sous la plate-forme d\'observation'],
   GRAVE: [29.6, 71.5], TAG: [29.2, 73.8], WELL: [11.5, 69.5], LAMP: [90.4, 38.4], DET: [46.2, 79.6], CRATER: [46, 32],
-  MARKS: [[41, 1.45, 12.12, 0], [10.12, 1.45, 33, Math.PI / 2], [38.06, 1.1, 34, Math.PI / 2], [44, null, 81.94, Math.PI]], // (paroi derrière chacun ; y null : sol de la chambre + 1,4)
+  MARKS: [[41, 1.45, 12.12, 0], [10.12, 1.45, 33, Math.PI / 2], [38.06, 1.1, 34, Math.PI / 2], [44, null, 81.975, Math.PI]], // (paroi derrière chacun ; y null : sol de la chambre + 1,4)
   GATE: { 8: 8, 12: 11, 13: 13 }, SOULS: 20, LISTEN: 8, MORSE: 6, FUSE: 60,
 };
 const AUBE_NAMES = { 6: 'Écouter au géophone de la chambre de mine', 7: "Poser les charges d'ammonal", 8: 'Nourrir les tombes de la ferme', 9: "Prendre la plaque d'identité", 10: 'Jeter la plaque dans le puits', 11: 'Relever les quatre chiffres', 12: 'Envoyer le message en morse', 13: 'Mise à feu : tenir la chambre de mine', 14: 'Abattre le Sapeur', 15: 'L\'aube se lève' };
@@ -262,7 +262,7 @@ function aubeVisuals(dt) {
   AUBE_FX.flick = Math.max(0, AUBE_FX.flick - dt);
   const fuse = Q.stage === 13 && Q.fuse > 0;
   if (WORLD.sapeLamps) for (const L of WORLD.sapeLamps) { const on = AUBE_FX.flick > 0 || fuse ? Math.random() > 0.35 : true; L.glow.material.opacity = on ? 0.8 : 0.1; }
-  if (R.lights.mine) R.lights.mine.intensity = (AUBE_FX.flick > 0 || fuse) && Math.random() < 0.4 ? 1.5 : 7;
+  if (R.lights.mine) R.lights.mine.intensity = (AUBE_FX.flick > 0 || fuse) && Math.random() < 0.4 ? 1.5 : 7 * (R.lights.mine.userData.flick ?? 1); // (flick : cierges qui vacillent, sapeAnim)
   // Charges posées : lampe rouge qui clignote ; emplacements visibles pendant l'étape 7.
   WORLD.aubePlants?.forEach((w, i) => { w.g.visible = Q.stage === 7 || (Q.stage >= 8 && Q.stage < 14 && Q.planted[i]); w.box.visible = !!Q.planted[i]; w.lamp.material.color.set(Math.sin(t * (fuse ? 14 : 4)) > 0 ? 0xff2010 : 0x300404); });
   if (Q.stage === 7) for (const [i, w] of (WORLD.aubePlants || []).entries()) if (!Q.planted[i] && Math.random() < dt * 3) FX.soft.spawn(w.g.position.x + rand(-0.4, 0.4), w.g.position.y + 0.05, w.g.position.z + rand(-0.4, 0.4), 0, rand(0.3, 0.8), 0, 1.5, 0.3, 0.5, 0.45, 0.4, 0.5, 0, 0.2, 0.4);

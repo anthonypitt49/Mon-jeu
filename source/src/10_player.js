@@ -13,7 +13,7 @@ const VM = { root: null, parts: null, key: null, up: false, flash: null, knife: 
 function resetLocalPlayer(spawn) {
   Object.assign(P, { frostT: 0, hp: DIFF().hp, maxHp: DIFF().hp, down: false, dead: false, bleed: 0, selfRevive: 0, perks: new Set(), weapons: [{ key: 'pistol', up: false, mag: 12, reserve: 60 }], slot: 0, grenades: 2, ads: 0, fireCd: 0, reload: null, cycleT: 0, switchT: 0, switchTo: -1, knifeT: 0, nadeT: 0, bloom: 0, stamina: 1, hurtT: 0, cherryCd: 0 });
   P.stats = { kills: 0, heads: 0, shots: 0, hits: 0, downs: 0 };
-  P.pos.set(tcx(spawn[0]), 0, tcx(spawn[1])); P.vel.set(0, 0, 0); P.yaw = SPOTS.startYaw; P.pitch = 0;
+  P.pos.set(tcx(spawn[0]), 0, tcx(spawn[1])); P.vel.set(0, 0, 0); P.yaw = SPOTS.startYaw; P.pitch = 0; P.ride = null;
   setViewmodel('pistol', false);
 }
 const curW = () => P.weapons[P.slot];
@@ -112,6 +112,11 @@ function updatePlayer(dt) {
   G.frostSlow = P.frostT > 0 ? 0.6 : 1;
   { const o = P.frostT > 0 ? Math.min(1, P.frostT / 1.2) : 0; if (Math.abs((UI.frostO || 0) - o) > 0.02 || (o === 0 && UI.frostO)) { UI.frostO = o; $('frostfx').style.opacity = o.toFixed(2); } }
 
+  // Trajet imposé (wagonnet de la Sape, nacelle du ballon, échelle de l'arbre-observatoire) : la position suit le trajet,
+  // le regard, l'arme et le tir restent libres. step(dt) rend false à l'arrivée.
+  const riding = !!P.ride && !P.down && !P.dead && P.ride.step(dt) !== false;
+  if (P.ride && !riding) { const r = P.ride; P.ride = null; r.end?.(); }
+  if (riding) { P.vel.set(0, 0, 0); P.onGround = true; P.sprint = false; P.crouch = damp(P.crouch, P.ride.crouch || 0, 12, dt); } else {
   // Déplacement.
   let mf = (key('KeyW') ? 1 : 0) - (key('KeyS') ? 1 : 0) - INPUT.touchMove.y, ms = (key('KeyD') ? 1 : 0) - (key('KeyA') ? 1 : 0) + INPUT.touchMove.x;
   const ml = Math.hypot(mf, ms); if (ml > 1) { mf /= ml; ms /= ml; }
@@ -138,6 +143,7 @@ function updatePlayer(dt) {
   if (P.pos.y <= ground) { if (!P.onGround && P.vel.y < -3) { P.land = Math.min(1, -P.vel.y / 9); stepSound(1.4); } P.pos.y = ground; P.vel.y = 0; P.onGround = true; } else if (P.pos.y > ground + 0.05) P.onGround = false;
   // Filet de sécurité : jamais hors des tranchées.
   if (!playerTile(tileOf(P.pos.x), tileOf(P.pos.z))) { const s = G.lastSafe || P.pos; P.pos.x = s.x; P.pos.z = s.z; } else G.lastSafe = P.pos.clone();
+  }
 
   // Pas et balancement.
   const hv = Math.hypot(P.vel.x, P.vel.z);
@@ -157,11 +163,11 @@ function updatePlayer(dt) {
 }
 function stepSound(loud) {
   const i = ti(tileOf(P.pos.x), tileOf(P.pos.z)), st = MAP.style[i];
-  const surf = M.stepSurface ? M.stepSurface(st) : st === STYLE_BUNKER ? 'concrete' : st === STYLE_DUGOUT ? 'wood' : (st === STYLE_YARD || st === STYLE_CRATER ? 'snow' : (Math.random() < 0.7 ? 'wood' : 'mud')); // tranchées : caillebotis ou boue
+  const surf = M.stepSurface ? M.stepSurface(st) : st === STYLE_BUNKER ? 'concrete' : st === STYLE_DUGOUT ? 'wood' : (st === STYLE_YARD || st === STYLE_CRATER || st === STYLE_FERME ? 'snow' : st === STYLE_CRAIE ? 'concrete' : (Math.random() < 0.7 ? 'wood' : 'mud')); // tranchées : caillebotis ou boue
   Sfx.step(surf, null, loud * (P.perks.has('sprint') ? 0.6 : 1));
   // Empreintes dans la neige (Poste 7) et la terre battue (Filon).
   // (Poste 7 : seulement les étendues de neige plates, ni les caillebotis des tranchées ni le relief bosselé du cratère.)
-  const soft = MAP_ID === 'poste7' ? st === STYLE_YARD : MAP_ID === 'filon' && surf === 'snow';
+  const soft = MAP_ID === 'poste7' ? st === STYLE_YARD || st === STYLE_FERME : MAP_ID === 'filon' && surf === 'snow';
   if (soft) { P.foot = -(P.foot || 1); addPrint(P.pos.x, P.pos.z, P.yaw, P.foot); }
 }
 

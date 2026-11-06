@@ -10,10 +10,13 @@ const T_SOLID = 0, T_FLOOR = 1, T_DOOR = 2, T_RAMP = 3, T_BLOCK = 4;
 const C_SURF = 0, C_TRENCH = 1, C_RAMP = 2, C_BLOCK = 3; // classes de déplacement des infectés
 let ZONE_NAMES = [];
 const STYLE_TRENCH = 0, STYLE_BUNKER = 1, STYLE_DUGOUT = 2, STYLE_YARD = 3, STYLE_CRATER = 4, STYLE_SAPE = 5; // styles des tranchées (Poste 7)
+// Carrière de craie (parois, voûte et sol sculptés par la carte : 20c_poste7_ext.js) et cour de ferme au niveau du sol (ni
+// parois ni habillage : les bâtiments de la carte en font le tour).
+const STYLE_CRAIE = 6, STYLE_FERME = 7;
 // Tranchées : hauteur du sol (M.floorH : cuvette du Cratère, galerie de la Sape qui descend, plate-forme du poste
 // d'observation) et plafond des abris couverts, 2,45 m au-dessus du sol mais jamais plus haut que la surface.
 const floorAt = (x, z) => (M.floorH ? M.floorH(x, z) : 0);
-const roofAt = (x, z) => Math.min(WALL_H - 0.08, floorAt(x, z) + 2.45);
+const roofAt = (x, z) => { const r = M.roofH ? M.roofH(x, z) : undefined; return r ?? Math.min(WALL_H - 0.08, floorAt(x, z) + 2.45); }; // (M.roofH : voûte propre à la carte)
 
 const MAP = { doors: [], barricades: [], zoneActive: [], props: [], hasEdges: false };
 let SPOTS = null;
@@ -386,7 +389,7 @@ function solidAt(x, y, z, phys) {
   if (t === T_BLOCK) return y < blockH(i) ? 'concrete' : null;
   if (t === T_RAMP) { const r = MAP.barricades[MAP.rampAt[i]]; return y < rampY(r, rampT(r, x, z)) - 0.02 ? 'earth' : null; }
   if (t === T_DOOR && !MAP.doors[MAP.doorAt[i]].open && inSlab(MAP.doors[MAP.doorAt[i]], x, z)) return y < WALL_H ? doorMat(MAP.doors[MAP.doorAt[i]]) : null;
-  if (y < floorAt(x, z)) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : MAP.style[i] === STYLE_CRATER || MAP.style[i] === STYLE_SAPE ? 'earth' : 'wood';
+  if (y < floorAt(x, z)) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : MAP.style[i] === STYLE_CRATER || MAP.style[i] === STYLE_SAPE ? 'earth' : MAP.style[i] === STYLE_CRAIE ? 'concrete' : MAP.style[i] === STYLE_FERME ? 'earth' : 'wood';
   if (MAP.roof[i]) { const ry = roofAt(x, z); if (y > ry - 0.04 && y < WALL_H + 0.5) return MAP.style[i] === STYLE_BUNKER ? 'concrete' : y < ry + 0.12 ? (MAP.style[i] === STYLE_SAPE ? 'wood' : 'metal') : 'earth'; } // (galerie basse : la terre jusqu'à la surface)
   return null;
 }
