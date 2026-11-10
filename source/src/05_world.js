@@ -485,9 +485,10 @@ function buildTrenches() {
       });
       if (style === STYLE_SAPE) { // voie de wagonnet : deux rails de fer sur traverses, dans l'axe de la galerie (pas dans la chambre)
         const n = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([a, b]) => isFloorish(x + a, z + b)).length;
-        if (n <= 2) {
+        if (n <= 2 && !M.trackSkip?.(x, z)) { // (M.trackSkip : carreau où la carte pose sa propre voie)
           const cx = x0 + TILE / 2, cz = z0 + TILE / 2, rot = ax ? Math.PI / 2 : 0;
-          for (const o of [-0.3, 0.3]) for (const k of [-0.5, 0.5]) { const qx = cx + (ax ? k : o), qz = cz + (ax ? o : k); B.mrails.add(qx, floorAt(qx, qz) + 0.06, qz, rot); }
+          // (galerie qui descend : chaque tronçon de rail suit la pente)
+          for (const o of [-0.3, 0.3]) for (const k of [-0.5, 0.5]) { const qx = cx + (ax ? k : o), qz = cz + (ax ? o : k), ux = ax ? 0.5 : 0, uz = ax ? 0 : 0.5, fA = floorAt(qx - ux, qz - uz), fB = floorAt(qx + ux, qz + uz); B.mrails.add(qx, (fA + fB) / 2 + 0.06, qz, rot, -Math.atan2(fB - fA, 1)); }
           for (let k = 0; k < 4; k++) { const o = -0.75 + k * 0.5, qx = cx + (ax ? o : 0), qz = cz + (ax ? 0 : o); B.sleepers.add(qx, floorAt(qx, qz) + 0.02, qz, rot + rand(-0.06, 0.06)); }
         }
       }

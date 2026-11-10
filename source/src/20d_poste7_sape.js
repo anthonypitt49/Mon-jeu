@@ -204,7 +204,7 @@ function carving(text, w, x, y, z, ry, op = 1, parent = R.scene) {
 
 /* ─── La galerie : cadres de mine, gaine d'aération, câbles, lampes ─── */
 function sapeGallery(SM) {
-  signPost(62.4, 59, 0, ['LA SAPE', 'DÉFENSE DE FUMER']);
+  signPost(62.2, 57.4, Math.PI / 2, ['LA SAPE', 'DÉFENSE DE FUMER']);
   const caps = new Batch(boxG(1.9, 0.16, 0.18), SM.wood), legs = new Batch(boxG(0.16, 1, 0.16), SM.wood), pipe = [];
   // Cadres tous les 1,3 m : chapeau et deux montants calés contre les parois (descente nord-sud, puis galerie est-ouest).
   const frame = (x, z, alongX) => {

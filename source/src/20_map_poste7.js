@@ -185,6 +185,8 @@ MAPS.poste7 = {
   // au niveau de la plaine (+2,5 m) ; son boyau monte depuis le dépôt (z 57,5 à 64) ; l'escalier de la cave descend de la
   // cour au chœur (x 28 à 34). Poste d'observation : la rampe de terre monte de 1,8 m entre x 76,5 et 81,5.
   floorH(x, z) { return p7Floor(x, z); },
+  // Coin de la galerie de la Sape : plaque tournante du wagonnet à la place des rails droits (20e_poste7_jeux.js).
+  trackSkip(x, z) { return x === 31 && z === 36; },
   // Sol affiché : sous les marches du grand escalier (dessinées à part), sinon le sol du jeu.
   // (la pente du jeu déborde d'une demi-marche de chaque côté : là, le sol affiché reste au niveau du chœur ou de la nef)
   floorVis(x, z) { const S = P7_STAIRS, hw = (S.x1 - S.x0) / S.n / 2; if (!(z > 66 && z < 84 && x > S.x0 - hw && x < S.x1 + hw)) return p7Floor(x, z); return x <= S.x0 ? -0.8 : x >= S.x1 ? -0.8 - S.rise * (S.n + 1) : -2.95; },
@@ -205,15 +207,15 @@ MAPS.poste7 = {
   },
   menuZombies: { n: 4, x: [20, 64], z: [-2, 4.5], bounds: [14, 70] },
   hooks: {
-    reset() { questReset(); supportReset(); },
-    host(dt) { questHost(dt); supportHost(dt); },
-    visuals(dt) { questVisuals(dt); supportVisuals(dt); },
-    apply(type, d) { return supportApply(type, d) || questApply(type, d); },
-    interact(pid, kind, id) { if (P7_QUEST_KINDS.includes(kind)) { questInteract(pid, kind, id); return true; } if (kind === 'mortar') { supportInteract(pid); return true; } return false; },
+    reset() { questReset(); supportReset(); sapeJeuxReset(); },
+    host(dt) { questHost(dt); supportHost(dt); sapeJeuxHost(dt); },
+    visuals(dt) { questVisuals(dt); supportVisuals(dt); sapeJeuxVisuals(dt); },
+    apply(type, d) { return supportApply(type, d) || sapeJeuxApply(type, d) || questApply(type, d); },
+    interact(pid, kind, id) { if (P7_QUEST_KINDS.includes(kind)) { questInteract(pid, kind, id); return true; } if (kind === 'mortar') { supportInteract(pid); return true; } if (kind === 'camouflet' || kind === 'wagon') { sapeJeuxInteract(pid, kind); return true; } return false; },
     kill(z) { aubeKill(z); },
     bossThink(z, dt) { aubeBossThink(z, dt); },
     bossDown(z) { aubeBossDown(z); },
-    candidates(cand, px, pz) { questCandidates(cand, px, pz); supportCandidates(cand, px, pz); },
+    candidates(cand, px, pz) { questCandidates(cand, px, pz); supportCandidates(cand, px, pz); sapeJeuxCandidates(cand, px, pz); },
     spawnFactor() { return questSpawnFactor(); },
     ping(pid, x, z) { supportPing(pid, x, z); },
   },

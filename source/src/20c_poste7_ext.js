@@ -6,7 +6,7 @@
    Ruines de la ferme : des pans de mur isolés, jamais d'enclos (les infectés suivent la grille et glissent le long des
    obstacles : un recoin fermé les piégerait). */
 
-function buildPoste7Expansion() { buildSape(); buildFerme(); buildObservation(); }
+function buildPoste7Expansion() { buildSape(); buildSapeJeux(); buildFerme(); buildObservation(); }
 
 // Objet posé sur le sol réel (galerie qui descend, plate-forme) : groupe à la bonne hauteur.
 function p7g(x, z, ry = 0) { const g = new THREE.Group(); g.position.set(x, floorAt(x, z), z); g.rotation.y = ry; R.scene.add(g); return g; }
